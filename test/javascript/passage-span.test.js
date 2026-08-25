@@ -1,10 +1,13 @@
 import assert from "node:assert/strict"
 import {
+  belongsToChapter,
+  hrefForSlug,
   normalizeSpan,
   passageLabel,
   rangeSlug,
   selectionFromDrag,
-  selectionFromTap
+  selectionFromTap,
+  slugLabel
 } from "../../app/javascript/lib/passage-span.js"
 
 {
@@ -26,6 +29,15 @@ import {
   assert.equal(rangeSlug("jhn.1", 7, 3), "jhn.1.3-7")
   assert.equal(rangeSlug("jhn.1", 8, 8), "jhn.1.8")
   assert.equal(passageLabel("John", 1, 3, 7), "John 1:3–7")
+}
+
+{
+  assert.equal(slugLabel("jhn.1.16"), "John 1:16")
+  assert.equal(slugLabel("jhn.1.3-7"), "John 1:3–7")
+  assert.equal(slugLabel("jhn.1"), "John 1")
+  assert.equal(hrefForSlug("jhn.1"), "/jhn.1?chapter_note=1")
+  assert.equal(belongsToChapter("jhn.1.16", "jhn.1"), true)
+  assert.equal(belongsToChapter("jhn.10.1", "jhn.1"), false)
 }
 
 console.log("passage-span: ok")

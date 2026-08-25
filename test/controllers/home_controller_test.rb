@@ -24,6 +24,7 @@ class HomeControllerTest < ActionDispatch::IntegrationTest
     get root_path
     assert_response :success
     assert_select "h1.topbar-title", "Notes"
+    assert_select "[data-inbox-signed-in-value='false']"
     assert_select ".inbox-empty", /No notes yet/
     assert_select "main.inbox-main form.jump input#q"
     assert_no_match %r{\Ahttp://www\.example\.com/jhn\.1}, response.headers["Location"].to_s

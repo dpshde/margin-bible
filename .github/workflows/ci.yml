@@ -18,6 +18,6 @@ jobs:
           node-version: 22
       - run: npm install
       - run: npm run build
-      - run: node --experimental-default-type=module test/javascript/outliner-blocks.test.js && node --experimental-default-type=module test/javascript/passage-span.test.js && node --experimental-default-type=module test/javascript/chapter-swipe.test.js
+      - run: node --experimental-default-type=module test/javascript/outliner-blocks.test.js && node --experimental-default-type=module test/javascript/passage-span.test.js && node --experimental-default-type=module test/javascript/chapter-swipe.test.js && node --experimental-default-type=module test/javascript/guest-pack.test.js
       - run: bin/rails db:test:prepare
       - run: bin/rails test

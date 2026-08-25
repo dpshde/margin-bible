@@ -52,6 +52,18 @@ export default class extends Controller {
     return isEmptyBlocks(this.blocks)
   }
 
+  applyBlocks(blocks) {
+    const incoming = Array.isArray(blocks) && blocks.length
+      ? blocks.map((block) => ({
+        id: block.id || this.element.dataset.emptyId || "b_empty",
+        indent: Number(block.indent) || 0,
+        text: String(block.text || "")
+      }))
+      : [{ id: this.element.dataset.emptyId || "b_empty", indent: 0, text: "" }]
+    this.blocks = incoming
+    this.render()
+  }
+
   focusLast() {
     const last = this.element.querySelector(".oblock:last-child .otext")
     last?.focus()

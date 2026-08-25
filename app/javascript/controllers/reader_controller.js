@@ -1,6 +1,20 @@
 import { Controller } from "@hotwired/stimulus"
 import { chapterSwipe } from "../lib/chapter-swipe"
-import { passageLabel, rangeSlug, selectionFromDrag, selectionFromTap } from "../lib/passage-span"
+import {
+  applyNoteToPack,
+  loadPack,
+  notesForChapter,
+  setLastRead,
+  shouldUseGuestPack,
+  writePack
+} from "../lib/guest-pack"
+import {
+  parseSlug,
+  passageLabel,
+  rangeSlug,
+  selectionFromDrag,
+  selectionFromTap
+} from "../lib/passage-span"
 
 export default class extends Controller {
   static targets = ["tray", "preview", "chapterTray", "rangeTemplate", "title"]
@@ -13,20 +27,42 @@ export default class extends Controller {
     bookLabel: String,
     chapter: Number,
     prevUrl: String,
-    nextUrl: String
+    nextUrl: String,
+    signedIn: Boolean
   }
 
   connect() {
     this.selection = this.initialSelection()
     this.onPointerMove = this.onPointerMove.bind(this)
     this.onPointerUp = this.onPointerUp.bind(this)
+    this.flushPending = this.flushPending.bind(this)
+    this.onVisibility = this.onVisibility.bind(this)
+    document.addEventListener("turbo:before-visit", this.flushPending)
+    window.addEventListener("pagehide", this.flushPending)
+    document.addEventListener("visibilitychange", this.onVisibility)
     if (this.selection) {
       this.verseEl(this.selection.start)?.scrollIntoView({ block: "center" })
+    }
+    if (this.guestSession) {
+      setLastRead(this.chapterSlugValue)
+      queueMicrotask(() => this.hydrateGuestNotes())
     }
   }
 
   disconnect() {
+    this.flushPending()
+    document.removeEventListener("turbo:before-visit", this.flushPending)
+    window.removeEventListener("pagehide", this.flushPending)
+    document.removeEventListener("visibilitychange", this.onVisibility)
     this.teardownPointer()
+  }
+
+  get guestSession() {
+    return shouldUseGuestPack(this.signedInValue)
+  }
+
+  onVisibility() {
+    if (document.visibilityState === "hidden") this.flushPending()
   }
 
   initialSelection() {
@@ -291,8 +327,52 @@ export default class extends Controller {
   autosave(event) {
     const host = event.currentTarget.closest(".outliner")
     if (!host) return
+    host._dirty = true
+    if (this.guestSession) {
+      this.saveGuest(host)
+      return
+    }
     clearTimeout(host._kvTimer)
-    host._kvTimer = setTimeout(() => this.save(host), 450)
+    host._kvTimer = setTimeout(() => {
+      host._kvTimer = null
+      this.save(host)
+      host._dirty = false
+    }, 450)
+  }
+
+  flushPending() {
+    if (this.guestSession) {
+      this.flushGuestPack()
+      return
+    }
+    this.element.querySelectorAll(".outliner").forEach((host) => {
+      if (host._kvTimer) {
+        clearTimeout(host._kvTimer)
+        host._kvTimer = null
+      }
+      if (!host._dirty) return
+      this.save(host)
+      host._dirty = false
+    })
+  }
+
+  flushGuestPack() {
+    const pack = loadPack()
+    let changed = false
+    this.element.querySelectorAll(".outliner").forEach((host) => {
+      const payload = this.outlinerPayload(host)
+      if (!payload) return
+      if (applyNoteToPack(pack, payload.slug, payload.blocks)) changed = true
+    })
+    if (changed) writePack(pack)
+  }
+
+  saveGuest(host) {
+    const payload = this.outlinerPayload(host)
+    if (!payload) return
+    const pack = loadPack()
+    if (applyNoteToPack(pack, payload.slug, payload.blocks)) writePack(pack)
+    this.markHostNote(host)
   }
 
   async save(host) {
@@ -306,6 +386,7 @@ export default class extends Controller {
     })
     const res = await fetch(this.notesUrlValue, {
       method: "PATCH",
+      keepalive: true,
       headers: {
         Accept: "application/json",
         "X-CSRF-Token": token,
@@ -315,9 +396,68 @@ export default class extends Controller {
     })
     if (!res.ok) return
     await res.json()
+    this.markHostNote(host)
+  }
+
+  markHostNote(host) {
     const verse = host.closest(".verse")
-    if (!verse) return
-    verse.classList.toggle("has-note", this.anyNoteText(verse))
+    if (verse) verse.classList.toggle("has-note", this.anyNoteText(verse))
+  }
+
+  hydrateGuestNotes() {
+    const pack = loadPack()
+    const notes = notesForChapter(this.chapterSlugValue, pack)
+    notes.forEach((note) => this.applyGuestNote(note))
+  }
+
+  applyGuestNote(note) {
+    const parsed = parseSlug(note.slug)
+    let tray = this.trayForSlug(note.slug)
+    if (!tray && parsed?.kind === "range") tray = this.materializeRangeTray(parsed, note.slug)
+    if (!tray && parsed?.kind === "chapter" && this.hasChapterTrayTarget) tray = this.chapterTrayTarget
+    if (!tray) return
+    this.applyBlocksWhenReady(tray, note)
+  }
+
+  applyBlocksWhenReady(tray, note, attempt = 0) {
+    const host = tray.querySelector(".outliner")
+    const controller = this.outlinerController(host)
+    if (!controller) {
+      if (attempt < 8) requestAnimationFrame(() => this.applyBlocksWhenReady(tray, note, attempt + 1))
+      return
+    }
+    controller.applyBlocks(note.blocks)
+    this.markGuestCoverage(note.slug)
+  }
+
+  markGuestCoverage(slug) {
+    const parsed = parseSlug(slug)
+    if (!parsed || parsed.kind === "chapter") return
+    const start = parsed.verseStart
+    const end = parsed.verseEnd || parsed.verseStart
+    for (let n = start; n <= end; n += 1) this.verseEl(n)?.classList.add("has-note")
+    const expand = this.element.querySelector("[data-action='click->reader#toggleExpand']")
+    if (expand) expand.disabled = false
+  }
+
+  trayForSlug(slug) {
+    const escaped = CSS.escape(slug)
+    return this.element.querySelector(`[data-note-slug="${escaped}"]`)
+      || this.element.querySelector(`[data-range-slug="${escaped}"]`)
+      || this.element.querySelector(`.outliner[data-slug="${escaped}"]`)?.closest(".note-tray, .chapter-tray")
+  }
+
+  materializeRangeTray(parsed, slug) {
+    const row = this.verseEl(parsed.verseEnd)
+    if (!row || !this.hasRangeTemplateTarget) return null
+    let tray = this.rangeTrayFor(row, slug)
+    if (tray) return tray
+    tray = this.buildRangeTray(slug, parsed.verseStart, parsed.verseEnd)
+    delete tray.dataset.ephemeral
+    tray.removeAttribute("data-ephemeral")
+    tray.dataset.noteSlug = slug
+    row.append(tray)
+    return tray
   }
 
   traysIn(verse) {
@@ -352,6 +492,7 @@ export default class extends Controller {
 
   visitChapter(url) {
     if (!url) return
+    this.flushPending()
     if (window.Turbo?.visit) window.Turbo.visit(url, { action: "advance" })
     else window.location.assign(url)
   }

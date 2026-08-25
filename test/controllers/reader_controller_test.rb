@@ -59,6 +59,7 @@ class ReaderControllerTest < ActionDispatch::IntegrationTest
   test "reads a chapter with pericope headings" do
     get read_path("jhn.1")
     assert_response :success
+    assert_select "[data-reader-signed-in-value='false']"
     assert_select "h2.section-head", "The Beginning"
     assert_select "h2.section-head", "The Witness of John"
     assert_select ".vtext", /beginning was the Word/
@@ -67,7 +68,7 @@ class ReaderControllerTest < ActionDispatch::IntegrationTest
   test "browser header is inbox, title, and one menu" do
     get read_path("jhn.1")
     assert_select "header.topbar" do
-      assert_select ".topbar-side a.inbox-link[href='/'][aria-label='Notes inbox']"
+      assert_select ".topbar-side a.inbox-link[href='/'][aria-label='Notes inbox'][data-action='click->reader#flushPending']"
       assert_select "h1.topbar-title", "John 1"
       assert_select ".topbar-actions details.topbar-menu", 1
       assert_select ".menu-item[data-action='click->reader#share']", "Share"

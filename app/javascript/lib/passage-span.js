@@ -1,3 +1,46 @@
+import { bookName } from "./book-names.js"
+
+const SLUG = /^([1-3]?[a-z]{2,3})\.(\d+)(?:\.(\d+)(?:-(\d+))?)?$/i
+
+export function parseSlug(slug) {
+  const match = String(slug || "").trim().match(SLUG)
+  if (!match) return null
+  const verseStart = match[3] ? Number(match[3]) : null
+  const verseEnd = match[4] ? Number(match[4]) : verseStart
+  let kind = "chapter"
+  if (verseStart != null && verseEnd != null && verseEnd !== verseStart) kind = "range"
+  else if (verseStart != null) kind = "verse"
+  return {
+    book: match[1].toLowerCase(),
+    chapter: Number(match[2]),
+    verseStart,
+    verseEnd,
+    kind
+  }
+}
+
+export function slugLabel(slug) {
+  const parsed = parseSlug(slug)
+  if (!parsed) return String(slug || "")
+  const name = bookName(parsed.book)
+  if (parsed.kind === "chapter") return `${name} ${parsed.chapter}`
+  return passageLabel(name, parsed.chapter, parsed.verseStart, parsed.verseEnd)
+}
+
+export function hrefForSlug(slug) {
+  const parsed = parseSlug(slug)
+  if (!parsed) return `/${slug}`
+  if (parsed.kind === "chapter") return `/${slug}?chapter_note=1`
+  return `/${slug}`
+}
+
+export function belongsToChapter(noteSlug, chapterSlug) {
+  const note = String(noteSlug || "")
+  const chapter = String(chapterSlug || "")
+  if (!note || !chapter) return false
+  return note === chapter || note.startsWith(`${chapter}.`)
+}
+
 export function normalizeSpan(start, end) {
   const lo = Math.min(Number(start), Number(end))
   const hi = Math.max(Number(start), Number(end))
