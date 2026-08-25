@@ -96,22 +96,49 @@ button, input, textarea { font: inherit; color: inherit; }
 
 .reader { max-width: var(--page-max); margin: 0 auto; padding: .75rem 1.1rem 6rem; }
 .jump { position: relative; margin: .4rem 0 1.2rem; }
-.jump input, .page input[type="email"], .page input[type="search"] {
+.jump input[type="search"] {
   width: 100%; border: 1px solid var(--line); background: var(--paper-raised);
-  border-radius: 999px; padding: .75rem 1rem;
+  border-radius: .5rem; padding: .6rem .8rem;
+  outline: none; box-shadow: none;
+}
+.jump input[type="search"]::-webkit-search-decoration { display: none; }
+.jump input[type="search"]:focus,
+.jump input[type="search"]:focus-visible {
+  outline: none; box-shadow: none;
+  border-color: color-mix(in srgb, var(--ink) 28%, transparent);
+}
+.jump.is-open input[type="search"],
+.jump:has(.suggest:not([hidden])) input[type="search"] {
+  border-radius: .5rem .5rem 0 0;
+  border-bottom-color: transparent;
+}
+.page input[type="email"], .page input[type="search"] {
+  width: 100%; border: 1px solid var(--line); background: var(--paper-raised);
+  border-radius: .55rem; padding: .75rem 1rem;
 }
 .suggest {
-  list-style: none; margin: .35rem 0 0; padding: 0;
-  position: absolute; left: 0; right: 0; z-index: 4;
-  background: var(--paper-raised); border: 1px solid var(--line); border-radius: .75rem;
-  overflow: hidden;
+  list-style: none; margin: 0; padding: .12rem 0 .2rem;
+  position: absolute; left: 0; right: 0; top: 100%; z-index: 4;
+  background: var(--paper-raised);
+  border: 1px solid var(--line); border-top: 0;
+  border-radius: 0 0 .5rem .5rem;
 }
+.suggest[hidden] { display: none; }
+.suggest li { margin: 0; }
 .suggest button {
-  display: block; width: 100%; text-align: left; padding: .7rem 1rem;
-  border: 0; background: transparent; border-bottom: 1px solid var(--line); cursor: pointer;
+  display: block; width: 100%; text-align: left;
+  padding: .42rem .8rem; border: 0; background: transparent; cursor: pointer;
+  font-size: .92rem; color: var(--ink-soft);
+  outline: none; box-shadow: none;
 }
-.suggest button:last-child { border-bottom: 0; }
-.suggest button:hover { background: var(--fill); }
+.suggest li + li button { box-shadow: inset 0 1px var(--line); }
+.suggest button:hover,
+.suggest button:focus,
+.suggest button:focus-visible,
+.suggest li[aria-selected="true"] button {
+  background: var(--fill); color: var(--ink);
+  outline: none; box-shadow: inset 0 1px var(--line);
+}
 
 .section-head {
   margin: 0 0 .35rem; padding: 0 .15rem;

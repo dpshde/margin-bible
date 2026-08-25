@@ -50,10 +50,14 @@
         type="search"
         autocomplete="off"
         placeholder="John 3:16"
+        role="combobox"
+        aria-autocomplete="list"
+        aria-expanded="false"
+        aria-controls="jump-suggest"
         data-search-target="input"
-        data-action="input->search#suggest"
+        data-action="input->search#suggest keydown->search#keydown"
       >
-      <ul class="suggest" data-search-target="list" hidden></ul>
+      <ul id="jump-suggest" class="suggest" data-search-target="list" role="listbox" hidden></ul>
     </form>
 
     <section class="chapter-tray" data-reader-target="chapterTray" <%= "hidden" unless params[:chapter_note] %>>

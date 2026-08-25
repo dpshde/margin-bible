@@ -43,7 +43,11 @@ class ReaderControllerTest < ActionDispatch::IntegrationTest
       assert_select "a", text: "Margin", count: 0
     end
     assert_select "header.topbar form.jump", count: 0
-    assert_select "main.reader form.jump"
+    assert_select "main.reader form.jump" do
+      assert_select "input#q[type=search][placeholder='John 3:16']"
+      assert_select "ul.suggest"
+      assert_select "button", text: /Search/, count: 0
+    end
   end
 
   test "hides the web topbar for a Hotwire Native client" do
