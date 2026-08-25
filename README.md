@@ -36,6 +36,8 @@ bin/rails server
 
 Open `/jhn.1`. Search “John 3:16”. Tap a verse.
 
+Preview on Vercel via `Dockerfile.vercel` (set `SECRET_KEY_BASE`).
+
 ## Layout
 
 ```text

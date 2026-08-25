@@ -1,0 +1,11 @@
+.git
+.github
+.bundle
+.cursor
+legacy
+node_modules
+log/*
+tmp/*
+storage/*
+!storage/.keep
+vendor/bundle
