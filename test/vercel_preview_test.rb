@@ -2,6 +2,7 @@
 
 require "test_helper"
 require "erb"
+require "json"
 require "yaml"
 
 class VercelPreviewTest < ActiveSupport::TestCase
@@ -42,6 +43,19 @@ class VercelPreviewTest < ActiveSupport::TestCase
     assert_match(/margin:seed_scripture/, dockerfile)
     assert_match(/PORT=80/, dockerfile)
     assert_match(%r{CMD \["/rails/bin/vercel-start"\]}, dockerfile)
+  end
+
+  test "vercel.json selects the Dockerfile.vercel container, not npm build" do
+    config = JSON.parse(Rails.root.join("vercel.json").read)
+    service = config.dig("services", "reader")
+
+    assert File.exist?(Rails.root.join("Dockerfile.vercel"))
+    assert_equal ".", service["root"]
+    assert_equal "Dockerfile.vercel", service["entrypoint"]
+    assert_equal "container", service["runtime"]
+    assert config["rewrites"].any? { |rule|
+      rule["source"] == "/(.*)" && rule.dig("destination", "service") == "reader"
+    }
   end
 
   test "vercel-start prepares db, seeds, and execs puma on PORT 80" do

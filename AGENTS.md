@@ -27,7 +27,7 @@ npm run build
 bin/rails margin:seed_scripture
 ```
 
-Preview: Vercel builds `Dockerfile.vercel` (set `SECRET_KEY_BASE`).
+Preview: Vercel builds `Dockerfile.vercel` via `vercel.json` (set `SECRET_KEY_BASE`).
 
 ## Touchpoints
 
