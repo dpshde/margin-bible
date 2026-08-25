@@ -30,6 +30,36 @@ class ReaderControllerTest < ActionDispatch::IntegrationTest
     assert_select ".vtext", /beginning was the Word/
   end
 
+  test "browser header is previous chapter, title, and one menu" do
+    get read_path("jhn.1")
+    assert_select "header.topbar" do
+      assert_select ".topbar-side"
+      assert_select "h1.topbar-title", "John 1"
+      assert_select ".topbar-actions details.topbar-menu", 1
+      assert_select ".menu-item[data-action='click->reader#share']", "Share"
+      assert_select ".menu-item[data-action='click->reader#toggleChapter']", "Chapter note"
+      assert_select ".menu-item[data-action='click->reader#toggleExpand']", "Expand notes"
+      assert_select "a.menu-item", "Sign in"
+      assert_select "a", text: "Margin", count: 0
+    end
+    assert_select "header.topbar form.jump", count: 0
+    assert_select "main.reader form.jump"
+  end
+
+  test "hides the web topbar for a Hotwire Native client" do
+    get read_path("jhn.1"), headers: { "User-Agent" => "Margin iOS; Hotwire Native iOS; Turbo Native iOS;" }
+    assert_response :success
+    assert_select "header.topbar", count: 0
+    assert_select "title", "John 1"
+    assert_select "main.reader form.jump"
+    assert_select ".vtext", /beginning was the Word/
+  end
+
+  test "hides the web topbar for a Turbo Native user agent" do
+    get read_path("jhn.1"), headers: { "User-Agent" => "Turbo Native iOS" }
+    assert_select "header.topbar", count: 0
+  end
+
   test "verse slug still opens the chapter" do
     get read_path("jhn.1.1")
     assert_response :success

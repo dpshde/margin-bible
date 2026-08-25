@@ -1,82 +1,89 @@
 <% content_for :title, @chapter.label %>
 
-<header class="topbar">
-  <div class="topbar-side">
-    <% if @prev %>
-      <%= link_to "‹ #{@prev.label}", read_path(@prev.slug), class: "ghost", data: { turbo_action: "advance" } %>
-    <% end %>
-  </div>
-  <h1 class="topbar-title"><%= @chapter.label %></h1>
-  <div class="topbar-actions">
-    <button type="button" class="icon-btn" data-action="click->reader#share" data-reader-route-bible-param="<%= @route_bible_url %>" title="Copy route.bible link" aria-label="Share passage">↗</button>
-    <button type="button" class="icon-btn <%= "is-on" if @chapter_note %>" data-action="click->reader#toggleChapter" title="Chapter note" aria-label="Chapter note">✎</button>
-    <button type="button" class="icon-btn" data-action="click->reader#toggleExpand" title="Expand notes" aria-label="Expand note previews" <%= "disabled" unless @notes_by_slug.any? %>>≡</button>
-    <%= link_to "Margin", root_path, class: "ghost quiet" %>
-    <%= link_to "Sign in", new_session_path, class: "ghost quiet" %>
-  </div>
-</header>
-
-<main
-  class="reader"
+<div
   data-controller="reader search"
   data-reader-focus-value="<%= @focus_verse %>"
   data-reader-chapter-slug-value="<%= @chapter.slug %>"
   data-reader-notes-url-value="<%= notes_path %>"
 >
-  <form class="jump" data-action="submit->search#go" data-turbo="false">
-    <label class="sr-only" for="q">Jump to passage</label>
-    <input
-      id="q"
-      name="q"
-      type="search"
-      autocomplete="off"
-      placeholder="John 3:16"
-      data-search-target="input"
-      data-action="input->search#suggest"
-    >
-    <ul class="suggest" data-search-target="list" hidden></ul>
-  </form>
-
-  <section class="chapter-tray" data-reader-target="chapterTray" <%= "hidden" unless params[:chapter_note] %>>
-    <p class="tray-label">Chapter note · <%= @chapter.label %></p>
-    <%= render "reader/note_editor", slug: @chapter.slug, note: @chapter_note, label: nil %>
-  </section>
-
-  <article class="chapter">
-    <% @verses.each do |verse| %>
-      <% vslug = @chapter.verse_slug(verse.verse) %>
-      <% note = @notes_by_slug[vslug] %>
-      <% open = @focus_verse == verse.verse %>
-      <div
-        class="verse <%= "has-note" if note %> <%= "is-open" if open %>"
-        id="v<%= verse.verse %>"
-        data-verse="<%= verse.verse %>"
-        data-slug="<%= vslug %>"
-      >
-        <% if verse.heading.present? %>
-          <h2 class="section-head <%= "spaced" if verse.verse > 1 %>"><%= verse.heading %></h2>
+  <% unless hotwire_native_app? %>
+    <header class="topbar">
+      <div class="topbar-side">
+        <% if @prev %>
+          <%= link_to "‹ #{@prev.label}", read_path(@prev.slug), class: "ghost", data: { turbo_action: "advance" } %>
         <% end %>
-        <button type="button" class="verse-press" data-action="click->reader#openVerse">
-          <span class="vnum"><%= verse.verse %></span>
-          <span class="vtext"><%= verse.text %></span>
-        </button>
-        <% if note && !open %>
-          <div class="rail" aria-hidden="true"></div>
-        <% end %>
-        <div class="note-tray" data-reader-target="tray" <%= "hidden" unless open %>>
-          <%= render "reader/note_editor", slug: vslug, note: note, label: nil %>
-        </div>
-        <div class="note-preview" data-reader-target="preview" hidden>
-          <% if note %>
-            <p class="preview-body"><%= wiki_note_html(note.body_text) %></p>
-          <% end %>
-        </div>
       </div>
-    <% end %>
-  </article>
+      <h1 class="topbar-title"><%= @chapter.label %></h1>
+      <div class="topbar-actions">
+        <details class="topbar-menu">
+          <summary class="icon-btn" title="Menu" aria-label="Menu">≡</summary>
+          <div class="menu-panel" onclick="if (event.target.closest('button, a')) this.closest('details').removeAttribute('open')">
+            <button type="button" class="menu-item" data-action="click->reader#share" data-reader-route-bible-param="<%= @route_bible_url %>">Share</button>
+            <button type="button" class="menu-item <%= "is-on" if @chapter_note %>" data-action="click->reader#toggleChapter">Chapter note</button>
+            <button type="button" class="menu-item" data-action="click->reader#toggleExpand" <%= "disabled" unless @notes_by_slug.any? %>>Expand notes</button>
+            <%= link_to "Sign in", new_session_path, class: "menu-item" %>
+          </div>
+        </details>
+      </div>
+    </header>
+  <% end %>
 
-  <nav class="pager">
-    <% if @prev %><%= link_to "← #{@prev.label}", read_path(@prev.slug) %><% end %>
-    <% if @next %><%= link_to "#{@next.label} →", read_path(@next.slug) %><% end %>
-  </nav>
-</main>
+  <main class="reader">
+    <form class="jump" data-action="submit->search#go" data-turbo="false">
+      <label class="sr-only" for="q">Jump to passage</label>
+      <input
+        id="q"
+        name="q"
+        type="search"
+        autocomplete="off"
+        placeholder="John 3:16"
+        data-search-target="input"
+        data-action="input->search#suggest"
+      >
+      <ul class="suggest" data-search-target="list" hidden></ul>
+    </form>
+
+    <section class="chapter-tray" data-reader-target="chapterTray" <%= "hidden" unless params[:chapter_note] %>>
+      <p class="tray-label">Chapter note · <%= @chapter.label %></p>
+      <%= render "reader/note_editor", slug: @chapter.slug, note: @chapter_note, label: nil %>
+    </section>
+
+    <article class="chapter">
+      <% @verses.each do |verse| %>
+        <% vslug = @chapter.verse_slug(verse.verse) %>
+        <% note = @notes_by_slug[vslug] %>
+        <% open = @focus_verse == verse.verse %>
+        <div
+          class="verse <%= "has-note" if note %> <%= "is-open" if open %>"
+          id="v<%= verse.verse %>"
+          data-verse="<%= verse.verse %>"
+          data-slug="<%= vslug %>"
+        >
+          <% if verse.heading.present? %>
+            <h2 class="section-head <%= "spaced" if verse.verse > 1 %>"><%= verse.heading %></h2>
+          <% end %>
+          <button type="button" class="verse-press" data-action="click->reader#openVerse">
+            <span class="vnum"><%= verse.verse %></span>
+            <span class="vtext"><%= verse.text %></span>
+          </button>
+          <% if note && !open %>
+            <div class="rail" aria-hidden="true"></div>
+          <% end %>
+          <div class="note-tray" data-reader-target="tray" <%= "hidden" unless open %>>
+            <%= render "reader/note_editor", slug: vslug, note: note, label: nil %>
+          </div>
+          <div class="note-preview" data-reader-target="preview" hidden>
+            <% if note %>
+              <p class="preview-body"><%= wiki_note_html(note.body_text) %></p>
+            <% end %>
+          </div>
+        </div>
+      <% end %>
+    </article>
+
+    <nav class="pager">
+      <% if @prev %><%= link_to "← #{@prev.label}", read_path(@prev.slug) %><% end %>
+      <% if @next %><%= link_to "#{@next.label} →", read_path(@next.slug) %><% end %>
+    </nav>
+  </main>
+</div>

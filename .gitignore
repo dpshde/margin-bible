@@ -26,3 +26,7 @@ legacy/mobile/.expo/
 legacy/mobile/dist/
 legacy/packs/
 legacy/node_modules/
+
+# Hotwire Native iOS
+ios/**/xcuserdata/
+ios/**/DerivedData/

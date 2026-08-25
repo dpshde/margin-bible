@@ -1,0 +1,30 @@
+{
+  "settings": {},
+  "rules": [
+    {
+      "patterns": [".*"],
+      "properties": {
+        "context": "default",
+        "presentation": "default",
+        "pull_to_refresh_enabled": true
+      },
+      "comment": "Default: web screen. Native title is the HTML <title> (chapter label)."
+    },
+    {
+      "patterns": ["^/$"],
+      "properties": {
+        "presentation": "replace_root"
+      },
+      "comment": "Root redirects to the last-read chapter; do not stack a blank home."
+    },
+    {
+      "patterns": ["^/[1-3]?[a-z]{2,3}\\.\\d+"],
+      "properties": {
+        "context": "default",
+        "presentation": "default",
+        "pull_to_refresh_enabled": true
+      },
+      "comment": "OSIS chapter routes (jhn.1, luk.24) advance as web screens. Title from chapter label."
+    }
+  ]
+}
