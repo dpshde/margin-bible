@@ -35,7 +35,9 @@ class VercelPreviewTest < ActiveSupport::TestCase
 
     assert_match(/ARG RUBY_VERSION=#{Regexp.escape(ruby_version)}/, dockerfile)
     assert_match(/FROM ruby:\$\{RUBY_VERSION\}/, dockerfile)
-    assert_match(/bundle install --without development test/, dockerfile)
+    assert_match(/bundle config set without ["']development test["']/, dockerfile)
+    assert_match(/bundle install/, dockerfile)
+    assert_no_match(/bundle install --without/, dockerfile)
     assert_match(/npm ci/, dockerfile)
     assert_match(/npm run build/, dockerfile)
     assert_match(/assets:precompile/, dockerfile)
