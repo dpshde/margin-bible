@@ -22,10 +22,12 @@ module ApplicationHelper
       target = Regexp.last_match(1)
       label = Regexp.last_match(2).presence || target
       passage = Margin::Passage.parse(target)
-      if links && passage
+      if passage && links
         %(<a href="#{read_path(passage.slug)}" class="wiki">#{label}</a>)
-      else
+      elsif passage
         label
+      else
+        "[[#{target}]]"
       end
     }
     html = html.gsub(/\u0000(\d+)\u0000/) { placeholders[Regexp.last_match(1).to_i] }
