@@ -1,0 +1,129 @@
+# keyverse
+
+> Pack format for OSIS-addressed scripture notes. Frictionlessness > portability > permanence.
+> The pack directory is the product; the HTTP door is an optional access surface.
+> Mobile (Expo RN) is the product client; web door is the multipack mirror.
+
+## Agents & deploy
+
+- Agent conventions: AGENTS.md
+- Host (Railway) + iOS TestFlight: docs/DEPLOY.md
+- TestFlight short path: mobile/docs/TESTFLIGHT.md
+- Host hardening: docs/PRODUCTION.md · self-host: docs/SELF_HOST.md
+
+## Protocol
+
+- Name: `keyverse`
+- Version: `0.2` (demo-era; expect breaking refinements before 1.0)
+- Normative: PROTOCOL.md
+- Layers: pack core vs door profiles (docs/adr/0014)
+- Ownership: docs/OWNERSHIP.md (export/import zip)
+- HTTP matrix: docs/API.md
+- Schemas: schemas/ (note, attachment, cipher, protocol)
+- Conformance: protocol/fixtures + `mix keyverse.conformance`
+- Manifest: pack/protocol.json → `{"protocol":"keyverse","version":"0.2"}`
+- Discovery: GET /{door}/api/protocol
+
+## Preferred integration: pack filesystem
+
+Multipack host root (`PACK_DIR`, default `./packs`):
+
+```
+packs/
+  {multiword-key}/        # one pack per key
+    protocol.json
+    door                  # same key (optional)
+    notes/<slug>.json
+    attachments/<sha256>
+  _cache/text/bsb/        # shared disposable scripture cache
+```
+
+Single pack (offline / import) is just that inner directory.
+
+- Address = canonical OSIS lowercased (slug). Example: John 3:16 → `JHN.3.16` → `jhn.3.16`.
+- Scope kinds: `verse` | `range` (same-chapter in v0.1) | `chapter`.
+- Note body: flat `blocks[]` of `{id, indent, text, collapsed?}`. Tree is projected from indent.
+- Legacy `body` string: hydrate to one block per line (indent = leading spaces / 2).
+- Attachments: `kind: file` (sha256 CAS) or `kind: url` (http/https).
+- Encryption (optional): `{encrypted:true, cipher:{v,alg,kdf,iter,salt,iv,ct}}`; blocks/attachments empty on disk.
+- Cipher plaintext is UTF-8 JSON `{"blocks":[…],"attachments":[…]}` (AES-256-GCM, PBKDF2-HMAC-SHA-256, 210000 iter).
+- Containment is computed from OSIS geometry — never merge/copy note bodies between addresses.
+- Passage share (door UX): default deep link is `/{door}/read/{slug}` (projected reader). Pack share is `/{door}/`. Knowing either URL is full pack access (no capability tokens in v0.2). See docs/adr/0019.
+- Mobile cloud mirror: local delete wins until door empty-PUT confirmed (pending tombstones; no stale quietSync re-push). See docs/adr/0021.
+
+## HTTP door (optional)
+
+`/{door}/…` selects the pack for that multiword key (create at `/setup`).  
+`DOOR_OPEN=1` uses one shared pack with no prefix (demo only).
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| GET | /api/protocol | Version + features |
+| GET | /api/notes | All notes (updated_at desc) |
+| GET | /api/resolve?q= | Human ref → `{kind,osis,slug}` |
+| GET | /api/suggest?q=&limit= | Passage autocomplete |
+| GET | /api/md/`<slug>` | Raw Markdown: chapter BSB + notes (verse expands to chapter) |
+| GET | /api/note/`<slug>` | Note JSON; `?raw` → text/plain (409 if sealed) |
+| PUT | /api/note/`<slug>` | Create/update/delete/seal |
+| POST | /api/note/`<slug>`/attachments | URL JSON or raw file (`X-Filename`) |
+| DELETE | /api/note/`<slug>`/attachments/`<id>` | Detach; optional `?sha256=` GC |
+| GET | /api/attachments/`<sha256>` | Blob bytes |
+| GET | /api/pack | Pack manifest (user-owned counts) |
+| GET | /api/pack/export | Zip export (notes+attachments only) |
+| POST | /api/pack/import | Zip import (`mode=merge|replace`) |
+| GET | /api/share-qr?origin=&path= | Door or deep-link SVG QR (`path` = `/`, `/note|read/<slug>`) |
+| OPTIONS | /api/* | CORS preflight → 204 |
+| GET | /sw.js | Service worker (root; PWA) |
+| GET | /manifest.webmanifest | Web app manifest |
+| GET | /icons/* | App icons |
+| GET | /offline | Offline fallback HTML |
+
+### PUT bodies
+
+- `text/plain` (or non-JSON): interchange text, 2 spaces = one indent. Empty → delete if no attachments.
+- `application/json` `{ "blocks":[…], "attachments"?: […] }` — omit attachments to preserve.
+- `application/json` `{ "encrypted": true, "cipher": {…} }` — seal.
+
+### CORS
+
+Default `Access-Control-Allow-Origin: *` on `/api/*`. Set `CORS_ORIGIN=off` to disable, or a comma-list of origins. Access control = knowing the door URL.
+
+## Must
+
+- Normalize human references before write (grab-bcv or GET /api/resolve).
+- Preserve surviving `blocks[].id` across edits.
+- Preserve `attachments` when only updating blocks (omit key on PUT).
+- Treat empty plaintext + no attachments as delete.
+- Ignore unknown JSON keys.
+- Keep passphrase client-side only (never send to server).
+- User owns pack data; export zip must omit disposable scripture cache.
+- Validate packs offline when possible (`mix keyverse.conformance` / schemas).
+
+## Must not
+
+- Absorb or reparent notes by containment.
+- Treat `text/` as user data.
+- Assume multi-writer merge / sync (undefined in v0.1).
+- Expect attachment *bytes* to be passphrase-encrypted (only note metadata is sealed).
+
+## Docs map
+
+- PROTOCOL.md — pack + door normative rules
+- docs/API.md — HTTP status/body matrix
+- docs/USAGE.md — human UI
+- docs/SELF_HOST.md — run/env/backup
+- docs/PRODUCTION.md — deploy hardening
+- docs/adr/ — architecture decisions
+- schemas/ — JSON Schema
+- README.md — quick start + curl
+
+## Example curl
+
+```sh
+DOOR=your-four-word-key
+BASE="http://localhost:4180/$DOOR"
+curl -s "$BASE/api/protocol"
+curl -s "$BASE/api/resolve?q=John+3:16"
+curl -s -X PUT "$BASE/api/note/jhn.3.16" -H 'content-type: application/json' \
+  -d '{"blocks":[{"id":"b1","indent":0,"text":"See [[John 3:17]]."}]}'
+```

@@ -1,0 +1,23 @@
+# Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+
+one:
+  library: one
+  slug: MyString
+  osis: MyString
+  kind: MyString
+  book: MyString
+  chapter: 1
+  verse_start: 1
+  verse_end: 1
+  blocks: 
+
+two:
+  library: two
+  slug: MyString
+  osis: MyString
+  kind: MyString
+  book: MyString
+  chapter: 1
+  verse_start: 1
+  verse_end: 1
+  blocks: 

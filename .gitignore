@@ -1,25 +1,27 @@
-node_modules/
-packs/
-# sample single-pack tree (repo demo notes; multipack host uses packs/)
-pack/text/
-pack/attachments/
-pack/door
-pack/notes/*.json
-!pack/notes/1jn.1.json
-!pack/notes/jhn.3.16.json
-!pack/notes/jhn.3.16-18.json
+# Rails
+/.bundle
+/log/*
+/tmp/*
+!/log/.keep
+!/tmp/.keep
+/storage/*
+!/storage/.keep
+/tmp/storage/*
+!/tmp/storage/.keep
+/db/*.sqlite3
+/db/*.sqlite3-*
+/config/master.key
+/config/*.key
+/app/assets/builds/*
+!/app/assets/builds/.keep
+/node_modules
+/vendor/bundle
 
-# Elixir
-_build/
-deps/
-*.ez
-.elixir_ls/
-
-# E2E / local artifacts
-.e2e-packs/
-artifacts/
-
-# Mobile (Expo)
-mobile/node_modules/
-mobile/.expo/
-mobile/dist/
+# Legacy Elixir / Expo (if someone installs inside legacy/)
+legacy/_build/
+legacy/deps/
+legacy/mobile/node_modules/
+legacy/mobile/.expo/
+legacy/mobile/dist/
+legacy/packs/
+legacy/node_modules/

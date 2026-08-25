@@ -1,0 +1,11 @@
+<% content_for :title, "Sign in" %>
+<main class="page">
+  <h1>Claim this library</h1>
+  <p>Magic link for margin.bible. No password. Notes you already wrote on this device stay put.</p>
+  <%= form_with url: session_path, method: :post do %>
+    <label class="sr-only" for="email">Email</label>
+    <input id="email" name="email" type="email" required autocomplete="email" placeholder="you@example.com">
+    <button type="submit" class="primary">Email me a link</button>
+  <% end %>
+  <p class="muted"><%= link_to "Back to reading", root_path %></p>
+</main>

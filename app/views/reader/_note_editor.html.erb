@@ -1,0 +1,13 @@
+<label class="sr-only" for="note-<%= slug %>"><%= label || "Note" %></label>
+<textarea
+  id="note-<%= slug %>"
+  class="note-input"
+  rows="3"
+  placeholder="Write a note…"
+  data-slug="<%= slug %>"
+  data-action="input->reader#autosave"
+><%= note&.body_text %></textarea>
+<p class="tray-meta">
+  Autosaves ·
+  <a href="<%= route_bible_url(slug) %>" target="_blank" rel="noreferrer">route.bible</a>
+</p>

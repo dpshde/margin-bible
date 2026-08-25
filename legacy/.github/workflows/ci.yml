@@ -1,0 +1,86 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Check (Elixir)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Elixir
+        uses: erlef/setup-beam@v1
+        with:
+          elixir-version: "1.17"
+          otp-version: "27"
+
+      - name: Cache deps and build
+        uses: actions/cache@v4
+        with:
+          path: |
+            deps
+            _build
+          key: ${{ runner.os }}-mix-${{ hashFiles('mix.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-mix-
+
+      - name: Install deps
+        run: mix deps.get
+
+      - name: Compile
+        run: mix compile --warnings-as-errors
+        env:
+          MIX_ENV: test
+
+      - name: Test
+        run: mix test
+        env:
+          MIX_ENV: test
+
+      - name: Protocol conformance (offline packs)
+        run: mix keyverse.conformance
+        env:
+          MIX_ENV: test
+          START_SERVER: "false"
+
+      - name: Smoke boot
+        run: |
+          set -euo pipefail
+          export MIX_ENV=prod
+          export HOST=127.0.0.1
+          export PORT=4180
+          export PACK_DIR="${RUNNER_TEMP}/keyverse-packs"
+          export DOOR_OPEN=1
+          export FATHOM_SITE=off
+          mkdir -p "$PACK_DIR"
+          mix deps.get
+          mix compile
+          mix run --no-halt &
+          pid=$!
+          trap 'kill $pid 2>/dev/null || true' EXIT
+          for i in $(seq 1 60); do
+            if curl -sf "http://127.0.0.1:4180/health" >/dev/null; then
+              break
+            fi
+            sleep 0.25
+          done
+          curl -sf "http://127.0.0.1:4180/health" | tee /tmp/health.json
+          grep -qE '"ok"[[:space:]]*:[[:space:]]*true' /tmp/health.json
+          grep -qE '"host"[[:space:]]*:[[:space:]]*"elixir"' /tmp/health.json
+          code_manifest=$(curl -sf -o /dev/null -w '%{http_code}' "http://127.0.0.1:4180/manifest.webmanifest")
+          code_sw=$(curl -sf -o /dev/null -w '%{http_code}' "http://127.0.0.1:4180/sw.js")
+          code_icon=$(curl -sf -o /dev/null -w '%{http_code}' "http://127.0.0.1:4180/icons/icon-192.png")
+          code_outliner=$(curl -sf -o /dev/null -w '%{http_code}' "http://127.0.0.1:4180/outliner.js")
+          test "$code_manifest" = "200"
+          test "$code_sw" = "200"
+          test "$code_icon" = "200"
+          test "$code_outliner" = "200"
