@@ -23,6 +23,12 @@ class ApplicationHelperTest < ActionView::TestCase
     refute_includes html, 'class="wiki"'
   end
 
+  test "wiki_note_html can render wiki labels without nested links" do
+    html = wiki_note_html("See [[jhn.1.6|John]]", links: false)
+    assert_includes html, "John"
+    refute_includes html, "<a"
+  end
+
   test "wiki_note_html escapes html and keeps unknown wiki raw" do
     html = wiki_note_html("<em>x</em> and [[not-a-passage]]")
     assert_includes html, "&lt;em&gt;x&lt;/em&gt;"

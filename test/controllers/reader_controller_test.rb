@@ -30,10 +30,10 @@ class ReaderControllerTest < ActionDispatch::IntegrationTest
     assert_select ".vtext", /beginning was the Word/
   end
 
-  test "browser header is previous chapter, title, and one menu" do
+  test "browser header is inbox, title, and one menu" do
     get read_path("jhn.1")
     assert_select "header.topbar" do
-      assert_select ".topbar-side"
+      assert_select ".topbar-side a.inbox-link[href='/'][aria-label='Notes inbox']"
       assert_select "h1.topbar-title", "John 1"
       assert_select ".topbar-actions details.topbar-menu", 1
       assert_select ".menu-item[data-action='click->reader#share']", "Share"
@@ -62,6 +62,12 @@ class ReaderControllerTest < ActionDispatch::IntegrationTest
   test "hides the web topbar for a Turbo Native user agent" do
     get read_path("jhn.1"), headers: { "User-Agent" => "Turbo Native iOS" }
     assert_select "header.topbar", count: 0
+  end
+
+  test "reader exposes prev and next chapter urls for swipe" do
+    get read_path("jhn.1")
+    assert_select "[data-reader-prev-url-value='/luk.24']"
+    assert_select "[data-reader-next-url-value='/jhn.2']"
   end
 
   test "verse slug still opens the chapter" do

@@ -20,6 +20,7 @@ export default class extends Controller {
   }
 
   keydown(event) {
+    if (event.target !== this.inputTarget) return
     if (this.listTarget.hidden) return
     const items = [...this.listTarget.querySelectorAll("li")]
     if (!items.length) return

@@ -1,4 +1,5 @@
 import { Controller } from "@hotwired/stimulus"
+import { chapterSwipe } from "../lib/chapter-swipe"
 import { passageLabel, rangeSlug, selectionFromDrag, selectionFromTap } from "../lib/passage-span"
 
 export default class extends Controller {
@@ -10,7 +11,9 @@ export default class extends Controller {
     chapterSlug: String,
     notesUrl: String,
     bookLabel: String,
-    chapter: Number
+    chapter: Number,
+    prevUrl: String,
+    nextUrl: String
   }
 
   connect() {
@@ -34,16 +37,20 @@ export default class extends Controller {
 
   pressStart(event) {
     if (event.pointerType === "mouse" && event.button !== 0) return
-    if (event.target.closest(".note-tray, .note-preview, .otext, a, input")) return
+    if (event.target.closest(".note-tray, .note-preview, .otext, a, input, textarea, .jump, .topbar")) return
+    this.pointerOrigin = { x: event.clientX, y: event.clientY, t: event.timeStamp }
     const press = event.target.closest(".verse-press")
-    if (!press) return
-    const verse = press.closest("[data-verse]")
-    if (!verse) return
-    this.dragStart = Number(verse.dataset.verse)
-    this.dragCurrent = this.dragStart
+    const verse = press?.closest("[data-verse]")
+    if (verse) {
+      this.dragStart = Number(verse.dataset.verse)
+      this.dragCurrent = this.dragStart
+      press.setPointerCapture?.(event.pointerId)
+    } else {
+      this.dragStart = null
+      this.dragCurrent = null
+    }
     this.dragging = false
     this.pointerId = event.pointerId
-    press.setPointerCapture?.(event.pointerId)
     window.addEventListener("pointermove", this.onPointerMove, { passive: false })
     window.addEventListener("pointerup", this.onPointerUp)
     window.addEventListener("pointercancel", this.onPointerUp)
@@ -65,15 +72,33 @@ export default class extends Controller {
   }
 
   onPointerUp(event) {
-    if (this.dragStart == null) return
+    if (this.pointerOrigin == null && this.dragStart == null) return
     const hovered = this.verseAtPoint(event.clientX, event.clientY) || this.dragCurrent || this.dragStart
     const start = this.dragStart
     const wasDragging = this.dragging
+    const origin = this.pointerOrigin
     this.ignoreClick = true
     this.resetDrag()
-    if (wasDragging && hovered !== start) {
+    if (wasDragging && start != null && hovered !== start) {
       this.selection = selectionFromDrag(start, hovered)
-    } else if (this.verseEl(start)?.classList.contains("is-open")) {
+      this.applySelection({ replaceUrl: true })
+      return
+    }
+    const swipe = origin && chapterSwipe({
+      dx: event.clientX - origin.x,
+      dy: event.clientY - origin.y,
+      elapsedMs: event.timeStamp - origin.t,
+      rangeDragging: wasDragging
+    })
+    if (swipe) {
+      const url = swipe === "next" ? this.nextUrlValue : this.prevUrlValue
+      if (url) {
+        this.visitChapter(url)
+        return
+      }
+    }
+    if (start == null) return
+    if (this.verseEl(start)?.classList.contains("is-open")) {
       this.selection = null
     } else {
       this.selection = selectionFromTap(start, this.selection)
@@ -321,7 +346,14 @@ export default class extends Controller {
     this.dragStart = null
     this.dragCurrent = null
     this.dragging = false
+    this.pointerOrigin = null
     this.teardownPointer()
+  }
+
+  visitChapter(url) {
+    if (!url) return
+    if (window.Turbo?.visit) window.Turbo.visit(url, { action: "advance" })
+    else window.location.assign(url)
   }
 
   teardownPointer() {

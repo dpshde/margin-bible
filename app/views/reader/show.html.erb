@@ -9,11 +9,14 @@
 
 <div
   data-controller="reader search"
+  data-action="pointerdown->reader#pressStart"
   data-reader-focus-value="<%= @focus_verse %>"
   data-reader-chapter-slug-value="<%= @chapter.slug %>"
   data-reader-notes-url-value="<%= notes_path %>"
   data-reader-book-label-value="<%= Margin::Books.name_for(@chapter.book) %>"
   data-reader-chapter-value="<%= @chapter.chapter %>"
+  data-reader-prev-url-value="<%= @prev ? read_path(@prev.slug) : "" %>"
+  data-reader-next-url-value="<%= @next ? read_path(@next.slug) : "" %>"
   <% if span_start %>
     data-reader-span-start-value="<%= span_start %>"
     data-reader-span-end-value="<%= span_end %>"
@@ -22,8 +25,12 @@
   <% unless hotwire_native_app? %>
     <header class="topbar">
       <div class="topbar-side">
-        <% if @prev %>
-          <%= link_to "‹ #{@prev.label}", read_path(@prev.slug), class: "ghost", data: { turbo_action: "advance" } %>
+        <%= link_to root_path, class: "icon-btn inbox-link", title: "Notes", "aria-label": "Notes inbox" do %>
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true">
+            <path d="M3 4.5h10" />
+            <path d="M3 8h10" />
+            <path d="M3 11.5h7" />
+          </svg>
         <% end %>
       </div>
       <h1 class="topbar-title" data-reader-target="title"><%= @passage.kind == "chapter" ? @chapter.label : @passage.label %></h1>
@@ -42,29 +49,13 @@
   <% end %>
 
   <main class="reader">
-    <form class="jump" data-action="submit->search#go" data-turbo="false">
-      <label class="sr-only" for="q">Jump to passage</label>
-      <input
-        id="q"
-        name="q"
-        type="search"
-        autocomplete="off"
-        placeholder="John 3:16"
-        role="combobox"
-        aria-autocomplete="list"
-        aria-expanded="false"
-        aria-controls="jump-suggest"
-        data-search-target="input"
-        data-action="input->search#suggest keydown->search#keydown"
-      >
-      <ul id="jump-suggest" class="suggest" data-search-target="list" role="listbox" hidden></ul>
-    </form>
+    <%= render "shared/jump" %>
 
     <section class="chapter-tray" data-reader-target="chapterTray" <%= "hidden" unless params[:chapter_note] %>>
       <%= render "reader/note_editor", slug: @chapter.slug, note: @chapter_note, label: "Chapter note · #{@chapter.label}" %>
     </section>
 
-    <article class="chapter" data-action="pointerdown->reader#pressStart">
+    <article class="chapter">
       <% @verses.each do |verse| %>
         <% vslug = @chapter.verse_slug(verse.verse) %>
         <% covering = @notes_by_verse[verse.verse] || [] %>

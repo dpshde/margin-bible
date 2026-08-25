@@ -1,11 +1,16 @@
 import assert from "node:assert/strict"
 import {
+  arrowBlockNav,
+  arrowDirection,
   backspaceAtStart,
+  caretForNeighbor,
   indentSubtree,
   insertNewline,
   insertPastedLines,
   isEmptyBlocks,
+  neighborBlockIndex,
   serializeBlocks,
+  shouldLeaveBlockOnArrow,
   splitSibling,
   subtreeEnd
 } from "../../app/javascript/lib/outliner-blocks.js"
@@ -119,6 +124,50 @@ function clone(blocks) {
   assert.equal(blocks[2].text, "C")
   assert.equal(result.focusId, blocks[2].id)
   assert.equal(result.caret, 1)
+}
+
+{
+  assert.equal(arrowDirection("ArrowUp"), -1)
+  assert.equal(arrowDirection("ArrowDown"), 1)
+  assert.equal(arrowDirection("ArrowLeft"), 0)
+  assert.equal(neighborBlockIndex(0, -1, 3), -1)
+  assert.equal(neighborBlockIndex(0, 1, 3), 1)
+  assert.equal(neighborBlockIndex(2, 1, 3), -1)
+  assert.equal(caretForNeighbor(-1, 12), 12)
+  assert.equal(caretForNeighbor(1, 12), 0)
+  assert.equal(shouldLeaveBlockOnArrow({ direction: -1, atFirstVisualLine: true, atLastVisualLine: false }), true)
+  assert.equal(shouldLeaveBlockOnArrow({ direction: -1, atFirstVisualLine: false, atLastVisualLine: true }), false)
+  assert.equal(shouldLeaveBlockOnArrow({ direction: 1, atFirstVisualLine: true, atLastVisualLine: true }), true)
+  assert.equal(shouldLeaveBlockOnArrow({ direction: 1, atFirstVisualLine: true, atLastVisualLine: false }), false)
+}
+
+{
+  const leaveDown = arrowBlockNav({
+    key: "ArrowDown", index: 0, length: 3, atFirstVisualLine: true, atLastVisualLine: true
+  })
+  assert.deepEqual(leaveDown, { action: "leave", index: 1, direction: 1 })
+
+  const within = arrowBlockNav({
+    key: "ArrowDown", index: 0, length: 3, atFirstVisualLine: true, atLastVisualLine: false
+  })
+  assert.deepEqual(within, { action: "within" })
+
+  const leaveUp = arrowBlockNav({
+    key: "ArrowUp", index: 1, length: 3, atFirstVisualLine: true, atLastVisualLine: false
+  })
+  assert.deepEqual(leaveUp, { action: "leave", index: 0, direction: -1 })
+
+  const edge = arrowBlockNav({
+    key: "ArrowUp", index: 0, length: 3, atFirstVisualLine: true, atLastVisualLine: true
+  })
+  assert.deepEqual(edge, { action: "edge" })
+
+  assert.equal(arrowBlockNav({
+    key: "ArrowDown", shiftKey: true, index: 0, length: 3, atFirstVisualLine: true, atLastVisualLine: true
+  }), null)
+  assert.equal(arrowBlockNav({
+    key: "Tab", index: 0, length: 3, atFirstVisualLine: true, atLastVisualLine: true
+  }), null)
 }
 
 console.log("outliner-blocks: ok")

@@ -1,6 +1,8 @@
 import { Controller } from "@hotwired/stimulus"
 import {
+  arrowBlockNav,
   backspaceAtStart,
+  caretForNeighbor,
   indentSubtree,
   insertNewline,
   insertPastedLines,
@@ -101,7 +103,36 @@ export default class extends Controller {
       event.preventDefault()
       this.render(result.focusId, result.caret)
       this.emitChange()
+      return
     }
+
+    if (event.key === "ArrowUp" || event.key === "ArrowDown") {
+      this.handleArrow(event, textEl, index)
+    }
+  }
+
+  handleArrow(event, textEl, index) {
+    const nav = arrowBlockNav({
+      key: event.key,
+      shiftKey: event.shiftKey,
+      altKey: event.altKey,
+      metaKey: event.metaKey,
+      ctrlKey: event.ctrlKey,
+      index,
+      length: this.blocks.length,
+      atFirstVisualLine: this.atFirstVisualLine(textEl),
+      atLastVisualLine: this.atLastVisualLine(textEl)
+    })
+    if (!nav || nav.action === "within") return
+
+    event.preventDefault()
+    event.stopPropagation()
+    if (nav.action !== "leave") return
+
+    const neighbor = this.blocks[nav.index]
+    const caretX = this.caretLineRect()?.left
+    const caret = caretForNeighbor(nav.direction, neighbor.text.length)
+    this.focusBlock(neighbor.id, caret, caretX, nav.direction < 0 ? "end" : "start")
   }
 
   onPaste(event) {
@@ -143,9 +174,18 @@ export default class extends Controller {
     this.blocks.forEach((block) => fragment.append(this.rowElement(block)))
     this.element.replaceChildren(fragment)
     if (!focusId) return
+    this.focusBlock(focusId, caret)
+  }
+
+  focusBlock(focusId, caret, caretX, edge) {
     const textEl = this.element.querySelector(`[data-block-id="${CSS.escape(focusId)}"] .otext`)
-    textEl?.focus()
-    if (textEl && caret != null) this.setCaret(textEl, caret)
+    if (!textEl) return
+    textEl.focus({ preventScroll: true })
+    if (caretX != null && Number.isFinite(caretX)) {
+      this.placeCaretAtColumn(textEl, caretX, edge || (caret === 0 ? "start" : "end"))
+      return
+    }
+    if (caret != null) this.setCaret(textEl, caret)
   }
 
   rowElement(block) {
@@ -235,5 +275,66 @@ export default class extends Controller {
     range.collapse(false)
     selection.removeAllRanges()
     selection.addRange(range)
+  }
+
+  caretLineRect() {
+    const selection = window.getSelection()
+    if (!selection || selection.rangeCount === 0) return null
+    const range = selection.getRangeAt(0)
+    let rect = range.getBoundingClientRect()
+    if (rect.height === 0) {
+      const first = range.getClientRects()[0]
+      if (first) rect = first
+    }
+    return rect.height === 0 ? null : rect
+  }
+
+  atFirstVisualLine(element) {
+    const rect = this.caretLineRect()
+    if (!rect) return this.caretOffset(element) === 0
+    return rect.top - element.getBoundingClientRect().top < rect.height / 2
+  }
+
+  atLastVisualLine(element) {
+    const rect = this.caretLineRect()
+    if (!rect) return this.caretOffset(element) === this.readEditableText(element).length
+    return element.getBoundingClientRect().bottom - rect.bottom < rect.height / 2
+  }
+
+  placeCaretAtColumn(element, x, edge) {
+    const text = this.readEditableText(element)
+    if (!text) {
+      this.setCaret(element, 0)
+      return
+    }
+    this.setCaret(element, edge === "start" ? 0 : text.length)
+    const lineTop = this.caretLineRect()?.top
+    let lo = 0
+    let hi = text.length
+    let best = edge === "start" ? 0 : text.length
+    let bestDist = Infinity
+    while (lo <= hi) {
+      const mid = (lo + hi) >> 1
+      this.setCaret(element, mid)
+      const rect = this.caretLineRect()
+      if (!rect) {
+        best = mid
+        break
+      }
+      const onLine = lineTop == null || Math.abs(rect.top - lineTop) < rect.height / 2
+      if (!onLine) {
+        if (edge === "start") hi = mid - 1
+        else lo = mid + 1
+        continue
+      }
+      const dist = Math.abs(rect.left - x)
+      if (dist < bestDist) {
+        bestDist = dist
+        best = mid
+      }
+      if (rect.left < x) lo = mid + 1
+      else hi = mid - 1
+    }
+    this.setCaret(element, best)
   }
 }

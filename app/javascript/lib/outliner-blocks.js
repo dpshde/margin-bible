@@ -94,6 +94,50 @@ export function isEmptyBlocks(blocks) {
   return blocks.every((block) => !String(block.text).trim())
 }
 
+export function arrowDirection(key) {
+  if (key === "ArrowUp") return -1
+  if (key === "ArrowDown") return 1
+  return 0
+}
+
+export function neighborBlockIndex(index, direction, length) {
+  const next = index + direction
+  if (next < 0 || next >= length) return -1
+  return next
+}
+
+export function shouldLeaveBlockOnArrow({ direction, atFirstVisualLine, atLastVisualLine }) {
+  if (direction < 0) return Boolean(atFirstVisualLine)
+  if (direction > 0) return Boolean(atLastVisualLine)
+  return false
+}
+
+export function caretForNeighbor(direction, neighborTextLength) {
+  return direction < 0 ? neighborTextLength : 0
+}
+
+export function arrowBlockNav({
+  key,
+  shiftKey = false,
+  altKey = false,
+  metaKey = false,
+  ctrlKey = false,
+  index,
+  length,
+  atFirstVisualLine,
+  atLastVisualLine
+}) {
+  if (shiftKey || altKey || metaKey || ctrlKey) return null
+  const direction = arrowDirection(key)
+  if (!direction) return null
+  if (!shouldLeaveBlockOnArrow({ direction, atFirstVisualLine, atLastVisualLine })) {
+    return { action: "within" }
+  }
+  const next = neighborBlockIndex(index, direction, length)
+  if (next < 0) return { action: "edge" }
+  return { action: "leave", index: next, direction }
+}
+
 export function insertPastedLines(blocks, index, offset, paste) {
   const lines = paste.replace(/\r\n/g, "\n").split("\n")
   const current = blocks[index]

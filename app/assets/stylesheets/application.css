@@ -232,6 +232,42 @@ button, input, textarea { font: inherit; color: inherit; }
 }
 .muted { color: var(--muted); }
 
+.inbox-main { max-width: var(--page-max); margin: 0 auto; padding: .75rem 1.1rem 6rem; }
+.inbox-continue {
+  margin: 0 0 .55rem; font-family: var(--sans); font-size: .86rem;
+}
+.inbox-continue a { color: var(--muted); text-decoration: none; }
+.inbox-continue a:hover { color: var(--ink-soft); }
+.inbox-empty {
+  margin: 2.4rem 1rem 0; text-align: center; color: var(--muted);
+  font-family: var(--sans); font-size: .95rem; line-height: 1.5;
+}
+.inbox-day {
+  margin: 1.2rem 0 .55rem; padding-bottom: .25rem;
+  border-bottom: 1px solid var(--line);
+  font-family: var(--sans); font-size: .78rem; font-weight: 600;
+  letter-spacing: .06em; text-transform: uppercase; color: var(--muted);
+}
+.inbox-card {
+  display: block; margin: 0 0 .65rem; padding: .75rem .85rem;
+  background: var(--paper-raised); border: 1px solid var(--line);
+  border-radius: .75rem; text-decoration: none; color: inherit;
+  outline: none; box-shadow: none;
+}
+.inbox-card:focus, .inbox-card:focus-visible {
+  outline: none; box-shadow: none;
+  border-color: color-mix(in srgb, var(--ink) 28%, transparent);
+}
+.inbox-card-title {
+  margin: 0 0 .28rem; font-family: var(--sans); font-size: .95rem; font-weight: 600;
+  letter-spacing: -.01em;
+}
+.inbox-preview {
+  font-family: var(--read); font-size: .95rem; line-height: 1.45; color: var(--ink-soft);
+}
+.inbox-preview .preview-line { margin: 0; }
+.inbox-card-empty { margin: 0; font-size: .9rem; color: var(--faint); font-style: italic; }
+
 @media (max-width: 640px) {
   .topbar { grid-template-columns: auto 1fr auto; }
   .vtext { font-size: 1.12rem; }

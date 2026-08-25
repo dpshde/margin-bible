@@ -5,7 +5,11 @@ module ApplicationHelper
     Margin::RouteBible.url_for(passage)
   end
 
-  def wiki_note_html(text)
+  def inbox_note_path(note)
+    read_path(note.slug, Margin::Inbox.href_options(note))
+  end
+
+  def wiki_note_html(text, links: true)
     html = ERB::Util.html_escape(text.to_s)
     placeholders = []
     html = html.gsub(/`([^`]+)`/) {
@@ -18,10 +22,10 @@ module ApplicationHelper
       target = Regexp.last_match(1)
       label = Regexp.last_match(2).presence || target
       passage = Margin::Passage.parse(target)
-      if passage
+      if links && passage
         %(<a href="#{read_path(passage.slug)}" class="wiki">#{label}</a>)
       else
-        "[[#{target}]]"
+        label
       end
     }
     html = html.gsub(/\u0000(\d+)\u0000/) { placeholders[Regexp.last_match(1).to_i] }
