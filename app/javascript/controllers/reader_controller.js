@@ -73,8 +73,10 @@ export default class extends Controller {
     this.resetDrag()
     if (wasDragging && hovered !== start) {
       this.selection = selectionFromDrag(start, hovered)
+    } else if (this.verseEl(start)?.classList.contains("is-open")) {
+      this.selection = null
     } else {
-      this.selection = selectionFromTap(start)
+      this.selection = selectionFromTap(start, this.selection)
     }
     this.applySelection({ replaceUrl: true })
   }
@@ -87,7 +89,11 @@ export default class extends Controller {
     }
     const verse = event.currentTarget.closest("[data-verse]")
     if (!verse) return
-    this.selection = selectionFromTap(verse.dataset.verse)
+    if (verse.classList.contains("is-open")) {
+      this.selection = null
+    } else {
+      this.selection = selectionFromTap(verse.dataset.verse, this.selection)
+    }
     this.applySelection({ replaceUrl: true })
   }
 

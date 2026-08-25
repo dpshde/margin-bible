@@ -10,10 +10,12 @@ import {
 {
   assert.deepEqual(selectionFromTap(8), { start: 8, end: 8 })
   const first = selectionFromTap(8)
-  const second = selectionFromTap(14)
+  const second = selectionFromTap(14, first)
   assert.deepEqual(second, { start: 14, end: 14 })
   assert.notDeepEqual(second, normalizeSpan(first.start, 14))
-  assert.deepEqual(selectionFromTap(8), { start: 8, end: 8 })
+  assert.equal(selectionFromTap(8, first), null)
+  assert.equal(selectionFromTap(7, { start: 3, end: 7 }), null)
+  assert.deepEqual(selectionFromTap(3, { start: 3, end: 7 }), { start: 3, end: 3 })
 }
 
 {

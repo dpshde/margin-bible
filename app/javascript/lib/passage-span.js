@@ -16,9 +16,11 @@ export function passageLabel(bookLabel, chapter, start, end) {
   return `${bookLabel} ${chapter}:${span.start}–${span.end}`
 }
 
-export function selectionFromTap(tapped) {
+export function selectionFromTap(tapped, current = null) {
   const n = Number(tapped)
-  if (!Number.isFinite(n) || n < 1) return null
+  if (!Number.isFinite(n) || n < 1) return current
+  if (current && current.start === current.end && current.start === n) return null
+  if (current && current.start !== current.end && current.end === n) return null
   return { start: n, end: n }
 }
 
