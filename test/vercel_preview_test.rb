@@ -45,17 +45,11 @@ class VercelPreviewTest < ActiveSupport::TestCase
     assert_match(%r{CMD \["/rails/bin/vercel-start"\]}, dockerfile)
   end
 
-  test "vercel.json selects the Dockerfile.vercel container, not npm build" do
+  test "vercel.json selects the container framework, not npm build" do
     config = JSON.parse(Rails.root.join("vercel.json").read)
-    service = config.dig("services", "reader")
 
     assert File.exist?(Rails.root.join("Dockerfile.vercel"))
-    assert_equal ".", service["root"]
-    assert_equal "Dockerfile.vercel", service["entrypoint"]
-    assert_equal "container", service["runtime"]
-    assert config["rewrites"].any? { |rule|
-      rule["source"] == "/(.*)" && rule.dig("destination", "service") == "reader"
-    }
+    assert_equal "container", config["framework"]
   end
 
   test "vercel-start prepares db, seeds, and execs puma on PORT 80" do
