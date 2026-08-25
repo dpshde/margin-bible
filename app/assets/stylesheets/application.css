@@ -140,7 +140,7 @@ button, input, textarea { font: inherit; color: inherit; }
 .note-tray, .chapter-tray { padding: .2rem .2rem .7rem; }
 .chapter-tray { background: var(--fill); border-radius: .75rem; margin-bottom: 1rem; padding: .8rem; }
 .tray-head {
-  display: flex; align-items: center; justify-content: space-between; gap: .6rem;
+  display: flex; align-items: flex-start; justify-content: space-between; gap: .6rem;
   margin: 0 0 .4rem;
 }
 .tray-label, .preview-label { margin: 0; font-size: .78rem; color: var(--faint); font-family: var(--sans); }

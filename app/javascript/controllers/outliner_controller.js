@@ -53,7 +53,7 @@ export default class extends Controller {
   focusLast() {
     const last = this.element.querySelector(".oblock:last-child .otext")
     last?.focus()
-    if (last) this.setCaret(last, last.textContent.length)
+    if (last) this.setCaret(last, this.readEditableText(last).length)
   }
 
   onInput(event) {
@@ -124,7 +124,7 @@ export default class extends Controller {
     return [...this.element.querySelectorAll(".oblock")].map((row) => ({
       id: row.dataset.blockId,
       indent: Number.parseInt(row.style.getPropertyValue("--depth") || "0", 10) || 0,
-      text: row.querySelector(".otext")?.textContent ?? ""
+      text: this.readEditableText(row.querySelector(".otext"))
     }))
   }
 
@@ -164,41 +164,72 @@ export default class extends Controller {
     text.setAttribute("role", "textbox")
     text.setAttribute("aria-multiline", "true")
     text.spellcheck = true
-    text.textContent = block.text
+    this.fillEditable(text, block.text)
 
     row.append(bullet, text)
     return row
   }
 
+  editableNodes(element) {
+    const nodes = []
+    const visit = (node) => {
+      node.childNodes.forEach((child) => {
+        if (child.nodeType === Node.TEXT_NODE) nodes.push(child)
+        else if (child.nodeName === "BR") nodes.push(child)
+        else visit(child)
+      })
+    }
+    if (element) visit(element)
+    return nodes
+  }
+
+  readEditableText(element) {
+    return this.editableNodes(element).map((node) => (
+      node.nodeName === "BR" ? "\n" : node.nodeValue
+    )).join("")
+  }
+
+  fillEditable(element, text) {
+    element.replaceChildren()
+    const lines = String(text).split("\n")
+    lines.forEach((line, i) => {
+      element.append(document.createTextNode(line))
+      if (i < lines.length - 1) element.append(document.createElement("br"))
+    })
+  }
+
   caretOffset(element) {
     const selection = window.getSelection()
     if (!selection || selection.rangeCount === 0 || !element.contains(selection.anchorNode)) {
-      return element.textContent.length
+      return this.readEditableText(element).length
     }
     const range = selection.getRangeAt(0)
     const prefix = range.cloneRange()
     prefix.selectNodeContents(element)
     prefix.setEnd(range.endContainer, range.endOffset)
-    return prefix.toString().length
+    return prefix.toString().length + prefix.cloneContents().querySelectorAll("br").length
   }
 
   setCaret(element, offset) {
     const selection = window.getSelection()
     if (!selection) return
     const range = document.createRange()
-    const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT)
     let remaining = Math.max(0, offset)
-    let node = walker.nextNode()
-    while (node) {
-      if (node.length >= remaining) {
-        range.setStart(node, remaining)
+    for (const node of this.editableNodes(element)) {
+      const length = node.nodeName === "BR" ? 1 : node.nodeValue.length
+      if (remaining <= length) {
+        if (node.nodeName === "BR") {
+          if (remaining === 0) range.setStartBefore(node)
+          else range.setStartAfter(node)
+        } else {
+          range.setStart(node, remaining)
+        }
         range.collapse(true)
         selection.removeAllRanges()
         selection.addRange(range)
         return
       }
-      remaining -= node.length
-      node = walker.nextNode()
+      remaining -= length
     }
     range.selectNodeContents(element)
     range.collapse(false)
