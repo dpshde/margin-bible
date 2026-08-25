@@ -139,19 +139,51 @@ button, input, textarea { font: inherit; color: inherit; }
 
 .note-tray, .chapter-tray { padding: .2rem .2rem .7rem; }
 .chapter-tray { background: var(--fill); border-radius: .75rem; margin-bottom: 1rem; padding: .8rem; }
-.tray-label, .tray-meta, .preview-label { margin: 0 0 .4rem; font-size: .78rem; color: var(--faint); font-family: var(--sans); }
+.tray-head {
+  display: flex; align-items: center; justify-content: space-between; gap: .6rem;
+  margin: 0 0 .4rem;
+}
+.tray-label, .preview-label { margin: 0; font-size: .78rem; color: var(--faint); font-family: var(--sans); }
+.tray-head .tray-label { flex: 1; min-width: 0; }
 .tray-external {
-  display: inline-flex; align-items: center; color: var(--faint); text-decoration: none;
+  display: inline-flex; align-items: center; justify-content: center;
+  flex-shrink: 0; color: var(--faint); text-decoration: none; padding: .15rem;
 }
 .tray-external svg { display: block; width: .85rem; height: .85rem; }
 .preview-label { margin: .35rem 0 .1rem; }
 .note-card + .note-card { margin-top: .45rem; }
-.note-input {
+.outliner {
   width: 100%; border: 1px solid var(--line); background: var(--paper-raised);
-  border-radius: .65rem; padding: .7rem .8rem; min-height: 5.5rem; resize: vertical;
-  line-height: 1.4;
+  border-radius: .65rem; padding: .35rem 0; min-height: 5.5rem;
 }
-.preview-body { font-family: var(--sans); color: var(--ink-soft); margin: .2rem 0 .6rem; white-space: pre-wrap; }
+.outliner:focus-within {
+  border-color: color-mix(in srgb, var(--ink) 28%, transparent);
+  outline: none; box-shadow: none;
+}
+.oblock {
+  display: flex; align-items: flex-start; gap: .4rem;
+  padding: .05rem .7rem .05rem calc(.55rem + (var(--depth, 0) * 1.15rem));
+}
+.obullet {
+  width: .34rem; height: .34rem; margin-top: .58rem; border-radius: 50%;
+  background: var(--faint); opacity: .75; flex-shrink: 0;
+}
+.otext {
+  flex: 1; min-width: 0; min-height: 1.45em; line-height: 1.45;
+  white-space: pre-wrap; word-break: break-word; caret-color: var(--ink);
+  outline: none; border: 0; box-shadow: none;
+}
+.otext:focus, .otext:focus-visible,
+.outliner:focus, .outliner:focus-visible,
+.note-input:focus, .note-input:focus-visible {
+  outline: none; border: 0; box-shadow: none;
+}
+.preview-body { font-family: var(--sans); color: var(--ink-soft); margin: .2rem 0 .6rem; }
+.preview-line { margin: 0; padding-left: calc(var(--depth, 0) * 1.1rem); white-space: pre-wrap; }
+.preview-line + .preview-line { margin-top: .15rem; }
+.preview-body code {
+  font-size: .92em; background: var(--fill); padding: .05em .3em; border-radius: .25rem;
+}
 .wiki { text-decoration: underline; text-underline-offset: 2px; }
 
 .pager {

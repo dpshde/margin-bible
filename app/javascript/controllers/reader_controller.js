@@ -19,34 +19,32 @@ export default class extends Controller {
     const verse = event.currentTarget.closest("[data-verse]")
     if (!verse) return
     const wasOpen = verse.classList.contains("is-open")
-    this.element.querySelectorAll(".verse.is-open").forEach((v) => {
-      v.classList.remove("is-open")
-      this.setTraysHidden(v, true)
+    this.element.querySelectorAll(".verse.is-open").forEach((row) => {
+      row.classList.remove("is-open")
+      this.setTraysHidden(row, true)
     })
     if (wasOpen) return
     verse.classList.add("is-open")
     const trays = this.traysIn(verse)
     trays.forEach((tray) => { tray.hidden = false })
-    trays[0]?.querySelector("textarea")?.focus()
+    this.focusOutliner(trays[0])
   }
 
   toggleChapter() {
     if (!this.hasChapterTrayTarget) return
     this.chapterTrayTarget.hidden = !this.chapterTrayTarget.hidden
-    if (!this.chapterTrayTarget.hidden) {
-      this.chapterTrayTarget.querySelector("textarea")?.focus()
-    }
+    if (!this.chapterTrayTarget.hidden) this.focusOutliner(this.chapterTrayTarget)
   }
 
   toggleExpand() {
     const expanding = !this.element.classList.contains("is-expanded")
     this.element.classList.toggle("is-expanded", expanding)
-    this.element.querySelectorAll(".verse.has-note").forEach((v) => {
-      const open = v.classList.contains("is-open")
-      v.querySelectorAll(".note-preview").forEach((preview) => {
+    this.element.querySelectorAll(".verse.has-note").forEach((row) => {
+      const open = row.classList.contains("is-open")
+      row.querySelectorAll(".note-preview").forEach((preview) => {
         preview.hidden = !expanding || open
       })
-      this.setTraysHidden(v, expanding || !open)
+      this.setTraysHidden(row, expanding || !open)
     })
   }
 
@@ -61,14 +59,21 @@ export default class extends Controller {
   }
 
   autosave(event) {
-    const area = event.currentTarget
-    clearTimeout(area._kvTimer)
-    area._kvTimer = setTimeout(() => this.save(area), 450)
+    const host = event.currentTarget.closest(".outliner")
+    if (!host) return
+    clearTimeout(host._kvTimer)
+    host._kvTimer = setTimeout(() => this.save(host), 450)
   }
 
-  async save(area) {
+  async save(host) {
     const token = document.querySelector('meta[name="csrf-token"]')?.content
-    const body = new URLSearchParams({ slug: area.dataset.slug, text: area.value })
+    const payload = this.outlinerPayload(host)
+    if (!payload) return
+    const body = new URLSearchParams({
+      slug: payload.slug,
+      text: payload.text,
+      blocks: JSON.stringify(payload.blocks)
+    })
     const res = await fetch(this.notesUrlValue, {
       method: "PATCH",
       headers: {
@@ -80,7 +85,7 @@ export default class extends Controller {
     })
     if (!res.ok) return
     await res.json()
-    const verse = area.closest(".verse")
+    const verse = host.closest(".verse")
     if (!verse) return
     verse.classList.toggle("has-note", this.anyNoteText(verse))
   }
@@ -94,6 +99,24 @@ export default class extends Controller {
   }
 
   anyNoteText(verse) {
-    return [...verse.querySelectorAll("textarea")].some((area) => area.value.trim().length > 0)
+    return [...verse.querySelectorAll(".outliner")].some((host) => {
+      const controller = this.outlinerController(host)
+      return controller ? !controller.isEmpty() : false
+    })
+  }
+
+  focusOutliner(root) {
+    const host = root?.querySelector?.(".outliner") || root
+    this.outlinerController(host)?.focusLast()
+    host?.querySelector?.(".otext")?.focus()
+  }
+
+  outlinerPayload(host) {
+    return this.outlinerController(host)?.payload()
+  }
+
+  outlinerController(host) {
+    if (!host) return null
+    return this.application.getControllerForElementAndIdentifier(host, "outliner")
   }
 }

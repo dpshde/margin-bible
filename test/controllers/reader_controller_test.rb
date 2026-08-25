@@ -66,13 +66,19 @@ class ReaderControllerTest < ActionDispatch::IntegrationTest
     assert_select "h1", /John 1/
   end
 
-  test "note tray meta is an accessible route.bible icon" do
+  test "note tray puts the route.bible icon on the label row" do
     get read_path("jhn.1")
-    assert_select ".tray-meta a.tray-external[href='https://route.bible/jhn.1'][target=_blank][rel=noreferrer]"
-    assert_select ".tray-meta a[aria-label='Open on route.bible']"
-    assert_select ".tray-meta a svg"
-    assert_select ".tray-meta", text: /Autosaves/, count: 0
-    assert_select ".tray-meta a", text: /route\.bible/, count: 0
+    assert_select ".chapter-tray .tray-head" do
+      assert_select ".tray-label", /Chapter note · John 1/
+      assert_select "a.tray-external[href='https://route.bible/jhn.1'][target=_blank][rel=noreferrer]"
+      assert_select "a[aria-label='Open on route.bible']"
+      assert_select "a svg"
+    end
+    assert_select ".tray-meta", count: 0
+    assert_select ".tray-head", text: /Autosaves/, count: 0
+    assert_select ".tray-head a", text: /route\.bible/, count: 0
+    assert_select "textarea.note-input", count: 0
+    assert_select ".outliner[data-slug='jhn.1'] .otext"
   end
 
   test "autosaves a verse note" do
@@ -99,13 +105,32 @@ class ReaderControllerTest < ActionDispatch::IntegrationTest
     )
 
     get read_path("jhn.1")
-    assert_select "#v1 textarea[data-slug='jhn.1.1']", "Exact verse."
-    assert_select "#v1 textarea[data-slug='jhn.1.1-6']", "Range span."
+    assert_select "#v1 .outliner[data-slug='jhn.1.1'] .otext", "Exact verse."
+    assert_select "#v1 .outliner[data-slug='jhn.1.1-6'] .otext", "Range span."
     assert_select "#v1 .preview-body", "Exact verse."
     assert_select "#v1 .preview-body", "Range span."
-    assert_select "#v1 textarea[data-slug='jhn.1']", count: 0
-    assert_select "#v6 textarea[data-slug='jhn.1.1-6']", "Range span."
-    assert_select "#v6 textarea[data-slug='jhn.1.6']"
-    assert_select ".chapter-tray textarea[data-slug='jhn.1']", "Chapter only."
+    assert_select "#v1 .outliner[data-slug='jhn.1']", count: 0
+    assert_select "#v6 .outliner[data-slug='jhn.1.1-6'] .otext", "Range span."
+    assert_select "#v6 .outliner[data-slug='jhn.1.6'] .otext"
+    assert_select ".chapter-tray .outliner[data-slug='jhn.1'] .otext", "Chapter only."
+  end
+
+  test "expand preview renders wiki and inline markdown without absorbing markers" do
+    get read_path("jhn.1")
+    Library.last.notes.create!(
+      slug: "jhn.1.1", osis: "JHN.1.1", kind: "verse", book: "JHN", chapter: 1,
+      verse_start: 1, blocks: [ {
+        "id" => "b_md01",
+        "indent" => 0,
+        "text" => "See **Word** and *life* and `logos` and [[jhn.1.6|John]]"
+      } ]
+    )
+
+    get read_path("jhn.1")
+    assert_select "#v1 .outliner[data-slug='jhn.1.1'] .otext", "See **Word** and *life* and `logos` and [[jhn.1.6|John]]"
+    assert_select "#v1 .preview-body strong", "Word"
+    assert_select "#v1 .preview-body em", "life"
+    assert_select "#v1 .preview-body code", "logos"
+    assert_select "#v1 .preview-body a.wiki[href='/jhn.1.6']", "John"
   end
 end

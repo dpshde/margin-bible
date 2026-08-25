@@ -44,8 +44,7 @@
     </form>
 
     <section class="chapter-tray" data-reader-target="chapterTray" <%= "hidden" unless params[:chapter_note] %>>
-      <p class="tray-label">Chapter note · <%= @chapter.label %></p>
-      <%= render "reader/note_editor", slug: @chapter.slug, note: @chapter_note, label: nil %>
+      <%= render "reader/note_editor", slug: @chapter.slug, note: @chapter_note, label: "Chapter note · #{@chapter.label}" %>
     </section>
 
     <article class="chapter">
@@ -73,12 +72,15 @@
           <% covering.each do |note| %>
             <section class="note-card">
               <div class="note-tray" data-reader-target="tray" <%= "hidden" unless open %>>
-                <p class="tray-label"><%= note.passage.label %></p>
-                <%= render "reader/note_editor", slug: note.slug, note: note, label: nil %>
+                <%= render "reader/note_editor", slug: note.slug, note: note, label: note.passage.label %>
               </div>
               <div class="note-preview" data-reader-target="preview" hidden>
                 <p class="preview-label"><%= note.passage.label %></p>
-                <p class="preview-body"><%= wiki_note_html(note.body_text) %></p>
+                <div class="preview-body">
+                  <% Array(note.blocks).each do |block| %>
+                    <p class="preview-line" style="--depth: <%= block["indent"].to_i %>"><%= wiki_note_html(block["text"]) %></p>
+                  <% end %>
+                </div>
               </div>
             </section>
           <% end %>

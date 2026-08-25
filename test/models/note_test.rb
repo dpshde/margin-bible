@@ -50,4 +50,66 @@ class NoteTest < ActiveSupport::TestCase
     )
     refute chapter_note.covers_verse?(16)
   end
+
+  test "blocks_from_text preserves ids by LCS when a line is inserted" do
+    existing = note(blocks: [
+      { "id" => "b_keep1", "indent" => 0, "text" => "Alpha" },
+      { "id" => "b_keep2", "indent" => 0, "text" => "Beta" }
+    ])
+    existing.apply_text!("New\n  Alpha\nBeta")
+
+    assert_equal "New", existing.blocks[0]["text"]
+    assert_equal 0, existing.blocks[0]["indent"]
+    refute_equal "b_keep1", existing.blocks[0]["id"]
+    assert_equal "b_keep1", existing.blocks[1]["id"]
+    assert_equal 1, existing.blocks[1]["indent"]
+    assert_equal "Alpha", existing.blocks[1]["text"]
+    assert_equal "b_keep2", existing.blocks[2]["id"]
+    assert_equal "Beta", existing.blocks[2]["text"]
+  end
+
+  test "blocks_from_text keeps id when a line is edited in place" do
+    existing = note(blocks: [ { "id" => "b_keep1", "indent" => 0, "text" => "Alpha" } ])
+    existing.apply_text!("Alpha edited")
+    assert_equal [ "b_keep1" ], existing.blocks.map { |block| block["id"] }
+    assert_equal "Alpha edited", existing.blocks[0]["text"]
+  end
+
+  test "apply_blocks! preserves client ids and intra-block newlines" do
+    existing = note(blocks: [])
+    existing.apply_blocks!([
+      { "id" => "b_root1", "indent" => 0, "text" => "Parent" },
+      { "id" => "b_kid02", "indent" => 1, "text" => "Child\nparagraph" }
+    ])
+    existing.apply_blocks!([
+      { "id" => "b_root1", "indent" => 0, "text" => "Parent" },
+      { "id" => "b_kid02", "indent" => 1, "text" => "Child\nparagraph edited" }
+    ])
+
+    assert_equal [ "b_root1", "b_kid02" ], existing.blocks.map { |block| block["id"] }
+    assert_equal 1, existing.blocks[1]["indent"]
+    assert_equal "Child\nparagraph edited", existing.blocks[1]["text"]
+  end
+
+  test "markdown headings stay as block text and are not parsed into parents" do
+    existing = note(blocks: [])
+    existing.apply_text!("# Heading\n- item\n  **bold**")
+
+    assert_equal [ 0, 0, 1 ], existing.blocks.map { |block| block["indent"] }
+    assert_equal "# Heading", existing.blocks[0]["text"]
+    assert_equal "- item", existing.blocks[1]["text"]
+    assert_equal "**bold**", existing.blocks[2]["text"]
+  end
+
+  test "blank blocks are first-class and empty_content? waits for all text to go" do
+    existing = note(blocks: [
+      { "id" => "b_blank", "indent" => 0, "text" => "" },
+      { "id" => "b_word", "indent" => 1, "text" => "Keep" }
+    ])
+    refute existing.empty_content?
+    existing.apply_text!("\n\n")
+    assert existing.empty_content?
+    assert_equal 2, existing.blocks.length
+    assert existing.blocks.all? { |block| block["text"].blank? }
+  end
 end
