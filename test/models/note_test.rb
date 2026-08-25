@@ -107,7 +107,7 @@ class NoteTest < ActiveSupport::TestCase
       { "id" => "b_word", "indent" => 1, "text" => "Keep" }
     ])
     refute existing.empty_content?
-    existing.apply_text!("\n\n")
+    existing.apply_text!("\n")
     assert existing.empty_content?
     assert_equal 2, existing.blocks.length
     assert existing.blocks.all? { |block| block["text"].blank? }

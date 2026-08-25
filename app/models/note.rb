@@ -29,7 +29,7 @@ class Note < ApplicationRecord
   end
 
   def self.blocks_from_text(text, previous: [])
-    lines = text.to_s.empty? ? [ "" ] : text.to_s.split("\n")
+    lines = text.to_s.empty? ? [ "" ] : text.to_s.split("\n", -1)
     parsed = lines.map do |line|
       indent = (line[/\A */]&.size.to_i / 2)
       { "indent" => indent, "text" => line.sub(/\A {0,}/, "") }
