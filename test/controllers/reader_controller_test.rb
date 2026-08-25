@@ -66,6 +66,15 @@ class ReaderControllerTest < ActionDispatch::IntegrationTest
     assert_select "h1", /John 1/
   end
 
+  test "note tray meta is an accessible route.bible icon" do
+    get read_path("jhn.1")
+    assert_select ".tray-meta a.tray-external[href='https://route.bible/jhn.1'][target=_blank][rel=noreferrer]"
+    assert_select ".tray-meta a[aria-label='Open on route.bible']"
+    assert_select ".tray-meta a svg"
+    assert_select ".tray-meta", text: /Autosaves/, count: 0
+    assert_select ".tray-meta a", text: /route\.bible/, count: 0
+  end
+
   test "autosaves a verse note" do
     get read_path("jhn.1")
     patch notes_path, params: { slug: "jhn.1.1", text: "The Logos." }
