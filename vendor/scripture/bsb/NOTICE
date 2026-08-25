@@ -1,3 +1,5 @@
 Berean Standard Bible (BSB)
 Public domain as of 2023-04-30 (Berean Bible Translation Committee / Bible Hub).
-Built from https://bereanbible.com/bsb.txt for offline serving in keyverse.
+Canonical file: https://arweave.net/B6yeNb3lk_VkiIp-fTWVh13TlM94LjLK6kC63BPXa8s (bsb.jsonl, Arweave TX).
+HTTP Range is not supported on this transaction. The chapter pack is built with one full GET at image build, never on a reader request.
+Local pack vendor/scripture/bsb/chapters.json.gz is a disposable cache (ADR 0007). Verse text is never merged into notes.

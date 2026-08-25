@@ -1,4 +1,8 @@
 <% content_for :title, (@passage.kind == "chapter" ? @chapter.label : @passage.label) %>
+<% content_for :head do %>
+  <% if @prev %><link rel="prefetch" href="<%= read_path(@prev.slug) %>"><% end %>
+  <% if @next %><link rel="prefetch" href="<%= read_path(@next.slug) %>"><% end %>
+<% end %>
 <%
   span_start = @passage.verse_start
   span_end = @passage.span_end
@@ -127,8 +131,8 @@
     </template>
 
     <nav class="pager">
-      <% if @prev %><%= link_to "← #{@prev.label}", read_path(@prev.slug) %><% end %>
-      <% if @next %><%= link_to "#{@next.label} →", read_path(@next.slug) %><% end %>
+      <% if @prev %><%= link_to "← #{@prev.label}", read_path(@prev.slug), data: { turbo_prefetch: true } %><% end %>
+      <% if @next %><%= link_to "#{@next.label} →", read_path(@next.slug), data: { turbo_prefetch: true } %><% end %>
     </nav>
   </main>
 </div>

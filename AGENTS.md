@@ -39,7 +39,7 @@ Preview: Vercel builds `Dockerfile.vercel` via `vercel.json` (set `SECRET_KEY_BA
 | Note autosave | `app/controllers/notes_controller.rb`, `reader_controller.js` |
 | Jump box | `search_controller.js` (grab-bcv) |
 | OSIS | `lib/margin/passage.rb` |
-| BSB + headings | `vendor/scripture/bsb`, `Verse` |
+| BSB + headings | `vendor/scripture/bsb` (Arweave JSONL → chapter pack), `Verse` |
 | Library cookie | `ApplicationController#set_current_library` |
 | Hotwire Native path config | `public/configurations/ios_v1.json` (bundled copy in `ios/Margin/`) |
 | iOS shell | `ios/Margin.xcodeproj` — SPM `hotwire-native-ios`, localhost debug / margin.bible (or `MARGIN_BASE_URL`) release |

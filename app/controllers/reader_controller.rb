@@ -11,7 +11,7 @@ class ReaderController < ApplicationController
     @chapter = Margin::Passage.new(book: @passage.book, chapter: @passage.chapter)
     current_library.update_column(:last_read_slug, @chapter.slug)
 
-    @verses = Verse.in_chapter(@chapter.book, @chapter.chapter)
+    @verses = Margin::Bsb.hydrate_chapter!(@chapter.book, @chapter.chapter)
     if @verses.empty?
       render :missing, status: :not_found
       return

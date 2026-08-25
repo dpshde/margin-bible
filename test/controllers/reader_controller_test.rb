@@ -22,6 +22,40 @@ class ReaderControllerTest < ActionDispatch::IntegrationTest
     )
   end
 
+  test "hydrates John 1 from the pack without a full Bible in sqlite" do
+    Verse.delete_all
+    assert_equal 0, Verse.count
+
+    get read_path("jhn.1")
+    assert_response :success
+    assert_select ".vtext", /In the beginning was the Word/
+    assert_select "h2.section-head", "The Beginning"
+    assert_select %(link[rel="prefetch"][href="/luk.24"])
+    assert_select %(link[rel="prefetch"][href="/jhn.2"])
+    assert_select %(a[data-turbo-prefetch="true"][href="/luk.24"])
+    assert_select %(a[data-turbo-prefetch="true"][href="/jhn.2"])
+    assert_equal Verse.where(book: "JHN", chapter: 1).count, Verse.count
+    assert Verse.count.positive?
+    assert_equal 0, Verse.where.not(book: "JHN", chapter: 1).count
+  end
+
+  test "a verse slug hydrates the whole chapter page" do
+    Verse.delete_all
+    get read_path("jhn.1.16")
+    assert_response :success
+    assert_select ".vtext", /In the beginning was the Word/
+    assert_select "#v16"
+    assert_select "[data-reader-focus-value='16']"
+    assert Verse.where(book: "JHN", chapter: 1).count > 1
+  end
+
+  test "a missing chapter still 404s" do
+    get read_path("jhn.99")
+    assert_response :not_found
+    assert_select "h1", /No BSB text/
+    assert_equal 0, Verse.where(book: "JHN", chapter: 99).count
+  end
+
   test "reads a chapter with pericope headings" do
     get read_path("jhn.1")
     assert_response :success

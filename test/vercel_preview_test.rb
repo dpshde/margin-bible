@@ -42,7 +42,10 @@ class VercelPreviewTest < ActiveSupport::TestCase
     assert_match(/npm run build/, dockerfile)
     assert_match(/assets:precompile/, dockerfile)
     assert_match(/vendor\/scripture/, dockerfile)
+    assert_match(/MARGIN_BSB_URL=https:\/\/arweave\.net\/B6yeNb3lk_VkiIp-fTWVh13TlM94LjLK6kC63BPXa8s/, dockerfile)
+    assert_match(/margin:build_bsb_pack/, dockerfile)
     assert_match(/margin:seed_scripture/, dockerfile)
+    refute_match(/Range:/, dockerfile)
     assert_match(/PORT=80/, dockerfile)
     assert_match(%r{CMD \["/rails/bin/vercel-start"\]}, dockerfile)
   end
