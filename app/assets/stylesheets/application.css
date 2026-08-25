@@ -12,8 +12,8 @@
   --primary-fill: #161616;
   --primary-on: #ffffff;
   --page-max: 38rem;
-  --mark-fill: #e5e4e1;
   --sel-rail: color-mix(in srgb, var(--ink) 18%, transparent);
+  --sel-rail-open: color-mix(in srgb, var(--ink) 42%, transparent);
   --read: "Lexend", system-ui, sans-serif;
   --sans: "Poppins", system-ui, sans-serif;
 }
@@ -31,7 +31,6 @@
     --fill: color-mix(in srgb, var(--ink) 7%, transparent);
     --primary-fill: #eceae4;
     --primary-on: #111111;
-    --mark-fill: #2a2820;
   }
 }
 
@@ -121,17 +120,18 @@ button, input, textarea { font: inherit; color: inherit; }
 }
 .section-head.spaced { margin-top: 1.35rem; }
 
-.verse { position: relative; padding: .15rem 0 .15rem .7rem; }
+.verse { position: relative; padding: .12rem 0 .12rem .4rem; }
 .verse.has-note { border-left: 2px solid var(--sel-rail); }
-.verse.is-open { background: var(--mark-fill); border-radius: .65rem; margin: .2rem -.4rem; padding-left: 1.1rem; }
+.verse.is-open { border-left: 2px solid var(--sel-rail-open); }
+.verse.is-open .vnum { color: var(--ink-soft); }
 .verse-press {
-  display: grid; grid-template-columns: 2rem 1fr; gap: .35rem; width: 100%;
+  display: grid; grid-template-columns: 1.4rem 1fr; gap: .25rem; width: 100%;
   border: 0; background: transparent; text-align: left; cursor: pointer;
-  padding: .35rem .2rem; border-radius: .4rem;
+  padding: .28rem 0;
 }
 .vnum {
-  font-variant-numeric: tabular-nums; color: var(--faint); font-size: .8rem;
-  padding-top: .28rem;
+  font-variant-numeric: tabular-nums; color: var(--faint); font-size: .75rem;
+  padding-top: .32rem; text-align: right;
 }
 .vtext {
   font-family: var(--read); font-size: 1.18rem; line-height: 1.55; color: var(--ink);
@@ -204,4 +204,11 @@ button, input, textarea { font: inherit; color: inherit; }
 @media (max-width: 640px) {
   .topbar { grid-template-columns: auto 1fr auto; }
   .vtext { font-size: 1.12rem; }
+  .verse { padding-left: .3rem; }
+  .verse-press { grid-template-columns: 1.2rem 1fr; gap: .18rem; }
+}
+@media (max-width: 390px) {
+  .verse { padding-left: .2rem; }
+  .verse-press { grid-template-columns: 1.05rem 1fr; gap: .12rem; padding: .2rem 0; }
+  .vnum { font-size: .68rem; padding-top: .36rem; }
 }
