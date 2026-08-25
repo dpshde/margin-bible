@@ -48,8 +48,7 @@ class VercelPreviewTest < ActiveSupport::TestCase
     script = Rails.root.join("bin/vercel-start").read
 
     assert_match(/PORT:-\{?80\}?/, script)
-    assert_match(/db:prepare/, script)
-    assert_match(/margin:seed_scripture/, script)
+    assert_match(/db:prepare margin:seed_scripture/, script)
     assert_match(/puma -C config\/puma.rb/, script)
   end
 end

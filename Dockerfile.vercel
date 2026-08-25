@@ -17,7 +17,11 @@ ENV RAILS_ENV=production \
     PORT=80
 
 RUN apt-get update -qq && \
-    apt-get install --no-install-recommends -y libsqlite3-0 libyaml-0-2 ca-certificates && \
+    apt-get install --no-install-recommends -y \
+      ca-certificates \
+      libsqlite3-0 \
+      libvips42 \
+      libyaml-0-2 && \
     rm -rf /var/lib/apt/lists /var/cache/apt/archives
 
 FROM base AS build

@@ -5,8 +5,7 @@ set -euo pipefail
 cd /rails
 export PORT="${PORT:-80}"
 
-# Image already has a seeded sqlite. These are cheap no-ops when current.
-bin/rails db:prepare
-bin/rails margin:seed_scripture
+# Image already has a seeded sqlite. One process: no-ops when current.
+bin/rails db:prepare margin:seed_scripture
 
 exec bundle exec puma -C config/puma.rb
