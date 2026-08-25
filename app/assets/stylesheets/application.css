@@ -139,7 +139,9 @@ button, input, textarea { font: inherit; color: inherit; }
 
 .note-tray, .chapter-tray { padding: .2rem .2rem .7rem; }
 .chapter-tray { background: var(--fill); border-radius: .75rem; margin-bottom: 1rem; padding: .8rem; }
-.tray-label, .tray-meta { margin: 0 0 .4rem; font-size: .78rem; color: var(--faint); }
+.tray-label, .tray-meta, .preview-label { margin: 0 0 .4rem; font-size: .78rem; color: var(--faint); font-family: var(--sans); }
+.preview-label { margin: .35rem 0 .1rem; }
+.note-card + .note-card { margin-top: .45rem; }
 .note-input {
   width: 100%; border: 1px solid var(--line); background: var(--paper-raised);
   border-radius: .65rem; padding: .7rem .8rem; min-height: 5.5rem; resize: vertical;

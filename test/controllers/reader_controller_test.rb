@@ -72,4 +72,31 @@ class ReaderControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert Library.last.notes.find_by(slug: "jhn.1.1")
   end
+
+  test "verse row shows exact and overlapping range notes as separate records" do
+    get read_path("jhn.1")
+    library = Library.last
+    library.notes.create!(
+      slug: "jhn.1.1", osis: "JHN.1.1", kind: "verse", book: "JHN", chapter: 1,
+      verse_start: 1, blocks: [ { "id" => "a", "indent" => 0, "text" => "Exact verse." } ]
+    )
+    library.notes.create!(
+      slug: "jhn.1.1-6", osis: "JHN.1.1-6", kind: "range", book: "JHN", chapter: 1,
+      verse_start: 1, verse_end: 6, blocks: [ { "id" => "b", "indent" => 0, "text" => "Range span." } ]
+    )
+    library.notes.create!(
+      slug: "jhn.1", osis: "JHN.1", kind: "chapter", book: "JHN", chapter: 1,
+      blocks: [ { "id" => "c", "indent" => 0, "text" => "Chapter only." } ]
+    )
+
+    get read_path("jhn.1")
+    assert_select "#v1 textarea[data-slug='jhn.1.1']", "Exact verse."
+    assert_select "#v1 textarea[data-slug='jhn.1.1-6']", "Range span."
+    assert_select "#v1 .preview-body", "Exact verse."
+    assert_select "#v1 .preview-body", "Range span."
+    assert_select "#v1 textarea[data-slug='jhn.1']", count: 0
+    assert_select "#v6 textarea[data-slug='jhn.1.1-6']", "Range span."
+    assert_select "#v6 textarea[data-slug='jhn.1.6']"
+    assert_select ".chapter-tray textarea[data-slug='jhn.1']", "Chapter only."
+  end
 end

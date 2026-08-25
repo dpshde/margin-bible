@@ -18,19 +18,16 @@ export default class extends Controller {
   openVerse(event) {
     const verse = event.currentTarget.closest("[data-verse]")
     if (!verse) return
-    const tray = verse.querySelector(".note-tray")
     const wasOpen = verse.classList.contains("is-open")
     this.element.querySelectorAll(".verse.is-open").forEach((v) => {
       v.classList.remove("is-open")
-      const t = v.querySelector(".note-tray")
-      if (t) t.hidden = true
+      this.setTraysHidden(v, true)
     })
     if (wasOpen) return
     verse.classList.add("is-open")
-    if (tray) {
-      tray.hidden = false
-      tray.querySelector("textarea")?.focus()
-    }
+    const trays = this.traysIn(verse)
+    trays.forEach((tray) => { tray.hidden = false })
+    trays[0]?.querySelector("textarea")?.focus()
   }
 
   toggleChapter() {
@@ -45,11 +42,11 @@ export default class extends Controller {
     const expanding = !this.element.classList.contains("is-expanded")
     this.element.classList.toggle("is-expanded", expanding)
     this.element.querySelectorAll(".verse.has-note").forEach((v) => {
-      const preview = v.querySelector(".note-preview")
-      const tray = v.querySelector(".note-tray")
-      if (preview) preview.hidden = !expanding || v.classList.contains("is-open")
-      if (tray && expanding) tray.hidden = true
-      if (!expanding && !v.classList.contains("is-open") && tray) tray.hidden = true
+      const open = v.classList.contains("is-open")
+      v.querySelectorAll(".note-preview").forEach((preview) => {
+        preview.hidden = !expanding || open
+      })
+      this.setTraysHidden(v, expanding || !open)
     })
   }
 
@@ -82,9 +79,21 @@ export default class extends Controller {
       body
     })
     if (!res.ok) return
-    const json = await res.json()
+    await res.json()
     const verse = area.closest(".verse")
     if (!verse) return
-    verse.classList.toggle("has-note", !json.deleted && area.value.trim().length > 0)
+    verse.classList.toggle("has-note", this.anyNoteText(verse))
+  }
+
+  traysIn(verse) {
+    return verse.querySelectorAll(".note-tray")
+  }
+
+  setTraysHidden(verse, hidden) {
+    this.traysIn(verse).forEach((tray) => { tray.hidden = hidden })
+  }
+
+  anyNoteText(verse) {
+    return [...verse.querySelectorAll("textarea")].some((area) => area.value.trim().length > 0)
   }
 }

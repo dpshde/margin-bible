@@ -10,6 +10,14 @@ class Note < ApplicationRecord
     Margin::Passage.parse(slug)
   end
 
+  # Exact verse and overlapping range notes cover a verse. Chapter notes never do.
+  def covers_verse?(n)
+    return false if kind == "chapter" || verse_start.blank?
+
+    last = verse_end.presence || verse_start
+    n.to_i >= verse_start && n.to_i <= last
+  end
+
   def body_text
     Array(blocks).map { |b|
       ("  " * b["indent"].to_i) + b["text"].to_s

@@ -20,7 +20,7 @@
           <div class="menu-panel" onclick="if (event.target.closest('button, a')) this.closest('details').removeAttribute('open')">
             <button type="button" class="menu-item" data-action="click->reader#share" data-reader-route-bible-param="<%= @route_bible_url %>">Share</button>
             <button type="button" class="menu-item <%= "is-on" if @chapter_note %>" data-action="click->reader#toggleChapter">Chapter note</button>
-            <button type="button" class="menu-item" data-action="click->reader#toggleExpand" <%= "disabled" unless @notes_by_slug.any? %>>Expand notes</button>
+            <button type="button" class="menu-item" data-action="click->reader#toggleExpand" <%= "disabled" unless @verse_notes.any? %>>Expand notes</button>
             <%= link_to "Sign in", new_session_path, class: "menu-item" %>
           </div>
         </details>
@@ -51,10 +51,11 @@
     <article class="chapter">
       <% @verses.each do |verse| %>
         <% vslug = @chapter.verse_slug(verse.verse) %>
-        <% note = @notes_by_slug[vslug] %>
+        <% covering = @notes_by_verse[verse.verse] || [] %>
+        <% exact = covering.find { |note| note.slug == vslug } %>
         <% open = @focus_verse == verse.verse %>
         <div
-          class="verse <%= "has-note" if note %> <%= "is-open" if open %>"
+          class="verse <%= "has-note" if covering.any? %> <%= "is-open" if open %>"
           id="v<%= verse.verse %>"
           data-verse="<%= verse.verse %>"
           data-slug="<%= vslug %>"
@@ -66,17 +67,26 @@
             <span class="vnum"><%= verse.verse %></span>
             <span class="vtext"><%= verse.text %></span>
           </button>
-          <% if note && !open %>
+          <% if covering.any? && !open %>
             <div class="rail" aria-hidden="true"></div>
           <% end %>
-          <div class="note-tray" data-reader-target="tray" <%= "hidden" unless open %>>
-            <%= render "reader/note_editor", slug: vslug, note: note, label: nil %>
-          </div>
-          <div class="note-preview" data-reader-target="preview" hidden>
-            <% if note %>
-              <p class="preview-body"><%= wiki_note_html(note.body_text) %></p>
-            <% end %>
-          </div>
+          <% covering.each do |note| %>
+            <section class="note-card">
+              <div class="note-tray" data-reader-target="tray" <%= "hidden" unless open %>>
+                <p class="tray-label"><%= note.passage.label %></p>
+                <%= render "reader/note_editor", slug: note.slug, note: note, label: nil %>
+              </div>
+              <div class="note-preview" data-reader-target="preview" hidden>
+                <p class="preview-label"><%= note.passage.label %></p>
+                <p class="preview-body"><%= wiki_note_html(note.body_text) %></p>
+              </div>
+            </section>
+          <% end %>
+          <% unless exact %>
+            <div class="note-tray" data-reader-target="tray" <%= "hidden" unless open %>>
+              <%= render "reader/note_editor", slug: vslug, note: nil, label: nil %>
+            </div>
+          <% end %>
         </div>
       <% end %>
     </article>

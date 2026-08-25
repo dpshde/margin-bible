@@ -7,10 +7,10 @@ Product: **margin.bible**. Rails 8.1 hosted Bible reader + notes. The product is
 | Priority | Meaning |
 |---|---|
 | **Full-Bible reading** | The page is always a chapter, with BSB pericope headings. |
-| **Notes in the stream** | Tap a verse → outline tray. Address = OSIS slug. Compose, don’t absorb. |
+| **Notes in the stream** | Tap a verse → outline tray. Address = OSIS slug. Compose, don’t absorb: a verse note and a range note that covers it stay two records. |
 | **Hosted** | Anonymous library cookie, then magic-link claim. No self-host door as the product. |
 
-Mobile is a **thin Hotwire Native shell** (`ios/`) that loads this Rails site. Native navigation is the chrome on device; the web topbar is hidden when `hotwire_native_app?` (Turbo/Hotwire Native user agent). Do not build Expo. Do not reimplement a second reader.
+Mobile follows the HEY/Basecamp model: a **thin Hotwire Native shell** (`ios/`) with a native navigation stack, transitions, and gestures. The WebView renders this same Turbo/Rails chapter page. Hide the web topbar when `hotwire_native_app?`. Bridge Components only if the native bar needs the header menu / share sheet. No Expo. No commercial Ruby Native layer. No fully native reader screens.
 
 `legacy/` is the previous Elixir/pack/Expo demo. Do not restore multiword doors, pack-on-disk as source of truth, or “no accounts” as a principle.
 
@@ -50,4 +50,5 @@ Preview: Vercel builds `Dockerfile.vercel` via `vercel.json` (set `SECRET_KEY_BA
 - Reimplement grab-bcv in Ruby beyond slug/human parse already in `Passage`.
 - Merge verse notes into the chapter note.
 - Treat `legacy/` as the deploy target.
-- Build Expo, or a native Bible app that is not a Hotwire Native shell of this chapter page.
+- Build Expo, a commercial Ruby Native layer, or a native Bible/reader screen that is not a Hotwire Native WebView of this chapter page.
+- Merge a verse note into a range or into the chapter note.

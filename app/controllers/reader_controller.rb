@@ -18,8 +18,11 @@ class ReaderController < ApplicationController
     end
 
     notes = current_library.notes_in_chapter(@chapter.book, @chapter.chapter)
-    @notes_by_slug = notes.index_by(&:slug)
-    @chapter_note = @notes_by_slug[@chapter.slug]
+    @chapter_note = notes.find { |note| note.kind == "chapter" || note.slug == @chapter.slug }
+    @verse_notes = notes.reject { |note| note == @chapter_note }
+    @notes_by_verse = @verses.to_h { |verse|
+      [ verse.verse, @verse_notes.select { |note| note.covers_verse?(verse.verse) } ]
+    }
     @focus_verse = @passage.focus_verse
     @prev = @chapter.prev_chapter
     @next = @chapter.next_chapter

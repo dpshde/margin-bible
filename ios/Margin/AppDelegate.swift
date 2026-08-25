@@ -13,6 +13,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             .file(local),
             .server(remote)
         ])
+        // Bridge Components stay reserved for the header menu / share sheet.
         return true
     }
 }
