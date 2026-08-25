@@ -1,10 +1,23 @@
-<% content_for :title, @chapter.label %>
+<% content_for :title, (@passage.kind == "chapter" ? @chapter.label : @passage.label) %>
+<%
+  span_start = @passage.verse_start
+  span_end = @passage.span_end
+  range_selected = @passage.range?
+  single_selected = @passage.kind == "verse"
+  range_slug = range_selected ? @passage.slug : nil
+%>
 
 <div
   data-controller="reader search"
   data-reader-focus-value="<%= @focus_verse %>"
   data-reader-chapter-slug-value="<%= @chapter.slug %>"
   data-reader-notes-url-value="<%= notes_path %>"
+  data-reader-book-label-value="<%= Margin::Books.name_for(@chapter.book) %>"
+  data-reader-chapter-value="<%= @chapter.chapter %>"
+  <% if span_start %>
+    data-reader-span-start-value="<%= span_start %>"
+    data-reader-span-end-value="<%= span_end %>"
+  <% end %>
 >
   <% unless hotwire_native_app? %>
     <header class="topbar">
@@ -13,7 +26,7 @@
           <%= link_to "‹ #{@prev.label}", read_path(@prev.slug), class: "ghost", data: { turbo_action: "advance" } %>
         <% end %>
       </div>
-      <h1 class="topbar-title"><%= @chapter.label %></h1>
+      <h1 class="topbar-title" data-reader-target="title"><%= @passage.kind == "chapter" ? @chapter.label : @passage.label %></h1>
       <div class="topbar-actions">
         <details class="topbar-menu">
           <summary class="icon-btn" title="Menu" aria-label="Menu">≡</summary>
@@ -47,14 +60,18 @@
       <%= render "reader/note_editor", slug: @chapter.slug, note: @chapter_note, label: "Chapter note · #{@chapter.label}" %>
     </section>
 
-    <article class="chapter">
+    <article class="chapter" data-action="pointerdown->reader#pressStart">
       <% @verses.each do |verse| %>
         <% vslug = @chapter.verse_slug(verse.verse) %>
         <% covering = @notes_by_verse[verse.verse] || [] %>
         <% exact = covering.find { |note| note.slug == vslug } %>
-        <% open = @focus_verse == verse.verse %>
+        <% range_note = range_slug && covering.find { |note| note.slug == range_slug } %>
+        <% in_span = span_start && verse.verse >= span_start && verse.verse <= span_end %>
+        <% is_end = range_selected && verse.verse == span_end %>
+        <% is_single_open = single_selected && verse.verse == span_start %>
+        <% trays_open = is_single_open || is_end %>
         <div
-          class="verse <%= "has-note" if covering.any? %> <%= "is-open" if open %>"
+          class="verse <%= "has-note" if covering.any? %> <%= "is-open" if trays_open %> <%= "is-span" if in_span %>"
           id="v<%= verse.verse %>"
           data-verse="<%= verse.verse %>"
           data-slug="<%= vslug %>"
@@ -66,12 +83,12 @@
             <span class="vnum"><%= verse.verse %></span>
             <span class="vtext"><%= verse.text %></span>
           </button>
-          <% if covering.any? && !open %>
+          <% if covering.any? && !trays_open %>
             <div class="rail" aria-hidden="true"></div>
           <% end %>
           <% covering.each do |note| %>
             <section class="note-card">
-              <div class="note-tray" data-reader-target="tray" <%= "hidden" unless open %>>
+              <div class="note-tray" data-reader-target="tray" data-note-slug="<%= note.slug %>" <%= "hidden" unless trays_open %>>
                 <%= render "reader/note_editor", slug: note.slug, note: note, label: note.passage.label %>
               </div>
               <div class="note-preview" data-reader-target="preview" hidden>
@@ -84,14 +101,35 @@
               </div>
             </section>
           <% end %>
+          <% if is_end && range_slug && range_note.nil? %>
+            <div
+              class="note-tray"
+              data-reader-target="tray"
+              data-range-composer
+              data-range-slug="<%= range_slug %>"
+            >
+              <%= render "reader/note_editor", slug: range_slug, note: nil, label: @passage.label %>
+            </div>
+          <% end %>
           <% unless exact %>
-            <div class="note-tray" data-reader-target="tray" <%= "hidden" unless open %>>
+            <div
+              class="note-tray"
+              data-reader-target="tray"
+              data-verse-composer
+              <%= "hidden" unless is_single_open %>
+            >
               <%= render "reader/note_editor", slug: vslug, note: nil, label: nil %>
             </div>
           <% end %>
         </div>
       <% end %>
     </article>
+
+    <template data-reader-target="rangeTemplate">
+      <div class="note-tray" data-range-composer hidden>
+        <%= render "reader/note_editor", slug: "range.placeholder", note: nil, label: "Passage" %>
+      </div>
+    </template>
 
     <nav class="pager">
       <% if @prev %><%= link_to "← #{@prev.label}", read_path(@prev.slug) %><% end %>

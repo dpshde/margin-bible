@@ -122,12 +122,16 @@ button, input, textarea { font: inherit; color: inherit; }
 
 .verse { position: relative; padding: .12rem 0 .12rem .4rem; }
 .verse.has-note { border-left: 2px solid var(--sel-rail); }
-.verse.is-open { border-left: 2px solid var(--sel-rail-open); }
-.verse.is-open .vnum { color: var(--ink-soft); }
+.verse.is-open, .verse.is-span { border-left: 2px solid var(--sel-rail-open); }
+.verse.is-open .vnum, .verse.is-span .vnum { color: var(--ink-soft); }
+.verse.is-span .vtext {
+  color: color-mix(in srgb, var(--ink) 68%, #6b4a24);
+}
+.chapter.is-picking { user-select: none; }
 .verse-press {
   display: grid; grid-template-columns: 1.4rem 1fr; gap: .25rem; width: 100%;
   border: 0; background: transparent; text-align: left; cursor: pointer;
-  padding: .28rem 0;
+  padding: .28rem 0; touch-action: manipulation;
 }
 .vnum {
   font-variant-numeric: tabular-nums; color: var(--faint); font-size: .75rem;

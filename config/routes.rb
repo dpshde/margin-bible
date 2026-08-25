@@ -14,5 +14,5 @@ Rails.application.routes.draw do
   get "*slug" => "reader#show",
       as: :read,
       format: false,
-      constraints: { slug: /[0-9a-z][0-9a-z.]+/i }
+      constraints: { slug: /[0-9a-z][0-9a-z.-]+/i }
 end

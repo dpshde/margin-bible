@@ -8,14 +8,11 @@ class ReaderVerseCssTest < ActiveSupport::TestCase
   end
 
   test "open verse is a thin rail, not a filled rounded island" do
-    open_rule = css[/\.verse\.is-open\s*\{[^}]+\}/]
-    assert open_rule
-    assert_match(/border-left:/, open_rule)
-    refute_match(/background:/, open_rule)
-    refute_match(/border-radius:/, open_rule)
-    refute_match(/padding-left:/, open_rule)
-    refute_match(/margin:/, open_rule)
+    refute_match(/\.verse\.is-open[^{]*\{[^}]*background:/m, css)
+    refute_match(/\.verse\.is-span[^{]*\{[^}]*background:/m, css)
+    refute_match(/\.verse\.is-span \.vtext\s*\{[^}]*background:/m, css)
     refute_match(/--mark-fill/, css)
+    assert_match(/\.verse\.is-span \.vtext\s*\{[^}]*color:/m, css)
     has_note = css[/\.verse\.has-note\s*\{[^}]+\}/]
     assert_match(/border-left:/, has_note)
     refute_match(/background:/, has_note)

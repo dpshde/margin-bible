@@ -23,7 +23,7 @@ class ReaderController < ApplicationController
     @notes_by_verse = @verses.to_h { |verse|
       [ verse.verse, @verse_notes.select { |note| note.covers_verse?(verse.verse) } ]
     }
-    @focus_verse = @passage.focus_verse
+    @focus_verse = @passage.span_end || @passage.verse_start
     @prev = @chapter.prev_chapter
     @next = @chapter.next_chapter
     @route_bible_url = Margin::RouteBible.url_for(@passage)

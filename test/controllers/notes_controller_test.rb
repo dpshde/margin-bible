@@ -43,6 +43,23 @@ class NotesControllerTest < ActionDispatch::IntegrationTest
     assert_equal 1, note.blocks[1]["indent"]
   end
 
+  test "upserting a range slug stores a range note without absorbing verses" do
+    [ 2, 3 ].each do |n|
+      Verse.create!(translation: "BSB", book: "JHN", chapter: 1, verse: n, text: "Verse #{n}.")
+    end
+    patch notes_path, params: { slug: "jhn.1.1", text: "Verse one." }
+    patch notes_path, params: { slug: "jhn.1.1-3", text: "Range thought." }
+    library = Library.last
+    range = library.notes.find_by!(slug: "jhn.1.1-3")
+    assert_equal "range", range.kind
+    assert_equal 1, range.verse_start
+    assert_equal 3, range.verse_end
+    assert library.notes.find_by(slug: "jhn.1.1")
+    patch notes_path, params: { slug: "jhn.1.1-3", text: "   " }
+    assert_nil library.notes.find_by(slug: "jhn.1.1-3")
+    assert library.notes.find_by(slug: "jhn.1.1")
+  end
+
   test "text-only upsert still hydrates indent blocks and can delete when empty" do
     patch notes_path, params: { slug: "jhn.1.1", text: "Root\n  Nested" }
     note = Library.last.notes.find_by!(slug: "jhn.1.1")

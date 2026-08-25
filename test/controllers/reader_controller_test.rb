@@ -115,6 +115,56 @@ class ReaderControllerTest < ActionDispatch::IntegrationTest
     assert_select ".chapter-tray .outliner[data-slug='jhn.1'] .otext", "Chapter only."
   end
 
+  test "range slug marks the span and opens one range tray" do
+    [ 2, 3 ].each do |n|
+      Verse.create!(
+        translation: "BSB", book: "JHN", chapter: 1, verse: n,
+        text: "Verse #{n}."
+      )
+    end
+
+    get read_path("jhn.1.1-3")
+    assert_response :success
+    assert_select "#v1.is-span"
+    assert_select "#v2.is-span"
+    assert_select "#v3.is-span"
+    assert_select "#v3.is-open"
+    assert_select "#v1.is-open", count: 0
+    assert_select "#v3 .outliner[data-slug='jhn.1.1-3']"
+    assert_select "#v1 .outliner[data-slug='jhn.1.1-3']", count: 0
+    assert_select "#v2 .outliner[data-slug='jhn.1.1-3']", count: 0
+    assert_select "h1.topbar-title", "John 1:1–3"
+  end
+
+  test "verse notes on 1 and 2 still render separately on a range deep link" do
+    [ 2, 3 ].each do |n|
+      Verse.create!(
+        translation: "BSB", book: "JHN", chapter: 1, verse: n,
+        text: "Verse #{n}."
+      )
+    end
+    get read_path("jhn.1")
+    library = Library.last
+    library.notes.create!(
+      slug: "jhn.1.1", osis: "JHN.1.1", kind: "verse", book: "JHN", chapter: 1,
+      verse_start: 1, blocks: [ { "id" => "n1", "indent" => 0, "text" => "Note on 1." } ]
+    )
+    library.notes.create!(
+      slug: "jhn.1.2", osis: "JHN.1.2", kind: "verse", book: "JHN", chapter: 1,
+      verse_start: 2, blocks: [ { "id" => "n2", "indent" => 0, "text" => "Note on 2." } ]
+    )
+
+    get read_path("jhn.1.1-3")
+    assert_select "#v1.is-span"
+    assert_select "#v2.is-span"
+    assert_select "#v3.is-span"
+    assert_select "#v1 .outliner[data-slug='jhn.1.1']", "Note on 1."
+    assert_select "#v2 .outliner[data-slug='jhn.1.2']", "Note on 2."
+    assert_select "#v3 .outliner[data-slug='jhn.1.1-3']"
+    assert_select "#v1 .outliner[data-slug='jhn.1.1-3']", count: 0
+    assert_select "#v3 .outliner[data-slug='jhn.1.1']", count: 0
+  end
+
   test "expand preview renders wiki and inline markdown without absorbing markers" do
     get read_path("jhn.1")
     Library.last.notes.create!(

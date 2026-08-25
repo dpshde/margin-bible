@@ -54,6 +54,23 @@ module Margin
       verse_start
     end
 
+    def range?
+      kind == "range"
+    end
+
+    def span_end
+      return nil unless verse_start
+
+      verse_end.presence || verse_start
+    end
+
+    def covers_verse?(n)
+      return false unless verse_start
+
+      last = span_end
+      n.to_i >= verse_start && n.to_i <= last
+    end
+
     def prev_chapter
       if chapter > 1
         self.class.new(book: book, chapter: chapter - 1)

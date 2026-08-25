@@ -25,6 +25,7 @@ class HotwireNativePathConfigurationTest < ActiveSupport::TestCase
     chapter = config["rules"].find { |rule| rule["patterns"].any? { |pattern| pattern.include?("[a-z]") } }
     assert chapter, "expected an OSIS chapter pattern"
     assert_match(Regexp.new(chapter["patterns"].first), "/jhn.1")
+    assert_match(Regexp.new(chapter["patterns"].first), "/jhn.1.3-7")
     assert_match(Regexp.new(chapter["patterns"].first), "/luk.24")
     assert_equal "default", chapter.dig("properties", "context")
     assert_equal "default", chapter.dig("properties", "presentation")
