@@ -68,6 +68,20 @@ class ReaderControllerTest < ActionDispatch::IntegrationTest
     get read_path("jhn.1")
     assert_select "[data-reader-prev-url-value='/luk.24']"
     assert_select "[data-reader-next-url-value='/jhn.2']"
+    assert_select "header.topbar a", text: /‹/, count: 0
+    assert_select "header.topbar a", text: /Luke 24/, count: 0
+  end
+
+  test "canon edges omit swipe urls" do
+    Verse.create!(translation: "BSB", book: "GEN", chapter: 1, verse: 1, text: "In the beginning.")
+    get read_path("gen.1")
+    assert_select "[data-reader-prev-url-value='']"
+    assert_select "[data-reader-next-url-value='/gen.2']"
+
+    Verse.create!(translation: "BSB", book: "REV", chapter: 22, verse: 1, text: "Then the angel showed me.")
+    get read_path("rev.22")
+    assert_select "[data-reader-prev-url-value='/rev.21']"
+    assert_select "[data-reader-next-url-value='']"
   end
 
   test "verse slug still opens the chapter" do

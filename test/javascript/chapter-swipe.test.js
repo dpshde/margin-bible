@@ -13,6 +13,7 @@ import { chapterSwipe } from "../../app/javascript/lib/chapter-swipe.js"
   assert.equal(chapterSwipe({ dx: -90, dy: 8, elapsedMs: 220, rangeDragging: true }), null)
   assert.equal(chapterSwipe({ dx: -90, dy: 8, elapsedMs: 220, startedOnChrome: true }), null)
   assert.equal(chapterSwipe({ dx: -50, dy: 4, elapsedMs: 400 }), null)
+  assert.equal(chapterSwipe({ dx: 12, dy: 90, elapsedMs: 180 }), null)
 }
 
 console.log("chapter-swipe: ok")
