@@ -67,7 +67,13 @@ class ContainerDeployTest < ActiveSupport::TestCase
     assert_equal "DOCKERFILE", config.dig("build", "builder")
     assert_equal "Dockerfile", config.dig("build", "dockerfilePath")
     assert_equal "/up", config.dig("deploy", "healthcheckPath")
-    refute File.exist?(Rails.root.join("vercel.json"))
+  end
+
+  test "vercel.json deploys the same Dockerfile as a container" do
+    vercel = JSON.parse(Rails.root.join("vercel.json").read)
+
+    assert_equal "container", vercel["framework"]
+    assert File.exist?(Rails.root.join("Dockerfile"))
   end
 
   test "docker-start prepares db, seeds, and execs puma on PORT 80" do
