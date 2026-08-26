@@ -3,7 +3,7 @@
 <plist version="1.0">
 <dict>
 	<key>MARGIN_BASE_URL</key>
-	<string>https://margin.bible</string>
+	<string>$(MARGIN_BASE_URL)</string>
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<key>NSAllowsLocalNetworking</key>

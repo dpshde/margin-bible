@@ -147,6 +147,14 @@ class HomeControllerTest < ActionDispatch::IntegrationTest
     assert_select "h1.topbar-title", "Notes"
   end
 
+  test "hides the web topbar for a Hotwire Native client" do
+    get root_path, headers: { "User-Agent" => "Margin iOS; Hotwire Native iOS; Turbo Native iOS;" }
+    assert_response :success
+    assert_select "html.hotwire-native"
+    assert_select "header.topbar", count: 0
+    assert_select "main.inbox-main form.jump input#q"
+  end
+
   test "clicking an inbox card opens the note slug" do
     get root_path
     Library.last.notes.create!(
