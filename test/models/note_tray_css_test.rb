@@ -64,7 +64,7 @@ class NoteTrayCssTest < ActiveSupport::TestCase
     assert_match(/font-size:\s*16px/, otext)
     vtext = css[/\n\.vtext\s*\{[^}]+\}/]
     assert vtext
-    assert_match(/font-size:\s*1\.18rem/, vtext)
+    assert_match(/font-size:\s*var\(--read-size\)/, vtext)
     refute_match(/font-size:\s*16px/, vtext)
   end
 

@@ -89,12 +89,12 @@ class ReaderVerseCssTest < ActiveSupport::TestCase
     refute_match(/margin:\s*0 0 \.7em/, para)
     quiet_p = css[/\.is-quiet \.pub-p\s*\{[^}]+\}/]
     assert quiet_p
-    assert_match(/text-indent:\s*1\.35em/, quiet_p)
-    refute_match(/\.is-quiet \.section-head \+ \.pub-p,\s*\.is-quiet \.section-head \+ \.pub-r \+ \.pub-p\s*\{[^}]*text-indent:\s*0/m, css)
+    assert_match(/text-indent:\s*1\.2em/, quiet_p)
+    assert_match(/\.is-quiet \.section-head \+ \.pub-p,\s*\n\.is-quiet \.section-head \+ \.pub-r \+ \.pub-p\s*\{[^}]*text-indent:\s*0/m, css)
     assert_match(/\.is-quiet \.pub-q1\s*\{[^}]*padding-left:\s*\.85rem/m, css)
     assert_match(/\.is-quiet \.pub-q2\s*\{[^}]*padding-left:\s*1\.2rem/m, css)
     assert_match(/\.is-quiet \.pub-b\s*\{[^}]*height:\s*\.18em/, css)
-    assert_match(/\.is-quiet \.section-head\.spaced\s*\{[^}]*margin-top:\s*1em/, css)
+    assert_match(/\.is-quiet \.section-head\.spaced\s*\{[^}]*margin-top:\s*2\.25em/, css)
     assert_match(/\.is-quiet \.oblock\s*\{[^}]*display:\s*flex/, css)
     assert_match(/\.is-quiet \.oblock\s*\{[^}]*padding:[^}]*var\(--depth/, css)
     quiet_block = css[/\.is-quiet \.oblock\s*\{[^}]+\}/]
@@ -221,14 +221,16 @@ class ReaderVerseCssTest < ActiveSupport::TestCase
   test "regular reading follows USFM paragraphs without becoming Focus" do
     pub_p = css[/\n\.pub-p\s*\{[^}]+\}/]
     assert pub_p
-    assert_match(/margin:\s*0 0 1em/, pub_p)
-    refute_match(/text-indent:/, pub_p)
+    assert_match(/margin:\s*0/, pub_p)
+    refute_match(/margin:\s*0 0 1em/, pub_p)
+    assert_match(/hanging-punctuation:\s*first/, pub_p)
     q = css[/\n\.pub-q1, \.pub-q2\s*\{[^}]+\}/]
     assert q
     assert_match(/margin:\s*0 0 \.1em/, q)
     assert_match(/\.pub-b\s*\{[^}]*height:\s*\.7em/, css)
-    assert_match(/\.section-head\.spaced\s*\{[^}]*margin-top:\s*1\.65rem/, css)
+    assert_match(/\.section-head\.spaced\s*\{[^}]*margin-top:\s*2\.25em/, css)
     assert_match(/\.section-head \+ \.pub-p,\s*\n\.section-head \+ \.pub-r \+ \.pub-p\s*\{[^}]*margin-top:\s*0/, css)
+    assert_match(/\.pub-p \+ \.pub-p\s*\{[^}]*text-indent:\s*1\.2em/, css)
     regular_verse = css[/\n\.verse\s*\{[^}]+\}/]
     assert regular_verse
     assert_match(/display:\s*block/, regular_verse)
@@ -240,7 +242,7 @@ class ReaderVerseCssTest < ActiveSupport::TestCase
     quiet_p = css[/\.is-quiet \.pub-p,\s*\.is-quiet \.pub-q1,\s*\.is-quiet \.pub-q2\s*\{[^}]+\}/]
     assert quiet_p
     assert_match(/margin:\s*0/, quiet_p)
-    assert_match(/\.is-quiet \.pub-p\s*\{[^}]*text-indent:\s*1\.35em/, css)
+    assert_match(/\.is-quiet \.pub-p\s*\{[^}]*text-indent:\s*1\.2em/, css)
     assert_match(/\.is-quiet \.verse\s*\{[^}]*display:\s*contents/, css)
     assert_match(/\.is-quiet \.verse-press\s*\{[^}]*display:\s*contents/, css)
     assert_match(/\.verse-press\s*\{[^}]*display:\s*grid/, css)
