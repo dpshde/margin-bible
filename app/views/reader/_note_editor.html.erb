@@ -1,13 +1,38 @@
-<label class="sr-only" for="note-<%= slug %>"><%= label || "Note" %></label>
-<textarea
-  id="note-<%= slug %>"
-  class="note-input"
-  rows="3"
-  placeholder="Write a note…"
+<%
+  display_label = local_assigns[:label].presence || Margin::Passage.parse(slug)&.label
+  editor_blocks = Array(note&.blocks)
+  editor_blocks = [ { "id" => "b_#{SecureRandom.hex(4)}", "indent" => 0, "text" => "" } ] if editor_blocks.empty?
+%>
+<div class="tray-head">
+  <% if display_label.present? %>
+    <p class="tray-label"><%= display_label %></p>
+  <% else %>
+    <p class="tray-label sr-only">Note</p>
+  <% end %>
+  <a
+    class="tray-external"
+    href="<%= route_bible_url(slug) %>"
+    target="_blank"
+    rel="noreferrer"
+    aria-label="Open on route.bible"
+  >
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true">
+      <path d="M5 3h8v8" />
+      <path d="M13 3 3 13" />
+    </svg>
+  </a>
+</div>
+<div
+  class="outliner"
+  data-controller="outliner"
+  data-outliner-slug-value="<%= slug %>"
   data-slug="<%= slug %>"
-  data-action="input->reader#autosave"
-><%= note&.body_text %></textarea>
-<p class="tray-meta">
-  Autosaves ·
-  <a href="<%= route_bible_url(slug) %>" target="_blank" rel="noreferrer">route.bible</a>
-</p>
+  data-action="outliner:change->reader#autosave"
+>
+  <% editor_blocks.each do |block| %>
+    <div class="oblock" data-block-id="<%= block["id"] %>" style="--depth: <%= block["indent"].to_i %>">
+      <span class="obullet" aria-hidden="true"></span>
+      <div class="otext" contenteditable="true" role="textbox" aria-multiline="true" spellcheck="true"><%= block["text"] %></div>
+    </div>
+  <% end %>
+</div>

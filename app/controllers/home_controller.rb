@@ -2,7 +2,8 @@
 
 class HomeController < ApplicationController
   def show
-    slug = current_library.last_read_slug.presence || "jhn.1"
-    redirect_to read_path(slug)
+    notes = current_library.notes.order(created_at: :desc)
+    @sections = Margin::Inbox.sections(notes)
+    @continue = Margin::Passage.parse(current_library.last_read_slug.to_s)
   end
 end

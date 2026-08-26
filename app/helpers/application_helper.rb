@@ -5,17 +5,32 @@ module ApplicationHelper
     Margin::RouteBible.url_for(passage)
   end
 
-  def wiki_note_html(text)
+  def inbox_note_path(note)
+    read_path(note.slug, Margin::Inbox.href_options(note))
+  end
+
+  def wiki_note_html(text, links: true)
     html = ERB::Util.html_escape(text.to_s)
-    html.gsub(/\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/) do
+    placeholders = []
+    html = html.gsub(/`([^`]+)`/) {
+      placeholders << "<code>#{Regexp.last_match(1)}</code>"
+      "\u0000#{placeholders.length - 1}\u0000"
+    }
+    html = html.gsub(/\*\*([\s\S]+?)\*\*/) { "<strong>#{Regexp.last_match(1)}</strong>" }
+    html = html.gsub(/(?<!\*)\*(?!\*)([\s\S]+?)(?<!\*)\*(?!\*)/) { "<em>#{Regexp.last_match(1)}</em>" }
+    html = html.gsub(/\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/) {
       target = Regexp.last_match(1)
       label = Regexp.last_match(2).presence || target
       passage = Margin::Passage.parse(target)
-      if passage
-        %(<a href="#{read_path(passage.slug)}" class="wiki">#{ERB::Util.html_escape(label)}</a>)
+      if passage && links
+        %(<a href="#{read_path(passage.slug)}" class="wiki">#{label}</a>)
+      elsif passage
+        label
       else
-        ERB::Util.html_escape("[[#{target}]]")
+        "[[#{target}]]"
       end
-    end.html_safe
+    }
+    html = html.gsub(/\u0000(\d+)\u0000/) { placeholders[Regexp.last_match(1).to_i] }
+    html.html_safe
   end
 end

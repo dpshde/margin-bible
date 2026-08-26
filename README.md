@@ -29,19 +29,21 @@ Or:
 bundle install
 npm install
 bin/rails db:prepare
-bin/rails db:seed   # ~31k BSB verses with headings
+bin/rails db:seed   # optional full BSB seed; reader hydrates one chapter from the pack
 npm run build
 bin/rails server
 ```
 
 Open `/jhn.1`. Search “John 3:16”. Tap a verse.
 
+Preview on Vercel via `Dockerfile.vercel` (`vercel.json` selects the container; set `SECRET_KEY_BASE`).
+
 ## Layout
 
 ```text
 app/                  Rails 8.1 product
 lib/margin/         Passage, Books (from grab-bcv tables), RouteBible
-vendor/scripture/bsb  BSB chapter JSON (headings included)
+vendor/scripture/bsb  BSB chapter pack (Arweave JSONL source; gzip cache)
 vendor/data/books.json grab-bcv book/alias/count tables
 legacy/               Elixir door, Expo client, PROTOCOL.md
 ```
@@ -52,4 +54,4 @@ Same slugs as grab-bcv and route.bible: `jhn.3`, `jhn.3.16`, `jhn.3.16-18`. The 
 
 ## License / status
 
-Product rewrite on Rails 8.1. Scripture: Berean Standard Bible (see `vendor/scripture/bsb/NOTICE`).
+Product rewrite on Rails 8.1. Scripture: Berean Standard Bible from Arweave TX `B6yeNb3lk_VkiIp-fTWVh13TlM94LjLK6kC63BPXa8s` (see `vendor/scripture/bsb/NOTICE`). The chapter pack is a disposable cache — verse text is never merged into notes.

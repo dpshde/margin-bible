@@ -16,6 +16,7 @@
 !/app/assets/builds/.keep
 /node_modules
 /vendor/bundle
+/public/assets
 
 # Legacy Elixir / Expo (if someone installs inside legacy/)
 legacy/_build/
@@ -25,3 +26,7 @@ legacy/mobile/.expo/
 legacy/mobile/dist/
 legacy/packs/
 legacy/node_modules/
+
+# Hotwire Native iOS
+ios/**/xcuserdata/
+ios/**/DerivedData/

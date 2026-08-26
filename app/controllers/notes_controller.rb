@@ -17,7 +17,7 @@ class NotesController < ApplicationController
       verse_start: passage.verse_start,
       verse_end: passage.verse_end
     )
-    note.apply_text!(params[:text].to_s)
+    apply_note_content!(note)
 
     if note.empty_content?
       note.destroy if note.persisted?
@@ -28,4 +28,24 @@ class NotesController < ApplicationController
     note.save!
     render json: { ok: true, slug: note.slug, updated_at: note.updated_at }
   end
+
+  private
+    def apply_note_content!(note)
+      incoming = parsed_blocks
+      if incoming
+        note.apply_blocks!(incoming)
+      else
+        note.apply_text!(params[:text].to_s)
+      end
+    end
+
+    def parsed_blocks
+      raw = params[:blocks]
+      return nil if raw.blank?
+
+      data = raw.is_a?(String) ? JSON.parse(raw) : raw
+      data.is_a?(Array) ? data : nil
+    rescue JSON::ParserError
+      nil
+    end
 end

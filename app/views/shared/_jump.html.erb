@@ -1,0 +1,17 @@
+<form class="jump" data-action="submit->search#go" data-turbo="false">
+  <label class="sr-only" for="q">Jump to passage</label>
+  <input
+    id="q"
+    name="q"
+    type="search"
+    autocomplete="off"
+    placeholder="John 3:16"
+    role="combobox"
+    aria-autocomplete="list"
+    aria-expanded="false"
+    aria-controls="jump-suggest"
+    data-search-target="input"
+    data-action="input->search#suggest keydown->search#keydown"
+  >
+  <ul id="jump-suggest" class="suggest" data-search-target="list" role="listbox" hidden></ul>
+</form>

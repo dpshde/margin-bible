@@ -1,0 +1,22 @@
+# frozen_string_literal: true
+
+require "test_helper"
+
+class NoteTrayCssTest < ActiveSupport::TestCase
+  def css
+    Rails.root.join("app/assets/stylesheets/application.css").read
+  end
+
+  test "tray head is a label-left icon-right row" do
+    assert_match(/\.tray-head\s*\{[^}]*display:\s*flex/m, css)
+    assert_match(/\.tray-head\s*\{[^}]*justify-content:\s*space-between/m, css)
+    refute_match(/\.tray-meta/, css)
+  end
+
+  test "note editor has no blue focus ring" do
+    assert_match(/\.otext:focus,\s*\.otext:focus-visible/m, css)
+    assert_match(/\.otext:focus, \.otext:focus-visible,[\s\S]*?outline:\s*none/, css)
+    refute_match(/outline:\s*[^;]*blue/i, css)
+    refute_match(/box-shadow:\s*[^;]*#(?:4|5|6|7|8|9|a)[0-9a-f]{2}ff/i, css)
+  end
+end
