@@ -28,12 +28,10 @@ class PasskeyTest < ActiveSupport::TestCase
   test "email-less registration uses a stable handle and a resident key" do
     user = User.create!
     options = Passkey.registration_options(holder: user)
-    json = options.as_json
 
-    assert_equal "margin", json.dig("user", "name")
-    assert_equal "margin", json.dig("user", "displayName") || json.dig("user", "display_name")
-    selection = json["authenticatorSelection"] || json["authenticator_selection"]
-    assert_equal "required", selection["residentKey"] || selection["resident_key"]
+    assert_equal "margin", options.user.name
+    assert_equal "margin", options.user.display_name
+    assert_equal "required", options.authenticator_selection[:resident_key]
 
     raw = webauthn_client.create(challenge: options.challenge)
     passkey = Passkey.register(registration_params(raw), holder: user, challenge: options.challenge)
