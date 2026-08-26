@@ -34,7 +34,7 @@ class ReaderVerseCssTest < ActiveSupport::TestCase
   end
 
   test "quiet reading hides the note rail and selection chrome" do
-    rail = css[/\.is-quiet \.rail,\s*\.is-quiet \.note-card:not\(:has\(\.note-tray:not\(\[hidden\]\)\)\),\s*\.is-quiet \.note-tray\[hidden\]\s*\{[^}]+\}/]
+    rail = css[/\.is-quiet \.rail,\s*\.is-quiet \.note-card:not\(:has\(\.note-tray:not\(\[hidden\]\)\)\),\s*\.is-quiet \.note-tray\[hidden\],\s*\.is-quiet \.tray-head,\s*\.is-quiet \.oindent\s*\{[^}]+\}/]
     assert rail
     assert_match(/display:\s*none/, rail)
     assert_match(/\.is-quiet \.chapter-tray\s*\{\s*display:\s*none/, css)
@@ -44,16 +44,19 @@ class ReaderVerseCssTest < ActiveSupport::TestCase
     refute_match(/border-left-color:/, quiet)
   end
 
-  test "quiet reading flows verses as continuous prose" do
+  test "quiet reading is a USFM paragraph, not a verse card stack" do
+    assert_match(/\.pub-p\s*\{\s*display:\s*contents/, css)
+    para = css[/\.is-quiet \.pub-p\s*\{[^}]+\}/]
+    assert para
+    assert_match(/display:\s*block/, para)
     verse = css[/\.is-quiet \.verse\s*\{[^}]+\}/]
     assert verse
-    assert_match(/display:\s*inline/, verse)
+    assert_match(/display:\s*contents/, verse)
     assert_match(/padding:\s*0/, verse)
     refute_match(/margin-bottom:\s*[1-9]/, verse)
     press = css[/\.is-quiet \.verse-press\s*\{[^}]+\}/]
     assert press
     assert_match(/display:\s*contents/, press)
-    assert_match(/padding:\s*0/, press)
     vtext = css[/\.is-quiet \.vtext\s*\{[^}]+\}/]
     assert vtext
     assert_match(/display:\s*inline/, vtext)
@@ -65,6 +68,11 @@ class ReaderVerseCssTest < ActiveSupport::TestCase
     assert vnum
     assert_match(/vertical-align:\s*super/, vnum)
     assert_match(/display:\s*inline/, vnum)
+    otext = css[/\.is-quiet \.otext\s*\{[^}]+\}/]
+    assert otext
+    assert_match(/background:\s*transparent/, otext)
+    assert_match(/border:\s*0/, otext)
+    assert_match(/\.is-quiet \.outliner\s*\{/, css)
   end
 
   test "quiet reading hides trail pointers" do

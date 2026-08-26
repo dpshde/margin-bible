@@ -119,7 +119,7 @@ export default class extends Controller {
     }
     this.dragging = false
     this.swipeAxis = null
-    this.dragStartTop = verse ? verse.getBoundingClientRect().top : null
+    this.dragStartTop = verse ? this.verseBox(verse).top : null
     this.pointerId = event.pointerId
     window.addEventListener("pointermove", this.onPointerMove, { passive: false })
     window.addEventListener("pointerup", this.onPointerUp)
@@ -137,7 +137,7 @@ export default class extends Controller {
       startVerse: this.dragStart,
       currentVerse: n,
       startVerseTop: this.dragStartTop,
-      currentStartVerseTop: startEl?.getBoundingClientRect().top,
+      currentStartVerseTop: startEl ? this.verseBox(startEl).top : null,
       dx,
       dy
     })
@@ -146,7 +146,8 @@ export default class extends Controller {
     this.swipeAxis = null
     this.ignoreClick = true
     event.preventDefault()
-    this.pressEl?.setPointerCapture?.(event.pointerId)
+    const box = this.pressEl?.querySelector?.(".vtext") || this.pressEl
+    box?.setPointerCapture?.(event.pointerId)
     this.element.classList.add("is-picking")
     if (n && n !== this.dragCurrent) {
       this.dragCurrent = n
@@ -954,6 +955,11 @@ export default class extends Controller {
 
   verseEl(n) {
     return this.element.querySelector(`#v${n}`)
+  }
+
+  verseBox(verse) {
+    const node = verse?.querySelector?.(".vtext") || verse
+    return node.getBoundingClientRect()
   }
 
   verseAtPoint(x, y) {

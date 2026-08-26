@@ -17,6 +17,7 @@ class ReaderController < ApplicationController
       render :missing, status: :not_found
       return
     end
+    @pericopes = Margin::Publication.pericopes(@verses)
 
     notes = current_library.notes_in_chapter(@chapter.book, @chapter.chapter)
     @chapter_note = notes.find { |note| note.kind == "chapter" || note.slug == @chapter.slug }

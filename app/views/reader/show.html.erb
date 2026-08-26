@@ -126,7 +126,12 @@
     </section>
 
     <article class="chapter">
-      <% @verses.each do |verse| %>
+      <% @pericopes.each do |pericope| %>
+        <% if pericope.heading.present? %>
+          <h2 class="section-head <%= "spaced" if pericope.verses.first.verse > 1 %>" data-usfm="s1"><%= pericope.heading %></h2>
+        <% end %>
+        <div class="pub-p" data-usfm="p">
+      <% pericope.verses.each do |verse| %>
         <% vslug = @chapter.verse_slug(verse.verse) %>
         <% covering = @notes_by_verse[verse.verse] || [] %>
         <% exact = covering.find { |note| note.slug == vslug } %>
@@ -141,11 +146,8 @@
           data-verse="<%= verse.verse %>"
           data-slug="<%= vslug %>"
         >
-          <% if verse.heading.present? %>
-            <h2 class="section-head <%= "spaced" if verse.verse > 1 %>"><%= verse.heading %></h2>
-          <% end %>
           <button type="button" class="verse-press" data-action="click->reader#openVerse">
-            <span class="vnum"><%= verse.verse %></span>
+            <span class="vnum" data-usfm="v"><%= verse.verse %></span>
             <span class="vtext"><%= verse.text %></span>
           </button>
           <% if covering.any? && !trays_open %>
@@ -178,6 +180,8 @@
               <%= render "reader/note_editor", slug: vslug, note: nil, label: nil %>
             </div>
           <% end %>
+        </div>
+      <% end %>
         </div>
       <% end %>
     </article>
