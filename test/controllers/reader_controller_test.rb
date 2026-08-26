@@ -34,6 +34,7 @@ class ReaderControllerTest < ActionDispatch::IntegrationTest
     assert_select %(link[rel="prefetch"][href="/jhn.2"])
     assert_select %(a[data-turbo-prefetch="true"][href="/luk.24"])
     assert_select %(a[data-turbo-prefetch="true"][href="/jhn.2"])
+    assert_select %(form.jump[data-action*="keydown@window->search#shortcut"])
     assert_equal Verse.where(book: "JHN", chapter: 1).count, Verse.count
     assert Verse.count.positive?
     assert_equal 0, Verse.where.not(book: "JHN", chapter: 1).count
@@ -132,6 +133,7 @@ class ReaderControllerTest < ActionDispatch::IntegrationTest
       assert_select "ul.suggest"
       assert_select "button", text: /Search/, count: 0
     end
+    assert_select %(main.reader .reader-chrome form.jump[data-action*="keydown@window->search#shortcut"])
     assert_select "main.reader > form.jump", count: 0
     assert_select ".fn", count: 0
     assert_select "sup", text: "†", count: 0

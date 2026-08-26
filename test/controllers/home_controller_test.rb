@@ -33,6 +33,7 @@ class HomeControllerTest < ActionDispatch::IntegrationTest
     assert_select "[data-inbox-signed-in-value='false']"
     assert_select ".inbox-empty", /No notes yet/
     assert_select "main.inbox-main form.jump input#q"
+    assert_select %(main.inbox-main form.jump[data-action*="keydown@window->search#shortcut"])
     assert_no_match %r{\Ahttp://www\.example\.com/jhn\.1}, response.headers["Location"].to_s
   end
 

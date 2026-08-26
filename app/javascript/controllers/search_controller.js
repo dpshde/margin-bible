@@ -1,9 +1,19 @@
 import { Controller } from "@hotwired/stimulus"
 import { parseToResolverPath, tryParseAnyPassage } from "grab-bcv"
+import { jumpShortcutAction } from "../lib/jump-focus"
 import { canGo, insertTextFor, jumpState } from "../lib/jump-suggest"
 
 export default class extends Controller {
   static targets = ["input", "list"]
+
+  shortcut(event) {
+    const action = jumpShortcutAction(event, { input: this.hasInputTarget ? this.inputTarget : null })
+    if (!action) return
+    event.preventDefault()
+    if (action !== "focus" || !this.hasInputTarget) return
+    this.inputTarget.dispatchEvent(new CustomEvent("chrome:reveal", { bubbles: true }))
+    this.inputTarget.focus()
+  }
 
   suggest() {
     const state = jumpState(this.inputTarget.value)
