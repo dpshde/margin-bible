@@ -320,6 +320,17 @@ class ReaderControllerTest < ActionDispatch::IntegrationTest
     refute_includes @response.body, "†"
   end
 
+  test "a Matthew range marks poetry verses in the same span" do
+    get read_path("mat.3.1-12")
+    assert_response :success
+    assert_select "#v1.is-span.is-span-start"
+    assert_select "#v12.is-span.is-span-end"
+    assert_select ".pub-q1 .verse.is-span", /voice of one calling/
+    assert_select ".pub-q2 .verse.is-span", /straight/
+    assert_select "main.reader .reader-chrome .chrome-bar form.jump"
+    assert_select "main.reader > form.jump", count: 0
+  end
+
   test "range slug marks the span and opens one range tray" do
     [ 2, 3 ].each do |n|
       Verse.create!(
