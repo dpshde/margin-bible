@@ -24,9 +24,12 @@ class HomeControllerTest < ActionDispatch::IntegrationTest
     get root_path
     assert_response :success
     assert_select "h1.topbar-title", "Notes"
-    assert_select ".theme-seg[aria-label='Appearance'] button[data-theme-pref='light']", "Light"
-    assert_select ".theme-seg button[data-theme-pref='system']", "System"
-    assert_select ".theme-seg button[data-theme-pref='dark']", "Dark"
+    assert_select "header.topbar .theme-seg", count: 0
+    assert_select "header.topbar details.topbar-menu button.menu-item[data-theme-pref='light']", "Light"
+    assert_select "header.topbar details.topbar-menu button.menu-item[data-theme-pref='system']", "System"
+    assert_select "header.topbar details.topbar-menu button.menu-item[data-theme-pref='dark']", "Dark"
+    assert_select "header.topbar details.topbar-menu a.menu-item", "Sign in"
+    assert_select "header.topbar a.ghost.quiet", text: "Sign in", count: 0
     assert_select "[data-inbox-signed-in-value='false']"
     assert_select ".inbox-empty", /No notes yet/
     assert_select "main.inbox-main form.jump input#q"

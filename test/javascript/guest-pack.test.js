@@ -7,6 +7,7 @@ import {
   inboxSections,
   loadPack,
   memoryStorage,
+  normalizeBlocks,
   notesForChapter,
   persistNote,
   rememberRead,
@@ -44,6 +45,14 @@ function blocks(text, id = "b_aa01") {
   assert.deepEqual(pack.notes["jhn.1.16"].blocks, blocks("The Word."))
   assert.equal(pack.notes["jhn.1.16"].created_at, now.toISOString())
   assert.equal(JSON.parse(store.getItem(GUEST_PACK_KEY)).notes["jhn.1.16"].slug, "jhn.1.16")
+}
+
+{
+  const store = storage()
+  upsertNote("jhn.1.16", [{ id: "b_plain", indent: 0, text: "Plain.", bullet: false }], { storage: store })
+  const note = loadPack(store).notes["jhn.1.16"]
+  assert.equal(note.blocks[0].bullet, false)
+  assert.deepEqual(normalizeBlocks([{ id: "b_old", indent: 0, text: "Legacy" }])[0].bullet, true)
 }
 
 {

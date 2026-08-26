@@ -17,7 +17,7 @@ class Sessions::PasskeysControllerTest < ActionDispatch::IntegrationTest
 
     delete session_path
     get root_path
-    assert_select "a.ghost.quiet", "Sign in"
+    assert_select "header.topbar details.topbar-menu a.menu-item", "Sign in"
 
     get new_session_path
     challenge = refresh_webauthn_challenge(purpose: "authentication")

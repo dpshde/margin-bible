@@ -149,8 +149,14 @@ function clone(blocks) {
   assert.equal(created.text, "")
   const drop = backspaceAtStart(blocks, 1)
   assert.equal(drop.changed, true)
+  assert.equal(blocks.length, 2)
   assert.equal(blocks[1].bullet, false)
   assert.equal(blocks[1].text, "")
+  const join = backspaceAtStart(blocks, 1)
+  assert.equal(join.changed, true)
+  assert.equal(join.focusId, "b_enter")
+  assert.equal(blocks.length, 1)
+  assert.equal(blocks[0].text, "First")
 }
 
 {

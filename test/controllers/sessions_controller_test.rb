@@ -8,7 +8,8 @@ class SessionsControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_select "header.topbar a[aria-label='Notes'][href='/']"
     assert_select "h1.topbar-title", "Sign in"
-    assert_select ".theme-seg button[data-theme-pref='system']", "System"
+    assert_select "header.topbar .theme-seg", count: 0
+    assert_select "header.topbar details.topbar-menu button.menu-item[data-theme-pref='system']", "System"
     assert_select "input[name='email'][autocomplete='username webauthn']"
     assert_select "button", "Email me a link"
     assert_select "rails-passkey-sign-in-button[mediation='conditional']"
@@ -63,7 +64,8 @@ class SessionsControllerTest < ActionDispatch::IntegrationTest
     delete session_path
     assert_redirected_to root_path
     follow_redirect!
-    assert_select "a.ghost.quiet", "Sign in"
+    assert_select "header.topbar details.topbar-menu a.menu-item", "Sign in"
+    assert_select "header.topbar a.ghost.quiet", text: "Sign in", count: 0
     get read_path("jhn.1")
     assert_select "[data-reader-signed-in-value='false']"
   end
