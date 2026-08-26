@@ -152,10 +152,22 @@ class ReaderVerseCssTest < ActiveSupport::TestCase
     assert_match(/border-radius:\s*50%/, btn)
   end
 
-  test "quiet reading hides jump and reader input chrome" do
-    assert_match(/\.is-quiet \.jump,\s*\.is-quiet \.reader-chrome\s*\{[^}]*display:\s*none/, css)
+  test "quiet reading keeps jump but strips the card around it" do
+    refute_match(/\.is-quiet \.jump[^{]*\{[^}]*display:\s*none/, css)
+    refute_match(/\.is-quiet \.reader-chrome\s*\{[^}]*display:\s*none/, css)
+    quiet_chrome = css[/\.is-quiet \.reader-chrome\s*\{[^}]+\}/]
+    assert quiet_chrome
+    assert_match(/background:\s*transparent/, quiet_chrome)
+    assert_match(/border:\s*0/, quiet_chrome)
+    assert_match(/border-radius:\s*0/, quiet_chrome)
+    refute_match(/display:\s*none/, quiet_chrome)
+    quiet_jump = css[/\.is-quiet \.jump input\[type="search"\],\s*\.is-quiet \.reader-chrome \.jump input\[type="search"\]\s*\{[^}]+\}/]
+    assert quiet_jump
+    assert_match(/background:\s*transparent/, quiet_jump)
+    assert_match(/border:\s*0/, quiet_jump)
+    assert_match(/border-radius:\s*0/, quiet_jump)
+    assert_match(/html:not\(\.hotwire-native\) \.is-quiet \.reader-chrome\s*\{[^}]*background:\s*transparent/, css)
     assert_match(/\.is-quiet \.chapter-tray\s*\{\s*display:\s*none/, css)
-    refute_match(/html:not\(\.hotwire-native\)\.is-quiet \.reader-chrome \.jump/, css)
   end
 
   test "footnote marker is a spaced superscript dagger" do
