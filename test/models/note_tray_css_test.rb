@@ -18,7 +18,10 @@ class NoteTrayCssTest < ActiveSupport::TestCase
     refute_match(/display:\s*contents/, outliner)
     tray = css[/\n\.note-tray\s*\{[^}]+\}/]
     assert tray
+    refute_match(/display:\s*block/, tray)
     refute_match(/display:\s*contents/, tray)
+    assert_match(/\.note-tray:not\(\[hidden\]\)\s*\{\s*display:\s*block/, css)
+    assert_match(/\.note-tray\[hidden\]\s*\{\s*display:\s*none !important/, css)
     assert_match(/\.pub-p \.otext,\s*\n\.pub-q1 \.otext,\s*\n\.pub-q2 \.otext\s*\{[^}]*text-indent:\s*0/, css)
     assert_match(/\.verse:has\(\.note-tray:not\(\[hidden\]\)\) \+ \.verse\s*\{[^}]*margin-top:\s*\.45rem/, css)
     assert_match(/\.is-quiet \.note-tray:not\(\[hidden\]\),\s*\n\.is-quiet \.outliner\s*\{[^}]*display:\s*contents/, css)

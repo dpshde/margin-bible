@@ -701,18 +701,18 @@ html[data-theme="dark"] .wj { color: color-mix(in srgb, #e0a39c 62%, var(--ink))
 
 .note-card,
 .verse > .note-tray {
-  display: block;
   position: relative;
   margin-left: calc(var(--verse-gutter) + var(--verse-gutter-gap));
   text-indent: 0;
 }
 .note-tray {
-  display: block;
   position: relative;
   padding: .2rem 0 .7rem;
   text-indent: 0;
   overflow: visible;
 }
+.note-tray:not([hidden]) { display: block; }
+.note-tray[hidden] { display: none !important; }
 .pub-p .note-card,
 .pub-p .note-tray,
 .pub-q1 .note-card,

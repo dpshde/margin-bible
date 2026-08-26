@@ -88,6 +88,10 @@ class ReaderControllerTest < ActionDispatch::IntegrationTest
     assert_select "h2.section-head", "The Beginning"
     assert_select "h2.section-head", "The Witness of John"
     assert_select ".vtext", /beginning was the Word/
+    assert_select ".verse.is-open", count: 0
+    assert_select ".note-tray:not([hidden])", count: 0
+    assert_select ".note-tray[hidden]"
+    assert_select ".is-expanded", count: 0
   end
 
   test "browser header is inbox, title, copy, and a desktop overflow" do
