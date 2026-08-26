@@ -114,6 +114,7 @@ class JumpSearchCssTest < ActiveSupport::TestCase
     refute_match(/min-height:\s*2\.25rem/, chip)
     refute_match(/border-radius:\s*999px/, chip)
     assert_match(/background:\s*transparent/, chip)
+    assert_match(/text-decoration:\s*underline/, chip)
   end
 
   test "reader bottom veil fades paper to the screen edge" do

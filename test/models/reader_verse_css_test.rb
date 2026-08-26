@@ -19,6 +19,14 @@ class ReaderVerseCssTest < ActiveSupport::TestCase
     refute_match(/border-radius:/, has_note)
   end
 
+  test "continuation verse-press keeps vtext out of the number gutter" do
+    assert_match(/\.verse-press > \.vtext\s*\{[^}]*grid-column:\s*2/, css)
+    assert_match(/\.is-nums-hidden \.verse-press > \.vtext\s*\{[^}]*grid-column:\s*1/, css)
+    assert_match(/\.is-quiet \.verse-press\s*\{[^}]*display:\s*contents/, css)
+    assert_match(/\.is-quiet \.verse-press\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\)/, css)
+    assert_match(/\.pub-line\s*\{[^}]*width:\s*100%/, css)
+  end
+
   test "phone verse number column is narrow" do
     phone = css[/@media \(max-width: 390px\)\s*\{[\s\S]*?\n\}/]
     assert phone

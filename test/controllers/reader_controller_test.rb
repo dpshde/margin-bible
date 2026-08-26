@@ -156,6 +156,26 @@ class ReaderControllerTest < ActionDispatch::IntegrationTest
     assert_equal [ 35, 36, 37 ], paras[0].css("[data-verse]").map { |el| el["data-verse"].to_i }.uniq
     assert_equal [ 38 ], paras[1].css("[data-verse]").map { |el| el["data-verse"].to_i }.uniq
     refute_equal (35..42).to_a, paras[0].css("[data-verse]").map { |el| el["data-verse"].to_i }.uniq
+    mission = css_select("h2.section-head").find { |node| node.text == "The Mission of John the Baptist" }
+    assert mission
+    isa = mission.next_element
+    assert_equal "r", isa["data-usfm"]
+    assert_select "a.pub-ref[href='/isa.40.1-5']", "Isaiah 40:1–5"
+    assert_select "a.pub-ref[href='/mat.3.1-12']", "Matthew 3:1–12"
+    replies = []
+    node = isa.next_element
+    while node && node.name != "h2"
+      if node["data-usfm"] == "p" && node.css(".vnum").empty? && node.text.match?(/I am not|Prophet|He answered/)
+        replies << node
+      end
+      node = node.next_element
+    end
+    assert_equal 3, replies.size
+    replies.each do |para|
+      assert para.at_css(".verse-press > .vtext")
+      assert_nil para.at_css(".vnum")
+      assert para.at_css(".pub-line") || para["class"].to_s.include?("pub-line")
+    end
     assert_select ".pub-q1[data-usfm='q1']", /voice of one calling/
     assert_select ".pub-q2[data-usfm='q2']", /Make straight the way for the Lord/
     assert_select ".vnum[data-usfm='v']", "35"

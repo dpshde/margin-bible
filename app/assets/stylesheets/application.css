@@ -222,12 +222,16 @@ button, input, textarea { font: inherit; color: inherit; }
 }
 .pub-p, .pub-q1, .pub-q2 {
   display: block;
+  width: 100%;
+  max-width: none;
+  min-width: 0;
   margin: 0 0 .7em;
   font-family: var(--read);
   font-weight: 300;
   font-size: 1.18rem;
   line-height: 1.55;
 }
+.pub-line { width: 100%; max-width: none; min-width: 0; }
 .pub-q1 { padding-left: 1.05rem; text-indent: -.4rem; }
 .pub-q2 { padding-left: 1.5rem; text-indent: -.4rem; }
 .pub-b { display: block; height: .4em; }
@@ -322,7 +326,7 @@ html[data-theme="dark"] .wj { color: color-mix(in srgb, #e0a39c 62%, var(--ink))
   margin: 0;
   min-height: 0;
   gap: 0;
-  grid-template-columns: none;
+  grid-template-columns: minmax(0, 1fr);
 }
 .is-quiet .vnum {
   display: inline;
@@ -575,6 +579,7 @@ html[data-theme="dark"] .wj { color: color-mix(in srgb, #e0a39c 62%, var(--ink))
   border: 0; background: transparent; text-align: left; cursor: pointer;
   padding: .28rem 0; touch-action: manipulation;
 }
+.verse-press > .vtext { grid-column: 2; min-width: 0; }
 .chapter.is-picking .verse-press { touch-action: none; }
 .vnum {
   font-variant-numeric: tabular-nums; color: var(--faint); font-size: .75rem;
@@ -597,7 +602,9 @@ html[data-theme="dark"] .wj { color: color-mix(in srgb, #e0a39c 62%, var(--ink))
   padding: 0;
 }
 .is-nums-hidden .verse-press { grid-template-columns: minmax(0, 1fr); }
-.is-quiet .verse-press { display: contents; grid-template-columns: none; }
+.is-nums-hidden .verse-press > .vtext { grid-column: 1; }
+.is-quiet .verse-press { display: contents; grid-template-columns: minmax(0, 1fr); }
+.is-quiet .verse-press > .vtext { grid-column: unset; }
 .is-nums-hidden .vnum { display: none; }
 
 .note-card,
@@ -702,14 +709,18 @@ a.tray-label:hover { color: var(--ink); }
 .trail-chip {
   display: inline; min-height: 0; padding: 0;
   border: 0; border-radius: 0; background: transparent;
-  color: var(--faint); text-decoration: none;
+  color: var(--muted);
+  text-decoration: underline;
+  text-underline-offset: .15em;
   font-size: .78rem; font-weight: 500;
 }
 .trail-chip + .trail-chip::before {
   content: "·"; display: inline-block; margin: 0 .45rem;
   color: var(--faint); opacity: .55; font-weight: 400;
+  text-decoration: none;
 }
-.trail-chip:hover { color: var(--ink); background: transparent; }
+.trail-chip:hover,
+.trail-chip:focus-visible { color: var(--ink); background: transparent; }
 .reader-dock {
   position: relative; flex-shrink: 0; z-index: 1;
   display: flex;
