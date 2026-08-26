@@ -18,6 +18,9 @@ class ReaderTypeCssTest < ActiveSupport::TestCase
     assert_match(/\.pub-p, \.pub-q1, \.pub-q2\s*\{[^}]*font-size:\s*var\(--read-size\)/m, css)
     assert_match(/\.vtext\s*\{[^}]*letter-spacing:\s*0/, css)
     refute_match(/text-align:\s*justify/, css)
+    assert_match(/--page-max:\s*36em/, css)
+    assert_match(/html\[data-face="deca"\] \.wj\s*\{[^}]*border-left:/m, css)
+    assert_match(/html\[data-face="deca"\] \.wj\s*\{[^}]*font-style:\s*normal/m, css)
   end
 
   test "Jesus words are italic body color not rust" do

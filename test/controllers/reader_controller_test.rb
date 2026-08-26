@@ -123,6 +123,8 @@ class ReaderControllerTest < ActionDispatch::IntegrationTest
     assert_select ".dock-theme .theme-seg button[data-theme-pref='light']", "Light"
     assert_select ".dock-theme .theme-seg button[data-theme-pref='system']", "System"
     assert_select ".dock-theme .theme-seg button[data-theme-pref='dark']", "Dark"
+    assert_select ".dock-theme .face-seg button[data-face-pref='serif']", "Serif"
+    assert_select ".dock-theme .face-seg button[data-face-pref='deca']", "Deca"
     assert_select "header.topbar form.jump", count: 0
     assert_select "main.reader .reader-chrome[data-controller='chrome']"
     assert_select ".reader-veil[aria-hidden='true']"

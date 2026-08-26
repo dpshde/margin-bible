@@ -28,6 +28,8 @@ class HomeControllerTest < ActionDispatch::IntegrationTest
     assert_select "header.topbar details.topbar-menu button.menu-item[data-theme-pref='light']", "Light"
     assert_select "header.topbar details.topbar-menu button.menu-item[data-theme-pref='system']", "System"
     assert_select "header.topbar details.topbar-menu button.menu-item[data-theme-pref='dark']", "Dark"
+    assert_select "header.topbar details.topbar-menu button.menu-item[data-face-pref='serif']", "Serif"
+    assert_select "header.topbar details.topbar-menu button.menu-item[data-face-pref='deca']", "Deca"
     assert_select "header.topbar details.topbar-menu a.menu-item", "Sign in"
     assert_select "header.topbar a.ghost.quiet", text: "Sign in", count: 0
     assert_select "[data-inbox-signed-in-value='false']"

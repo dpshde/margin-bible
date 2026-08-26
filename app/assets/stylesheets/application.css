@@ -11,13 +11,18 @@
   --fill: color-mix(in srgb, var(--ink) 5%, transparent);
   --primary-fill: #1c1917;
   --primary-on: #ffffff;
-  --page-max: 58ch;
+  --page-max: 36em;
   --read-size: 1.25rem;
   --read-leading: 1.65;
   --sel-rail: color-mix(in srgb, var(--ink) 18%, transparent);
   --sel-rail-open: color-mix(in srgb, var(--ink) 42%, transparent);
-  --read: "Lexend", system-ui, sans-serif;
+  --read: "Source Serif 4", "Iowan Old Style", Palatino, serif;
   --sans: "Poppins", system-ui, sans-serif;
+}
+html[data-face="deca"] {
+  --read: "Lexend Deca", system-ui, sans-serif;
+  --page-max: 58ch;
+  --read-leading: 1.7;
 }
 
 html[data-theme="dark"] {
@@ -190,9 +195,28 @@ button, input, textarea { font: inherit; color: inherit; }
   background: color-mix(in srgb, var(--ink) 8%, var(--paper-raised));
   color: var(--ink);
 }
-.dock-theme { padding: .45rem .65rem .55rem; }
-.dock-theme .theme-seg { width: 100%; }
-.dock-theme .theme-seg button { min-height: 2.15rem; }
+.dock-theme { padding: .45rem .65rem .55rem; display: flex; flex-direction: column; gap: .45rem; }
+.dock-theme .theme-seg,
+.dock-theme .face-seg { width: 100%; }
+.dock-theme .theme-seg button,
+.dock-theme .face-seg button { min-height: 2.15rem; }
+.face-seg {
+  display: flex; overflow: hidden;
+  border: 1px solid var(--line); border-radius: .55rem;
+  background: var(--paper);
+}
+.face-seg button {
+  appearance: none; -webkit-appearance: none;
+  flex: 1; min-height: 2rem; margin: 0; padding: 0 .6rem;
+  border: 0; border-radius: 0; background: transparent;
+  color: var(--ink-soft); font: inherit; font-size: .8rem; font-weight: 500;
+  cursor: pointer;
+}
+.face-seg button + button { box-shadow: inset 1px 0 var(--line); }
+.face-seg button.is-on {
+  background: color-mix(in srgb, var(--ink) 8%, var(--paper-raised));
+  color: var(--ink);
+}
 .ghost, .icon-btn {
   min-height: var(--tap); min-width: var(--tap);
   border: 0; background: transparent; border-radius: .5rem;
@@ -306,6 +330,20 @@ a.pub-ref:focus-visible {
 .wj {
   color: inherit;
   font-style: italic;
+}
+html[data-face="deca"] .wj {
+  font-style: normal;
+  border-left: 2px solid #3F1F1C;
+  padding-left: .28em;
+  margin-left: .08em;
+}
+html[data-theme="dark"][data-face="deca"] .wj {
+  border-left-color: color-mix(in srgb, var(--ink) 55%, #3F1F1C);
+}
+@media (prefers-color-scheme: dark) {
+  html[data-theme="system"][data-face="deca"] .wj {
+    border-left-color: color-mix(in srgb, var(--ink) 55%, #3F1F1C);
+  }
 }
 .is-quiet .verse.has-note,
 .is-quiet .verse.is-open,

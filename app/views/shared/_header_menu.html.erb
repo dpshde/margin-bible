@@ -1,5 +1,5 @@
 <% account = local_assigns.fetch(:account, true) %>
-<details class="topbar-menu" data-controller="theme">
+<details class="topbar-menu" data-controller="theme face">
   <summary class="icon-btn" title="Menu" aria-label="Menu">
     <%= ph_icon("dots-three", size: 20) %>
   </summary>
@@ -7,6 +7,8 @@
     <button type="button" class="menu-item" data-theme-pref="light" data-action="click->theme#choose">Light</button>
     <button type="button" class="menu-item" data-theme-pref="system" data-action="click->theme#choose">System</button>
     <button type="button" class="menu-item" data-theme-pref="dark" data-action="click->theme#choose">Dark</button>
+    <button type="button" class="menu-item" data-face-pref="serif" data-action="click->face#choose">Serif</button>
+    <button type="button" class="menu-item" data-face-pref="deca" data-action="click->face#choose">Deca</button>
     <% if account %>
       <hr class="dock-sep">
       <%= render "shared/account_nav", appearance: :menu %>
