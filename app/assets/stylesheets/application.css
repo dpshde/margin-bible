@@ -225,7 +225,7 @@ button, input, textarea { font: inherit; color: inherit; }
   width: 100%;
   max-width: none;
   min-width: 0;
-  margin: 0 0 .7em;
+  margin: 0 0 .4em;
   font-family: var(--read);
   font-weight: 300;
   font-size: 1.18rem;
@@ -279,8 +279,7 @@ html[data-theme="dark"] .wj { color: color-mix(in srgb, #e0a39c 62%, var(--ink))
 .is-quiet .rail,
 .is-quiet .note-card:not(:has(.note-tray:not([hidden]))),
 .is-quiet .note-tray[hidden],
-.is-quiet .tray-head,
-.is-quiet .oindent {
+.is-quiet .tray-head {
   display: none;
 }
 .is-quiet .chapter { font-size: max(16px, 1em); }
@@ -358,17 +357,26 @@ html[data-theme="dark"] .wj { color: color-mix(in srgb, #e0a39c 62%, var(--ink))
   box-shadow: none;
 }
 .is-quiet .note-tray { padding: 0; margin: 0; }
-.is-quiet .oblock {
-  display: block;
+.is-quiet .oindent {
   padding: 0;
   margin: 0;
 }
-.is-quiet .obullet { display: none; }
+.is-quiet .outliner:focus-within .oindent { display: flex; }
+.is-quiet .oblock {
+  display: flex;
+  align-items: flex-start;
+  gap: .35rem;
+  padding: .02rem 0;
+  margin: 0;
+}
+.is-quiet .oblock.is-bullet .obullet { display: block; }
 .is-quiet .otext {
   display: block;
+  flex: 1;
   border: 0;
   padding: 0;
   margin: 0;
+  min-height: 1.35em;
   background: transparent;
   box-shadow: none;
   font-size: max(16px, 1rem);
@@ -564,7 +572,7 @@ html[data-theme="dark"] .wj { color: color-mix(in srgb, #e0a39c 62%, var(--ink))
 .section-head.spaced { margin-top: 1.5rem; }
 
 .verse {
-  position: relative; padding: .12rem 0 .12rem var(--verse-inset);
+  position: relative; padding: 0 0 0 var(--verse-inset);
 }
 .verse.has-note { border-left: 2px solid var(--sel-rail); }
 .verse.is-open, .verse.is-span { border-left: 2px solid var(--sel-rail-open); }
@@ -577,7 +585,7 @@ html[data-theme="dark"] .wj { color: color-mix(in srgb, #e0a39c 62%, var(--ink))
 .verse-press {
   display: grid; grid-template-columns: var(--verse-gutter) 1fr; gap: var(--verse-gutter-gap); width: 100%;
   border: 0; background: transparent; text-align: left; cursor: pointer;
-  padding: .28rem 0; touch-action: manipulation;
+  padding: .05rem 0; touch-action: manipulation;
 }
 .verse-press > .vtext { grid-column: 2; min-width: 0; }
 .chapter.is-picking .verse-press { touch-action: none; }
@@ -990,7 +998,7 @@ html.hotwire-native .reader-dock { display: flex; }
     --verse-inset: .2rem;
   }
   .verse { padding-left: var(--verse-inset); }
-  .verse-press { padding: .2rem 0; }
+  .verse-press { padding: .04rem 0; }
   .vnum { font-size: .68rem; padding-top: .36rem; }
   .is-quiet .verse,
   .is-quiet .verse-press {

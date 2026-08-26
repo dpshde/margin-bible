@@ -42,9 +42,13 @@ class ReaderVerseCssTest < ActiveSupport::TestCase
   end
 
   test "quiet reading hides the note rail and selection chrome" do
-    rail = css[/\.is-quiet \.rail,\s*\.is-quiet \.note-card:not\(:has\(\.note-tray:not\(\[hidden\]\)\)\),\s*\.is-quiet \.note-tray\[hidden\],\s*\.is-quiet \.tray-head,\s*\.is-quiet \.oindent\s*\{[^}]+\}/]
+    rail = css[/\.is-quiet \.rail,\s*\.is-quiet \.note-card:not\(:has\(\.note-tray:not\(\[hidden\]\)\)\),\s*\.is-quiet \.note-tray\[hidden\],\s*\.is-quiet \.tray-head\s*\{[^}]+\}/]
     assert rail
     assert_match(/display:\s*none/, rail)
+    refute_includes rail, ".oindent"
+    assert_match(/\.is-quiet \.outliner:focus-within \.oindent\s*\{[^}]*display:\s*flex/, css)
+    refute_match(/\.is-quiet \.obullet\s*\{\s*display:\s*none/, css)
+    assert_match(/\.is-quiet \.oblock\.is-bullet \.obullet\s*\{[^}]*display:\s*block/, css)
     assert_match(/\.is-quiet \.chapter-tray\s*\{\s*display:\s*none/, css)
     quiet = css[/\.is-quiet \.verse\.has-note,\s*\.is-quiet \.verse\.is-open,\s*\.is-quiet \.verse\.is-span\s*\{[^}]+\}/]
     assert quiet
@@ -88,8 +92,10 @@ class ReaderVerseCssTest < ActiveSupport::TestCase
     assert_match(/\.is-quiet \.pub-q2\s*\{[^}]*padding-left:\s*1\.2rem/m, css)
     assert_match(/\.is-quiet \.pub-b\s*\{[^}]*height:\s*\.18em/, css)
     assert_match(/\.is-quiet \.section-head\.spaced\s*\{[^}]*margin-top:\s*1em/, css)
-    assert_match(/\.is-quiet \.oblock\s*\{[^}]*padding:\s*0/, css)
+    assert_match(/\.is-quiet \.oblock\s*\{[^}]*display:\s*flex/, css)
     assert_match(/\.is-quiet \.note-tray\s*\{[^}]*padding:\s*0/, css)
+    assert_match(/\.verse-press\s*\{[^}]*padding:\s*\.05rem 0/, css)
+    assert_match(/\.verse\s*\{[^}]*padding:\s*0 0 0 var\(--verse-inset\)/, css)
     verse = css[/\.is-quiet \.verse\s*\{[^}]+\}/]
     assert verse
     assert_match(/display:\s*contents/, verse)
