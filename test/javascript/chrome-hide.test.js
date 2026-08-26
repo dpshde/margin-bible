@@ -58,6 +58,7 @@ import {
 
   assert.equal(chromeLocked({ suggestOpen: true, root, activeElement: iconBtn }), true)
   assert.equal(chromeLocked({ menuOpen: true, root, activeElement: iconBtn }), true)
+  assert.equal(chromeLocked({ gridOpen: true, root, activeElement: iconBtn }), true)
 }
 
 console.log("chrome-hide: ok")

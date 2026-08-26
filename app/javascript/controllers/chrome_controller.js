@@ -66,7 +66,8 @@ export default class extends Controller {
       activeElement: document.activeElement,
       root: this.element,
       suggestOpen: Boolean(this.element.querySelector(".suggest:not([hidden])")),
-      menuOpen: Boolean(this.element.querySelector("details[open]"))
+      menuOpen: Boolean(this.element.querySelector("details[open]")),
+      gridOpen: Boolean(document.querySelector(".chapter-grid.is-open"))
     })
   }
 

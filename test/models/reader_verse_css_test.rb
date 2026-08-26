@@ -33,10 +33,37 @@ class ReaderVerseCssTest < ActiveSupport::TestCase
     assert_match(/@keyframes copy-confirm/, css)
   end
 
-  test "quiet reading fades the note rail" do
+  test "quiet reading hides the note rail and selection chrome" do
+    rail = css[/\.is-quiet \.rail,\s*\.is-quiet \.note-card:not\(:has\(\.note-tray:not\(\[hidden\]\)\)\),\s*\.is-quiet \.note-tray\[hidden\],\s*\.is-quiet \.chapter-tray\s*\{[^}]+\}/]
+    assert rail
+    assert_match(/display:\s*none/, rail)
     quiet = css[/\.is-quiet \.verse\.has-note,\s*\.is-quiet \.verse\.is-open,\s*\.is-quiet \.verse\.is-span\s*\{[^}]+\}/]
     assert quiet
-    assert_match(/border-left-color:\s*color-mix\(in srgb, var\(--ink\) 5%/, quiet)
+    assert_match(/border(?:-left)?:\s*0/, quiet)
+    refute_match(/border-left-color:/, quiet)
+  end
+
+  test "quiet reading flows verses as continuous prose" do
+    verse = css[/\.is-quiet \.verse\s*\{[^}]+\}/]
+    assert verse
+    assert_match(/display:\s*inline/, verse)
+    assert_match(/padding:\s*0/, verse)
+    refute_match(/margin-bottom:\s*[1-9]/, verse)
+    press = css[/\.is-quiet \.verse-press\s*\{[^}]+\}/]
+    assert press
+    assert_match(/display:\s*inline/, press)
+    assert_match(/padding:\s*0/, press)
+    vtext = css[/\.is-quiet \.vtext\s*\{[^}]+\}/]
+    assert vtext
+    assert_match(/display:\s*inline/, vtext)
+    assert_match(/font-size:\s*max\(16px/, vtext)
+    head = css[/\.is-quiet \.section-head\s*\{[^}]+\}/]
+    assert head
+    assert_match(/display:\s*block/, head)
+    vnum = css[/\.is-quiet \.vnum\s*\{[^}]+\}/]
+    assert vnum
+    assert_match(/vertical-align:\s*super/, vnum)
+    assert_match(/display:\s*inline/, vnum)
   end
 
   test "quiet reading hides trail pointers" do

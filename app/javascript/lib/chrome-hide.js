@@ -12,9 +12,10 @@ export function chromeLocked({
   activeElement = null,
   root = null,
   suggestOpen = false,
-  menuOpen = false
+  menuOpen = false,
+  gridOpen = false
 } = {}) {
-  if (suggestOpen || menuOpen) return true
+  if (suggestOpen || menuOpen || gridOpen) return true
   if (!root || !activeElement || !root.contains(activeElement)) return false
   return isChromeTypingTarget(activeElement)
 }

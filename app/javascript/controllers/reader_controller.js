@@ -1,6 +1,11 @@
 import { Controller } from "@hotwired/stimulus"
 import { rangeDragIntent, versePointerDecision } from "../lib/chapter-swipe"
 import {
+  applyChapterGridOpen,
+  chapterGridIsOpen,
+  toggleChapterGridOpen
+} from "../lib/chapter-grid"
+import {
   applyClearedNoteTray,
   expandControlDisabled,
   shouldShowExpandedTray,
@@ -34,7 +39,7 @@ import {
 } from "../lib/share-text"
 
 export default class extends Controller {
-  static targets = ["tray", "chapterTray", "rangeTemplate", "title", "numsToggle", "copyButton", "quietToggle"]
+  static targets = ["tray", "chapterTray", "rangeTemplate", "title", "numsToggle", "copyButton", "quietToggle", "chapterGrid"]
   static values = {
     focus: Number,
     spanStart: Number,
@@ -100,7 +105,7 @@ export default class extends Controller {
 
   pressStart(event) {
     if (event.pointerType === "mouse" && event.button !== 0) return
-    if (event.target.closest(".note-tray, .chapter-tray, .otext, a, input, textarea, .jump, .topbar, .reader-dock, .reader-chrome")) return
+    if (event.target.closest(".note-tray, .chapter-tray, .otext, a, input, textarea, .jump, .topbar, .reader-dock, .reader-chrome, .chapter-grid")) return
     this.pointerOrigin = { x: event.clientX, y: event.clientY, t: event.timeStamp }
     const press = event.target.closest(".verse-press")
     const verse = press?.closest("[data-verse]")
@@ -353,9 +358,7 @@ export default class extends Controller {
       button.setAttribute("aria-label", quiet ? "Exit focus" : "Focus")
       button.title = quiet ? "Exit focus" : "Focus"
     })
-    this.element.querySelectorAll("[data-controller~='chrome']").forEach((el) => {
-      el.dispatchEvent(new Event("chrome:reveal"))
-    })
+    this.revealChrome()
     if (!quiet) return
     this.flushPending()
     if (this.hasChapterTrayTarget) {
@@ -373,6 +376,32 @@ export default class extends Controller {
     })
     this.selection = null
     this.applySelection({ replaceUrl: true })
+  }
+
+  toggleChapterGrid() {
+    const open = toggleChapterGridOpen(
+      this.hasChapterGridTarget ? this.chapterGridTarget : null,
+      this.hasTitleTarget ? this.titleTarget : null
+    )
+    this.element.classList.toggle("is-grid-open", open)
+    if (open) this.revealChrome()
+  }
+
+  closeChapterGrid(event) {
+    if (event?.type === "click" && event.target !== this.chapterGridTarget) return
+    if (!this.hasChapterGridTarget || !chapterGridIsOpen(this.chapterGridTarget)) return
+    applyChapterGridOpen(this.chapterGridTarget, this.hasTitleTarget ? this.titleTarget : null, false)
+    this.element.classList.remove("is-grid-open")
+  }
+
+  keepChapterGrid(event) {
+    event.stopPropagation()
+  }
+
+  revealChrome() {
+    this.element.querySelectorAll("[data-controller~='chrome']").forEach((el) => {
+      el.dispatchEvent(new Event("chrome:reveal"))
+    })
   }
 
   toggleChapter() {

@@ -13,7 +13,7 @@
 
 <div
   data-controller="reader search"
-  data-action="pointerdown->reader#pressStart"
+  data-action="pointerdown->reader#pressStart keydown.esc@window->reader#closeChapterGrid"
   data-reader-focus-value="<%= @focus_verse %>"
   data-reader-chapter-slug-value="<%= @chapter.slug %>"
   data-reader-notes-url-value="<%= notes_path %>"
@@ -41,7 +41,17 @@
           </svg>
         <% end %>
       </div>
-      <h1 class="topbar-title" data-reader-target="title"><%= @passage.kind == "chapter" ? @chapter.label : @passage.label %></h1>
+      <h1 class="topbar-title">
+        <button
+          type="button"
+          class="topbar-title-btn"
+          data-reader-target="title"
+          data-action="click->reader#toggleChapterGrid"
+          aria-haspopup="dialog"
+          aria-expanded="false"
+          aria-controls="chapter-grid"
+        ><%= @passage.kind == "chapter" ? @chapter.label : @passage.label %></button>
+      </h1>
       <div class="topbar-actions">
         <button
           type="button"
@@ -79,6 +89,28 @@
       </div>
     </header>
   <% end %>
+
+  <div
+    id="chapter-grid"
+    class="chapter-grid"
+    hidden
+    data-reader-target="chapterGrid"
+    data-action="click->reader#closeChapterGrid"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="chapter-grid-heading"
+  >
+    <div class="chapter-grid-sheet" data-action="click->reader#keepChapterGrid">
+      <p class="chapter-grid-book" id="chapter-grid-heading"><%= Margin::Books.name_for(@chapter.book) %></p>
+      <div class="chapter-grid-cells">
+        <% 1.upto(Margin::Books.chapter_count(@chapter.book)) do |n| %>
+          <%= link_to n, read_path(Margin::Passage.new(book: @chapter.book, chapter: n).slug),
+                class: "chapter-grid-cell#{" is-current" if n == @chapter.chapter}",
+                aria: { current: (n == @chapter.chapter ? "page" : nil) } %>
+        <% end %>
+      </div>
+    </div>
+  </div>
 
   <main class="reader">
     <div class="reader-chrome" data-controller="chrome" data-action="chrome:reveal->chrome#show">

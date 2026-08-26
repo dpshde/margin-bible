@@ -95,6 +95,7 @@ class ReaderControllerTest < ActionDispatch::IntegrationTest
     assert_select "header.topbar[data-controller='chrome'][data-chrome-edge-value='top'][data-action='chrome:reveal->chrome#show']" do
       assert_select ".topbar-side a.inbox-link[href='/'][aria-label='Notes inbox'][data-action='click->reader#flushPending']"
       assert_select "h1.topbar-title", "John 1"
+      assert_select "button.topbar-title-btn[data-action='click->reader#toggleChapterGrid'][aria-haspopup='dialog'][aria-controls='chapter-grid']", "John 1"
       assert_select "button.header-quiet-button[data-action='click->reader#toggleQuiet'][aria-label='Focus']"
       assert_select "button.header-copy-button[data-action='click->reader#copyPassage'][aria-label='Copy chapter text and notes']"
       assert_select ".header-copy-button svg.copy-idle"
@@ -126,6 +127,19 @@ class ReaderControllerTest < ActionDispatch::IntegrationTest
       assert_select "input#q[type=search][placeholder='John 3:16']"
       assert_select "ul.suggest"
       assert_select "button", text: /Search/, count: 0
+    end
+  end
+
+  test "chapter title opens this book's chapter grid" do
+    get read_path("jhn.1")
+    assert_select "button.topbar-title-btn[aria-haspopup='dialog'][aria-expanded='false'][aria-controls='chapter-grid']", "John 1"
+    assert_select ".chapter-grid[hidden][role='dialog'][aria-labelledby='chapter-grid-heading']" do
+      assert_select ".chapter-grid-book#chapter-grid-heading", "John"
+      assert_select "a.chapter-grid-cell", 21
+      assert_select "a.chapter-grid-cell.is-current[href='/jhn.1'][aria-current='page']", "1"
+      assert_select "a.chapter-grid-cell[href='/jhn.2']", "2"
+      assert_select "a.chapter-grid-cell[href='/jhn.21']", "21"
+      assert_select "a.chapter-grid-cell[href='/gen.1']", count: 0
     end
   end
 
