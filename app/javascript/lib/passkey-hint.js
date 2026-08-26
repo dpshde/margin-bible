@@ -18,6 +18,6 @@ export function rememberPasskeyHint(storage = defaultStorage()) {
   }
 }
 
-export function passkeyPrimaryMode(hasHint = hasPasskeyHint()) {
-  return hasHint ? "use" : "create"
+export function passkeyPrimaryMode(_hasHint = hasPasskeyHint()) {
+  return "use"
 }

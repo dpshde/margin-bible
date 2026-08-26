@@ -618,7 +618,7 @@ a.tray-label:hover { color: var(--ink); }
 .danger-btn { color: #a33; }
 rails-passkey-registration-button,
 rails-passkey-sign-in-button { display: block; width: 100%; }
-.auth-passkey { margin-top: 0; }
+.auth-passkey { margin-top: 0; display: flex; flex-direction: column; gap: .65rem; }
 .auth-passkey-create .muted { margin: .45rem 0 0; }
 .account-email { margin: 1.8rem 0 0; }
 .account-email h2 { margin: 0 0 .35rem; font-size: 1.05rem; }

@@ -10,13 +10,14 @@ class SessionsControllerTest < ActionDispatch::IntegrationTest
     assert_select "h1.topbar-title", "Sign in"
     assert_select "header.topbar .theme-seg", count: 0
     assert_select "header.topbar details.topbar-menu button.menu-item[data-theme-pref='system']", "System"
+    assert_select ".lede", /passkey signs you in/i
     assert_select "input[name='email'][autocomplete='username webauthn']"
-    assert_select "button", "Email me a link"
+    assert_select "button.secondary", "Email me a link"
     assert_select "rails-passkey-sign-in-button[mediation='conditional']"
     assert_select "rails-passkey-sign-in-button[options*='client-device']"
+    assert_select ".auth-passkey-use:not([hidden]) button.primary[data-passkey='sign_in']", "Use a passkey"
     assert_select ".auth-passkey-create:not([hidden]) button.primary[data-passkey='register']", "Create a passkey"
-    assert_select "button.primary[data-passkey='register']", count: 1
-    assert_select ".auth-passkey-use[hidden] rails-passkey-sign-in-button button.primary[data-passkey='sign_in']", "Use a passkey"
+    assert_select "button.primary[data-passkey]", count: 2
     assert_select "button.secondary[data-passkey]", count: 0
     assert_select "button.auth-passkey-switch", count: 0
     assert_no_match(/I already have a passkey/, response.body)
@@ -24,6 +25,10 @@ class SessionsControllerTest < ActionDispatch::IntegrationTest
     assert_select ".auth-passkey-create .muted", /claims the notes on this device/i
     assert_select "a", text: "Back to notes", count: 0
     assert_select "p.auth-or", "or"
+    body = response.body
+    assert_operator body.index("Use a passkey"), :<, body.index("Create a passkey")
+    assert_operator body.index("Use a passkey"), :<, body.index("Email me a link")
+    assert_operator body.index("Create a passkey"), :<, body.index("Email me a link")
   end
 
   test "magic link claims the current library" do

@@ -10,8 +10,8 @@ import {
 {
   const store = memoryStorage()
   assert.equal(hasPasskeyHint(store), false)
-  assert.equal(passkeyPrimaryMode(false), "create")
-  assert.equal(passkeyPrimaryMode(hasPasskeyHint(store)), "create")
+  assert.equal(passkeyPrimaryMode(false), "use")
+  assert.equal(passkeyPrimaryMode(hasPasskeyHint(store)), "use")
   rememberPasskeyHint(store)
   assert.equal(store.getItem(PASSKEY_HINT_KEY), "1")
   assert.equal(hasPasskeyHint(store), true)

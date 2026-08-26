@@ -1,23 +1,22 @@
 import { Controller } from "@hotwired/stimulus"
 import { loadPack } from "../lib/guest-pack"
-import { hasPasskeyHint, passkeyPrimaryMode } from "../lib/passkey-hint"
+import { passkeyPrimaryMode } from "../lib/passkey-hint"
 
 export default class extends Controller {
   static targets = [ "use", "create" ]
 
   connect() {
     this.element.addEventListener("passkey:success", this.attachPack)
-    this.applyMode(passkeyPrimaryMode(hasPasskeyHint()))
+    this.applyMode(passkeyPrimaryMode())
   }
 
   disconnect() {
     this.element.removeEventListener("passkey:success", this.attachPack)
   }
 
-  applyMode(mode) {
-    const use = mode === "use"
-    if (this.hasUseTarget) this.useTarget.hidden = !use
-    if (this.hasCreateTarget) this.createTarget.hidden = use
+  applyMode(_mode = "use") {
+    if (this.hasUseTarget) this.useTarget.hidden = false
+    if (this.hasCreateTarget) this.createTarget.hidden = false
   }
 
   attachPack = (event) => {
