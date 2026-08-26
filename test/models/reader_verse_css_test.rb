@@ -20,10 +20,11 @@ class ReaderVerseCssTest < ActiveSupport::TestCase
   end
 
   test "continuation verse-press keeps vtext out of the number gutter" do
-    assert_match(/\.verse-press > \.vtext\s*\{[^}]*grid-column:\s*2/, css)
-    assert_match(/\.is-nums-hidden \.verse-press > \.vtext\s*\{[^}]*grid-column:\s*1/, css)
+    assert_match(/\.verse-press > \.vtext,\s*\n\.verse-press > :not\(\.vnum\)\s*\{[^}]*grid-column:\s*2/, css)
+    assert_match(/\.is-nums-hidden \.verse-press > \.vtext,\s*\n\.is-nums-hidden \.verse-press > :not\(\.vnum\)\s*\{[^}]*grid-column:\s*1/, css)
     assert_match(/\.is-quiet \.verse-press\s*\{[^}]*display:\s*contents/, css)
     assert_match(/\.is-quiet \.verse-press\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\)/, css)
+    assert_match(/\.is-quiet \.verse-press > \.vtext,\s*\n\.is-quiet \.verse-press > :not\(\.vnum\)\s*\{[^}]*grid-column:\s*unset/, css)
     assert_match(/\.pub-line\s*\{[^}]*width:\s*100%/, css)
   end
 

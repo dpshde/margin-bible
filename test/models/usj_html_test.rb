@@ -72,6 +72,40 @@ class UsjHtmlTest < ActionView::TestCase
     assert_includes html, "We have seen His glory."
   end
 
+  test "Mark 5:9 keeps wj and the attribution inside vtext, not the gutter" do
+    html = render_usj_chapter(
+      Margin::Usj.chapter_nodes("MRK", 5),
+      chapter: Margin::Passage.parse("mrk.5"),
+      notes_by_verse: {},
+      span_start: 9,
+      span_end: 9,
+      range_slug: "mrk.5.9",
+      range_selected: false,
+      single_selected: true,
+      passage_label: "Mark 5:9"
+    )
+    doc = Nokogiri::HTML.fragment(html)
+    first = doc.at_css("#v9")
+    assert first
+    refute_includes first.parent["class"].to_s.split, "wj"
+    vtext = first.at_css(".verse-press > .vtext")
+    assert vtext
+    assert vtext.at_css(".wj").text.include?("What is your name?")
+    assert_includes vtext.text, "Jesus asked."
+    refute_includes first.at_css(".verse-press").children.select { |n| n.text? }.map(&:text).join, "Jesus asked."
+
+    quote_para = first.parent
+    assert_equal "p", quote_para["data-usfm"]
+    assert_empty quote_para.css("[data-verse='8']")
+
+    legion = doc.css(%(.verse[data-verse="9"])).find { |node| node["id"] != "v9" }
+    assert legion
+    assert_includes legion["class"], "is-continuation"
+    assert_nil legion.at_css(".vnum")
+    assert_includes legion.at_css(".verse-press > .vtext").text, "My name is Legion"
+    assert_equal quote_para.next_element, legion.parent
+  end
+
   test "a string-only r line still wraps only at the semicolon" do
     html = render_refs("(Matthew 4:18–22; Mark 1:16–20; Luke 5:1–11)")
 

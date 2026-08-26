@@ -146,7 +146,7 @@ module Margin
           if type == "verse"
             start_verse(node["number"].to_i)
           elsif type == "char" && marker == "wj"
-            emit_wj { render_inline(node["content"]) }
+            emit_wj(node["content"])
           elsif type == "note"
             next
           elsif type == "ref" || (type == "char" && marker == "ref")
@@ -159,15 +159,13 @@ module Margin
     end
 
     def start_verse(n)
-      depth = @wj_depth
-      depth.times { close_wj_tag }
       close_verse
-      depth.times { open_wj_tag }
       @current_verse = n
       first = !@seen[n]
       @seen[n] = true
       slug = @chapter.verse_slug(n)
       classes = [ "verse" ]
+      classes << "is-continuation" unless first
       covering = notes_for(n)
       classes << "has-note" if covering.any?
       trays_open = verse_trays_open?(n)
@@ -181,11 +179,13 @@ module Margin
       @buf << %(<span class="vnum" data-usfm="v">#{n}</span>) if first
       @buf << %(<span class="vtext">)
       @verse_open = true
+      emit_open_wj_spans
     end
 
     def close_verse
       return unless @verse_open
 
+      emit_close_wj_spans
       @buf << "</span></button></span>"
       @verse_open = false
     end
@@ -200,22 +200,40 @@ module Margin
       @buf << h(text)
     end
 
-    def emit_wj
-      start_verse(@current_verse) if @current_verse && !@verse_open
+    def emit_wj(content)
+      unless @verse_open
+        start_verse(@current_verse) if @current_verse && !starts_with_verse_milestone?(content)
+      end
       open_wj_tag
-      yield
+      render_inline(content)
       close_wj_tag
     end
 
+    def starts_with_verse_milestone?(nodes)
+      Array(nodes).each do |node|
+        next if node.is_a?(String) && node.to_s.strip.empty?
+        return node.is_a?(Hash) && node["type"] == "verse"
+      end
+      false
+    end
+
+    def emit_open_wj_spans
+      @wj_depth.times { @buf << %(<span class="wj">) }
+    end
+
+    def emit_close_wj_spans
+      @wj_depth.times { @buf << "</span>" }
+    end
+
     def open_wj_tag
-      @buf << %(<span class="wj">)
       @wj_depth += 1
+      @buf << %(<span class="wj">) if @verse_open
     end
 
     def close_wj_tag
       return if @wj_depth.zero?
 
-      @buf << "</span>"
+      @buf << "</span>" if @verse_open
       @wj_depth -= 1
     end
 

@@ -185,6 +185,18 @@ class ReaderControllerTest < ActionDispatch::IntegrationTest
     assert_select ".wj", /What do you want/
   end
 
+  test "Mark 5:9 attribution stays in the text column after a new p" do
+    Verse.delete_all
+    get read_path("mrk.5.9")
+    assert_response :success
+    assert_select ".wj > #v9", count: 0
+    assert_select "#v9 .verse-press > .vtext .wj", /What is your name/
+    assert_select "#v9 .verse-press > .vtext", /Jesus asked/
+    assert_select ".verse.is-continuation[data-verse='9'] .verse-press > .vtext", /My name is Legion/
+    assert_select ".verse.is-continuation[data-verse='9'] .vnum", count: 0
+    assert_select "#v9 .verse-press > .vnum", "9"
+  end
+
   test "chapter title opens this book's chapter grid" do
     get read_path("jhn.1")
     assert_select "button.topbar-title-btn[aria-haspopup='dialog'][aria-expanded='false'][aria-controls='chapter-grid']", "John 1"
