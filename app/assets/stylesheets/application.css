@@ -269,6 +269,7 @@ html[data-theme="dark"] .wj { color: color-mix(in srgb, #e0a39c 62%, var(--ink))
 .fn {
   font-size: .62em; line-height: 0; vertical-align: super;
   color: var(--faint); font-family: var(--sans);
+  padding-left: .22em;
 }
 .is-quiet .verse.has-note,
 .is-quiet .verse.is-open,
@@ -295,10 +296,6 @@ html[data-theme="dark"] .wj { color: color-mix(in srgb, #e0a39c 62%, var(--ink))
   line-height: 1.5;
 }
 .is-quiet .pub-p { text-indent: 1.35em; }
-.is-quiet .section-head + .pub-p,
-.is-quiet .section-head + .pub-r + .pub-p {
-  text-indent: 0;
-}
 .is-quiet .pub-q1 { padding-left: .85rem; text-indent: -.3rem; }
 .is-quiet .pub-q2 { padding-left: 1.2rem; text-indent: -.3rem; }
 .is-quiet .pub-b { height: .18em; }
@@ -487,8 +484,9 @@ html[data-theme="dark"] .wj { color: color-mix(in srgb, #e0a39c 62%, var(--ink))
   border-radius: .5rem .5rem 0 0;
 }
 .reader-chrome .suggest li:last-child button { border-radius: 0; }
+.is-quiet .jump,
 .is-quiet .reader-chrome {
-  padding: 0; background: transparent; border: 0; border-radius: 0;
+  display: none;
 }
 .jump { position: relative; margin: .4rem 0 1.2rem; }
 .jump input[type="search"] {
@@ -928,12 +926,6 @@ rails-passkey-sign-in-button { display: block; width: 100%; }
   html:not(.hotwire-native) .reader-chrome .jump input[type="search"] { background: var(--paper); }
   html:not(.hotwire-native) .reader-chrome.is-tucked {
     transform: translateX(-50%) translateY(calc(100% + 1.6rem));
-  }
-  html:not(.hotwire-native).is-quiet .reader-chrome {
-    padding: 0; background: transparent; border: 0; border-radius: 0;
-  }
-  html:not(.hotwire-native).is-quiet .reader-chrome .jump input[type="search"] {
-    background: var(--paper-raised);
   }
 }
 @media (max-width: 640px) {

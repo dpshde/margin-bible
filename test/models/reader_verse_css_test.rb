@@ -87,7 +87,7 @@ class ReaderVerseCssTest < ActiveSupport::TestCase
     quiet_p = css[/\.is-quiet \.pub-p\s*\{[^}]+\}/]
     assert quiet_p
     assert_match(/text-indent:\s*1\.35em/, quiet_p)
-    assert_match(/\.is-quiet \.section-head \+ \.pub-p,\s*\.is-quiet \.section-head \+ \.pub-r \+ \.pub-p\s*\{[^}]*text-indent:\s*0/m, css)
+    refute_match(/\.is-quiet \.section-head \+ \.pub-p,\s*\.is-quiet \.section-head \+ \.pub-r \+ \.pub-p\s*\{[^}]*text-indent:\s*0/m, css)
     assert_match(/\.is-quiet \.pub-q1\s*\{[^}]*padding-left:\s*\.85rem/m, css)
     assert_match(/\.is-quiet \.pub-q2\s*\{[^}]*padding-left:\s*1\.2rem/m, css)
     assert_match(/\.is-quiet \.pub-b\s*\{[^}]*height:\s*\.18em/, css)
@@ -152,12 +152,18 @@ class ReaderVerseCssTest < ActiveSupport::TestCase
     assert_match(/border-radius:\s*50%/, btn)
   end
 
-  test "quiet reading drops the chrome shell around jump" do
-    quiet_chrome = css[/\.is-quiet \.reader-chrome\s*\{[^}]+\}/]
-    assert quiet_chrome
-    assert_match(/background:\s*transparent/, quiet_chrome)
-    assert_match(/border:\s*0/, quiet_chrome)
-    assert_match(/padding:\s*0/, quiet_chrome)
+  test "quiet reading hides jump and reader input chrome" do
+    assert_match(/\.is-quiet \.jump,\s*\.is-quiet \.reader-chrome\s*\{[^}]*display:\s*none/, css)
+    assert_match(/\.is-quiet \.chapter-tray\s*\{\s*display:\s*none/, css)
+    refute_match(/html:not\(\.hotwire-native\)\.is-quiet \.reader-chrome \.jump/, css)
+  end
+
+  test "footnote marker is a spaced superscript dagger" do
+    fn = css[/\.fn\s*\{[^}]+\}/]
+    assert fn
+    assert_match(/vertical-align:\s*super/, fn)
+    assert_match(/font-size:\s*\.62em/, fn)
+    assert_match(/padding-left:\s*\.22em/, fn)
   end
 
   test "hiding verse numbers drops the gutter and the digits" do
