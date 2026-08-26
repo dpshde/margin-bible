@@ -361,7 +361,7 @@ html[data-theme="dark"] .wj { color: color-mix(in srgb, #e0a39c 62%, var(--ink))
   display: flex;
   align-items: flex-start;
   gap: .35rem;
-  padding: .02rem 0;
+  padding: .02rem 0 .02rem calc(var(--depth, 0) * 1.15rem);
   margin: 0;
 }
 .is-quiet .oblock.is-bullet .obullet { display: block; }
