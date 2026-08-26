@@ -33,7 +33,7 @@ function clone(blocks) {
   assert.equal(blocks[0].text, "Parent")
   assert.equal(created.indent, 0)
   assert.equal(created.text, "")
-  assert.equal(created.bullet, false)
+  assert.equal(created.bullet, true)
   assert.equal(blocks[1].id, "b_bb02")
   assert.equal(blocks[2].id, created.id)
   assert.equal(blocks[3].id, "b_cc03")
@@ -143,6 +143,17 @@ function clone(blocks) {
 }
 
 {
+  const blocks = clone([{ id: "b_enter", indent: 0, text: "First", bullet: false }])
+  const created = splitSibling(blocks, 0, 5)
+  assert.equal(created.bullet, true)
+  assert.equal(created.text, "")
+  const drop = backspaceAtStart(blocks, 1)
+  assert.equal(drop.changed, true)
+  assert.equal(blocks[1].bullet, false)
+  assert.equal(blocks[1].text, "")
+}
+
+{
   assert.equal(shouldLeaveBlockOnArrow({
     direction: 1, atFirstVisualLine: false, atLastVisualLine: false, singleVisualLine: true
   }), true)
@@ -161,6 +172,8 @@ function clone(blocks) {
   assert.equal(blocks[0].text, "ParentA")
   assert.equal(blocks[1].text, "B")
   assert.equal(blocks[2].text, "C")
+  assert.equal(blocks[1].bullet, true)
+  assert.equal(blocks[2].bullet, true)
   assert.equal(result.focusId, blocks[2].id)
   assert.equal(result.caret, 1)
 }

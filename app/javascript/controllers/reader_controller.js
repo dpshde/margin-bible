@@ -1,5 +1,5 @@
 import { Controller } from "@hotwired/stimulus"
-import { chapterSwipe, isHorizontalIntent, isTapGesture } from "../lib/chapter-swipe"
+import { rangeDragIntent, versePointerDecision } from "../lib/chapter-swipe"
 import {
   applyNoteToPack,
   loadPack,
@@ -106,6 +106,7 @@ export default class extends Controller {
     }
     this.dragging = false
     this.swipeAxis = null
+    this.dragStartTop = verse ? verse.getBoundingClientRect().top : null
     this.pointerId = event.pointerId
     window.addEventListener("pointermove", this.onPointerMove, { passive: false })
     window.addEventListener("pointerup", this.onPointerUp)
@@ -116,25 +117,27 @@ export default class extends Controller {
     if (this.pointerOrigin == null) return
     const dx = event.clientX - this.pointerOrigin.x
     const dy = event.clientY - this.pointerOrigin.y
-    if (isHorizontalIntent(dx, dy)) {
-      this.swipeAxis = "x"
-      this.ignoreClick = true
-      return
-    }
-    if (this.swipeAxis === "x") return
     if (this.dragStart == null) return
     const n = this.verseAtPoint(event.clientX, event.clientY)
-    if (!n) return
-    if (n !== this.dragStart) {
-      this.dragging = true
-      this.ignoreClick = true
-      event.preventDefault()
-      this.pressEl?.setPointerCapture?.(event.pointerId)
-      this.element.classList.add("is-picking")
-    }
-    if (n !== this.dragCurrent) {
+    const startEl = this.verseEl(this.dragStart)
+    const startRange = rangeDragIntent({
+      startVerse: this.dragStart,
+      currentVerse: n,
+      startVerseTop: this.dragStartTop,
+      currentStartVerseTop: startEl?.getBoundingClientRect().top,
+      dx,
+      dy
+    })
+    if (!startRange && !this.dragging) return
+    this.dragging = true
+    this.swipeAxis = null
+    this.ignoreClick = true
+    event.preventDefault()
+    this.pressEl?.setPointerCapture?.(event.pointerId)
+    this.element.classList.add("is-picking")
+    if (n && n !== this.dragCurrent) {
       this.dragCurrent = n
-      if (this.dragging) this.previewSpan(this.dragStart, n)
+      this.previewSpan(this.dragStart, n)
     }
   }
 
@@ -144,38 +147,36 @@ export default class extends Controller {
     const start = this.dragStart
     const wasDragging = this.dragging
     const origin = this.pointerOrigin
-    const axis = this.swipeAxis
     const dx = origin ? event.clientX - origin.x : 0
     const dy = origin ? event.clientY - origin.y : 0
     const elapsedMs = origin ? event.timeStamp - origin.t : 0
     this.ignoreClick = true
     this.resetDrag()
-    const swipe = chapterSwipe({
+    const decision = versePointerDecision({
       dx,
       dy,
       elapsedMs,
-      rangeDragging: wasDragging && axis !== "x"
+      startVerse: start,
+      endVerse: hovered,
+      dragging: wasDragging
     })
-    if (swipe) {
-      const url = swipe === "next" ? this.nextUrlValue : this.prevUrlValue
-      if (url) {
-        this.visitChapter(url)
-        return
-      }
-    }
-    if (axis === "x") return
-    if (wasDragging && start != null && hovered !== start) {
-      this.selection = selectionFromDrag(start, hovered)
-      this.applySelection({ replaceUrl: true })
+    if (decision.type === "chapter") {
+      const url = decision.direction === "next" ? this.nextUrlValue : this.prevUrlValue
+      if (url) this.visitChapter(url)
       return
     }
-    if (!isTapGesture(dx, dy) || start == null) return
+    if (decision.type === "range") {
+      this.selection = selectionFromDrag(decision.start, decision.end)
+      this.applySelection({ replaceUrl: true, focus: true })
+      return
+    }
+    if (decision.type !== "tap" || start == null) return
     if (this.verseEl(start)?.classList.contains("is-open")) {
       this.selection = null
     } else {
       this.selection = selectionFromTap(start, this.selection)
     }
-    this.applySelection({ replaceUrl: true })
+    this.applySelection({ replaceUrl: true, focus: true })
   }
 
   openVerse(event) {
@@ -206,7 +207,7 @@ export default class extends Controller {
     this.applySelection({ replaceUrl: true })
   }
 
-  applySelection({ replaceUrl }) {
+  applySelection({ replaceUrl, focus = true }) {
     this.clearEphemeralRanges()
     this.element.classList.remove("is-picking")
     this.element.querySelectorAll(".verse").forEach((row) => {
@@ -224,8 +225,8 @@ export default class extends Controller {
     const { start, end } = this.selection
     for (let n = start; n <= end; n += 1) this.verseEl(n)?.classList.add("is-span")
 
-    if (start === end) this.openSingle(start)
-    else this.openRange(start, end)
+    if (start === end) this.openSingle(start, { focus })
+    else this.openRange(start, end, { focus })
 
     this.updateTitle(this.selection)
     this.refreshExpand()
@@ -242,17 +243,17 @@ export default class extends Controller {
     this.updateTitle(span)
   }
 
-  openSingle(n) {
+  openSingle(n, { focus = true } = {}) {
     const row = this.verseEl(n)
     if (!row) return
     row.classList.add("is-open")
     row.querySelectorAll(".note-tray").forEach((tray) => {
       tray.hidden = tray.hasAttribute("data-range-composer")
     })
-    this.focusFirstVisible(row)
+    if (focus) this.focusFirstVisible(row)
   }
 
-  openRange(start, end) {
+  openRange(start, end, { focus = true } = {}) {
     const slug = rangeSlug(this.chapterSlugValue, start, end)
     const row = this.verseEl(end)
     if (!row) return
@@ -272,10 +273,10 @@ export default class extends Controller {
     }
     if (rangeTray) {
       rangeTray.hidden = false
-      this.focusOutliner(rangeTray)
+      if (focus) this.focusOutliner(rangeTray)
       return
     }
-    this.focusFirstVisible(row)
+    if (focus) this.focusFirstVisible(row)
   }
 
   rangeTrayFor(row, slug) {
@@ -876,6 +877,7 @@ export default class extends Controller {
   resetDrag() {
     this.dragStart = null
     this.dragCurrent = null
+    this.dragStartTop = null
     this.dragging = false
     this.swipeAxis = null
     this.pressEl = null

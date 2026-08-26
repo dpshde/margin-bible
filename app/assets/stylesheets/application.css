@@ -356,12 +356,14 @@ button, input, textarea { font: inherit; color: inherit; }
 .verse.is-span .vtext {
   color: color-mix(in srgb, var(--ink) 68%, #6b4a24);
 }
-.chapter.is-picking { user-select: none; }
+.chapter { touch-action: manipulation; }
+.chapter.is-picking { user-select: none; touch-action: none; }
 .verse-press {
   display: grid; grid-template-columns: var(--verse-gutter) 1fr; gap: var(--verse-gutter-gap); width: 100%;
   border: 0; background: transparent; text-align: left; cursor: pointer;
   padding: .28rem 0; touch-action: manipulation;
 }
+.chapter.is-picking .verse-press { touch-action: none; }
 .vnum {
   font-variant-numeric: tabular-nums; color: var(--faint); font-size: .75rem;
   padding-top: .32rem; text-align: right;

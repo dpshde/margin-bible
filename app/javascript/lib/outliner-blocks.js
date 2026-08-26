@@ -8,7 +8,7 @@ export function newBlockId() {
   return `b_${[...bytes].map((byte) => byte.toString(16).padStart(2, "0")).join("")}`
 }
 
-export function newBlock(indent = 0, text = "", id = newBlockId(), { bullet = false } = {}) {
+export function newBlock(indent = 0, text = "", id = newBlockId(), { bullet = true } = {}) {
   return { id, indent, text, bullet }
 }
 
@@ -55,7 +55,7 @@ export function splitSibling(blocks, index, offset) {
   const left = current.text.slice(0, offset)
   const right = current.text.slice(offset)
   current.text = left
-  const created = newBlock(current.indent, right, newBlockId(), { bullet: false })
+  const created = newBlock(current.indent, right)
   blocks.splice(subtreeEnd(blocks, index), 0, created)
   return created
 }
@@ -186,7 +186,7 @@ export function insertPastedLines(blocks, index, offset, paste) {
   current.text = current.text.slice(0, offset) + lines[0]
   const created = lines.slice(1).map((line, lineIndex, list) => {
     const isLast = lineIndex === list.length - 1
-    return newBlock(current.indent, line + (isLast ? after : ""), newBlockId(), { bullet: false })
+    return newBlock(current.indent, line + (isLast ? after : ""))
   })
   blocks.splice(index + 1, 0, ...created)
   const last = created[created.length - 1]

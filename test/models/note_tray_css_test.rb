@@ -43,10 +43,23 @@ class NoteTrayCssTest < ActiveSupport::TestCase
     refute_match(/font-size:\s*16px/, vtext)
   end
 
-  test "viewport does not lock pinch zoom" do
+  test "viewport locks page scale on the reader" do
     layout = Rails.root.join("app/views/layouts/application.html.erb").read
-    assert_match(/width=device-width,initial-scale=1,viewport-fit=cover/, layout)
-    refute_match(/maximum-scale/, layout)
-    refute_match(/user-scalable/, layout)
+    assert_match(
+      /width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover/,
+      layout
+    )
+  end
+
+  test "chapter and verse press disable extra touch zoom" do
+    chapter = css[/\n\.chapter\s*\{[^}]+\}/]
+    assert chapter
+    assert_match(/touch-action:\s*manipulation/, chapter)
+    press = css[/\n\.verse-press\s*\{[^}]+\}/]
+    assert press
+    assert_match(/touch-action:\s*manipulation/, press)
+    picking = css[/\n\.chapter\.is-picking\s*\{[^}]+\}/]
+    assert picking
+    assert_match(/touch-action:\s*none/, picking)
   end
 end

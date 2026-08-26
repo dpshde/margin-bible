@@ -84,6 +84,7 @@ class ReaderControllerTest < ActionDispatch::IntegrationTest
     get read_path("jhn.1")
     assert_response :success
     assert_select "[data-reader-signed-in-value='false']"
+    assert_select %(meta[name="viewport"][content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover"])
     assert_select "h2.section-head", "The Beginning"
     assert_select "h2.section-head", "The Witness of John"
     assert_select ".vtext", /beginning was the Word/
@@ -198,8 +199,8 @@ class ReaderControllerTest < ActionDispatch::IntegrationTest
     assert_select ".tray-head a", text: /route\.bible/, count: 0
     assert_select "textarea.note-input", count: 0
     assert_select ".outliner[data-slug='jhn.1'] .otext"
-    assert_select ".outliner[data-slug='jhn.1'] .oblock[data-bullet='0']"
-    assert_select ".outliner[data-slug='jhn.1'] .oblock.is-bullet", count: 0
+    assert_select ".outliner[data-slug='jhn.1'] .oblock[data-bullet='1']"
+    assert_select ".outliner[data-slug='jhn.1'] .oblock.is-bullet"
   end
 
   test "autosaves a verse note" do

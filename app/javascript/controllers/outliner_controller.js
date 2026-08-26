@@ -22,7 +22,7 @@ export default class extends Controller {
   connect() {
     this.blocks = this.readRows()
     if (!this.blocks.length) {
-      this.blocks = [{ id: this.element.dataset.emptyId || "b_empty", indent: 0, text: "", bullet: false }]
+      this.blocks = [{ id: this.element.dataset.emptyId || "b_empty", indent: 0, text: "", bullet: true }]
     }
     this.onInput = this.onInput.bind(this)
     this.onBeforeInput = this.onBeforeInput.bind(this)
@@ -82,7 +82,7 @@ export default class extends Controller {
         text: String(block.text || ""),
         bullet: blockHasBullet(block)
       }))
-      : [{ id: this.element.dataset.emptyId || "b_empty", indent: 0, text: "", bullet: false }]
+      : [{ id: this.element.dataset.emptyId || "b_empty", indent: 0, text: "", bullet: true }]
     this.blocks = incoming
     this.render()
   }

@@ -1,7 +1,7 @@
 <%
   display_label = local_assigns[:label].presence || Margin::Passage.parse(slug)&.label
   editor_blocks = Array(note&.blocks)
-  editor_blocks = [ { "id" => "b_#{SecureRandom.hex(4)}", "indent" => 0, "text" => "", "bullet" => false } ] if editor_blocks.empty?
+  editor_blocks = [ { "id" => "b_#{SecureRandom.hex(4)}", "indent" => 0, "text" => "", "bullet" => true } ] if editor_blocks.empty?
 %>
 <div
   class="outliner"
