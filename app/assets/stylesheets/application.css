@@ -388,7 +388,7 @@ html[data-theme="dark"][data-face="deca"] .wj {
 .is-quiet .section-head {
   display: block;
   width: 100%;
-  margin: 0 0 .6em;
+  margin: 0 0 1.15em;
   margin-left: 0;
 }
 .is-quiet .section-head:first-child { margin-top: .15em; }
@@ -644,7 +644,7 @@ html[data-theme="dark"][data-face="deca"] .wj {
 }
 
 .section-head {
-  margin: 0 0 .6em;
+  margin: 0 0 1.15em;
   margin-left: calc(var(--verse-gutter) + var(--verse-gutter-gap));
   padding: 0;
   font-family: var(--sans); font-size: 1.45rem; font-weight: 600;

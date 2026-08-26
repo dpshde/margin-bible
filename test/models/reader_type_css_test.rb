@@ -49,5 +49,7 @@ class ReaderTypeCssTest < ActiveSupport::TestCase
     refute_match(/font-weight:\s*700/, head)
     refute_match(/font-weight:\s*800/, head)
     assert_match(/\.section-head\.spaced\s*\{[^}]*margin-top:\s*2\.25em/, css)
+    assert_match(/margin:\s*0 0 1\.15em/, head)
+    refute_match(/\.note-tray\s*\{[^}]*margin-top:\s*1\.15em/, css)
   end
 end
