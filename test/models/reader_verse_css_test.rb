@@ -94,6 +94,13 @@ class ReaderVerseCssTest < ActiveSupport::TestCase
     assert_match(/\.is-quiet \.section-head\.spaced\s*\{[^}]*margin-top:\s*1em/, css)
     assert_match(/\.is-quiet \.oblock\s*\{[^}]*display:\s*flex/, css)
     assert_match(/\.is-quiet \.oblock\s*\{[^}]*padding:[^}]*var\(--depth/, css)
+    quiet_block = css[/\.is-quiet \.oblock\s*\{[^}]+\}/]
+    assert quiet_block
+    assert_match(/gap:\s*\.12rem/, quiet_block)
+    assert_match(/text-indent:\s*0/, quiet_block)
+    quiet_otext = css[/\.is-quiet \.otext\s*\{[^}]+\}/]
+    assert quiet_otext
+    assert_match(/text-indent:\s*0/, quiet_otext)
     assert_match(/\.is-quiet \.note-tray\s*\{[^}]*padding:\s*0/, css)
     assert_match(/\.verse-press\s*\{[^}]*padding:\s*\.05rem 0/, css)
     assert_match(/\.verse\s*\{[^}]*display:\s*block/, css)
