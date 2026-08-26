@@ -16,7 +16,7 @@ import {
   serializeBlocks,
   splitSibling
 } from "../lib/outliner-blocks"
-import { wikiTokens } from "../lib/wiki-markup"
+import { displayTokens } from "../lib/wiki-markup"
 
 export default class extends Controller {
   static values = { slug: String }
@@ -435,6 +435,12 @@ export default class extends Controller {
           chunks.push("\n")
         } else if (child.nodeType === Node.ELEMENT_NODE && child.matches("a.wiki")) {
           chunks.push(child.dataset.wikiRaw || child.textContent)
+        } else if (child.nodeName === "STRONG") {
+          chunks.push(`**${child.textContent || ""}**`)
+        } else if (child.nodeName === "EM") {
+          chunks.push(`*${child.textContent || ""}*`)
+        } else if (child.nodeName === "CODE") {
+          chunks.push(`\`${child.textContent || ""}\``)
         } else {
           visit(child)
         }
@@ -455,7 +461,7 @@ export default class extends Controller {
   }
 
   appendDecoratedLine(element, line) {
-    wikiTokens(line).forEach((token) => {
+    displayTokens(line).forEach((token) => {
       if (token.type === "wiki" && token.href) {
         const link = document.createElement("a")
         link.className = "wiki"
@@ -464,9 +470,15 @@ export default class extends Controller {
         link.contentEditable = "false"
         link.textContent = token.label
         element.append(link)
-      } else {
-        element.append(document.createTextNode(token.type === "wiki" ? token.raw : token.value))
+        return
       }
+      if (token.type === "strong" || token.type === "em" || token.type === "code") {
+        const mark = document.createElement(token.type === "strong" ? "strong" : token.type === "em" ? "em" : "code")
+        mark.textContent = token.value
+        element.append(mark)
+        return
+      }
+      element.append(document.createTextNode(token.type === "wiki" ? token.raw : token.value))
     })
   }
 

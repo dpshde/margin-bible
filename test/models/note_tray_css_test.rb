@@ -33,6 +33,11 @@ class NoteTrayCssTest < ActiveSupport::TestCase
     refute_match(/box-shadow:\s*[^;]*#(?:4|5|6|7|8|9|a)[0-9a-f]{2}ff/i, css)
   end
 
+  test "note text shows display-only bold and italics" do
+    assert_match(/\.otext strong\s*\{\s*font-weight:\s*600/, css)
+    assert_match(/\.otext em\s*\{\s*font-style:\s*italic/, css)
+  end
+
   test "editable note surfaces stay at 16px so iOS does not focus-zoom" do
     otext = css[/\n\.otext,\s*\n\.note-input\s*\{[^}]+\}/]
     assert otext

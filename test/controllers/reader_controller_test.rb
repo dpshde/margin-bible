@@ -415,7 +415,10 @@ class ReaderControllerTest < ActionDispatch::IntegrationTest
 
     get read_path("jhn.1")
     assert_select "#v1 .outliner[data-slug='jhn.1.1'] a.wiki[href='/jhn.1.6'][data-wiki-raw='[[jhn.1.6|John]]']", "John"
-    assert_select "#v1 .outliner[data-slug='jhn.1.1'] .otext", /See \*\*Word\*\* and \*life\* and `logos` and John/
+    assert_select "#v1 .outliner[data-slug='jhn.1.1'] .otext strong", "Word"
+    assert_select "#v1 .outliner[data-slug='jhn.1.1'] .otext em", "life"
+    assert_select "#v1 .outliner[data-slug='jhn.1.1'] .otext code", "logos"
+    assert_select "#v1 .outliner[data-slug='jhn.1.1'] .otext", /See Word and life and logos and John/
     assert_select "#v1 .note-preview", count: 0
   end
 end

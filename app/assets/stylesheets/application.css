@@ -384,7 +384,7 @@ html[data-theme="dark"] .wj { color: color-mix(in srgb, #e0a39c 62%, var(--ink))
 .is-quiet .oblock {
   display: flex;
   align-items: flex-start;
-  gap: .12rem;
+  gap: .3em;
   padding: .02rem 0 .02rem calc(var(--depth, 0) * 1.15rem);
   margin: 0;
   text-indent: 0;
@@ -764,6 +764,8 @@ a.tray-label:hover { color: var(--ink); }
 }
 .wiki { text-decoration: underline; text-underline-offset: 2px; }
 .otext a.wiki { cursor: pointer; }
+.otext strong { font-weight: 600; }
+.otext em { font-style: italic; }
 
 .trail-inline {
   display: flex; flex-wrap: wrap; align-items: baseline; gap: 0;
