@@ -97,7 +97,7 @@ class ReaderControllerTest < ActionDispatch::IntegrationTest
       assert_select "h1.topbar-title", "John 1"
       assert_select "button.topbar-title-btn[data-action='click->reader#toggleChapterGrid'][aria-haspopup='dialog'][aria-controls='chapter-grid']", "John 1"
       assert_select "button.header-quiet-button[data-action='click->reader#toggleQuiet'][aria-label='Focus']"
-      assert_select "button.header-copy-button[data-action='click->reader#copyPassage'][aria-label='Copy chapter text and notes']"
+      assert_select "button.header-copy-button[data-action='click->reader#copyPassage'][aria-label='Copy chapter text and notes'][aria-live='polite']"
       assert_select ".header-copy-button svg.copy-idle"
       assert_select ".header-copy-button .copy-done"
       assert_select ".topbar-actions details.reader-actions-menu summary[aria-label='Reader actions']"

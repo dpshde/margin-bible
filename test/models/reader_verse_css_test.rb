@@ -38,7 +38,9 @@ class ReaderVerseCssTest < ActiveSupport::TestCase
   end
 
   test "header copy flashes a check when pressed" do
-    assert_match(/\.header-copy-button\.is-copied \.copy-done/, css)
+    assert_match(/\.header-copy-button\.is-copied\s*\{\s*color:\s*var\(--ink\)/, css)
+    assert_match(/\.header-copy-button\.is-copied \.copy-idle/, css)
+    assert_match(/\.header-copy-button\.is-copied \.copy-done\s*\{[^}]*display:\s*inline-flex/, css)
     assert_match(/@keyframes copy-confirm/, css)
   end
 

@@ -29,6 +29,7 @@ import {
   selectionFromTap
 } from "../lib/passage-span"
 import { loadHideVerseNums, saveHideVerseNums } from "../lib/reader-prefs"
+import { markCopied, writeClipboard } from "../lib/clipboard-copy"
 import {
   formatChapterHtml,
   formatChapterShare,
@@ -535,33 +536,36 @@ export default class extends Controller {
   }
 
   async copyPassage(event) {
+    const button = event.currentTarget
     this.flushPending()
     const text = this.shareTextFor("chapter")
     const html = this.shareHtmlFor("chapter")
-    const ok = await this.writeClipboard(text, html)
-    this.markCopied(event.currentTarget, ok)
+    const ok = await writeClipboard(text, html)
+    markCopied(button, ok)
   }
 
   async copyNote(event) {
     event.preventDefault()
     event.stopPropagation()
+    const button = event.currentTarget
     this.flushPending()
-    const tray = event.currentTarget.closest(".note-tray, .chapter-tray")
+    const tray = button?.closest(".note-tray, .chapter-tray")
     const host = tray?.querySelector(".outliner")
     const controller = this.outlinerController(host)
     const blocks = controller && !controller.isEmpty() ? controller.payload().blocks : []
     const label = tray?.querySelector(".tray-label")?.textContent?.trim() || ""
     const text = formatNoteShare({ label, blocks })
     const html = formatNoteHtml({ label, blocks })
-    const ok = await this.writeClipboard(text, html)
-    this.markCopied(event.currentTarget, ok)
+    const ok = await writeClipboard(text, html)
+    markCopied(button, ok)
   }
 
   async sharePassage(event) {
+    const button = event.currentTarget
     this.flushPending()
     const scope = event.params.scope === "verse" ? "verse" : "chapter"
     const payload = this.sharePayload(scope)
-    const copied = await this.writeClipboard(payload.text, payload.html)
+    const copied = await writeClipboard(payload.text, payload.html)
     if (navigator.share) {
       try {
         // text-only: passing title/url makes some desktop sheets drop the body.
@@ -571,7 +575,7 @@ export default class extends Controller {
         if (error?.name === "AbortError") return
       }
     }
-    this.markCopied(event.currentTarget, copied)
+    markCopied(button, copied)
   }
 
   async exportDocument(event) {
@@ -702,46 +706,6 @@ export default class extends Controller {
 
   shareLabel(span) {
     return passageLabel(this.bookLabelValue, this.chapterValue, span.start, span.end)
-  }
-
-  async writeClipboard(text, html) {
-    try {
-      if (html && window.ClipboardItem && navigator.clipboard.write) {
-        await navigator.clipboard.write([
-          new ClipboardItem({
-            "text/plain": new Blob([ text ], { type: "text/plain" }),
-            "text/html": new Blob([ html ], { type: "text/html" })
-          })
-        ])
-        return true
-      }
-      await navigator.clipboard.writeText(text)
-      return true
-    } catch {
-      try {
-        await navigator.clipboard.writeText(text)
-        return true
-      } catch {
-        window.prompt("Copy", text)
-        return false
-      }
-    }
-  }
-
-  markCopied(button, ok) {
-    if (!button || !ok) return
-    const priorTitle = button.getAttribute("title")
-    const priorLabel = button.getAttribute("aria-label")
-    button.classList.add("is-copied")
-    button.setAttribute("title", "Copied")
-    button.setAttribute("aria-label", "Copied")
-    window.clearTimeout(button._copiedTimer)
-    button._copiedTimer = window.setTimeout(() => {
-      button.classList.remove("is-copied")
-      if (priorTitle) button.setAttribute("title", priorTitle)
-      else button.removeAttribute("title")
-      if (priorLabel) button.setAttribute("aria-label", priorLabel)
-    }, 1400)
   }
 
   currentSlug() {

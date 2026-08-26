@@ -232,9 +232,15 @@ button, input, textarea { font: inherit; color: inherit; }
 .menu-item:disabled { opacity: .35; cursor: default; }
 .header-copy-button svg,
 .header-quiet-button svg { display: block; }
-.header-copy-button .copy-done { display: none; }
+.header-copy-button .copy-done { display: none; line-height: 0; }
+.header-copy-button.is-copied { color: var(--ink); }
 .header-copy-button.is-copied .copy-idle { display: none; }
-.header-copy-button.is-copied .copy-done { display: block; }
+.header-copy-button.is-copied .copy-done {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.header-copy-button.is-copied .copy-done svg { display: block; width: 16px; height: 16px; }
 .header-copy-button.is-copied svg,
 .tray-copy.is-copied svg {
   animation: copy-confirm .5s ease;
