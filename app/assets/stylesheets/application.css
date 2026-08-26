@@ -587,7 +587,6 @@ html[data-theme="dark"] .wj { color: color-mix(in srgb, #e0a39c 62%, var(--ink))
   background: var(--sel-rail-open);
   pointer-events: none;
 }
-.verse.is-span:not(.is-span-start)::before { top: -1.25em; }
 .pub-p:has(> .verse.is-span:last-child):has(+ .pub-p > .verse.is-span),
 .pub-p:has(> .verse.is-span:last-child):has(+ .pub-b + .pub-p > .verse.is-span) {
   margin-bottom: 0;

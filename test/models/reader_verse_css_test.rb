@@ -172,7 +172,10 @@ class ReaderVerseCssTest < ActiveSupport::TestCase
     assert rail
     assert_match(/width:\s*2px/, rail)
     assert_match(/background:\s*var\(--sel-rail-open\)/, rail)
-    assert_match(/\.verse\.is-span:not\(\.is-span-start\)::before\s*\{\s*top:\s*-1\.25em/, css)
+    assert_match(/top:\s*0/, rail)
+    assert_match(/bottom:\s*0/, rail)
+    refute_match(/\.verse\.is-span:not\(\.is-span-start\)::before/, css)
+    refute_match(/::before\s*\{[^}]*top:\s*-/, css)
     refute_match(/\.verse\.is-open, \.verse\.is-span \{[^}]*border-left:\s*2px/, css)
     refute_match(/\.fn\s*\{/, css)
   end
