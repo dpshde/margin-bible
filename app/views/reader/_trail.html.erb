@@ -1,5 +1,6 @@
 <% if @trail.any? %>
   <nav class="trail trail-inline" aria-label="Recent passages">
+    <span class="trail-icon" aria-hidden="true"><%= ph_icon("clock-counter-clockwise", size: 13) %></span>
     <% @trail.each do |passage| %>
       <%= link_to passage.label, read_path(passage.slug), class: "trail-chip", data: { turbo_prefetch: true } %>
     <% end %>

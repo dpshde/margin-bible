@@ -416,6 +416,15 @@ class ReaderControllerTest < ActionDispatch::IntegrationTest
     assert_select ".dock-recent a.dock-item[href='/jhn.3.16']", "John 3:16"
     assert_select ".dock-recent a.dock-item[href='/jhn.1']", "John 1"
     assert_select "nav.trail-inline a[href='/jhn.2']", count: 0
+    assert_select "nav.trail-inline .trail-icon[aria-hidden='true']", 1
+    assert_select "nav.trail-inline .trail-icon svg", 1
+  end
+
+  test "empty trail does not render a history icon" do
+    get read_path("jhn.1")
+    assert_response :success
+    assert_select "nav.trail-inline", count: 0
+    assert_select ".trail-icon", count: 0
   end
 
   test "verse outliner renders wiki without absorbing markers" do
