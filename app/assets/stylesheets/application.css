@@ -228,8 +228,7 @@ button, input, textarea { font: inherit; color: inherit; }
 }
 .is-quiet .rail,
 .is-quiet .note-card:not(:has(.note-tray:not([hidden]))),
-.is-quiet .note-tray[hidden],
-.is-quiet .chapter-tray {
+.is-quiet .note-tray[hidden] {
   display: none;
 }
 .is-quiet .chapter { font-size: max(16px, 1em); }
@@ -509,6 +508,7 @@ button, input, textarea { font: inherit; color: inherit; }
 .chapter-tray {
   margin: 0 0 1.15rem calc(var(--verse-inset) + var(--verse-gutter) + var(--verse-gutter-gap));
 }
+.is-quiet .chapter-tray { display: none; }
 .tray-head {
   display: flex; align-items: flex-start; justify-content: space-between; gap: .6rem;
   margin: .4rem 0 0;

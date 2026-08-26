@@ -34,9 +34,10 @@ class ReaderVerseCssTest < ActiveSupport::TestCase
   end
 
   test "quiet reading hides the note rail and selection chrome" do
-    rail = css[/\.is-quiet \.rail,\s*\.is-quiet \.note-card:not\(:has\(\.note-tray:not\(\[hidden\]\)\)\),\s*\.is-quiet \.note-tray\[hidden\],\s*\.is-quiet \.chapter-tray\s*\{[^}]+\}/]
+    rail = css[/\.is-quiet \.rail,\s*\.is-quiet \.note-card:not\(:has\(\.note-tray:not\(\[hidden\]\)\)\),\s*\.is-quiet \.note-tray\[hidden\]\s*\{[^}]+\}/]
     assert rail
     assert_match(/display:\s*none/, rail)
+    assert_match(/\.is-quiet \.chapter-tray\s*\{\s*display:\s*none/, css)
     quiet = css[/\.is-quiet \.verse\.has-note,\s*\.is-quiet \.verse\.is-open,\s*\.is-quiet \.verse\.is-span\s*\{[^}]+\}/]
     assert quiet
     assert_match(/border(?:-left)?:\s*0/, quiet)
