@@ -269,7 +269,7 @@ html[data-theme="dark"] .wj { color: color-mix(in srgb, #e0a39c 62%, var(--ink))
 .fn {
   font-size: .62em; line-height: 0; vertical-align: super;
   color: var(--faint); font-family: var(--sans);
-  padding-left: .22em;
+  margin-left: .28rem;
 }
 .is-quiet .verse.has-note,
 .is-quiet .verse.is-open,

@@ -163,7 +163,7 @@ class ReaderVerseCssTest < ActiveSupport::TestCase
     assert fn
     assert_match(/vertical-align:\s*super/, fn)
     assert_match(/font-size:\s*\.62em/, fn)
-    assert_match(/padding-left:\s*\.22em/, fn)
+    assert_match(/margin-left:\s*\.28rem/, fn)
   end
 
   test "hiding verse numbers drops the gutter and the digits" do
