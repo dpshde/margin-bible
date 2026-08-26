@@ -5,6 +5,8 @@ import {
   backspaceAtStart,
   caretForNeighbor,
   consumeListMarker,
+  canIndentSubtree,
+  indentFromControl,
   indentSubtree,
   shouldBulletOnSpace,
   insertNewline,
@@ -60,6 +62,23 @@ function clone(blocks) {
   const blocks = clone([parent, child])
   assert.equal(indentSubtree(blocks, 0, 1), false)
   assert.equal(indentSubtree(blocks, 0, -1), false)
+}
+
+{
+  const blocks = clone([parent, { id: "b_ctrl", indent: 0, text: "Next", bullet: true }])
+  assert.equal(canIndentSubtree(blocks, 0, 1), false)
+  assert.equal(canIndentSubtree(blocks, 0, -1), false)
+  assert.equal(indentFromControl(blocks, 0, 1), false)
+  assert.equal(blocks[0].indent, 0)
+  assert.equal(canIndentSubtree(blocks, 1, -1), false)
+  assert.equal(canIndentSubtree(blocks, 1, 1), true)
+  assert.equal(indentFromControl(blocks, 1, 1), true)
+  assert.equal(blocks[1].indent, 1)
+  assert.equal(canIndentSubtree(blocks, 1, 1), false)
+  assert.equal(indentFromControl(blocks, 1, -1), true)
+  assert.equal(blocks[1].indent, 0)
+  assert.equal(indentSubtree(blocks, 1, 1), true)
+  assert.equal(blocks[1].indent, 1)
 }
 
 {

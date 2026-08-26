@@ -2,6 +2,7 @@ import { bookName } from "./book-names.js"
 import { belongsToChapter, parseSlug } from "./passage-span.js"
 
 export const GUEST_PACK_KEY = "margin.guest"
+export const GUEST_MIRROR_KEY = "margin.guest.mirrored"
 
 const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
@@ -61,10 +62,57 @@ export function clearGuestNotes(storage = defaultStorage()) {
 }
 
 export function persistNote({ signedIn, slug, blocks, storage, now, patch }) {
+  const pack = upsertNote(slug, blocks, { storage, now })
   if (!shouldUseGuestPack(signedIn)) {
-    return patch({ slug, blocks })
+    patch({ slug, blocks })
   }
-  return upsertNote(slug, blocks, { storage, now })
+  return pack
+}
+
+export function sessionStore() {
+  try {
+    if (globalThis.sessionStorage) return globalThis.sessionStorage
+  } catch {
+    // Safari private mode / missing window
+  }
+  return defaultStorage()
+}
+
+export function guestPackMirrored(storage = sessionStore()) {
+  try {
+    return Boolean(storage.getItem(GUEST_MIRROR_KEY))
+  } catch {
+    return false
+  }
+}
+
+export function markGuestPackMirrored(storage = sessionStore()) {
+  try {
+    storage.setItem(GUEST_MIRROR_KEY, "1")
+  } catch {
+    // Safari private mode / missing storage
+  }
+}
+
+export function clearGuestPackMirrored(storage = sessionStore()) {
+  try {
+    storage.removeItem(GUEST_MIRROR_KEY)
+  } catch {
+    // Safari private mode / missing storage
+  }
+}
+
+export function shouldPostGuestPack({ signedIn, mirrored, pack }) {
+  return signedIn === true && !mirrored && packHasImportableNotes(pack)
+}
+
+export function applyImportResult({ imported } = {}) {
+  return {
+    clearPack: false,
+    reload: false,
+    mirrored: true,
+    paintPack: Number(imported) > 0
+  }
 }
 
 export function loadPack(storage = defaultStorage()) {

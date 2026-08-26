@@ -1,3 +1,4 @@
+import { rememberPasskeyHint } from "./passkey-hint"
 import { register, authenticate } from "./webauthn"
 
 class PasskeyButton extends HTMLElement {
@@ -43,6 +44,7 @@ class PasskeyButton extends HTMLElement {
       await refreshChallenge(options, this.challengeUrl, this.purpose)
       const passkey = await this.perform(options, this.modalCeremony)
 
+      rememberPasskeyHint()
       this.button.dispatchEvent(new CustomEvent("passkey:success", { bubbles: true }))
       this.fillForm(passkey)
       this.form.submit()
@@ -135,6 +137,7 @@ class PasskeySignInButton extends PasskeyButton {
         mediation: this.mediation
       })
 
+      rememberPasskeyHint()
       this.form.dispatchEvent(new CustomEvent("passkey:success", { bubbles: true }))
       this.fillForm(passkey)
       this.form.submit()

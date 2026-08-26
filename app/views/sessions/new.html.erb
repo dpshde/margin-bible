@@ -32,15 +32,26 @@
 
   <p class="auth-or">or</p>
 
-  <%= passkey_sign_in_button "Use a passkey", session_passkey_path,
-        options: @authentication_options,
-        mediation: "conditional",
-        class: "secondary" %>
+  <div class="auth-passkey">
+    <div class="auth-passkey-use" data-sign-in-target="use" hidden>
+      <%= passkey_sign_in_button "Use a passkey", session_passkey_path,
+            options: @authentication_options,
+            mediation: "conditional",
+            class: "primary" %>
+    </div>
 
-  <div class="auth-passkey-create">
-    <%= passkey_registration_button "Create a passkey", session_passkey_registration_path,
-          options: @registration_options,
-          class: "secondary" %>
-    <p class="muted">Claims the notes on this device.</p>
+    <div class="auth-passkey-create" data-sign-in-target="create">
+      <%= passkey_registration_button "Create a passkey", session_passkey_registration_path,
+            options: @registration_options,
+            class: "primary" %>
+      <p class="muted">Claims the notes on this device.</p>
+    </div>
+
+    <button type="button" class="text-btn auth-passkey-switch" data-sign-in-target="useSwitch" data-action="click->sign-in#preferUse">
+      I already have a passkey
+    </button>
+    <button type="button" class="text-btn auth-passkey-switch" hidden data-sign-in-target="createSwitch" data-action="click->sign-in#preferCreate">
+      Create a new passkey
+    </button>
   </div>
 </main>

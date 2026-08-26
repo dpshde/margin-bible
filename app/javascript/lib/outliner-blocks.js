@@ -34,13 +34,18 @@ export function clampIndent(blocks) {
   return blocks
 }
 
-export function indentSubtree(blocks, index, delta) {
+export function canIndentSubtree(blocks, index, delta) {
+  if (!Array.isArray(blocks) || index < 0 || index >= blocks.length) return false
   if (delta > 0) {
     if (index === 0) return false
-    if (blocks[index].indent >= blocks[index - 1].indent + 1) return false
-  } else if (blocks[index].indent <= 0) {
-    return false
+    return blocks[index].indent < blocks[index - 1].indent + 1
   }
+  if (delta < 0) return blocks[index].indent > 0
+  return false
+}
+
+export function indentSubtree(blocks, index, delta) {
+  if (!canIndentSubtree(blocks, index, delta)) return false
 
   const end = subtreeEnd(blocks, index)
   for (let cursor = index; cursor < end; cursor += 1) {
@@ -48,6 +53,10 @@ export function indentSubtree(blocks, index, delta) {
   }
   clampIndent(blocks)
   return true
+}
+
+export function indentFromControl(blocks, index, delta) {
+  return indentSubtree(blocks, index, delta)
 }
 
 export function splitSibling(blocks, index, offset) {

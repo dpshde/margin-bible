@@ -14,8 +14,11 @@ class SessionsControllerTest < ActionDispatch::IntegrationTest
     assert_select "button", "Email me a link"
     assert_select "rails-passkey-sign-in-button[mediation='conditional']"
     assert_select "rails-passkey-sign-in-button[options*='client-device']"
-    assert_select "rails-passkey-sign-in-button button.secondary[data-passkey='sign_in']", "Use a passkey"
-    assert_select "rails-passkey-registration-button button.secondary[data-passkey='register']", "Create a passkey"
+    assert_select ".auth-passkey-create:not([hidden]) button.primary[data-passkey='register']", "Create a passkey"
+    assert_select "button.primary[data-passkey='register']", count: 1
+    assert_select ".auth-passkey-use[hidden] rails-passkey-sign-in-button button.primary[data-passkey='sign_in']", "Use a passkey"
+    assert_select "button.secondary[data-passkey]", count: 0
+    assert_select "button.auth-passkey-switch", "I already have a passkey"
     assert_select ".auth-passkey-create .muted", /claims the notes on this device/i
     assert_select "a", text: "Back to notes", count: 0
     assert_select "p.auth-or", "or"

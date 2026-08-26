@@ -1,5 +1,14 @@
 import { Controller } from "@hotwired/stimulus"
-import { clearGuestNotes, inboxSections, loadPack, packHasImportableNotes, previewText, shouldUseGuestPack } from "../lib/guest-pack"
+import {
+  applyImportResult,
+  guestPackMirrored,
+  inboxSections,
+  loadPack,
+  markGuestPackMirrored,
+  previewText,
+  shouldPostGuestPack,
+  shouldUseGuestPack
+} from "../lib/guest-pack"
 import { hrefForSlug, slugLabel } from "../lib/passage-span"
 
 export default class extends Controller {
@@ -18,8 +27,13 @@ export default class extends Controller {
   }
 
   async importGuestPack() {
+    if (globalThis.__marginSigningOut) return
     const pack = loadPack()
-    if (!packHasImportableNotes(pack)) return
+    if (!shouldPostGuestPack({
+      signedIn: this.signedInValue,
+      mirrored: guestPackMirrored(),
+      pack
+    })) return
 
     const token = document.querySelector('meta[name="csrf-token"]')?.content
     const url = this.hasImportUrlValue ? this.importUrlValue : "/guest_pack"
@@ -35,10 +49,12 @@ export default class extends Controller {
         body: JSON.stringify({ pack })
       })
       if (!response.ok) return
+      if (globalThis.__marginSigningOut) return
 
       const data = await response.json()
-      clearGuestNotes()
-      if (Number(data.imported) > 0) window.location.reload()
+      const result = applyImportResult(data)
+      if (result.mirrored) markGuestPackMirrored()
+      if (result.paintPack) this.renderList(pack)
     } catch {
       // Keep the guest pack for a later visit.
     }

@@ -16,7 +16,12 @@ import {
   shouldUseGuestPack,
   upsertNote,
   packHasImportableNotes,
-  clearGuestNotes
+  applyImportResult,
+  clearGuestNotes,
+  clearGuestPackMirrored,
+  guestPackMirrored,
+  markGuestPackMirrored,
+  shouldPostGuestPack
 } from "../../app/javascript/lib/guest-pack.js"
 import {
   belongsToChapter,
@@ -190,7 +195,7 @@ function blocks(text, id = "b_aa01") {
     }
   })
   assert.equal(patched, 1)
-  assert.deepEqual(loadPack(store).notes, {})
+  assert.equal(loadPack(store).notes["jhn.1.16"].blocks[0].text, "Server.")
 
   persistNote({
     signedIn: false,
@@ -213,6 +218,26 @@ function blocks(text, id = "b_aa01") {
   clearGuestNotes(store)
   assert.deepEqual(loadPack(store).notes, {})
   assert.equal(packHasImportableNotes(loadPack(store)), false)
+}
+
+{
+  const pack = { notes: { "heb.11.1": { blocks: blocks("Faith.") } } }
+  assert.equal(shouldPostGuestPack({ signedIn: true, mirrored: false, pack }), true)
+  assert.equal(shouldPostGuestPack({ signedIn: true, mirrored: true, pack }), false)
+  assert.equal(shouldPostGuestPack({ signedIn: false, mirrored: false, pack }), false)
+  assert.deepEqual(applyImportResult({ imported: 2 }), {
+    clearPack: false,
+    reload: false,
+    mirrored: true,
+    paintPack: true
+  })
+  assert.equal(applyImportResult({ imported: 0 }).paintPack, false)
+  const store = storage()
+  assert.equal(guestPackMirrored(store), false)
+  markGuestPackMirrored(store)
+  assert.equal(guestPackMirrored(store), true)
+  clearGuestPackMirrored(store)
+  assert.equal(guestPackMirrored(store), false)
 }
 
 console.log("guest-pack: ok")

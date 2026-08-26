@@ -44,6 +44,56 @@ class Sessions::PasskeyRegistrationsControllerTest < ActionDispatch::Integration
     assert_equal "reader@example.com", user.reload.email
   end
 
+  test "heb.11 passkey claim survives sign-out and the same passkey" do
+    get root_path
+    library = Library.last
+
+    get new_session_path
+    assert_select ".auth-passkey-create:not([hidden]) button.primary[data-passkey='register']", "Create a passkey"
+    assert_select ".auth-passkey-use[hidden] button[data-passkey='sign_in']", "Use a passkey"
+
+    challenge = refresh_webauthn_challenge(purpose: "registration")
+    raw = webauthn_client.create(challenge: challenge)
+    post session_passkey_registration_path, params: passkey_registration_params_from(raw).merge(
+      pack: {
+        notes: {
+          "heb.11.1" => {
+            "slug" => "heb.11.1",
+            "blocks" => [ { "id" => "b_faith", "indent" => 0, "text" => "Faith is the assurance." } ]
+          }
+        }
+      }.to_json
+    )
+
+    assert_redirected_to root_path
+    user = User.last
+    library.reload
+    assert_equal user, library.user
+    assert_equal "Faith is the assurance.", library.notes.find_by!(slug: "heb.11.1").blocks[0]["text"]
+
+    delete session_path
+    assert_redirected_to root_path
+    follow_redirect!
+    assert_select "[data-inbox-signed-in-value='false']"
+    assert_select "header.topbar details.topbar-menu a.menu-item", "Sign in"
+
+    get new_session_path
+    assert_select "rails-passkey-sign-in-button button[data-passkey='sign_in']", "Use a passkey"
+    assert_select "button.primary[data-passkey='register']", count: 1
+
+    challenge = refresh_webauthn_challenge(purpose: "authentication")
+    assertion = webauthn_client.get(challenge: challenge)
+    post session_passkey_path, params: passkey_authentication_params_from(assertion)
+
+    assert_redirected_to root_path
+    assert_equal user, User.find(user.id)
+    library.reload
+    assert_equal user, library.user
+    assert_equal "Faith is the assurance.", library.notes.find_by!(slug: "heb.11.1").blocks[0]["text"]
+    assert_equal 1, User.count
+    assert_equal [ library.id ], user.libraries.order(:id).pluck(:id)
+  end
+
   test "passkey-first claim imports guest pack notes without absorbing slugs" do
     get root_path
     library = Library.last

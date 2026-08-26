@@ -65,6 +65,8 @@ export default class extends Controller {
     if (this.guestSession) {
       rememberRead(this.passageSlugValue || this.chapterSlugValue)
       queueMicrotask(() => this.hydrateGuestNotes())
+    } else {
+      queueMicrotask(() => this.mirrorSignedInNotes())
     }
   }
 
@@ -655,10 +657,8 @@ export default class extends Controller {
     const host = event.currentTarget.closest(".outliner")
     if (!host) return
     host._dirty = true
-    if (this.guestSession) {
-      this.saveGuest(host)
-      return
-    }
+    this.saveGuest(host)
+    if (this.guestSession) return
     clearTimeout(host._kvTimer)
     host._kvTimer = setTimeout(() => {
       host._kvTimer = null
@@ -668,10 +668,8 @@ export default class extends Controller {
   }
 
   flushPending() {
-    if (this.guestSession) {
-      this.flushGuestPack()
-      return
-    }
+    this.flushGuestPack()
+    if (this.guestSession) return
     this.element.querySelectorAll(".outliner").forEach((host) => {
       if (host._kvTimer) {
         clearTimeout(host._kvTimer)
@@ -737,6 +735,10 @@ export default class extends Controller {
     notes.forEach((note) => this.applyGuestNote(note))
   }
 
+  mirrorSignedInNotes() {
+    this.flushGuestPack()
+  }
+
   applyGuestNote(note) {
     const parsed = parseSlug(note.slug)
     let tray = this.trayForSlug(note.slug)
@@ -757,8 +759,8 @@ export default class extends Controller {
     controller.applyBlocks([])
     this.syncBookmarkButton(tray, false)
     host._dirty = true
-    if (this.guestSession) this.saveGuest(host)
-    else this.save(host)
+    this.saveGuest(host)
+    if (!this.guestSession) this.save(host)
     host._dirty = false
   }
 
@@ -773,11 +775,8 @@ export default class extends Controller {
     const next = !button.classList.contains("is-on")
     this.syncBookmarkButton(tray, next)
     const payload = controller.payload()
-    if (this.guestSession) {
-      setNoteBookmarked(payload.slug, next)
-      return
-    }
-    this.saveBookmark(host, next)
+    setNoteBookmarked(payload.slug, next)
+    if (!this.guestSession) this.saveBookmark(host, next)
   }
 
   async saveBookmark(host, bookmarked) {

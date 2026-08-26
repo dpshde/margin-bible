@@ -421,6 +421,20 @@ a.tray-label:hover { color: var(--ink); }
   width: 100%; border: 1px solid var(--line); background: var(--paper-raised);
   border-radius: .65rem; padding: .35rem 0; min-height: 5.5rem;
 }
+.oindent {
+  display: none;
+  align-items: center;
+  justify-content: flex-end;
+  gap: .05rem;
+  padding: 0 .45rem .1rem;
+}
+.oindent-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  flex-shrink: 0; color: var(--faint); padding: .15rem;
+  border: 0; background: transparent; cursor: pointer;
+}
+.oindent-btn:disabled { opacity: .28; cursor: default; }
+.oindent-btn svg { display: block; width: .85rem; height: .85rem; }
 .outliner:focus-within {
   border-color: color-mix(in srgb, var(--ink) 28%, transparent);
   outline: none; box-shadow: none;
@@ -604,8 +618,12 @@ a.tray-label:hover { color: var(--ink); }
 .danger-btn { color: #a33; }
 rails-passkey-registration-button,
 rails-passkey-sign-in-button { display: block; width: 100%; }
-.auth-passkey-create { margin-top: .65rem; }
+.auth-passkey { margin-top: 0; }
 .auth-passkey-create .muted { margin: .45rem 0 0; }
+.auth-passkey-switch {
+  display: block; width: 100%; margin-top: .75rem;
+  text-align: center; font-size: .9rem;
+}
 .account-email { margin: 1.8rem 0 0; }
 .account-email h2 { margin: 0 0 .35rem; font-size: 1.05rem; }
 
@@ -727,7 +745,18 @@ rails-passkey-sign-in-button { display: block; width: 100%; }
   .tray-clear svg,
   .tray-close svg,
   .tray-external svg { width: 1.2rem; height: 1.2rem; }
+  .outliner:focus-within .oindent { display: flex; }
+  .oindent-btn { min-width: var(--tap); min-height: var(--tap); padding: 0; }
+  .oindent-btn svg { width: 1.2rem; height: 1.2rem; }
 }
+@media (pointer: coarse) {
+  .outliner:focus-within .oindent { display: flex; }
+  .oindent-btn { min-width: var(--tap); min-height: var(--tap); padding: 0; }
+  .oindent-btn svg { width: 1.2rem; height: 1.2rem; }
+}
+html.hotwire-native .outliner:focus-within .oindent { display: flex; }
+html.hotwire-native .oindent-btn { min-width: var(--tap); min-height: var(--tap); padding: 0; }
+html.hotwire-native .oindent-btn svg { width: 1.2rem; height: 1.2rem; }
 html.hotwire-native .reader-dock { display: flex; }
 @media (max-width: 390px) {
   .reader, .verse {
