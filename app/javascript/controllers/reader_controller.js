@@ -1,6 +1,12 @@
 import { Controller } from "@hotwired/stimulus"
 import { rangeDragIntent, versePointerDecision } from "../lib/chapter-swipe"
 import {
+  applyClearedNoteTray,
+  expandControlDisabled,
+  shouldShowExpandedTray,
+  trayHasNoteContent
+} from "../lib/expand-notes"
+import {
   applyNoteToPack,
   loadPack,
   notesForChapter,
@@ -432,9 +438,13 @@ export default class extends Controller {
     this.element.querySelectorAll(".note-tray[data-note-slug]").forEach((tray) => {
       const row = tray.closest(".verse")
       const n = Number(row?.dataset.verse)
-      const selected = row?.classList.contains("is-open")
-      const collapsed = this.collapsedNotes.has(n)
-      tray.hidden = collapsed || !(expanding || selected)
+      const show = shouldShowExpandedTray({
+        expanding,
+        selected: row?.classList.contains("is-open"),
+        collapsed: this.collapsedNotes.has(n),
+        hasContent: this.trayHasContent(tray)
+      })
+      tray.hidden = !show
     })
   }
 
@@ -725,6 +735,11 @@ export default class extends Controller {
   }
 
   markHostNote(host) {
+    const tray = host.closest(".note-tray")
+    if (tray) {
+      this.syncNoteTray(tray)
+      return
+    }
     const verse = host.closest(".verse")
     if (verse) verse.classList.toggle("has-note", this.anyNoteText(verse))
   }
@@ -762,6 +777,7 @@ export default class extends Controller {
     this.saveGuest(host)
     if (!this.guestSession) this.save(host)
     host._dirty = false
+    if (tray.classList.contains("note-tray")) this.syncNoteTray(tray)
   }
 
   toggleBookmark(event) {
@@ -816,19 +832,64 @@ export default class extends Controller {
       return
     }
     controller.applyBlocks(note.blocks)
-    this.markGuestCoverage(note.slug)
+    this.syncNoteTray(tray)
   }
 
-  markGuestCoverage(slug) {
+  trayHasContent(tray) {
+    return trayHasNoteContent(tray, (host) => {
+      const controller = this.outlinerController(host)
+      return controller ? controller.isEmpty() : true
+    })
+  }
+
+  syncNoteTray(tray) {
+    if (!tray?.classList.contains("note-tray")) return
+    const host = tray.querySelector(".outliner")
+    const empty = !this.trayHasContent(tray)
+    const slug = host?.dataset.slug || tray.dataset.noteSlug || tray.dataset.rangeSlug
+    if (empty) {
+      applyClearedNoteTray(tray)
+    } else if (slug) {
+      tray.dataset.noteSlug = slug
+    }
+    this.syncCoverageForSlug(slug)
+    this.syncExpandControl()
+    this.refreshExpand()
+  }
+
+  syncCoverageForSlug(slug) {
     const parsed = parseSlug(slug)
     if (!parsed || parsed.kind === "chapter") return
     const start = parsed.verseStart
     const end = parsed.verseEnd || parsed.verseStart
-    for (let n = start; n <= end; n += 1) this.verseEl(n)?.classList.add("has-note")
-    this.element.querySelectorAll("[data-action='click->reader#toggleExpand']").forEach((expand) => {
-      expand.disabled = false
+    for (let n = start; n <= end; n += 1) {
+      const verse = this.verseEl(n)
+      if (verse) verse.classList.toggle("has-note", this.verseHasCoveringNote(n))
+    }
+  }
+
+  verseHasCoveringNote(n) {
+    return [ ...this.element.querySelectorAll(".note-tray") ].some((tray) => {
+      if (!this.trayHasContent(tray)) return false
+      const slug = tray.dataset.noteSlug || tray.querySelector(".outliner")?.dataset.slug
+      const parsed = parseSlug(slug)
+      if (!parsed || parsed.kind === "chapter") return false
+      const start = parsed.verseStart
+      const end = parsed.verseEnd || parsed.verseStart
+      return n >= start && n <= end
     })
-    if (this.element.classList.contains("is-expanded")) this.refreshExpand()
+  }
+
+  syncExpandControl() {
+    const hasNotes = [ ...this.element.querySelectorAll(".note-tray") ].some((tray) => this.trayHasContent(tray))
+    if (expandControlDisabled(hasNotes)) this.element.classList.remove("is-expanded")
+    this.element.querySelectorAll("[data-action='click->reader#toggleExpand']").forEach((button) => {
+      button.disabled = expandControlDisabled(hasNotes)
+      if (!hasNotes) {
+        button.classList.remove("is-on")
+        button.setAttribute("aria-pressed", "false")
+      }
+    })
   }
 
   trayForSlug(slug) {

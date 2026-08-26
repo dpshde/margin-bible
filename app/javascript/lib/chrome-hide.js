@@ -1,6 +1,24 @@
 const DOWN = 8
 const UP = -8
 
+export function isChromeTypingTarget(element) {
+  if (!element || element.nodeType !== 1) return false
+  if (element.matches?.("input, textarea, select")) return true
+  if (element.isContentEditable) return true
+  return Boolean(element.closest?.("[contenteditable='true']"))
+}
+
+export function chromeLocked({
+  activeElement = null,
+  root = null,
+  suggestOpen = false,
+  menuOpen = false
+} = {}) {
+  if (suggestOpen || menuOpen) return true
+  if (!root || !activeElement || !root.contains(activeElement)) return false
+  return isChromeTypingTarget(activeElement)
+}
+
 export function nextChromeHidden({
   hidden = false,
   scrollY = 0,
