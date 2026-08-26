@@ -15,9 +15,14 @@ class SessionsController < ApplicationController
     email = params.require(:email)
     user = User.find_or_create_by!(email: email)
     link = MagicLink.issue!(user: user, library: current_library)
-    MagicLinkMailer.sign_in(link).deliver_now
-    flash[:dev_login_token] = link.token if Rails.env.local?
-    redirect_to new_session_path, notice: "Check your email."
+    mailed = deliver_sign_in_mail(link)
+    flash[:dev_login_token] = link.token if Rails.env.local? || !mailed
+    notice = if mailed || Rails.env.local?
+      "Check your email."
+    else
+      "Couldn’t send email. Use the sign-in link below."
+    end
+    redirect_to new_session_path, notice: notice
   end
 
   def show
@@ -32,4 +37,15 @@ class SessionsController < ApplicationController
     reset_session
     redirect_to root_path, notice: "Signed out."
   end
+
+  private
+    def deliver_sign_in_mail(link)
+      return false unless ENV["SMTP_ADDRESS"].present?
+
+      MagicLinkMailer.sign_in(link).deliver_now
+      true
+    rescue StandardError => error
+      Rails.logger.error("Magic link email failed: #{error.class}: #{error.message}")
+      false
+    end
 end

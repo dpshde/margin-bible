@@ -30,6 +30,13 @@ class VercelPreviewTest < ActiveSupport::TestCase
     assert_not File.exist?(Rails.root.join("config/master.key"))
   end
 
+  test "production does not SMTP to localhost without SMTP_ADDRESS" do
+    production = Rails.root.join("config/environments/production.rb").read
+    assert_match(/SMTP_ADDRESS/, production)
+    assert_match(/delivery_method = :file/, production)
+    refute_match(/host: "example.com"/, production)
+  end
+
   test "Dockerfile.vercel matches ruby-version and seeds BSB at image build" do
     ruby_version = File.read(Rails.root.join(".ruby-version")).strip.delete_prefix("ruby-")
     dockerfile = Rails.root.join("Dockerfile.vercel").read
