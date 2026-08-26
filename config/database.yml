@@ -20,11 +20,9 @@ test:
   <<: *default
   database: storage/test.sqlite3
 
-# Writable paths inside the image. Vercel Fluid previews are ephemeral
-# (scale-to-zero); that is expected for test. BSB is seeded into these
-# files at image build so cold start does not reload ~31k verses.
-# When DATABASE_URL is set (Railway/Neon/Vercel Postgres), primary is
-# durable Postgres. Cache/queue/cable stay on local sqlite.
+# Writable sqlite under storage/ for cache/queue/cable. BSB is seeded
+# into those files at image build so cold start does not reload ~31k verses.
+# When DATABASE_URL is set (Railway Postgres), primary is durable Postgres.
 production:
   primary:
     <% if ENV["DATABASE_URL"].present? %>

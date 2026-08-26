@@ -20,7 +20,7 @@ class ExportsControllerTest < ActionDispatch::IntegrationTest
     post export_path, params: { scope: "book", book: "JHN", notes: "1" }
     assert_response :success
     assert_match(/filename="john-notes.md"/, response.headers["Content-Disposition"])
-    assert_match(/^  Library note\.$/, response.body)
+    assert_match(/^  - Library note\.$/, response.body)
   end
 
   test "guest pack notes can be posted for export" do
@@ -31,6 +31,6 @@ class ExportsControllerTest < ActionDispatch::IntegrationTest
       pack: { "jhn.1.1" => { "blocks" => [ { "indent" => 0, "text" => "Guest note." } ] } }.to_json
     }
     assert_response :success
-    assert_match(/^  Guest note\.$/, response.body)
+    assert_match(/^  - Guest note\.$/, response.body)
   end
 end

@@ -6,6 +6,7 @@ module PasskeyHelper
   REGISTRATION_DUPLICATE_MESSAGE = "You already have a passkey registered on this device. Remove the existing one first and try again."
   SIGN_IN_ERROR_MESSAGE = "Something went wrong while signing in with your passkey."
   SIGN_IN_CANCELLED_MESSAGE = "Passkey sign in was cancelled. Try again when you are ready."
+  PASSKEY_HINTS = %w[client-device hybrid security-key].freeze
 
   def passkey_registration_button(name = nil, url = nil, **options, &block)
     url, name = name, (block ? capture(&block) : nil) if block_given?
@@ -55,7 +56,7 @@ module PasskeyHelper
         .slice(:challenge_url, :mediation)
         .reverse_merge(
           challenge_url: passkey_challenge_path,
-          options: passkey_options.as_json.except("challenge", :challenge).to_json
+          options: serialized_passkey_options(passkey_options)
         )
 
       form_options = options
@@ -81,6 +82,12 @@ module PasskeyHelper
       end
 
       messages
+    end
+
+    def serialized_passkey_options(passkey_options)
+      json = passkey_options.as_json.except("challenge", :challenge)
+      json["hints"] ||= PASSKEY_HINTS
+      json.to_json
     end
 
     def build_passkey_error_options(type, options)

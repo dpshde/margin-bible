@@ -70,7 +70,7 @@ class ReaderControllerTest < ActionDispatch::IntegrationTest
     assert_select "[data-reader-signed-in-value='true']"
     assert_select "#v1.is-open"
     assert_select "#v1 .note-tray:not([hidden]) .outliner[data-slug='jhn.1.1']"
-    assert_select "header.topbar details.topbar-menu", count: 0
+    assert_select "header.topbar details.topbar-menu a.menu-item", text: "Passkeys", count: 0
   end
 
   test "a missing chapter still 404s" do
@@ -89,31 +89,42 @@ class ReaderControllerTest < ActionDispatch::IntegrationTest
     assert_select ".vtext", /beginning was the Word/
   end
 
-  test "browser header is inbox, title, and copy" do
+  test "browser header is inbox, title, copy, and a desktop overflow" do
     get read_path("jhn.1")
     assert_select "header.topbar" do
       assert_select ".topbar-side a.inbox-link[href='/'][aria-label='Notes inbox'][data-action='click->reader#flushPending']"
       assert_select "h1.topbar-title", "John 1"
-      assert_select ".topbar-actions details.topbar-menu", count: 0
-      assert_select "button.header-copy-button[data-action='click->reader#copyPassage'][aria-label='Copy passage reference, text, and notes']"
+      assert_select "button.header-quiet-button[data-action='click->reader#toggleQuiet'][aria-label='Focus']"
+      assert_select "button.header-copy-button[data-action='click->reader#copyPassage'][aria-label='Copy chapter text and notes']"
       assert_select ".header-copy-button svg"
+      assert_select ".topbar-actions details.reader-actions-menu summary[aria-label='Reader actions']"
       assert_select "a", text: "Sign in", count: 0
       assert_select "a", text: "Passkeys", count: 0
       assert_select "a", text: "Margin", count: 0
     end
     assert_select ".reader-dock-btn[aria-label='Reader actions'] svg"
     assert_select ".dock-item svg"
-    assert_select ".dock-item[data-action='click->reader#sharePassage'][data-reader-scope-param='verse']", "Share verse"
-    assert_select ".dock-item[data-action='click->reader#sharePassage'][data-reader-scope-param='chapter']", "Share chapter"
-    assert_select ".dock-item[data-action='click->reader#exportDocument'][data-reader-scope-param='book'][data-reader-notes-param='false']", "Export book"
-    assert_select ".dock-item[data-action='click->reader#exportDocument'][data-reader-scope-param='book'][data-reader-notes-param='true']", "Export book with notes"
-    assert_select ".dock-item[data-action='click->reader#exportDocument'][data-reader-scope-param='bible'][data-reader-notes-param='false']", "Export Bible"
-    assert_select ".dock-item[data-action='click->reader#exportDocument'][data-reader-scope-param='bible'][data-reader-notes-param='true']", "Export Bible with notes"
+    assert_select ".dock-pane[data-pane='root'] .dock-item[data-dock-menu-pane-param='share']", "Share"
+    assert_select ".dock-pane[data-pane='root'] .dock-item[data-dock-menu-pane-param='export']", "Export"
+    assert_select ".dock-pane[data-pane='root'] .dock-item[data-action='click->reader#sharePassage']", count: 0
+    assert_select ".dock-pane[data-pane='root'] .dock-item[data-action='click->reader#exportDocument']", count: 0
+    assert_select ".dock-pane[data-pane='share'][hidden] .dock-item[data-action='click->reader#sharePassage'][data-reader-scope-param='verse']", "Verse"
+    assert_select ".dock-pane[data-pane='share'][hidden] .dock-item[data-action='click->reader#sharePassage'][data-reader-scope-param='chapter']", "Chapter"
+    assert_select ".dock-pane[data-pane='export'][hidden] .dock-item[data-action='click->reader#exportDocument'][data-reader-scope-param='book'][data-reader-notes-param='false']", "Book"
+    assert_select ".dock-pane[data-pane='export'][hidden] .dock-item[data-action='click->reader#exportDocument'][data-reader-scope-param='book'][data-reader-notes-param='true']", "Book with notes"
+    assert_select ".dock-pane[data-pane='export'][hidden] .dock-item[data-action='click->reader#exportDocument'][data-reader-scope-param='bible'][data-reader-notes-param='false']", "Bible"
+    assert_select ".dock-pane[data-pane='export'][hidden] .dock-item[data-action='click->reader#exportDocument'][data-reader-scope-param='bible'][data-reader-notes-param='true']", "Bible with notes"
+    assert_select ".dock-item[data-action='click->reader#toggleQuiet']", "Focus"
     assert_select ".dock-item[data-action='click->reader#toggleChapter']", "Chapter note"
-    assert_select ".dock-item[data-action='click->reader#toggleExpand']", "Expand notes"
+    assert_select ".dock-item[data-action='click->reader#toggleExpand'][aria-pressed='false']", "Expand notes"
     assert_select ".dock-item[data-action='click->reader#toggleNums'][data-reader-target='numsToggle'][aria-pressed='false']", "Hide verse numbers"
+    assert_select ".dock-theme .theme-seg button[data-theme-pref='light']", "Light"
+    assert_select ".dock-theme .theme-seg button[data-theme-pref='system']", "System"
+    assert_select ".dock-theme .theme-seg button[data-theme-pref='dark']", "Dark"
     assert_select "header.topbar form.jump", count: 0
-    assert_select "main.reader form.jump" do
+    assert_select "main.reader .reader-chrome[data-controller='chrome']"
+    assert_select ".reader-veil[aria-hidden='true']"
+    assert_select "main.reader .reader-chrome form.jump" do
       assert_select "input#q[type=search][placeholder='John 3:16']"
       assert_select "ul.suggest"
       assert_select "button", text: /Search/, count: 0
@@ -123,7 +134,9 @@ class ReaderControllerTest < ActionDispatch::IntegrationTest
   test "hides the web topbar for a Hotwire Native client" do
     get read_path("jhn.1"), headers: { "User-Agent" => "Margin iOS; Hotwire Native iOS; Turbo Native iOS;" }
     assert_response :success
+    assert_select "html.hotwire-native"
     assert_select "header.topbar", count: 0
+    assert_select ".reader-dock-btn[aria-label='Reader actions']"
     assert_select "title", "John 1"
     assert_select "main.reader form.jump"
     assert_select ".vtext", /beginning was the Word/
@@ -166,17 +179,22 @@ class ReaderControllerTest < ActionDispatch::IntegrationTest
       assert_select ".outliner + .tray-head"
       assert_select ".tray-head" do
         assert_select ".tray-label", /Chapter note · John 1/
+        assert_select "button.tray-copy[data-action='click->reader#copyNote'][aria-label='Copy this note']"
         assert_select "button.tray-bookmark[data-action='click->reader#toggleBookmark'][aria-pressed='false']"
         assert_select "a.tray-external[href='https://route.bible/jhn.1'][target=_blank][rel=noreferrer]"
         assert_select "a[aria-label='Open on route.bible']"
         assert_select "a svg"
+        assert_select "button.tray-close[data-action='click->reader#closeChapter'][aria-label='Hide chapter note']"
       end
     end
+    assert_select ".note-tray .tray-close", count: 0
     assert_select ".tray-meta", count: 0
     assert_select ".tray-head", text: /Autosaves/, count: 0
     assert_select ".tray-head a", text: /route\.bible/, count: 0
     assert_select "textarea.note-input", count: 0
     assert_select ".outliner[data-slug='jhn.1'] .otext"
+    assert_select ".outliner[data-slug='jhn.1'] .oblock[data-bullet='0']"
+    assert_select ".outliner[data-slug='jhn.1'] .oblock.is-bullet", count: 0
   end
 
   test "autosaves a verse note" do
@@ -205,8 +223,7 @@ class ReaderControllerTest < ActionDispatch::IntegrationTest
     get read_path("jhn.1")
     assert_select "#v1 .outliner[data-slug='jhn.1.1'] .otext", "Exact verse."
     assert_select "#v1 .outliner[data-slug='jhn.1.1-6'] .otext", "Range span."
-    assert_select "#v1 .preview-body", "Exact verse."
-    assert_select "#v1 .preview-body", "Range span."
+    assert_select "#v1 .note-preview", count: 0
     assert_select "#v1 .outliner[data-slug='jhn.1']", count: 0
     assert_select "#v6 .outliner[data-slug='jhn.1.1-6'] .otext", "Range span."
     assert_select "#v6 .outliner[data-slug='jhn.1.6'] .otext"
@@ -268,14 +285,14 @@ class ReaderControllerTest < ActionDispatch::IntegrationTest
     get read_path("jhn.3.16")
     get read_path("jhn.2")
     assert_response :success
-    assert_select "nav.trail-inline a.trail-chip[href='/jhn.3.16']", "John 3:16"
+    assert_select ".reader-chrome nav.trail-inline a.trail-chip[href='/jhn.3.16']", "John 3:16"
     assert_select "nav.trail-inline a.trail-chip[href='/jhn.1']", "John 1"
     assert_select ".dock-recent a.dock-item[href='/jhn.3.16']", "John 3:16"
     assert_select ".dock-recent a.dock-item[href='/jhn.1']", "John 1"
     assert_select "nav.trail-inline a[href='/jhn.2']", count: 0
   end
 
-  test "expand preview renders wiki and inline markdown without absorbing markers" do
+  test "verse outliner renders wiki without absorbing markers" do
     get read_path("jhn.1")
     Library.last.notes.create!(
       slug: "jhn.1.1", osis: "JHN.1.1", kind: "verse", book: "JHN", chapter: 1,
@@ -289,9 +306,6 @@ class ReaderControllerTest < ActionDispatch::IntegrationTest
     get read_path("jhn.1")
     assert_select "#v1 .outliner[data-slug='jhn.1.1'] a.wiki[href='/jhn.1.6'][data-wiki-raw='[[jhn.1.6|John]]']", "John"
     assert_select "#v1 .outliner[data-slug='jhn.1.1'] .otext", /See \*\*Word\*\* and \*life\* and `logos` and John/
-    assert_select "#v1 .preview-body strong", "Word"
-    assert_select "#v1 .preview-body em", "life"
-    assert_select "#v1 .preview-body code", "logos"
-    assert_select "#v1 .preview-body a.wiki[href='/jhn.1.6']", "John"
+    assert_select "#v1 .note-preview", count: 0
   end
 end

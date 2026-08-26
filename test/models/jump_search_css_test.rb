@@ -19,8 +19,37 @@ class JumpSearchCssTest < ActiveSupport::TestCase
     assert_match(/width:\s*3\.5rem/, fab)
     assert_match(/height:\s*3\.5rem/, fab)
     assert_match(/border-radius:\s*50%/, fab)
+    refute_match(/box-shadow:/, fab)
+    open_fab = css[/\.reader-dock-menu\[open\] \.reader-dock-btn\s*\{[^}]+\}/]
+    assert open_fab
+    assert_match(/background:\s*var\(--paper-raised\)/, open_fab)
+    refute_match(/var\(--fill\)/, open_fab)
     item = css[/\.dock-item\s*\{[^}]+\}/]
     assert_match(/min-height:\s*var\(--tap\)/, item)
+    assert_match(/appearance:\s*none/, item)
+    assert_match(/border-radius:\s*0/, item)
+    panel = css[/\.reader-dock-panel\s*\{[^}]+\}/]
+    assert_match(/padding:\s*0/, panel)
+    assert_match(/box-shadow:\s*0 0 0 1px var\(--line\)/, panel)
+    refute_match(/[0-9]+px [0-9]+px/, panel)
+    menu = css[/\.menu-panel\s*\{[^}]+\}/]
+    assert_match(/padding:\s*0/, menu)
+    assert_match(/overflow:\s*hidden/, menu)
+    assert_match(/box-shadow:\s*0 0 0 1px var\(--line\)/, menu)
+    refute_match(/[0-9]+px [0-9]+px/, menu)
+    menu_item = css[/\.menu-item\s*\{[^}]+\}/]
+    assert_match(/appearance:\s*none/, menu_item)
+    assert_match(/border-radius:\s*0/, menu_item)
+    on = css[/\.dock-item\.is-on\s*\{[^}]+\}/]
+    assert on
+    assert_match(/background:\s*transparent/, on)
+    assert_match(/\.dock-item\.is-on \.dock-check \{ opacity:\s*1/, css)
+  end
+
+  test "reader dock fab is mobile-only on the web" do
+    assert_match(/@media \(min-width: 641px\) \{[\s\S]*?\.reader-dock \{ display: none; \}/, css)
+    assert_match(/\.reader-actions-menu \{ display: none; \}/, css)
+    assert_match(/html\.hotwire-native \.reader-dock \{ display: block; \}/, css)
   end
 
   test "suggest hint is quiet grey preview copy" do
@@ -42,6 +71,8 @@ class JumpSearchCssTest < ActiveSupport::TestCase
 
   test "open jump shares one outline onto the suggestion list" do
     assert_match(/\.jump\.is-open \.suggest/, css)
+    assert_match(/\.suggest button\s*\{[^}]*appearance:\s*none/m, css)
+    assert_match(/\.suggest button\s*\{[^}]*border-radius:\s*0/m, css)
     assert_match(/\.suggest li:last-child button\s*\{[^}]*border-radius:\s*0 0/, css)
     open_input = css[/\.jump\.is-open input\[type="search"\],\s*\.jump:has\(\.suggest:not\(\[hidden\]\)\) input\[type="search"\]\s*\{[^}]+\}/m]
     assert open_input
@@ -52,5 +83,37 @@ class JumpSearchCssTest < ActiveSupport::TestCase
 
   test "chapter count hint does not double the seam under the input" do
     assert_match(/\.suggest li:first-child\.suggest-hint\s*\{\s*border-top:\s*0/, css)
+  end
+
+  test "dark tokens only apply when chosen or system asks" do
+    refute_match(/@media \(prefers-color-scheme: dark\) \{\s*:root/, css)
+    assert_match(/html\[data-theme="dark"\]/, css)
+    assert_match(/html\[data-theme="system"\]/, css)
+  end
+
+  test "trail pointers are a quiet text row not pills" do
+    chip = css[/\.trail-chip\s*\{[^}]+\}/]
+    assert chip
+    refute_match(/min-height:\s*var\(--tap\)/, chip)
+    refute_match(/min-height:\s*2\.25rem/, chip)
+    refute_match(/border-radius:\s*999px/, chip)
+    assert_match(/background:\s*transparent/, chip)
+  end
+
+  test "reader bottom veil fades paper to the screen edge" do
+    veil = css[/\.reader-veil\s*\{[^}]+\}/]
+    assert veil
+    assert_match(/position:\s*fixed/, veil)
+    assert_match(/left:\s*0/, veil)
+    assert_match(/right:\s*0/, veil)
+    assert_match(/linear-gradient/, veil)
+    assert_match(/pointer-events:\s*none/, veil)
+  end
+
+  test "desktop web chrome is a bottom bar that can tuck" do
+    assert_match(/html:not\(\.hotwire-native\) \.reader-chrome \{/, css)
+    assert_match(/position:\s*fixed/, css[/@media \(min-width: 641px\) \{[\s\S]*html:not\(\.hotwire-native\) \.reader-chrome \{[\s\S]*?\n  \}/])
+    assert_match(/\.reader-chrome\.is-tucked/, css)
+    assert_match(/html:not\(\.hotwire-native\) \.reader-chrome \.suggest \{[\s\S]*bottom:\s*100%/, css)
   end
 end

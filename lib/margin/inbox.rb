@@ -20,8 +20,14 @@ module Margin
       bookmarked, rest = list.partition { |note| note.respond_to?(:bookmarked?) ? note.bookmarked? : note[:bookmarked] }
       sections = []
       if bookmarked.any?
-        ordered = bookmarked.sort_by { |note| note_time(note, :updated_at) || note_time(note, :created_at) }.reverse
-        sections << { date: nil, label: "Bookmarks", notes: ordered, kind: :bookmarks }
+        groups = bookmark_groups(bookmarked)
+        sections << {
+          date: nil,
+          label: "Bookmarks",
+          notes: groups.flat_map { |group| group[:notes] },
+          groups: groups,
+          kind: :bookmarks
+        }
       end
 
       grouped = {}
@@ -33,6 +39,27 @@ module Margin
       sections.concat(grouped.map { |date, day_notes|
         { date: date, label: day_label(date, today: today), notes: day_notes, kind: :day }
       })
+    end
+
+    def bookmark_groups(notes)
+      Array(notes).group_by { |note| book_code(note) }.map { |code, group_notes|
+        ordered = group_notes.sort_by { |note| note_time(note, :updated_at) || note_time(note, :created_at) }.reverse
+        {
+          book: code,
+          label: Books.name_for(code) || code.to_s,
+          notes: ordered
+        }
+      }.sort_by { |group|
+        group[:notes].map { |note| note_time(note, :updated_at) || note_time(note, :created_at) }.compact.max || Time.at(0)
+      }.reverse
+    end
+
+    def book_code(note)
+      if note.respond_to?(:book) && note.book.present?
+        note.book.to_s.upcase
+      else
+        Passage.parse(note.respond_to?(:slug) ? note.slug : note[:slug] || note["slug"])&.book
+      end
     end
 
     def note_time(note, field)

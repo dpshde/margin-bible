@@ -8,9 +8,11 @@ class SessionsControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_select "header.topbar a[aria-label='Notes'][href='/']"
     assert_select "h1.topbar-title", "Sign in"
+    assert_select ".theme-seg button[data-theme-pref='system']", "System"
     assert_select "input[name='email'][autocomplete='username webauthn']"
     assert_select "button", "Email me a link"
     assert_select "rails-passkey-sign-in-button[mediation='conditional']"
+    assert_select "rails-passkey-sign-in-button[options*='client-device']"
     assert_select "rails-passkey-sign-in-button button.secondary[data-passkey='sign_in']", "Use a passkey"
     assert_select "a", text: "Back to notes", count: 0
     assert_select "p.auth-or", "or"

@@ -28,7 +28,7 @@
 threads_count = ENV.fetch("RAILS_MAX_THREADS", 3)
 threads threads_count, threads_count
 
-# Local `bin/dev` uses 3000. Vercel Fluid sets PORT (default 80 in Dockerfile.vercel).
+# Local `bin/dev` uses 3000. Railway sets PORT (default 80 in Dockerfile).
 port ENV.fetch("PORT", 3000)
 
 # Allow puma to be restarted by `bin/rails restart` command.

@@ -11,7 +11,7 @@ export default class extends Controller {
     const open = state.hits.length > 0 || Boolean(state.hint)
     this.selected = open && state.hits.length ? 0 : -1
     this.listTarget.hidden = !open
-    this.element.classList.toggle("is-open", open)
+    this.jump()?.classList.toggle("is-open", open)
     this.inputTarget.setAttribute("aria-expanded", open ? "true" : "false")
     const hint = state.hint
       ? `<li class="suggest-hint" role="note">${this.escape(state.hint)}</li>`
@@ -101,9 +101,13 @@ export default class extends Controller {
     window.location.href = parseToResolverPath(value.canonical)
   }
 
+  jump() {
+    return this.inputTarget.closest(".jump")
+  }
+
   close() {
     this.listTarget.hidden = true
-    this.element.classList.remove("is-open")
+    this.jump()?.classList.remove("is-open")
     this.inputTarget.setAttribute("aria-expanded", "false")
     this.inputTarget.removeAttribute("aria-activedescendant")
     this.selected = -1

@@ -5,7 +5,7 @@ enum Site {
     static let local = URL(string: "http://localhost:3000")!
 
     /// Debug talks to the Rails server on this machine.
-    /// Release uses `MARGIN_BASE_URL` (Vercel preview) when set, otherwise margin.bible.
+    /// Release uses `MARGIN_BASE_URL` when set, otherwise margin.bible.
     static var baseURL: URL {
         #if DEBUG
         return local

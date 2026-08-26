@@ -29,7 +29,7 @@ npm run build
 bin/rails margin:seed_scripture
 ```
 
-Preview: Vercel builds `Dockerfile.vercel` via `vercel.json` (set `SECRET_KEY_BASE`).
+Production: Railway builds `Dockerfile` (`railway.json`). Set `SECRET_KEY_BASE`, `DATABASE_URL`, `APP_HOST`.
 
 ## Touchpoints
 
@@ -50,5 +50,6 @@ Preview: Vercel builds `Dockerfile.vercel` via `vercel.json` (set `SECRET_KEY_BA
 - Reimplement grab-bcv in Ruby beyond slug/human parse already in `Passage`.
 - Merge verse notes into the chapter note.
 - Treat `legacy/` as the deploy target.
+- Treat Vercel as the production target.
 - Build Expo, a commercial Ruby Native layer, or a native Bible/reader screen that is not a Hotwire Native WebView of this chapter page.
 - Merge a verse note into a range or into the chapter note.

@@ -2,10 +2,9 @@
 
 require "test_helper"
 require "erb"
-require "json"
 require "yaml"
 
-class VercelPreviewTest < ActiveSupport::TestCase
+class ContainerDeployTest < ActiveSupport::TestCase
   test "production sqlite paths sit under writable storage/" do
     yaml = YAML.safe_load(
       ERB.new(Rails.root.join("config/database.yml").read).result,
@@ -37,9 +36,9 @@ class VercelPreviewTest < ActiveSupport::TestCase
     refute_match(/host: "example.com"/, production)
   end
 
-  test "Dockerfile.vercel matches ruby-version and seeds BSB at image build" do
+  test "Dockerfile matches ruby-version and seeds BSB at image build" do
     ruby_version = File.read(Rails.root.join(".ruby-version")).strip.delete_prefix("ruby-")
-    dockerfile = Rails.root.join("Dockerfile.vercel").read
+    dockerfile = Rails.root.join("Dockerfile").read
 
     assert_match(/ARG RUBY_VERSION=#{Regexp.escape(ruby_version)}/, dockerfile)
     assert_match(/FROM ruby:\$\{RUBY_VERSION\}/, dockerfile)
@@ -56,22 +55,27 @@ class VercelPreviewTest < ActiveSupport::TestCase
     assert_match(/margin:build_bsb_pack/, dockerfile)
     assert_match(/margin:seed_scripture/, dockerfile)
     refute_match(/Range:/, dockerfile)
+    refute_match(/[Vv]ercel/, dockerfile)
     assert_match(/PORT=80/, dockerfile)
-    assert_match(%r{CMD \["/rails/bin/vercel-start"\]}, dockerfile)
+    assert_match(%r{CMD \["/rails/bin/docker-start"\]}, dockerfile)
   end
 
-  test "vercel.json selects the container framework, not npm build" do
-    config = JSON.parse(Rails.root.join("vercel.json").read)
+  test "railway.json builds the Dockerfile" do
+    config = JSON.parse(Rails.root.join("railway.json").read)
 
-    assert File.exist?(Rails.root.join("Dockerfile.vercel"))
-    assert_equal "container", config["framework"]
+    assert File.exist?(Rails.root.join("Dockerfile"))
+    assert_equal "DOCKERFILE", config.dig("build", "builder")
+    assert_equal "Dockerfile", config.dig("build", "dockerfilePath")
+    assert_equal "/up", config.dig("deploy", "healthcheckPath")
+    refute File.exist?(Rails.root.join("vercel.json"))
   end
 
-  test "vercel-start prepares db, seeds, and execs puma on PORT 80" do
-    script = Rails.root.join("bin/vercel-start").read
+  test "docker-start prepares db, seeds, and execs puma on PORT 80" do
+    script = Rails.root.join("bin/docker-start").read
 
     assert_match(/PORT:-\{?80\}?/, script)
     assert_match(/db:prepare margin:seed_scripture/, script)
     assert_match(/puma -C config\/puma.rb/, script)
+    refute_match(/[Vv]ercel/, script)
   end
 end

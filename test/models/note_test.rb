@@ -91,6 +91,23 @@ class NoteTest < ActiveSupport::TestCase
     assert_equal "Child\nparagraph edited", existing.blocks[1]["text"]
   end
 
+  test "apply_blocks! keeps optional bullets off new lines" do
+    existing = note(blocks: [])
+    existing.apply_blocks!([
+      { "id" => "b_plain", "indent" => 0, "text" => "Plain", "bullet" => false },
+      { "id" => "b_dot01", "indent" => 0, "text" => "Listed", "bullet" => true }
+    ])
+
+    assert_equal false, existing.blocks[0]["bullet"]
+    assert_equal true, existing.blocks[1]["bullet"]
+  end
+
+  test "legacy blocks without bullet stay bulleted" do
+    existing = note(blocks: [])
+    existing.apply_blocks!([ { "id" => "b_old01", "indent" => 0, "text" => "Old" } ])
+    assert_equal true, existing.blocks[0]["bullet"]
+  end
+
   test "markdown headings stay as block text and are not parsed into parents" do
     existing = note(blocks: [])
     existing.apply_text!("# Heading\n- item\n  **bold**")

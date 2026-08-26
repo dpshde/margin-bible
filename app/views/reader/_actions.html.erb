@@ -1,0 +1,90 @@
+<div class="dock-pane" data-dock-menu-target="pane" data-pane="root">
+  <% include_recent = local_assigns.fetch(:include_recent, false) %>
+  <% if include_recent && @trail.any? %>
+    <nav class="dock-recent" aria-label="Recent passages">
+      <% @trail.each do |passage| %>
+        <%= link_to read_path(passage.slug), class: "dock-item", data: { turbo_prefetch: true } do %>
+          <%= ph_icon("clock-counter-clockwise") %>
+          <span><%= passage.label %></span>
+        <% end %>
+      <% end %>
+    </nav>
+    <hr class="dock-sep">
+  <% end %>
+  <div class="dock-toggles">
+    <button type="button" class="dock-item" data-reader-target="quietToggle" data-action="click->reader#toggleQuiet" aria-pressed="false">
+      <%= ph_icon("flower-lotus") %>
+      <span>Focus</span>
+      <span class="dock-check" aria-hidden="true"><%= ph_icon("check") %></span>
+    </button>
+    <button type="button" class="dock-item <%= "is-on" if @chapter_note %>" data-action="click->reader#toggleChapter" aria-pressed="<%= @chapter_note ? "true" : "false" %>">
+      <%= ph_icon("note-pencil") %>
+      <span>Chapter note</span>
+      <span class="dock-check" aria-hidden="true"><%= ph_icon("check") %></span>
+    </button>
+    <button type="button" class="dock-item" data-action="click->reader#toggleExpand" aria-pressed="false" <%= "disabled" unless @verse_notes.any? %>>
+      <%= ph_icon("arrows-out") %>
+      <span>Expand notes</span>
+      <span class="dock-check" aria-hidden="true"><%= ph_icon("check") %></span>
+    </button>
+    <button type="button" class="dock-item" data-reader-target="numsToggle" data-action="click->reader#toggleNums" aria-pressed="false">
+      <%= ph_icon("list-numbers") %>
+      <span>Hide verse numbers</span>
+      <span class="dock-check" aria-hidden="true"><%= ph_icon("check") %></span>
+    </button>
+  </div>
+  <div class="dock-theme">
+    <%= render "shared/theme_seg" %>
+  </div>
+  <hr class="dock-sep">
+  <button type="button" class="dock-item is-branch" data-action="click->dock-menu#show" data-dock-menu-pane-param="share" aria-haspopup="menu">
+    <%= ph_icon("share") %>
+    <span>Share</span>
+    <%= ph_icon("caret-right") %>
+  </button>
+  <button type="button" class="dock-item is-branch" data-action="click->dock-menu#show" data-dock-menu-pane-param="export" aria-haspopup="menu">
+    <%= ph_icon("export") %>
+    <span>Export</span>
+    <%= ph_icon("caret-right") %>
+  </button>
+</div>
+
+<div class="dock-pane" data-dock-menu-target="pane" data-pane="share" hidden>
+  <button type="button" class="dock-item is-back" data-action="click->dock-menu#show" data-dock-menu-pane-param="root">
+    <%= ph_icon("caret-left") %>
+    <span>Share</span>
+  </button>
+  <hr class="dock-sep">
+  <button type="button" class="dock-item" data-action="click->reader#sharePassage" data-reader-scope-param="verse">
+    <%= ph_icon("share") %>
+    <span>Verse</span>
+  </button>
+  <button type="button" class="dock-item" data-action="click->reader#sharePassage" data-reader-scope-param="chapter">
+    <%= ph_icon("share-network") %>
+    <span>Chapter</span>
+  </button>
+</div>
+
+<div class="dock-pane" data-dock-menu-target="pane" data-pane="export" hidden>
+  <button type="button" class="dock-item is-back" data-action="click->dock-menu#show" data-dock-menu-pane-param="root">
+    <%= ph_icon("caret-left") %>
+    <span>Export</span>
+  </button>
+  <hr class="dock-sep">
+  <button type="button" class="dock-item" data-action="click->reader#exportDocument" data-reader-scope-param="book" data-reader-notes-param="false">
+    <%= ph_icon("book") %>
+    <span>Book</span>
+  </button>
+  <button type="button" class="dock-item" data-action="click->reader#exportDocument" data-reader-scope-param="book" data-reader-notes-param="true">
+    <%= ph_icon("notebook") %>
+    <span>Book with notes</span>
+  </button>
+  <button type="button" class="dock-item" data-action="click->reader#exportDocument" data-reader-scope-param="bible" data-reader-notes-param="false">
+    <%= ph_icon("book-open") %>
+    <span>Bible</span>
+  </button>
+  <button type="button" class="dock-item" data-action="click->reader#exportDocument" data-reader-scope-param="bible" data-reader-notes-param="true">
+    <%= ph_icon("books") %>
+    <span>Bible with notes</span>
+  </button>
+</div>

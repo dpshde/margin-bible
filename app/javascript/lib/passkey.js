@@ -41,7 +41,7 @@ class PasskeyButton extends HTMLElement {
       if (!options) throw new Error("Missing passkey options")
 
       await refreshChallenge(options, this.challengeUrl, this.purpose)
-      const passkey = await this.perform(options)
+      const passkey = await this.perform(options, this.modalCeremony)
 
       this.button.dispatchEvent(new CustomEvent("passkey:success", { bubbles: true }))
       this.fillForm(passkey)
@@ -71,6 +71,7 @@ class PasskeyButton extends HTMLElement {
 
 class PasskeyRegistrationButton extends PasskeyButton {
   get purpose() { return "registration" }
+  get modalCeremony() { return {} }
 
   async perform(options) {
     return await register(options)
@@ -86,6 +87,7 @@ class PasskeySignInButton extends PasskeyButton {
   #conditionalMediationPromise = null
 
   get purpose() { return "authentication" }
+  get modalCeremony() { return { mediation: "optional" } }
 
   connectedCallback() {
     super.connectedCallback()
@@ -105,10 +107,13 @@ class PasskeySignInButton extends PasskeyButton {
   }
 
   async abortConditionalMediation() {
-    if (this.#conditionalMediationController) {
-      this.#conditionalMediationController.abort()
-      await this.#conditionalMediationPromise
-    }
+    if (!this.#conditionalMediationController) return
+
+    this.#conditionalMediationController.abort()
+    await this.#conditionalMediationPromise
+    // Chrome skips the password-manager picker if a modal get() starts
+    // in the same turn as aborting conditional mediation.
+    await new Promise((resolve) => setTimeout(resolve, 100))
   }
 
   async #attemptConditionalMediation() {

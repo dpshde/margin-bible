@@ -39,12 +39,38 @@ export default class extends Controller {
       heading.className = section.kind === "bookmarks" ? "inbox-day is-bookmarks" : "inbox-day"
       heading.textContent = section.label
       nodes.push(heading)
-      section.notes.forEach((note) => nodes.push(this.cardFor(note)))
+      if (section.kind === "bookmarks") {
+        (section.groups || []).forEach((group) => nodes.push(this.bookGroupFor(group)))
+      } else {
+        section.notes.forEach((note) => nodes.push(this.cardFor(note)))
+      }
     })
     this.listTarget.replaceChildren(...nodes)
   }
 
-  cardFor(note) {
+  bookGroupFor(group) {
+    const wrap = document.createElement("details")
+    wrap.className = "inbox-book"
+    const summary = document.createElement("summary")
+    summary.className = "inbox-book-summary"
+    const mark = document.createElement("span")
+    mark.className = "inbox-mark"
+    mark.setAttribute("aria-hidden", "true")
+    mark.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="12" height="12" fill="currentColor" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"><path d="M4 2.25h8v11.1L8 11.1 4 13.35z" /></svg>'
+    const name = document.createElement("span")
+    name.className = "inbox-book-name"
+    name.textContent = group.label
+    const count = document.createElement("span")
+    count.className = "inbox-book-count"
+    count.textContent = String(group.notes.length)
+    summary.append(mark, name, count)
+    summary.insertAdjacentHTML("beforeend", '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="14" height="14" fill="currentColor" aria-hidden="true"><path d="m181.66 133.66l-80 80a8 8 0 0 1-11.32-11.32L164.69 128L90.34 53.66a8 8 0 0 1 11.32-11.32l80 80a8 8 0 0 1 0 11.32"/></svg>')
+    wrap.append(summary)
+    group.notes.forEach((note) => wrap.append(this.cardFor(note, { mark: false })))
+    return wrap
+  }
+
+  cardFor(note, { mark = Boolean(note.bookmarked) } = {}) {
     const card = document.createElement("a")
     card.className = "inbox-card"
     card.href = hrefForSlug(note.slug)
@@ -53,12 +79,12 @@ export default class extends Controller {
 
     const title = document.createElement("p")
     title.className = "inbox-card-title"
-    if (note.bookmarked) {
-      const mark = document.createElement("span")
-      mark.className = "inbox-mark"
-      mark.setAttribute("aria-hidden", "true")
-      mark.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="12" height="12" fill="currentColor" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"><path d="M4 2.25h8v11.1L8 11.1 4 13.35z" /></svg>'
-      title.append(mark)
+    if (mark) {
+      const icon = document.createElement("span")
+      icon.className = "inbox-mark"
+      icon.setAttribute("aria-hidden", "true")
+      icon.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="12" height="12" fill="currentColor" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"><path d="M4 2.25h8v11.1L8 11.1 4 13.35z" /></svg>'
+      title.append(icon)
     }
     title.append(document.createTextNode(slugLabel(note.slug)))
     card.append(title)

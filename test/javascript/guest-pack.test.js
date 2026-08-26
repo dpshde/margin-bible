@@ -27,7 +27,7 @@ function storage() {
 }
 
 function blocks(text, id = "b_aa01") {
-  return [{ id, indent: 0, text }]
+  return [{ id, indent: 0, text, bullet: true }]
 }
 
 {
@@ -145,6 +145,8 @@ function blocks(text, id = "b_aa01") {
   assert.deepEqual(sections.map((section) => section.label), ["Bookmarks", "Today"])
   assert.equal(sections[0].kind, "bookmarks")
   assert.deepEqual(sections[0].notes.map((note) => note.slug), ["jhn.1.1"])
+  assert.deepEqual(sections[0].groups.map((group) => group.label), ["John"])
+  assert.deepEqual(sections[0].groups[0].notes.map((note) => note.slug), ["jhn.1.1"])
   assert.deepEqual(sections[1].notes.map((note) => note.slug), ["jhn.3.16"])
   const again = setNoteBookmarked("jhn.1.1", true, store)
   assert.equal(again.notes["jhn.1.1"].bookmarked, true)

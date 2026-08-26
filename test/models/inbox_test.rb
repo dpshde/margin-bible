@@ -65,7 +65,39 @@ class InboxTest < ActiveSupport::TestCase
     assert_equal [ "Bookmarks", "Today" ], sections.map { |section| section[:label] }
     assert_equal :bookmarks, sections.first[:kind]
     assert_equal [ pinned.slug ], sections.first[:notes].map(&:slug)
+    assert_equal [ "John" ], sections.first[:groups].map { |group| group[:label] }
+    assert_equal [ pinned.slug ], sections.first[:groups].first[:notes].map(&:slug)
     assert_equal [ kept.slug ], sections.last[:notes].map(&:slug)
+  end
+
+  test "bookmarks collapse into books newest book first" do
+    library = Library.create!
+    john = library.notes.create!(
+      slug: "jhn.1.1", osis: "JHN.1.1", kind: "verse", book: "JHN", chapter: 1,
+      verse_start: 1, blocks: [ { "id" => "a", "indent" => 0, "text" => "Logos." } ],
+      bookmarked: true,
+      created_at: Time.zone.local(2026, 8, 4, 9, 0, 0),
+      updated_at: Time.zone.local(2026, 8, 20, 9, 0, 0)
+    )
+    later_john = library.notes.create!(
+      slug: "jhn.3.16", osis: "JHN.3.16", kind: "verse", book: "JHN", chapter: 3,
+      verse_start: 16, blocks: [ { "id" => "b", "indent" => 0, "text" => "Love." } ],
+      bookmarked: true,
+      created_at: Time.zone.local(2026, 8, 10, 9, 0, 0),
+      updated_at: Time.zone.local(2026, 8, 21, 9, 0, 0)
+    )
+    genesis = library.notes.create!(
+      slug: "gen.1.1", osis: "GEN.1.1", kind: "verse", book: "GEN", chapter: 1,
+      verse_start: 1, blocks: [ { "id" => "c", "indent" => 0, "text" => "Beginning." } ],
+      bookmarked: true,
+      created_at: Time.zone.local(2026, 8, 1, 9, 0, 0),
+      updated_at: Time.zone.local(2026, 8, 25, 9, 0, 0)
+    )
+
+    groups = Margin::Inbox.sections(library.notes.to_a, today: @today).first[:groups]
+    assert_equal [ "Genesis", "John" ], groups.map { |group| group[:label] }
+    assert_equal [ genesis.slug ], groups.first[:notes].map(&:slug)
+    assert_equal [ later_john.slug, john.slug ], groups.last[:notes].map(&:slug)
   end
 
   test "chapter notes keep a chapter_note query" do

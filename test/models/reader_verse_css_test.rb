@@ -27,10 +27,33 @@ class ReaderVerseCssTest < ActiveSupport::TestCase
     assert_match(/\.verse\s*\{[^}]*padding-left:\s*\.2rem/m, phone)
   end
 
+  test "quiet reading fades the note rail" do
+    quiet = css[/\.is-quiet \.verse\.has-note,\s*\.is-quiet \.verse\.is-open,\s*\.is-quiet \.verse\.is-span\s*\{[^}]+\}/]
+    assert quiet
+    assert_match(/border-left-color:\s*color-mix\(in srgb, var\(--ink\) 5%/, quiet)
+  end
+
+  test "quiet reading hides trail pointers" do
+    assert_match(/\.is-quiet \.trail-inline/, css)
+    assert_match(/\.is-quiet \.dock-recent/, css)
+    assert_match(/\.is-quiet \.dock-recent \+ \.dock-sep/, css)
+  end
+
+  test "quiet reading drops the chrome shell around jump" do
+    quiet_chrome = css[/html:not\(\.hotwire-native\) \.is-quiet \.reader-chrome\s*\{[^}]+\}/]
+    assert quiet_chrome
+    assert_match(/background:\s*transparent/, quiet_chrome)
+    assert_match(/border:\s*0/, quiet_chrome)
+    assert_match(/padding:\s*0/, quiet_chrome)
+  end
+
   test "hiding verse numbers drops the gutter and the digits" do
     assert_match(/\.is-nums-hidden \.vnum\s*\{\s*display:\s*none/, css)
     assert_match(/\.is-nums-hidden \.verse-press\s*\{\s*grid-template-columns:\s*minmax\(0, 1fr\)/, css)
-    assert_match(/\.is-nums-hidden \.verse\s*\{[^}]*--verse-gutter:\s*0px/m, css)
+    hidden = css[/\.is-nums-hidden \.verse\s*\{[^}]+\}/]
+    assert hidden
+    assert_match(/--verse-gutter:\s*0px/, hidden)
+    assert_match(/padding-left:\s*\.7rem/, hidden)
   end
 
   test "note tray shares the verse text column" do

@@ -66,8 +66,15 @@ class Note < ApplicationRecord
     {
       "id" => sanitize_block_id(hash["id"]),
       "indent" => hash["indent"].to_i.clamp(0, 32),
-      "text" => hash["text"].to_s
+      "text" => hash["text"].to_s,
+      "bullet" => row_bullet(hash)
     }
+  end
+
+  def self.row_bullet(hash)
+    return true unless hash.key?("bullet")
+
+    ActiveModel::Type::Boolean.new.cast(hash["bullet"])
   end
 
   def self.sanitize_block_id(id)
@@ -97,7 +104,7 @@ class Note < ApplicationRecord
       id = nil if id && used.include?(id)
       id ||= "b_#{SecureRandom.hex(4)}"
       used << id
-      { "id" => id, "indent" => row["indent"].to_i, "text" => row["text"].to_s }
+      { "id" => id, "indent" => row["indent"].to_i, "text" => row["text"].to_s, "bullet" => row_bullet(row) }
     end
   end
 

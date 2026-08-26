@@ -36,7 +36,7 @@ bin/rails server
 
 Open `/jhn.1`. Search “John 3:16”. Tap a verse.
 
-Preview on Vercel via `Dockerfile.vercel` (`vercel.json` selects the container; set `SECRET_KEY_BASE`).
+Production is Railway (`Dockerfile` + `railway.json`). Set `SECRET_KEY_BASE`, `DATABASE_URL`, and `APP_HOST`. Optional `SMTP_*` for magic-link email.
 
 ## Layout
 

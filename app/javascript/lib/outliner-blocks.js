@@ -8,8 +8,12 @@ export function newBlockId() {
   return `b_${[...bytes].map((byte) => byte.toString(16).padStart(2, "0")).join("")}`
 }
 
-export function newBlock(indent = 0, text = "", id = newBlockId()) {
-  return { id, indent, text }
+export function newBlock(indent = 0, text = "", id = newBlockId(), { bullet = false } = {}) {
+  return { id, indent, text, bullet }
+}
+
+export function blockHasBullet(block) {
+  return block?.bullet !== false
 }
 
 export function subtreeEnd(blocks, index) {
@@ -51,9 +55,17 @@ export function splitSibling(blocks, index, offset) {
   const left = current.text.slice(0, offset)
   const right = current.text.slice(offset)
   current.text = left
-  const created = newBlock(current.indent, right)
+  const created = newBlock(current.indent, right, newBlockId(), { bullet: false })
   blocks.splice(subtreeEnd(blocks, index), 0, created)
   return created
+}
+
+export function consumeListMarker(block) {
+  const match = String(block.text || "").match(/^(- |\* )/)
+  if (!match || blockHasBullet(block)) return 0
+  block.bullet = true
+  block.text = block.text.slice(match[1].length)
+  return match[1].length
 }
 
 export function insertNewline(blocks, index, offset) {
@@ -63,11 +75,16 @@ export function insertNewline(blocks, index, offset) {
 }
 
 export function backspaceAtStart(blocks, index) {
-  if (index <= 0) {
-    return { changed: false, focusId: blocks[index].id, caret: 0 }
+  const current = blocks[index]
+  if (blockHasBullet(current)) {
+    current.bullet = false
+    return { changed: true, focusId: current.id, caret: 0 }
   }
 
-  const current = blocks[index]
+  if (index <= 0) {
+    return { changed: false, focusId: current.id, caret: 0 }
+  }
+
   const previous = blocks[index - 1]
   const caret = previous.text.length
 
@@ -106,7 +123,13 @@ export function neighborBlockIndex(index, direction, length) {
   return next
 }
 
-export function shouldLeaveBlockOnArrow({ direction, atFirstVisualLine, atLastVisualLine }) {
+export function shouldLeaveBlockOnArrow({
+  direction,
+  atFirstVisualLine,
+  atLastVisualLine,
+  singleVisualLine = false
+}) {
+  if (singleVisualLine) return true
   if (direction < 0) return Boolean(atFirstVisualLine)
   if (direction > 0) return Boolean(atLastVisualLine)
   return false
@@ -125,17 +148,22 @@ export function arrowBlockNav({
   index,
   length,
   atFirstVisualLine,
-  atLastVisualLine
+  atLastVisualLine,
+  singleVisualLine = false
 }) {
   if (shiftKey || altKey || metaKey || ctrlKey) return null
   const direction = arrowDirection(key)
   if (!direction) return null
-  if (!shouldLeaveBlockOnArrow({ direction, atFirstVisualLine, atLastVisualLine })) {
+  if (!shouldLeaveBlockOnArrow({ direction, atFirstVisualLine, atLastVisualLine, singleVisualLine })) {
     return { action: "within" }
   }
   const next = neighborBlockIndex(index, direction, length)
   if (next < 0) return { action: "edge" }
   return { action: "leave", index: next, direction }
+}
+
+export function nextSelectScope(scope) {
+  return scope === "line" ? "all" : "line"
 }
 
 export function insertPastedLines(blocks, index, offset, paste) {
@@ -150,7 +178,7 @@ export function insertPastedLines(blocks, index, offset, paste) {
   current.text = current.text.slice(0, offset) + lines[0]
   const created = lines.slice(1).map((line, lineIndex, list) => {
     const isLast = lineIndex === list.length - 1
-    return newBlock(current.indent, line + (isLast ? after : ""))
+    return newBlock(current.indent, line + (isLast ? after : ""), newBlockId(), { bullet: false })
   })
   blocks.splice(index + 1, 0, ...created)
   const last = created[created.length - 1]

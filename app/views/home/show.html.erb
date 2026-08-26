@@ -6,6 +6,7 @@
       <div class="topbar-side"></div>
       <h1 class="topbar-title">Notes</h1>
       <div class="topbar-actions">
+        <%= render "shared/theme_seg" %>
         <%= render "shared/account_nav", appearance: :quiet %>
       </div>
     </header>
@@ -28,27 +29,27 @@
       <% else %>
         <% @sections.each do |section| %>
           <h2 class="inbox-day <%= "is-bookmarks" if section[:kind] == :bookmarks %>"><%= section[:label] %></h2>
-          <% section[:notes].each do |note| %>
-            <%= link_to inbox_note_path(note), class: "inbox-card #{ "is-bookmarked" if note.bookmarked? }" do %>
-              <p class="inbox-card-title">
-                <% if note.bookmarked? %>
+          <% if section[:kind] == :bookmarks %>
+            <% Array(section[:groups]).each do |group| %>
+              <details class="inbox-book">
+                <summary class="inbox-book-summary">
                   <span class="inbox-mark" aria-hidden="true">
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="12" height="12" fill="currentColor" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round">
                       <path d="M4 2.25h8v11.1L8 11.1 4 13.35z" />
                     </svg>
                   </span>
+                  <span class="inbox-book-name"><%= group[:label] %></span>
+                  <span class="inbox-book-count"><%= group[:notes].size %></span>
+                  <%= ph_icon("caret-right", size: 14) %>
+                </summary>
+                <% group[:notes].each do |note| %>
+                  <%= render "home/inbox_card", note: note, show_mark: false %>
                 <% end %>
-                <%= note.passage.label %>
-              </p>
-              <% if note.empty_content? %>
-                <p class="inbox-card-empty">Empty note</p>
-              <% else %>
-                <div class="inbox-preview">
-                  <% Array(note.blocks).each do |block| %>
-                    <p class="preview-line" style="--depth: <%= block["indent"].to_i %>"><%= wiki_note_html(block["text"], links: false) %></p>
-                  <% end %>
-                </div>
-              <% end %>
+              </details>
+            <% end %>
+          <% else %>
+            <% section[:notes].each do |note| %>
+              <%= render "home/inbox_card", note: note %>
             <% end %>
           <% end %>
         <% end %>

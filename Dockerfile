@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1
-# Vercel Fluid / container image. The HTTP server must listen on PORT (default 80).
+# Railway production image. The HTTP server must listen on PORT (default 80).
 
 ARG RUBY_VERSION=3.4.10
 FROM node:22-bookworm-slim AS node
@@ -64,7 +64,7 @@ RUN npm run build && \
     SECRET_KEY_BASE_DUMMY=1 bundle exec rails db:prepare && \
     SECRET_KEY_BASE_DUMMY=1 bundle exec rails margin:seed_scripture && \
     rm -rf node_modules tmp/cache && \
-    chmod +x bin/vercel-start
+    chmod +x bin/docker-start
 
 FROM base
 
@@ -72,4 +72,4 @@ COPY --from=build /usr/local/bundle /usr/local/bundle
 COPY --from=build /rails /rails
 
 EXPOSE 80
-CMD ["/rails/bin/vercel-start"]
+CMD ["/rails/bin/docker-start"]

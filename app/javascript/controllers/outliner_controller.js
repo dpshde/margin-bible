@@ -2,11 +2,14 @@ import { Controller } from "@hotwired/stimulus"
 import {
   arrowBlockNav,
   backspaceAtStart,
+  blockHasBullet,
   caretForNeighbor,
+  consumeListMarker,
   indentSubtree,
   insertNewline,
   insertPastedLines,
   isEmptyBlocks,
+  nextSelectScope,
   serializeBlocks,
   splitSibling
 } from "../lib/outliner-blocks"
@@ -18,7 +21,7 @@ export default class extends Controller {
   connect() {
     this.blocks = this.readRows()
     if (!this.blocks.length) {
-      this.blocks = [{ id: this.element.dataset.emptyId || "b_empty", indent: 0, text: "" }]
+      this.blocks = [{ id: this.element.dataset.emptyId || "b_empty", indent: 0, text: "", bullet: false }]
     }
     this.onInput = this.onInput.bind(this)
     this.onKeydown = this.onKeydown.bind(this)
@@ -26,9 +29,12 @@ export default class extends Controller {
     this.onFocusIn = this.onFocusIn.bind(this)
     this.onFocusOut = this.onFocusOut.bind(this)
     this.onMouseDown = this.onMouseDown.bind(this)
+    this.onCopy = this.onCopy.bind(this)
+    this.selectScope = null
     this.element.addEventListener("input", this.onInput)
     this.element.addEventListener("keydown", this.onKeydown)
     this.element.addEventListener("paste", this.onPaste)
+    this.element.addEventListener("copy", this.onCopy)
     this.element.addEventListener("focusin", this.onFocusIn)
     this.element.addEventListener("focusout", this.onFocusOut)
     this.element.addEventListener("mousedown", this.onMouseDown)
@@ -39,6 +45,7 @@ export default class extends Controller {
     this.element.removeEventListener("input", this.onInput)
     this.element.removeEventListener("keydown", this.onKeydown)
     this.element.removeEventListener("paste", this.onPaste)
+    this.element.removeEventListener("copy", this.onCopy)
     this.element.removeEventListener("focusin", this.onFocusIn)
     this.element.removeEventListener("focusout", this.onFocusOut)
     this.element.removeEventListener("mousedown", this.onMouseDown)
@@ -52,7 +59,8 @@ export default class extends Controller {
       blocks: this.blocks.map((block) => ({
         id: block.id,
         indent: block.indent,
-        text: block.text
+        text: block.text,
+        bullet: blockHasBullet(block)
       }))
     }
   }
@@ -67,9 +75,10 @@ export default class extends Controller {
       ? blocks.map((block) => ({
         id: block.id || this.element.dataset.emptyId || "b_empty",
         indent: Number(block.indent) || 0,
-        text: String(block.text || "")
+        text: String(block.text || ""),
+        bullet: blockHasBullet(block)
       }))
-      : [{ id: this.element.dataset.emptyId || "b_empty", indent: 0, text: "" }]
+      : [{ id: this.element.dataset.emptyId || "b_empty", indent: 0, text: "", bullet: false }]
     this.blocks = incoming
     this.render()
   }
@@ -81,6 +90,20 @@ export default class extends Controller {
   }
 
   onMouseDown(event) {
+    this.clearSelectScope()
+    const bullet = event.target.closest(".obullet")
+    if (bullet && this.element.contains(bullet)) {
+      event.preventDefault()
+      const row = bullet.closest(".oblock")
+      const index = this.blocks.findIndex((block) => block.id === row?.dataset.blockId)
+      if (index < 0) return
+      this.syncFromDom()
+      this.blocks[index].bullet = !blockHasBullet(this.blocks[index])
+      this.render(this.blocks[index].id, this.caretOffset(row.querySelector(".otext")))
+      this.emitChange()
+      return
+    }
+
     const link = event.target.closest("a.wiki")
     if (!link || !this.element.contains(link)) return
     event.preventDefault()
@@ -96,9 +119,10 @@ export default class extends Controller {
     if (!textEl || !this.element.contains(textEl) || textEl.dataset.editing === "1") return
     const index = this.indexOf(textEl)
     if (index < 0) return
+    const offset = this.caretOffset(textEl, { fallback: "keep" })
     textEl.dataset.editing = "1"
     this.fillEditable(textEl, this.blocks[index].text, { decorate: false })
-    this.setCaret(textEl, this.readEditableText(textEl).length)
+    if (offset != null) this.setCaret(textEl, offset)
   }
 
   onFocusOut(event) {
@@ -112,15 +136,37 @@ export default class extends Controller {
   }
 
   onInput(event) {
-    if (!event.target.closest(".otext")) return
+    const textEl = event.target.closest(".otext")
+    if (!textEl) return
     this.syncFromDom()
+    const index = this.indexOf(textEl)
+    if (index >= 0 && consumeListMarker(this.blocks[index])) {
+      const caret = Math.max(0, this.caretOffset(textEl) - 2)
+      this.render(this.blocks[index].id, caret)
+    }
+    this.clearSelectScope()
     this.emitChange()
+  }
+
+  onCopy(event) {
+    if (this.selectScope !== "all") return
+    event.preventDefault()
+    event.clipboardData.setData("text/plain", serializeBlocks(this.blocks))
   }
 
   onKeydown(event) {
     const textEl = event.target.closest(".otext")
     if (!textEl || event.isComposing || event.keyCode === 229) return
 
+    const selectAll = (event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "a" && !event.altKey
+    if (selectAll) {
+      event.preventDefault()
+      event.stopPropagation()
+      this.cycleSelect(textEl)
+      return
+    }
+
+    this.clearSelectScope()
     this.syncFromDom()
     const index = this.indexOf(textEl)
     if (index < 0) return
@@ -159,9 +205,65 @@ export default class extends Controller {
       return
     }
 
+    if (event.key === "ArrowLeft" && !event.shiftKey && this.atBlockStart(textEl) && index > 0) {
+      event.preventDefault()
+      const previous = this.blocks[index - 1]
+      this.focusBlock(previous.id, previous.text.length)
+      return
+    }
+
+    if (event.key === "ArrowRight" && !event.shiftKey && this.atBlockEnd(textEl) && index < this.blocks.length - 1) {
+      event.preventDefault()
+      this.focusBlock(this.blocks[index + 1].id, 0)
+      return
+    }
+
     if (event.key === "ArrowUp" || event.key === "ArrowDown") {
       this.handleArrow(event, textEl, index)
     }
+  }
+
+  cycleSelect(textEl) {
+    this.selectScope = nextSelectScope(this.selectScope)
+    if (this.selectScope === "all") {
+      this.selectAllBlocks()
+      return
+    }
+    this.selectCurrentLine(textEl)
+  }
+
+  selectCurrentLine(textEl) {
+    this.element.classList.remove("is-selecting-all")
+    const range = document.createRange()
+    range.selectNodeContents(textEl)
+    const selection = window.getSelection()
+    if (!selection) return
+    selection.removeAllRanges()
+    selection.addRange(range)
+  }
+
+  selectAllBlocks() {
+    this.element.classList.add("is-selecting-all")
+    const selection = window.getSelection()
+    selection?.removeAllRanges()
+    const texts = [...this.element.querySelectorAll(".otext")]
+    if (texts.length < 2) {
+      if (texts[0]) this.selectCurrentLine(texts[0])
+      return
+    }
+    const range = document.createRange()
+    range.setStartBefore(texts[0])
+    range.setEndAfter(texts[texts.length - 1])
+    try {
+      selection?.addRange(range)
+    } catch {
+      this.selectCurrentLine(texts[0])
+    }
+  }
+
+  clearSelectScope() {
+    this.selectScope = null
+    this.element.classList.remove("is-selecting-all")
   }
 
   handleArrow(event, textEl, index) {
@@ -174,14 +276,13 @@ export default class extends Controller {
       index,
       length: this.blocks.length,
       atFirstVisualLine: this.atFirstVisualLine(textEl),
-      atLastVisualLine: this.atLastVisualLine(textEl)
+      atLastVisualLine: this.atLastVisualLine(textEl),
+      singleVisualLine: this.singleVisualLine(textEl)
     })
-    if (!nav || nav.action === "within") return
+    if (!nav || nav.action !== "leave") return
 
     event.preventDefault()
     event.stopPropagation()
-    if (nav.action !== "leave") return
-
     const neighbor = this.blocks[nav.index]
     const caretX = this.caretLineRect()?.left
     const caret = caretForNeighbor(nav.direction, neighbor.text.length)
@@ -196,6 +297,7 @@ export default class extends Controller {
     this.syncFromDom()
     const index = this.indexOf(textEl)
     const result = insertPastedLines(this.blocks, index, this.caretOffset(textEl), paste)
+    this.blocks.forEach((block) => consumeListMarker(block))
     this.render(result.focusId, result.caret)
     this.emitChange()
   }
@@ -208,7 +310,8 @@ export default class extends Controller {
     return [...this.element.querySelectorAll(".oblock")].map((row) => ({
       id: row.dataset.blockId,
       indent: Number.parseInt(row.style.getPropertyValue("--depth") || "0", 10) || 0,
-      text: this.readEditableText(row.querySelector(".otext"))
+      text: this.readEditableText(row.querySelector(".otext")),
+      bullet: row.dataset.bullet !== "0"
     }))
   }
 
@@ -233,23 +336,35 @@ export default class extends Controller {
   focusBlock(focusId, caret, caretX, edge) {
     const textEl = this.element.querySelector(`[data-block-id="${CSS.escape(focusId)}"] .otext`)
     if (!textEl) return
-    textEl.focus({ preventScroll: true })
-    if (caretX != null && Number.isFinite(caretX)) {
-      this.placeCaretAtColumn(textEl, caretX, edge || (caret === 0 ? "start" : "end"))
-      return
+    const index = this.indexOf(textEl)
+    if (index >= 0 && textEl.dataset.editing !== "1") {
+      textEl.dataset.editing = "1"
+      this.fillEditable(textEl, this.blocks[index].text, { decorate: false })
     }
-    if (caret != null) this.setCaret(textEl, caret)
+    textEl.focus({ preventScroll: true })
+    const place = () => {
+      if (caretX != null && Number.isFinite(caretX)) {
+        this.placeCaretAtColumn(textEl, caretX, edge || (caret === 0 ? "start" : "end"))
+        return
+      }
+      if (caret != null) this.setCaret(textEl, caret)
+    }
+    place()
+    requestAnimationFrame(place)
   }
 
   rowElement(block) {
     const row = document.createElement("div")
-    row.className = "oblock"
+    const bulletOn = blockHasBullet(block)
+    row.className = bulletOn ? "oblock is-bullet" : "oblock"
     row.dataset.blockId = block.id
+    row.dataset.bullet = bulletOn ? "1" : "0"
     row.style.setProperty("--depth", String(block.indent))
 
     const bullet = document.createElement("span")
     bullet.className = "obullet"
     bullet.setAttribute("aria-hidden", "true")
+    bullet.title = bulletOn ? "Remove bullet" : "Add bullet"
 
     const text = document.createElement("div")
     text.className = "otext"
@@ -321,25 +436,33 @@ export default class extends Controller {
     })
   }
 
-  caretOffset(element) {
+  caretOffset(element, { fallback = "end" } = {}) {
     const selection = window.getSelection()
     if (!selection || selection.rangeCount === 0 || !element.contains(selection.anchorNode)) {
-      return this.readEditableText(element).length
+      if (fallback === "keep") return null
+      return fallback === "start" ? 0 : this.readEditableText(element).length
     }
     const range = selection.getRangeAt(0)
     const prefix = range.cloneRange()
     prefix.selectNodeContents(element)
-    prefix.setEnd(range.endContainer, range.endOffset)
+    prefix.setEnd(range.startContainer, range.startOffset)
     return prefix.toString().length + prefix.cloneContents().querySelectorAll("br").length
   }
 
-  setCaret(element, offset) {
-    const selection = window.getSelection()
-    if (!selection) return
+  atBlockStart(element) {
+    return this.caretOffset(element, { fallback: "start" }) === 0
+  }
+
+  atBlockEnd(element) {
+    const text = this.readEditableText(element)
+    return this.caretOffset(element, { fallback: "end" }) >= text.length
+  }
+
+  rangeAtOffset(element, offset) {
     const range = document.createRange()
     let remaining = Math.max(0, offset)
     for (const node of this.editableNodes(element)) {
-      const length = node.nodeName === "BR" ? 1 : node.nodeValue.length
+      const length = node.nodeName === "BR" ? 1 : (node.nodeValue?.length || 0)
       if (remaining <= length) {
         if (node.nodeName === "BR") {
           if (remaining === 0) range.setStartBefore(node)
@@ -348,40 +471,98 @@ export default class extends Controller {
           range.setStart(node, remaining)
         }
         range.collapse(true)
-        selection.removeAllRanges()
-        selection.addRange(range)
-        return
+        return range
       }
       remaining -= length
     }
     range.selectNodeContents(element)
     range.collapse(false)
+    return range
+  }
+
+  setCaret(element, offset) {
+    const selection = window.getSelection()
+    if (!selection) return
+    const range = this.rangeAtOffset(element, offset)
     selection.removeAllRanges()
     selection.addRange(range)
+  }
+
+  rectFromRange(range) {
+    if (!range) return null
+    const rects = range.getClientRects()
+    const rect = rects[0] || range.getBoundingClientRect()
+    if (!rect) return null
+    if (rect.width > 0 || rect.height > 0) return rect
+    if (rect.top !== 0 || rect.left !== 0) return rect
+    return null
   }
 
   caretLineRect() {
     const selection = window.getSelection()
     if (!selection || selection.rangeCount === 0) return null
-    const range = selection.getRangeAt(0)
-    let rect = range.getBoundingClientRect()
-    if (rect.height === 0) {
-      const first = range.getClientRects()[0]
-      if (first) rect = first
+    const range = selection.getRangeAt(0).cloneRange()
+    range.collapse(true)
+    const direct = this.rectFromRange(range)
+    if (direct && (direct.height > 0 || direct.width > 0)) return direct
+
+    const node = range.startContainer
+    if (node.nodeType === Node.TEXT_NODE) {
+      const offset = range.startOffset
+      if (offset < node.length) {
+        const probe = range.cloneRange()
+        probe.setEnd(node, offset + 1)
+        const rect = this.rectFromRange(probe)
+        if (rect && (rect.height > 0 || rect.width > 0)) return rect
+      }
+      if (offset > 0) {
+        const probe = range.cloneRange()
+        probe.setStart(node, offset - 1)
+        const rect = this.rectFromRange(probe)
+        if (rect && (rect.height > 0 || rect.width > 0)) {
+          return { top: rect.top, bottom: rect.bottom, left: rect.right, height: rect.height, width: 0 }
+        }
+      }
     }
-    return rect.height === 0 ? null : rect
+    return direct
+  }
+
+  lineHeight(element) {
+    const style = window.getComputedStyle(element)
+    const parsed = Number.parseFloat(style.lineHeight)
+    if (Number.isFinite(parsed) && style.lineHeight !== "normal") return parsed
+    const size = Number.parseFloat(style.fontSize)
+    return (Number.isFinite(size) ? size : 16) * 1.45
+  }
+
+  lineSlop(element, rect) {
+    return Math.max(rect?.height || 0, this.lineHeight(element), 8) * 0.6
+  }
+
+  singleVisualLine(element) {
+    return element.getBoundingClientRect().height <= this.lineHeight(element) * 1.65
   }
 
   atFirstVisualLine(element) {
+    if (this.atBlockStart(element)) return true
+    const text = this.readEditableText(element)
+    if (!text.includes("\n") && this.singleVisualLine(element)) return true
     const rect = this.caretLineRect()
-    if (!rect) return this.caretOffset(element) === 0
-    return rect.top - element.getBoundingClientRect().top < rect.height / 2
+    if (!rect) return false
+    const first = this.rectFromRange(this.rangeAtOffset(element, 0))
+    if (!first) return false
+    return Math.abs(rect.top - first.top) <= this.lineSlop(element, rect)
   }
 
   atLastVisualLine(element) {
+    if (this.atBlockEnd(element)) return true
+    const text = this.readEditableText(element)
+    if (!text.includes("\n") && this.singleVisualLine(element)) return true
     const rect = this.caretLineRect()
-    if (!rect) return this.caretOffset(element) === this.readEditableText(element).length
-    return element.getBoundingClientRect().bottom - rect.bottom < rect.height / 2
+    if (!rect) return false
+    const last = this.rectFromRange(this.rangeAtOffset(element, text.length))
+    if (!last) return false
+    return Math.abs(rect.top - last.top) <= this.lineSlop(element, rect)
   }
 
   placeCaretAtColumn(element, x, edge) {
@@ -392,6 +573,7 @@ export default class extends Controller {
     }
     this.setCaret(element, edge === "start" ? 0 : text.length)
     const lineTop = this.caretLineRect()?.top
+    if (lineTop == null) return
     let lo = 0
     let hi = text.length
     let best = edge === "start" ? 0 : text.length
@@ -404,7 +586,7 @@ export default class extends Controller {
         best = mid
         break
       }
-      const onLine = lineTop == null || Math.abs(rect.top - lineTop) < rect.height / 2
+      const onLine = Math.abs(rect.top - lineTop) <= this.lineSlop(element, rect)
       if (!onLine) {
         if (edge === "start") hi = mid - 1
         else lo = mid + 1

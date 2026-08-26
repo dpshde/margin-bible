@@ -45,28 +45,49 @@
       <div class="topbar-actions">
         <button
           type="button"
+          class="icon-btn header-quiet-button"
+          data-reader-target="quietToggle"
+          data-action="click->reader#toggleQuiet"
+          aria-pressed="false"
+          aria-label="Focus"
+          title="Focus"
+        >
+          <%= ph_icon("flower-lotus", size: 20) %>
+        </button>
+        <button
+          type="button"
           class="icon-btn header-copy-button"
           data-reader-target="copyButton"
           data-action="click->reader#copyPassage"
-          aria-label="Copy passage reference, text, and notes"
-          title="Copy passage reference, text, and notes"
+          aria-label="Copy chapter text and notes"
+          title="Copy chapter"
         >
           <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16">
             <rect x="9" y="9" width="10" height="10" rx="2"></rect>
             <path d="M5 15V7a2 2 0 0 1 2-2h8"></path>
           </svg>
         </button>
+        <details class="topbar-menu reader-actions-menu" data-controller="dock-menu" data-action="toggle->dock-menu#closed">
+          <summary class="icon-btn" aria-label="Reader actions" title="Reader actions">
+            <%= ph_icon("dots-three", size: 20) %>
+          </summary>
+          <div class="menu-panel reader-actions-panel" data-action="click->dock-menu#choose">
+            <%= render "reader/actions", include_recent: false %>
+          </div>
+        </details>
       </div>
     </header>
   <% end %>
 
   <main class="reader">
-    <%= render "shared/jump" %>
-    <%= render "reader/trail" %>
+    <div class="reader-chrome" data-controller="chrome">
+      <%= render "reader/trail" %>
+      <%= render "shared/jump" %>
+    </div>
     <%= render "reader/dock" %>
 
-    <section class="chapter-tray" data-reader-target="chapterTray" <%= "hidden" unless params[:chapter_note] %>>
-      <%= render "reader/note_editor", slug: @chapter.slug, note: @chapter_note, label: "Chapter note · #{@chapter.label}" %>
+    <section class="chapter-tray" data-reader-target="chapterTray" data-action="keydown->reader#closeChapterOnEscape" <%= "hidden" unless params[:chapter_note] %>>
+      <%= render "reader/note_editor", slug: @chapter.slug, note: @chapter_note, label: "Chapter note · #{@chapter.label}", closable: true %>
     </section>
 
     <article class="chapter">
@@ -99,14 +120,6 @@
             <section class="note-card">
               <div class="note-tray" data-reader-target="tray" data-note-slug="<%= note.slug %>" <%= "hidden" unless trays_open %>>
                 <%= render "reader/note_editor", slug: note.slug, note: note, label: note.passage.label %>
-              </div>
-              <div class="note-preview" data-reader-target="preview" hidden>
-                <p class="preview-label"><%= note.passage.label %></p>
-                <div class="preview-body">
-                  <% Array(note.blocks).each do |block| %>
-                    <p class="preview-line" style="--depth: <%= block["indent"].to_i %>"><%= wiki_note_html(block["text"]) %></p>
-                  <% end %>
-                </div>
               </div>
             </section>
           <% end %>
@@ -145,4 +158,5 @@
       <% if @next %><%= link_to "#{@next.label} →", read_path(@next.slug), data: { turbo_prefetch: true } %><% end %>
     </nav>
   </main>
+  <div class="reader-veil" aria-hidden="true"></div>
 </div>

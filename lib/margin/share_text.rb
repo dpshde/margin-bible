@@ -15,13 +15,14 @@ module Margin
       }
     end
 
-    def note_lines(blocks, base_indent: 0)
+    def note_lines(blocks, base_indent: 0, bullets: false)
       Array(blocks).filter_map { |block|
         text = wiki_to_plain(block.is_a?(Hash) ? block["text"] : block[:text]).rstrip
         next if text.blank?
 
         indent = base_indent + (block.is_a?(Hash) ? block["indent"] : block[:indent]).to_i
-        ("  " * indent) + text
+        prefix = "  " * indent
+        bullets ? "#{prefix}- #{text}" : "#{prefix}#{text}"
       }
     end
 
@@ -38,9 +39,9 @@ module Margin
       "#{lines.join("\n").strip}\n"
     end
 
-    def format_chapter(label:, verses:, chapter_note: nil, url: nil)
+    def format_chapter(label:, verses:, chapter_note: nil, url: nil, bullets: false)
       lines = [ label ]
-      chapter_body = note_lines(note_blocks(chapter_note), base_indent: 0)
+      chapter_body = note_lines(note_blocks(chapter_note), base_indent: 0, bullets:)
       if chapter_body.any?
         lines << ""
         lines.concat(chapter_body)
@@ -52,7 +53,7 @@ module Margin
         text = verse[:text] || verse["text"]
         lines << "" << "#{n}. #{wiki_to_plain(text).strip}"
         Array(verse[:notes] || verse["notes"]).each do |note|
-          body = note_lines(note_blocks(note), base_indent: 1)
+          body = note_lines(note_blocks(note), base_indent: 1, bullets:)
           lines.concat(body) if body.any?
         end
       end
@@ -60,14 +61,15 @@ module Margin
       "#{lines.join("\n").strip}\n"
     end
 
-    def format_book(label:, chapters:, url: nil)
+    def format_book(label:, chapters:, url: nil, bullets: false)
       parts = [ label ]
       Array(chapters).each do |chapter|
         parts << ""
         parts << format_chapter(
           label: chapter[:label] || chapter["label"],
           verses: chapter[:verses] || chapter["verses"],
-          chapter_note: chapter[:chapter_note] || chapter["chapterNote"]
+          chapter_note: chapter[:chapter_note] || chapter["chapterNote"],
+          bullets:
         ).strip
       end
       parts << "" << url if url.present?
@@ -150,7 +152,8 @@ module Margin
       format_book(
         label: name,
         chapters:,
-        url: include_url ? "#{LINK_BASE}/#{code.downcase}.1" : nil
+        url: include_url ? "#{LINK_BASE}/#{code.downcase}.1" : nil,
+        bullets: true
       )
     end
 

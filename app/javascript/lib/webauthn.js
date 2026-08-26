@@ -1,3 +1,7 @@
+// Prefer the browser / password-manager passkey, then phone, then a security key.
+// Chrome's modal picker otherwise opens on hybrid (QR) and never offers GPM/iCloud.
+export const PASSKEY_HINTS = [ "client-device", "hybrid", "security-key" ]
+
 export async function register(options) {
   const publicKey = prepareCreationOptions(options)
   const credential = await navigator.credentials.create({ publicKey })
@@ -12,7 +16,11 @@ export async function register(options) {
 
 export async function authenticate(options, { signal, mediation } = {}) {
   const publicKey = prepareRequestOptions(options)
-  const credential = await navigator.credentials.get({ publicKey, signal, mediation })
+  const request = { publicKey }
+  if (signal) request.signal = signal
+  if (mediation) request.mediation = mediation
+
+  const credential = await navigator.credentials.get(request)
 
   return {
     id: credential.id,
@@ -22,26 +30,28 @@ export async function authenticate(options, { signal, mediation } = {}) {
   }
 }
 
-function prepareCreationOptions(options) {
+export function prepareCreationOptions(options) {
+  const withHints = applyPasskeyHints(options)
   return {
-    ...options,
-    challenge: base64urlToBuffer(options.challenge),
-    user: { ...options.user, id: base64urlToBuffer(options.user.id) },
-    excludeCredentials: (options.excludeCredentials || []).map(cred => ({
+    ...withHints,
+    challenge: base64urlToBuffer(withHints.challenge),
+    user: { ...withHints.user, id: base64urlToBuffer(withHints.user.id) },
+    excludeCredentials: (withHints.excludeCredentials || []).map(cred => ({
       ...cred,
       id: base64urlToBuffer(cred.id)
     }))
   }
 }
 
-function prepareRequestOptions(options) {
+export function prepareRequestOptions(options) {
+  const withHints = applyPasskeyHints(options)
   const prepared = {
-    ...options,
-    challenge: base64urlToBuffer(options.challenge)
+    ...withHints,
+    challenge: base64urlToBuffer(withHints.challenge)
   }
 
-  if (options.allowCredentials?.length) {
-    prepared.allowCredentials = options.allowCredentials.map(cred => ({
+  if (withHints.allowCredentials?.length) {
+    prepared.allowCredentials = withHints.allowCredentials.map(cred => ({
       ...cred,
       id: base64urlToBuffer(cred.id)
     }))
@@ -50,6 +60,10 @@ function prepareRequestOptions(options) {
   }
 
   return prepared
+}
+
+function applyPasskeyHints(options) {
+  return options.hints?.length ? options : { ...options, hints: PASSKEY_HINTS }
 }
 
 function base64urlToBuffer(base64url) {

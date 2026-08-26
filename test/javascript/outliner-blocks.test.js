@@ -4,20 +4,22 @@ import {
   arrowDirection,
   backspaceAtStart,
   caretForNeighbor,
+  consumeListMarker,
   indentSubtree,
   insertNewline,
   insertPastedLines,
   isEmptyBlocks,
   neighborBlockIndex,
+  nextSelectScope,
   serializeBlocks,
   shouldLeaveBlockOnArrow,
   splitSibling,
   subtreeEnd
 } from "../../app/javascript/lib/outliner-blocks.js"
 
-const parent = { id: "b_aa01", indent: 0, text: "Parent" }
-const child = { id: "b_bb02", indent: 1, text: "Child" }
-const uncle = { id: "b_cc03", indent: 0, text: "Uncle" }
+const parent = { id: "b_aa01", indent: 0, text: "Parent", bullet: false }
+const child = { id: "b_bb02", indent: 1, text: "Child", bullet: true }
+const uncle = { id: "b_cc03", indent: 0, text: "Uncle", bullet: false }
 
 function clone(blocks) {
   return blocks.map((block) => ({ ...block }))
@@ -30,6 +32,7 @@ function clone(blocks) {
   assert.equal(blocks[0].text, "Parent")
   assert.equal(created.indent, 0)
   assert.equal(created.text, "")
+  assert.equal(created.bullet, false)
   assert.equal(blocks[1].id, "b_bb02")
   assert.equal(blocks[2].id, created.id)
   assert.equal(blocks[3].id, "b_cc03")
@@ -75,7 +78,7 @@ function clone(blocks) {
 }
 
 {
-  const blocks = clone([parent, { id: "b_ff06", indent: 0, text: "" }])
+  const blocks = clone([parent, { id: "b_ff06", indent: 0, text: "", bullet: false }])
   const result = backspaceAtStart(blocks, 1)
   assert.equal(result.changed, true)
   assert.equal(result.focusId, "b_aa01")
@@ -84,7 +87,7 @@ function clone(blocks) {
 }
 
 {
-  const blocks = clone([parent, { id: "b_gg07", indent: 0, text: "Tail" }])
+  const blocks = clone([parent, { id: "b_gg07", indent: 0, text: "Tail", bullet: false }])
   const result = backspaceAtStart(blocks, 1)
   assert.equal(result.changed, true)
   assert.equal(blocks[0].text, "ParentTail")
@@ -93,20 +96,45 @@ function clone(blocks) {
 }
 
 {
-  const blocks = clone([{ id: "b_hh08", indent: 0, text: "" }])
+  const blocks = clone([{ id: "b_hh08", indent: 0, text: "", bullet: false }])
   const result = backspaceAtStart(blocks, 0)
   assert.equal(result.changed, false)
   assert.equal(blocks.length, 1)
 }
 
 {
-  const emptyChild = { id: "b_ii09", indent: 1, text: "" }
-  const grandchild = { id: "b_jj0a", indent: 2, text: "Keep" }
+  const emptyChild = { id: "b_ii09", indent: 1, text: "", bullet: false }
+  const grandchild = { id: "b_jj0a", indent: 2, text: "Keep", bullet: false }
   const blocks = clone([parent, emptyChild, grandchild])
   backspaceAtStart(blocks, 1)
   assert.equal(blocks.length, 2)
   assert.equal(blocks[1].id, "b_jj0a")
   assert.equal(blocks[1].indent, 1)
+}
+
+{
+  const blocks = clone([{ id: "b_bullet", indent: 0, text: "Keep the line", bullet: true }])
+  const result = backspaceAtStart(blocks, 0)
+  assert.equal(result.changed, true)
+  assert.equal(result.focusId, "b_bullet")
+  assert.equal(result.caret, 0)
+  assert.equal(blocks.length, 1)
+  assert.equal(blocks[0].bullet, false)
+  assert.equal(blocks[0].text, "Keep the line")
+}
+
+{
+  const block = { id: "b_mark", indent: 0, text: "- Hello", bullet: false }
+  assert.equal(consumeListMarker(block), 2)
+  assert.equal(block.bullet, true)
+  assert.equal(block.text, "Hello")
+  assert.equal(consumeListMarker(block), 0)
+}
+
+{
+  assert.equal(shouldLeaveBlockOnArrow({
+    direction: 1, atFirstVisualLine: false, atLastVisualLine: false, singleVisualLine: true
+  }), true)
 }
 
 {
@@ -168,6 +196,12 @@ function clone(blocks) {
   assert.equal(arrowBlockNav({
     key: "Tab", index: 0, length: 3, atFirstVisualLine: true, atLastVisualLine: true
   }), null)
+}
+
+{
+  assert.equal(nextSelectScope(null), "line")
+  assert.equal(nextSelectScope("line"), "all")
+  assert.equal(nextSelectScope("all"), "line")
 }
 
 console.log("outliner-blocks: ok")

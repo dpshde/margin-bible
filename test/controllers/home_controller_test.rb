@@ -24,6 +24,9 @@ class HomeControllerTest < ActionDispatch::IntegrationTest
     get root_path
     assert_response :success
     assert_select "h1.topbar-title", "Notes"
+    assert_select ".theme-seg[aria-label='Appearance'] button[data-theme-pref='light']", "Light"
+    assert_select ".theme-seg button[data-theme-pref='system']", "System"
+    assert_select ".theme-seg button[data-theme-pref='dark']", "Dark"
     assert_select "[data-inbox-signed-in-value='false']"
     assert_select ".inbox-empty", /No notes yet/
     assert_select "main.inbox-main form.jump input#q"
@@ -92,9 +95,13 @@ class HomeControllerTest < ActionDispatch::IntegrationTest
     get root_path
     days = css_select(".inbox-day").map { |node| node.text.strip }
     assert_equal [ "Bookmarks", "Today" ], days
+    assert_select "details.inbox-book" do
+      assert_select "summary.inbox-book-summary .inbox-book-name", "John"
+      assert_select "summary.inbox-book-summary .inbox-book-count", "1"
+      assert_select ".inbox-card.is-bookmarked[href='/jhn.1.1']"
+    end
     titles = css_select(".inbox-card-title").map { |node| node.text.strip }
     assert_equal [ "John 1:1", "John 3:16" ], titles
-    assert_select ".inbox-card.is-bookmarked[href='/jhn.1.1']"
     assert_select ".inbox-card.is-bookmarked", count: 1
   end
 

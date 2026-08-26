@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Start Margin on Vercel Fluid / any container that sets PORT (default 80).
+# Start Margin in a container that sets PORT (Railway default 80).
 set -euo pipefail
 
 cd /rails

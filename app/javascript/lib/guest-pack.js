@@ -1,4 +1,5 @@
-import { belongsToChapter } from "./passage-span.js"
+import { bookName } from "./book-names.js"
+import { belongsToChapter, parseSlug } from "./passage-span.js"
 
 export const GUEST_PACK_KEY = "margin.guest"
 
@@ -39,7 +40,8 @@ export function normalizeBlocks(blocks) {
     ? blocks.map((block) => ({
       id: String(block?.id || ""),
       indent: Number(block?.indent) || 0,
-      text: String(block?.text || "")
+      text: String(block?.text || ""),
+      bullet: block?.bullet !== false
     }))
     : []
 }
@@ -185,7 +187,13 @@ export function inboxSections(pack, { now = new Date() } = {}) {
     .sort((left, right) => utcDate(right.created_at) - utcDate(left.created_at))
   const sections = []
   if (bookmarked.length) {
-    sections.push({ label: "Bookmarks", notes: bookmarked, kind: "bookmarks" })
+    const groups = bookmarkGroups(bookmarked)
+    sections.push({
+      label: "Bookmarks",
+      notes: groups.flatMap((group) => group.notes),
+      groups,
+      kind: "bookmarks"
+    })
   }
   const grouped = new Map()
   for (const note of rest) {
@@ -201,6 +209,26 @@ export function inboxSections(pack, { now = new Date() } = {}) {
     })
   }
   return sections
+}
+
+function bookmarkGroups(notes) {
+  const grouped = new Map()
+  for (const note of notes) {
+    const book = parseSlug(note.slug)?.book || ""
+    if (!grouped.has(book)) grouped.set(book, [])
+    grouped.get(book).push(note)
+  }
+  return [ ...grouped.entries() ]
+    .map(([ book, groupNotes ]) => ({
+      book,
+      label: bookName(book) || book,
+      notes: groupNotes
+    }))
+    .sort((left, right) => groupTime(right.notes) - groupTime(left.notes))
+}
+
+function groupTime(notes) {
+  return Math.max(...notes.map((note) => utcDate(note.updated_at || note.created_at).getTime()))
 }
 
 function dateKey(date) {

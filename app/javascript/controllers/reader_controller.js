@@ -18,14 +18,17 @@ import {
 } from "../lib/passage-span"
 import { loadHideVerseNums, saveHideVerseNums } from "../lib/reader-prefs"
 import {
+  formatChapterHtml,
   formatChapterShare,
+  formatNoteHtml,
+  formatNoteShare,
   formatVerseShare,
   notesForVerse,
   passageUrl
 } from "../lib/share-text"
 
 export default class extends Controller {
-  static targets = ["tray", "preview", "chapterTray", "rangeTemplate", "title", "numsToggle", "copyButton"]
+  static targets = ["tray", "chapterTray", "rangeTemplate", "title", "numsToggle", "copyButton", "quietToggle"]
   static values = {
     focus: Number,
     spanStart: Number,
@@ -44,6 +47,7 @@ export default class extends Controller {
 
   connect() {
     this.selection = this.initialSelection()
+    this.collapsedNotes = new Set()
     this.onPointerMove = this.onPointerMove.bind(this)
     this.onPointerUp = this.onPointerUp.bind(this)
     this.flushPending = this.flushPending.bind(this)
@@ -88,7 +92,7 @@ export default class extends Controller {
 
   pressStart(event) {
     if (event.pointerType === "mouse" && event.button !== 0) return
-    if (event.target.closest(".note-tray, .note-preview, .otext, a, input, textarea, .jump, .topbar, .reader-dock")) return
+    if (event.target.closest(".note-tray, .chapter-tray, .otext, a, input, textarea, .jump, .topbar, .reader-dock, .reader-chrome")) return
     this.pointerOrigin = { x: event.clientX, y: event.clientY, t: event.timeStamp }
     const press = event.target.closest(".verse-press")
     const verse = press?.closest("[data-verse]")
@@ -165,6 +169,18 @@ export default class extends Controller {
     }
     const verse = event.currentTarget.closest("[data-verse]")
     if (!verse) return
+    const n = Number(verse.dataset.verse)
+    const expanding = this.element.classList.contains("is-expanded")
+    const notesOpen = [ ...verse.querySelectorAll(".note-tray[data-note-slug]") ].some((tray) => !tray.hidden)
+
+    if (expanding && notesOpen) {
+      this.collapsedNotes.add(n)
+      if (verse.classList.contains("is-open")) this.selection = null
+      this.applySelection({ replaceUrl: true })
+      return
+    }
+
+    this.collapsedNotes.delete(n)
     if (verse.classList.contains("is-open")) {
       this.selection = null
     } else {
@@ -299,14 +315,79 @@ export default class extends Controller {
     document.title = text
   }
 
+  toggleQuiet() {
+    this.applyQuiet(!this.element.classList.contains("is-quiet"))
+  }
+
+  applyQuiet(quiet) {
+    this.element.classList.toggle("is-quiet", quiet)
+    this.quietToggleTargets.forEach((button) => {
+      button.classList.toggle("is-on", quiet)
+      button.setAttribute("aria-pressed", quiet ? "true" : "false")
+      button.setAttribute("aria-label", quiet ? "Exit focus" : "Focus")
+      button.title = quiet ? "Exit focus" : "Focus"
+    })
+    if (!quiet) return
+    this.flushPending()
+    if (this.hasChapterTrayTarget) {
+      this.chapterTrayTarget.hidden = true
+      this.element.querySelectorAll("[data-action='click->reader#toggleChapter']").forEach((button) => {
+        button.classList.remove("is-on")
+        button.setAttribute("aria-pressed", "false")
+      })
+    }
+    this.element.classList.remove("is-expanded")
+    this.collapsedNotes = new Set()
+    this.element.querySelectorAll("[data-action='click->reader#toggleExpand']").forEach((button) => {
+      button.classList.remove("is-on")
+      button.setAttribute("aria-pressed", "false")
+    })
+    this.selection = null
+    this.applySelection({ replaceUrl: true })
+  }
+
   toggleChapter() {
     if (!this.hasChapterTrayTarget) return
-    this.chapterTrayTarget.hidden = !this.chapterTrayTarget.hidden
-    if (!this.chapterTrayTarget.hidden) this.focusOutliner(this.chapterTrayTarget)
+    if (this.chapterTrayTarget.hidden) this.openChapter()
+    else this.closeChapter()
+  }
+
+  openChapter() {
+    if (!this.hasChapterTrayTarget) return
+    this.chapterTrayTarget.hidden = false
+    this.syncChapterToggle(true)
+    this.focusOutliner(this.chapterTrayTarget)
+  }
+
+  closeChapter(event) {
+    if (!this.hasChapterTrayTarget || this.chapterTrayTarget.hidden) return
+    event?.preventDefault?.()
+    event?.stopPropagation?.()
+    this.flushPending()
+    this.chapterTrayTarget.hidden = true
+    this.syncChapterToggle(false)
+  }
+
+  closeChapterOnEscape(event) {
+    if (event.key !== "Escape") return
+    this.closeChapter(event)
+  }
+
+  syncChapterToggle(open) {
+    this.element.querySelectorAll("[data-action='click->reader#toggleChapter']").forEach((button) => {
+      button.classList.toggle("is-on", open)
+      button.setAttribute("aria-pressed", open ? "true" : "false")
+    })
   }
 
   toggleExpand() {
-    this.element.classList.toggle("is-expanded", !this.element.classList.contains("is-expanded"))
+    const expanding = !this.element.classList.contains("is-expanded")
+    this.element.classList.toggle("is-expanded", expanding)
+    this.collapsedNotes = new Set()
+    this.element.querySelectorAll("[data-action='click->reader#toggleExpand']").forEach((button) => {
+      button.classList.toggle("is-on", expanding)
+      button.setAttribute("aria-pressed", expanding ? "true" : "false")
+    })
     this.refreshExpand()
   }
 
@@ -316,48 +397,62 @@ export default class extends Controller {
 
   applyNums(hidden) {
     this.element.classList.toggle("is-nums-hidden", hidden)
-    if (this.hasNumsToggleTarget) {
-      this.numsToggleTarget.classList.toggle("is-on", hidden)
-      this.numsToggleTarget.setAttribute("aria-pressed", hidden ? "true" : "false")
-    }
+    this.numsToggleTargets.forEach((toggle) => {
+      toggle.classList.toggle("is-on", hidden)
+      toggle.setAttribute("aria-pressed", hidden ? "true" : "false")
+    })
     saveHideVerseNums(hidden)
   }
 
   refreshExpand() {
     const expanding = this.element.classList.contains("is-expanded")
-    this.element.querySelectorAll(".verse.has-note").forEach((row) => {
-      const open = row.classList.contains("is-open")
-      row.querySelectorAll(".note-preview").forEach((preview) => {
-        preview.hidden = !expanding || open
-      })
-      if (expanding && !open) {
-        this.traysIn(row).forEach((tray) => { tray.hidden = true })
-      }
+    this.element.querySelectorAll(".note-tray[data-note-slug]").forEach((tray) => {
+      const row = tray.closest(".verse")
+      const n = Number(row?.dataset.verse)
+      const selected = row?.classList.contains("is-open")
+      const collapsed = this.collapsedNotes.has(n)
+      tray.hidden = collapsed || !(expanding || selected)
     })
   }
 
   async copyPassage(event) {
     this.flushPending()
-    const text = this.shareTextFor(this.verseScope() ? "verse" : "chapter")
-    const ok = await this.writeClipboard(text)
+    const text = this.shareTextFor("chapter")
+    const html = this.shareHtmlFor("chapter")
+    const ok = await this.writeClipboard(text, html)
+    this.markCopied(event.currentTarget, ok)
+  }
+
+  async copyNote(event) {
+    event.preventDefault()
+    event.stopPropagation()
+    this.flushPending()
+    const tray = event.currentTarget.closest(".note-tray, .chapter-tray")
+    const host = tray?.querySelector(".outliner")
+    const controller = this.outlinerController(host)
+    const blocks = controller && !controller.isEmpty() ? controller.payload().blocks : []
+    const label = tray?.querySelector(".tray-label")?.textContent?.trim() || ""
+    const text = formatNoteShare({ label, blocks })
+    const html = formatNoteHtml({ label, blocks })
+    const ok = await this.writeClipboard(text, html)
     this.markCopied(event.currentTarget, ok)
   }
 
   async sharePassage(event) {
     this.flushPending()
     const scope = event.params.scope === "verse" ? "verse" : "chapter"
-    const text = this.shareTextFor(scope)
-    const title = text.split("\n")[0] || "Margin"
+    const payload = this.sharePayload(scope)
+    const copied = await this.writeClipboard(payload.text, payload.html)
     if (navigator.share) {
       try {
-        await navigator.share({ title, text })
+        // text-only: passing title/url makes some desktop sheets drop the body.
+        await navigator.share({ text: payload.text })
         return
       } catch (error) {
         if (error?.name === "AbortError") return
       }
     }
-    const ok = await this.writeClipboard(text)
-    this.markCopied(event.currentTarget, ok)
+    this.markCopied(event.currentTarget, copied)
   }
 
   async exportDocument(event) {
@@ -396,30 +491,66 @@ export default class extends Controller {
   }
 
   shareTextFor(scope) {
+    return this.sharePayload(scope).text
+  }
+
+  shareHtmlFor(scope) {
+    return this.sharePayload(scope).html
+  }
+
+  sharePayload(scope) {
     const notes = this.liveNotes()
-    const span = this.verseScope()
-    if (scope === "verse" && span) {
+    if (scope === "verse") {
+      const span = this.verseShareSpan()
       const verses = this.chapterVerses(notes, span.start, span.end)
       const slug = rangeSlug(this.chapterSlugValue, span.start, span.end)
       const label = this.shareLabel(span)
       const url = passageUrl(slug)
       if (span.start === span.end) {
         const row = verses[0]
-        return formatVerseShare({
+        const text = formatVerseShare({
           label,
           text: row?.text || "",
           notes: row?.notes || [],
           url
         })
+        return {
+          text,
+          html: formatChapterHtml({
+            label,
+            verses: verses.length ? verses : [ { n: span.start, heading: "", text: "", notes: [] } ]
+          })
+        }
       }
-      return formatChapterShare({ label, verses, url })
+      return {
+        text: formatChapterShare({ label, verses, url, bullets: true }),
+        html: formatChapterHtml({ label, verses })
+      }
     }
-    return formatChapterShare({
-      label: `${this.bookLabelValue} ${this.chapterValue}`,
-      chapterNote: notes.find((note) => note.slug === this.chapterSlugValue)?.blocks,
-      verses: this.chapterVerses(notes),
-      url: passageUrl(this.chapterSlugValue)
-    })
+
+    const label = `${this.bookLabelValue} ${this.chapterValue}`
+    const chapterNote = notes.find((note) => note.slug === this.chapterSlugValue)?.blocks
+    const verses = this.chapterVerses(notes)
+    return {
+      text: formatChapterShare({
+        label,
+        chapterNote,
+        verses,
+        url: passageUrl(this.chapterSlugValue),
+        bullets: true
+      }),
+      html: formatChapterHtml({ label, chapterNote, verses })
+    }
+  }
+
+  verseShareSpan() {
+    const selected = this.verseScope()
+    if (selected) return selected
+    const focus = Number(this.focusValue)
+    if (Number.isFinite(focus) && focus >= 1) return { start: focus, end: focus }
+    const first = Number(this.element.querySelector(".verse[data-verse]")?.dataset.verse)
+    if (Number.isFinite(first) && first >= 1) return { start: first, end: first }
+    return { start: 1, end: 1 }
   }
 
   liveNotes() {
@@ -440,7 +571,7 @@ export default class extends Controller {
       return [ {
         n,
         heading: row.querySelector(".section-head")?.textContent?.trim() || "",
-        text: row.querySelector(".vtext")?.textContent || "",
+        text: row.querySelector(".vtext")?.textContent?.trim() || "",
         notes: notesForVerse(notes, this.chapterSlugValue, n)
       } ]
     })
@@ -454,13 +585,27 @@ export default class extends Controller {
     return passageLabel(this.bookLabelValue, this.chapterValue, span.start, span.end)
   }
 
-  async writeClipboard(text) {
+  async writeClipboard(text, html) {
     try {
+      if (html && window.ClipboardItem && navigator.clipboard.write) {
+        await navigator.clipboard.write([
+          new ClipboardItem({
+            "text/plain": new Blob([ text ], { type: "text/plain" }),
+            "text/html": new Blob([ html ], { type: "text/html" })
+          })
+        ])
+        return true
+      }
       await navigator.clipboard.writeText(text)
       return true
     } catch {
-      window.prompt("Copy", text)
-      return false
+      try {
+        await navigator.clipboard.writeText(text)
+        return true
+      } catch {
+        window.prompt("Copy", text)
+        return false
+      }
     }
   }
 
@@ -639,8 +784,10 @@ export default class extends Controller {
     const start = parsed.verseStart
     const end = parsed.verseEnd || parsed.verseStart
     for (let n = start; n <= end; n += 1) this.verseEl(n)?.classList.add("has-note")
-    const expand = this.element.querySelector("[data-action='click->reader#toggleExpand']")
-    if (expand) expand.disabled = false
+    this.element.querySelectorAll("[data-action='click->reader#toggleExpand']").forEach((expand) => {
+      expand.disabled = false
+    })
+    if (this.element.classList.contains("is-expanded")) this.refreshExpand()
   }
 
   trayForSlug(slug) {

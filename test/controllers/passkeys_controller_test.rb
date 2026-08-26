@@ -19,6 +19,7 @@ class PasskeysControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_select "h1", "Passkeys"
     assert_select "rails-passkey-registration-button button[data-passkey='register']", "Register a passkey"
+    assert_select "rails-passkey-registration-button[options*='client-device']"
 
     challenge = refresh_webauthn_challenge(purpose: "registration")
     raw = webauthn_client.create(challenge: challenge)

@@ -75,6 +75,32 @@ class ShareTextTest < ActiveSupport::TestCase
     assert_match(/^1\. In the beginning/, text)
   end
 
+  test "book export uses nested markdown bullets for outliner notes" do
+    text = Margin::ShareText.document(
+      scope: "book",
+      book: "JHN",
+      notes: {
+        "jhn.1" => [
+          { "indent" => 0, "text" => "Prologue." },
+          { "indent" => 1, "text" => "The Word." }
+        ],
+        "jhn.1.1" => [
+          { "indent" => 0, "text" => "The Logos." },
+          { "indent" => 1, "text" => "Nested." }
+        ]
+      },
+      include_notes: true
+    )
+    assert_match(/\AJohn\n/, text)
+    assert_match(/^John 1\n/, text)
+    assert_match(/^- Prologue\.$/, text)
+    assert_match(/^  - The Word\.$/, text)
+    assert_match(/^1\. In the beginning was the Word/, text)
+    assert_match(/^  - The Logos\.$/, text)
+    assert_match(/^    - Nested\.$/, text)
+    refute_match(/^  The Logos\.$/, text)
+  end
+
   test "filename marks note exports" do
     assert_equal "john.md", Margin::ShareText.filename(scope: "book", book: "JHN", include_notes: false)
     assert_equal "john-notes.md", Margin::ShareText.filename(scope: "book", book: "JHN", include_notes: true)
