@@ -79,7 +79,7 @@ module Margin
           emit_ref_string(node)
         when Hash
           if ref_node?(node)
-            emit_ref_unit(Margin::Usj.plain_text(node["content"]))
+            emit_ref_unit(Margin::Usj.plain_text(node["content"]), loc: node["loc"])
           else
             render_refs(node["content"])
           end
@@ -91,10 +91,15 @@ module Margin
       node["type"] == "ref" || node["marker"].to_s == "ref"
     end
 
-    def emit_ref_unit(text)
+    def emit_ref_unit(text, loc: nil)
       return if text.blank?
 
-      @buf << %(<span class="pub-ref">#{h(text)}</span>)
+      passage = Margin::Passage.parse_usj_loc(loc) || Margin::Passage.parse(text)
+      if passage
+        @buf << %(<a class="pub-ref" href="#{h(@view.read_path(passage.slug))}">#{h(text)}</a>)
+      else
+        @buf << %(<span class="pub-ref">#{h(text)}</span>)
+      end
     end
 
     # Separators ("; ") stay breakable. A string that is itself a citation

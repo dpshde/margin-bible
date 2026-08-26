@@ -248,6 +248,14 @@ button, input, textarea { font: inherit; color: inherit; }
   word-break: keep-all;
   overflow-wrap: normal;
   hyphens: none;
+  color: inherit;
+  text-decoration: none;
+}
+a.pub-ref:hover,
+a.pub-ref:focus-visible {
+  color: var(--ink-soft);
+  text-decoration: underline;
+  text-underline-offset: .12em;
 }
 .wj { color: color-mix(in srgb, #9a3b32 58%, var(--ink)); }
 html[data-theme="dark"] .wj { color: color-mix(in srgb, #e0a39c 62%, var(--ink)); }
@@ -277,15 +285,20 @@ html[data-theme="dark"] .wj { color: color-mix(in srgb, #e0a39c 62%, var(--ink))
 .is-quiet .pub-q1,
 .is-quiet .pub-q2 {
   display: block;
-  margin: 0 0 .36em;
+  margin: 0;
   font-family: var(--read);
   font-weight: 300;
   font-size: max(16px, 1.18rem);
   line-height: 1.5;
 }
-.is-quiet .pub-q1 { margin-bottom: .12em; padding-left: .85rem; text-indent: -.3rem; }
+.is-quiet .pub-p { text-indent: 1.35em; }
+.is-quiet .section-head + .pub-p,
+.is-quiet .section-head + .pub-r + .pub-p {
+  text-indent: 0;
+}
+.is-quiet .pub-q1 { padding-left: .85rem; text-indent: -.3rem; }
 .is-quiet .pub-q2 { padding-left: 1.2rem; text-indent: -.3rem; }
-.is-quiet .pub-b { height: .28em; }
+.is-quiet .pub-b { height: .18em; }
 .is-quiet .verse {
   display: contents;
   position: static;
@@ -296,17 +309,18 @@ html[data-theme="dark"] .wj { color: color-mix(in srgb, #e0a39c 62%, var(--ink))
 .is-quiet .section-head {
   display: block;
   width: 100%;
-  margin: .9em 0 .28em;
+  margin: 1em 0 .1em;
   margin-left: 0;
 }
 .is-quiet .section-head:first-child { margin-top: .15em; }
-.is-quiet .section-head.spaced { margin-top: .9em; }
+.is-quiet .section-head.spaced { margin-top: 1em; }
 .is-quiet .section-head + .pub-p { margin-top: 0; }
 .is-quiet .verse-press {
   display: contents;
   width: auto;
   padding: 0;
   margin: 0;
+  min-height: 0;
   gap: 0;
   grid-template-columns: none;
 }
@@ -339,9 +353,11 @@ html[data-theme="dark"] .wj { color: color-mix(in srgb, #e0a39c 62%, var(--ink))
   min-height: 0;
   box-shadow: none;
 }
+.is-quiet .note-tray { padding: 0; margin: 0; }
 .is-quiet .oblock {
   display: block;
-  padding: .35em 0;
+  padding: 0;
+  margin: 0;
 }
 .is-quiet .obullet { display: none; }
 .is-quiet .otext {
@@ -965,4 +981,9 @@ html.hotwire-native .reader-dock { display: flex; }
   .verse { padding-left: var(--verse-inset); }
   .verse-press { padding: .2rem 0; }
   .vnum { font-size: .68rem; padding-top: .36rem; }
+  .is-quiet .verse,
+  .is-quiet .verse-press {
+    padding: 0;
+    min-height: 0;
+  }
 }

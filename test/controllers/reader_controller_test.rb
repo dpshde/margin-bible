@@ -142,9 +142,10 @@ class ReaderControllerTest < ActionDispatch::IntegrationTest
     assert_equal "r", first.next_element["data-usfm"]
     xref = first.next_element
     assert_equal "pub-r", xref["class"]
-    refs = xref.css("span.pub-ref").map { |el| el.text }
-    assert_equal [ "Matthew 4:18–22", "Mark 1:16–20", "Luke 5:1–11" ], refs
-    refute refs.any? { |text| text.strip == "Luke" }
+    refs = xref.css("a.pub-ref")
+    assert_equal [ "Matthew 4:18–22", "Mark 1:16–20", "Luke 5:1–11" ], refs.map(&:text)
+    assert_equal [ "/mat.4.18-22", "/mrk.1.16-20", "/luk.5.1-11" ], refs.map { |el| el["href"] }
+    refute refs.any? { |el| el.text.strip == "Luke" }
     paras = []
     node = first.next_element
     while node && node.name != "h2"

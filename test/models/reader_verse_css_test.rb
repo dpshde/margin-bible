@@ -55,6 +55,7 @@ class ReaderVerseCssTest < ActiveSupport::TestCase
     assert unit
     assert_match(/white-space:\s*nowrap/, unit)
     assert_match(/display:\s*inline-block/, unit)
+    assert_match(/text-decoration:\s*none/, unit)
     quiet_r = css[/\.is-quiet \.pub-r\s*\{[^}]+\}/]
     assert quiet_r
     assert_match(/display:\s*none/, quiet_r)
@@ -68,12 +69,19 @@ class ReaderVerseCssTest < ActiveSupport::TestCase
     para = css[/\.is-quiet \.pub-p,\s*\.is-quiet \.pub-q1,\s*\.is-quiet \.pub-q2\s*\{[^}]+\}/]
     assert para
     assert_match(/display:\s*block/, para)
-    assert_match(/margin:\s*0 0 \.36em/, para)
+    assert_match(/margin:\s*0/, para)
+    refute_match(/margin:\s*0 0 \.36em/, para)
     refute_match(/margin:\s*0 0 \.7em/, para)
+    quiet_p = css[/\.is-quiet \.pub-p\s*\{[^}]+\}/]
+    assert quiet_p
+    assert_match(/text-indent:\s*1\.35em/, quiet_p)
+    assert_match(/\.is-quiet \.section-head \+ \.pub-p,\s*\.is-quiet \.section-head \+ \.pub-r \+ \.pub-p\s*\{[^}]*text-indent:\s*0/m, css)
     assert_match(/\.is-quiet \.pub-q1\s*\{[^}]*padding-left:\s*\.85rem/m, css)
     assert_match(/\.is-quiet \.pub-q2\s*\{[^}]*padding-left:\s*1\.2rem/m, css)
-    assert_match(/\.is-quiet \.pub-b\s*\{[^}]*height:\s*\.28em/, css)
-    assert_match(/\.is-quiet \.section-head\.spaced\s*\{[^}]*margin-top:\s*\.9em/, css)
+    assert_match(/\.is-quiet \.pub-b\s*\{[^}]*height:\s*\.18em/, css)
+    assert_match(/\.is-quiet \.section-head\.spaced\s*\{[^}]*margin-top:\s*1em/, css)
+    assert_match(/\.is-quiet \.oblock\s*\{[^}]*padding:\s*0/, css)
+    assert_match(/\.is-quiet \.note-tray\s*\{[^}]*padding:\s*0/, css)
     verse = css[/\.is-quiet \.verse\s*\{[^}]+\}/]
     assert verse
     assert_match(/display:\s*contents/, verse)

@@ -16,19 +16,34 @@ class UsjHtmlTest < ActionView::TestCase
       ")"
     )
 
-    refs = Nokogiri::HTML.fragment(html).css(".pub-ref").map(&:text)
-    assert_equal [ "Matthew 4:18–22", "Mark 1:16–20", "Luke 5:1–11" ], refs
-    assert_includes html, "</span>; <span class=\"pub-ref\">Luke 5:1–11</span>)"
+    doc = Nokogiri::HTML.fragment(html)
+    refs = doc.css("a.pub-ref")
+    assert_equal [ "Matthew 4:18–22", "Mark 1:16–20", "Luke 5:1–11" ], refs.map(&:text)
+    assert_equal "/mat.4.18-22", refs[0]["href"]
+    assert_equal "/mrk.1.16-20", refs[1]["href"]
+    assert_equal "/luk.5.1-11", refs[2]["href"]
     refute_includes html, ">Luke<"
     refute_includes html, ">5:1–11)<"
+  end
+
+  test "USJ loc becomes an in-app reader slug" do
+    html = render_refs(
+      { "type" => "ref", "loc" => "MAT 4:18-22", "content" => [ "Matthew 4:18–22" ] },
+      "; ",
+      { "type" => "ref", "loc" => "LUK 5:1-11", "content" => [ "Luke 5:1–11" ] }
+    )
+
+    doc = Nokogiri::HTML.fragment(html)
+    assert_equal "/mat.4.18-22", doc.at_css("a.pub-ref")["href"]
+    assert_equal "/luk.5.1-11", doc.css("a.pub-ref").last["href"]
   end
 
   test "a string-only r line still wraps only at the semicolon" do
     html = render_refs("(Matthew 4:18–22; Mark 1:16–20; Luke 5:1–11)")
 
-    refs = Nokogiri::HTML.fragment(html).css(".pub-ref").map(&:text)
-    assert_equal [ "Matthew 4:18–22", "Mark 1:16–20", "Luke 5:1–11" ], refs
-    assert_includes html, "</span>; <span class=\"pub-ref\">Luke 5:1–11</span>)"
+    refs = Nokogiri::HTML.fragment(html).css("a.pub-ref")
+    assert_equal [ "Matthew 4:18–22", "Mark 1:16–20", "Luke 5:1–11" ], refs.map(&:text)
+    assert_equal "/luk.5.1-11", refs.last["href"]
   end
 
   private

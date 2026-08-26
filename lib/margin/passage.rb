@@ -111,6 +111,21 @@ module Margin
       parse(input) or raise ArgumentError, "unresolvable passage: #{input.inspect}"
     end
 
+    # Official BSB USJ ref@loc, e.g. "MAT 4:18-22" / "ISA 40:3" / "JHN 1".
+    def self.parse_usj_loc(loc)
+      raw = loc.to_s.strip.tr("–—", "-")
+      return if raw.blank?
+
+      if (m = raw.match(/\A([1-3]?[A-Za-z]{2,3})\s+(\d+)(?::(\d+)(?:-(\d+))?)?\z/))
+        book = Books.resolve_alias(m[1]) || m[1].upcase
+        return unless Books::CODES.include?(book)
+
+        new(book:, chapter: m[2].to_i, verse_start: m[3]&.to_i, verse_end: m[4]&.to_i)
+      else
+        parse(raw)
+      end
+    end
+
     def self.parse_human(raw)
       s = raw.downcase.tr("–—", "-").gsub(/\s+/, " ").strip
       # "john 3:16-18" / "1 john 1" / "jn 3"
