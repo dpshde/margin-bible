@@ -5,6 +5,7 @@ import InboxController from "./inbox_controller"
 import OutlinerController from "./outliner_controller"
 import ReaderController from "./reader_controller"
 import SearchController from "./search_controller"
+import SignInController from "./sign_in_controller"
 import ThemeController from "./theme_controller"
 
 application.register("chrome", ChromeController)
@@ -13,4 +14,5 @@ application.register("inbox", InboxController)
 application.register("outliner", OutlinerController)
 application.register("reader", ReaderController)
 application.register("search", SearchController)
+application.register("sign-in", SignInController)
 application.register("theme", ThemeController)

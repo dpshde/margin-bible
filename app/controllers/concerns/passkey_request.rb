@@ -36,4 +36,13 @@ module PasskeyRequest
     def consume_webauthn_challenge
       session.delete(:webauthn_challenge)
     end
+
+    def pending_passkey_holder
+      session[:pending_webauthn_id] ||= WebAuthn.generate_user_id
+      User.new(webauthn_id: session[:pending_webauthn_id])
+    end
+
+    def consume_pending_webauthn_id
+      session.delete(:pending_webauthn_id).presence || WebAuthn.generate_user_id
+    end
 end
