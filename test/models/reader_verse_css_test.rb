@@ -161,6 +161,8 @@ class ReaderVerseCssTest < ActiveSupport::TestCase
     assert_match(/box-shadow:\s*none/, quiet_chrome)
     refute_match(/html:not\(\.hotwire-native\)\.is-quiet \.reader-chrome/, css)
     assert_match(/html:not\(\.hotwire-native\) \.is-quiet \.reader-chrome\s*\{[^}]*background:\s*transparent/, css)
+    assert_match(/\.chapter-grid-cells\[hidden\]/, css)
+    assert_match(/\.chapter-grid-book::after/, css)
     refute_match(/\.is-quiet \.reader-chrome\s*\{\s*display:\s*none/, css)
     refute_match(/\.is-quiet \.jump[^{]*\{[^}]*display:\s*none/, css)
     refute_match(/\.is-quiet \.jump input\[type="search"\]\s*\{[^}]*background:\s*transparent/, css)

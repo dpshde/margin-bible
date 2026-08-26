@@ -121,17 +121,32 @@ button, input, textarea { font: inherit; color: inherit; }
 }
 .chapter-grid-book {
   appearance: none; -webkit-appearance: none;
-  display: block; width: 100%; margin: 0 0 .75rem; padding: 0;
+  display: inline-flex; align-items: center; gap: .35rem;
+  width: auto; max-width: 100%; margin: 0 0 .75rem; padding: 0;
   border: 0; background: transparent; cursor: pointer;
   font: inherit; text-align: left;
   font-size: .82rem; font-weight: 600;
   letter-spacing: .06em; text-transform: uppercase;
   color: var(--muted);
 }
+.chapter-grid-book::after {
+  content: "";
+  width: .38rem; height: .38rem;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: rotate(-45deg);
+  opacity: .7;
+}
+.chapter-grid-book[aria-expanded="true"]::after {
+  transform: rotate(45deg);
+  margin-bottom: .15rem;
+}
 .chapter-grid-book:focus-visible {
   outline: 2px solid color-mix(in srgb, var(--ink) 28%, transparent);
   outline-offset: 2px;
 }
+.chapter-grid-books[hidden],
+.chapter-grid-cells[hidden] { display: none; }
 .chapter-grid-group {
   margin: .85rem 0 .4rem;
   font-size: .72rem; font-weight: 600;
