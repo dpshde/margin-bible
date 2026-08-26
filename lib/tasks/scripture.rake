@@ -44,12 +44,12 @@ namespace :margin do
       next
     end
 
-    unless Margin::Bsb.pack_path.exist?
-      raise "Missing #{Margin::Bsb.pack_path}. Run bin/rails margin:build_bsb_pack or keep the committed fallback."
+    unless Margin::Usj.available?("JHN")
+      raise "Missing BSB USJ at #{Margin::Usj::ROOT}. Vendor official bereanbible.com USJ packs."
     end
 
     count = Margin::Bsb.seed_all!
-    puts "Loaded #{count} BSB verses from #{Margin::Bsb.pack_path}"
+    puts "Loaded #{count} BSB verses from #{Margin::Usj::ROOT}"
   end
 end
 

@@ -130,17 +130,30 @@ class ReaderControllerTest < ActionDispatch::IntegrationTest
     end
   end
 
-  test "publication tree groups The First Disciples into one paragraph" do
+  test "First Disciples is several USJ paragraphs with a poetry pair at 1:23" do
     Verse.delete_all
     get read_path("jhn.1")
+    assert_select "h2.section-head[data-usfm='s1']", "The Beginning"
+    assert_select "h2.section-head[data-usfm='s1']", "The Witness of John"
+    assert_select "h2.section-head[data-usfm='s1']", "The Word Became Flesh"
     assert_select "h2.section-head[data-usfm='s1']", "The First Disciples"
-    assert_select "h2.section-head[data-usfm='s1'] + .pub-p[data-usfm='p']"
     first = css_select("h2.section-head").find { |node| node.text == "The First Disciples" }
-    para = first.next_element
-    assert_equal "pub-p", para["class"]
-    assert_equal "p", para["data-usfm"]
-    assert_equal (35..42).to_a, para.css("[data-verse]").map { |node| node["data-verse"].to_i }
+    assert first
+    assert_equal "r", first.next_element["data-usfm"]
+    paras = []
+    node = first.next_element
+    while node && node.name != "h2"
+      paras << node if node["data-usfm"] == "p"
+      node = node.next_element
+    end
+    assert_operator paras.size, :>=, 4
+    assert_equal [ 35, 36, 37 ], paras[0].css("[data-verse]").map { |el| el["data-verse"].to_i }.uniq
+    assert_equal [ 38 ], paras[1].css("[data-verse]").map { |el| el["data-verse"].to_i }.uniq
+    refute_equal (35..42).to_a, paras[0].css("[data-verse]").map { |el| el["data-verse"].to_i }.uniq
+    assert_select ".pub-q1[data-usfm='q1']", /voice of one calling/
+    assert_select ".pub-q2[data-usfm='q2']", /Make straight the way for the Lord/
     assert_select ".vnum[data-usfm='v']", "35"
+    assert_select ".wj", /What do you want/
   end
 
   test "chapter title opens this book's chapter grid" do

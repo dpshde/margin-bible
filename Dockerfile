@@ -14,8 +14,7 @@ ENV RAILS_ENV=production \
     BUNDLE_DEPLOYMENT=1 \
     BUNDLE_PATH=/usr/local/bundle \
     BUNDLE_WITHOUT=development:test \
-    PORT=80 \
-    MARGIN_BSB_URL=https://arweave.net/B6yeNb3lk_VkiIp-fTWVh13TlM94LjLK6kC63BPXa8s
+    PORT=80
 
 RUN apt-get update -qq && \
     apt-get install --no-install-recommends -y \
@@ -54,13 +53,11 @@ RUN npm ci
 
 COPY . .
 
-# Fetch Arweave BSB JSONL once (full GET, never Range). Convert to the chapter
-# pack at vendor/scripture/bsb/chapters.json.gz. If the gateway is down, keep
-# that committed fallback pack. Seed sqlite for a warm preview; the reader can
-# also hydrate one chapter from the pack.
+# Scripture is the vendored BSB USJ under vendor/scripture/bsb/usj
+# (never fetched at runtime). Seed sqlite
+# for a warm preview; the reader hydrates a chapter from USJ when needed.
 RUN npm run build && \
     SECRET_KEY_BASE_DUMMY=1 bundle exec rails assets:precompile && \
-    (SECRET_KEY_BASE_DUMMY=1 bundle exec rails margin:build_bsb_pack || echo "using committed BSB fallback pack") && \
     SECRET_KEY_BASE_DUMMY=1 bundle exec rails db:prepare && \
     SECRET_KEY_BASE_DUMMY=1 bundle exec rails margin:seed_scripture && \
     rm -rf node_modules tmp/cache && \

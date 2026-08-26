@@ -126,64 +126,17 @@
     </section>
 
     <article class="chapter">
-      <% @pericopes.each do |pericope| %>
-        <% if pericope.heading.present? %>
-          <h2 class="section-head <%= "spaced" if pericope.verses.first.verse > 1 %>" data-usfm="s1"><%= pericope.heading %></h2>
-        <% end %>
-        <div class="pub-p" data-usfm="p">
-      <% pericope.verses.each do |verse| %>
-        <% vslug = @chapter.verse_slug(verse.verse) %>
-        <% covering = @notes_by_verse[verse.verse] || [] %>
-        <% exact = covering.find { |note| note.slug == vslug } %>
-        <% range_note = range_slug && covering.find { |note| note.slug == range_slug } %>
-        <% in_span = span_start && verse.verse >= span_start && verse.verse <= span_end %>
-        <% is_end = range_selected && verse.verse == span_end %>
-        <% is_single_open = single_selected && verse.verse == span_start %>
-        <% trays_open = is_single_open || is_end %>
-        <div
-          class="verse <%= "has-note" if covering.any? %> <%= "is-open" if trays_open %> <%= "is-span" if in_span %>"
-          id="v<%= verse.verse %>"
-          data-verse="<%= verse.verse %>"
-          data-slug="<%= vslug %>"
-        >
-          <button type="button" class="verse-press" data-action="click->reader#openVerse">
-            <span class="vnum" data-usfm="v"><%= verse.verse %></span>
-            <span class="vtext"><%= verse.text %></span>
-          </button>
-          <% if covering.any? && !trays_open %>
-            <div class="rail" aria-hidden="true"></div>
-          <% end %>
-          <% covering.each do |note| %>
-            <section class="note-card">
-              <div class="note-tray" data-reader-target="tray" data-note-slug="<%= note.slug %>" <%= "hidden" unless trays_open %>>
-                <%= render "reader/note_editor", slug: note.slug, note: note, label: note.passage.label %>
-              </div>
-            </section>
-          <% end %>
-          <% if is_end && range_slug && range_note.nil? %>
-            <div
-              class="note-tray"
-              data-reader-target="tray"
-              data-range-composer
-              data-range-slug="<%= range_slug %>"
-            >
-              <%= render "reader/note_editor", slug: range_slug, note: nil, label: @passage.label %>
-            </div>
-          <% end %>
-          <% unless exact %>
-            <div
-              class="note-tray"
-              data-reader-target="tray"
-              data-verse-composer
-              <%= "hidden" unless is_single_open %>
-            >
-              <%= render "reader/note_editor", slug: vslug, note: nil, label: nil %>
-            </div>
-          <% end %>
-        </div>
-      <% end %>
-        </div>
-      <% end %>
+      <%= render_usj_chapter(
+            @usj_nodes,
+            chapter: @chapter,
+            notes_by_verse: @notes_by_verse,
+            span_start:,
+            span_end:,
+            range_slug:,
+            range_selected:,
+            single_selected:,
+            passage_label: @passage.label
+          ) %>
     </article>
 
     <template data-reader-target="rangeTemplate">

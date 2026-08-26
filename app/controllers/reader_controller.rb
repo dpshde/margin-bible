@@ -13,11 +13,11 @@ class ReaderController < ApplicationController
     @trail = current_library.trail_passages.reject { |passage| passage.slug == @passage.slug }
 
     @verses = Margin::Bsb.hydrate_chapter!(@chapter.book, @chapter.chapter)
-    if @verses.empty?
+    @usj_nodes = Margin::Usj.chapter_nodes(@chapter.book, @chapter.chapter)
+    if @usj_nodes.empty? && @verses.empty?
       render :missing, status: :not_found
       return
     end
-    @pericopes = Margin::Publication.pericopes(@verses)
 
     notes = current_library.notes_in_chapter(@chapter.book, @chapter.chapter)
     @chapter_note = notes.find { |note| note.kind == "chapter" || note.slug == @chapter.slug }

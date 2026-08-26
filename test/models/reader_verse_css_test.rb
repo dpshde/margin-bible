@@ -45,8 +45,10 @@ class ReaderVerseCssTest < ActiveSupport::TestCase
   end
 
   test "quiet reading is a USFM paragraph, not a verse card stack" do
-    assert_match(/\.pub-p\s*\{\s*display:\s*contents/, css)
-    para = css[/\.is-quiet \.pub-p\s*\{[^}]+\}/]
+    assert_match(/\.pub-p, \.pub-q1, \.pub-q2\s*\{[^}]*display:\s*block/m, css)
+    assert_match(/\.pub-q1\s*\{[^}]*padding-left:/m, css)
+    assert_match(/\.pub-q2\s*\{[^}]*padding-left:/m, css)
+    para = css[/\.is-quiet \.pub-p,\s*\.is-quiet \.pub-q1,\s*\.is-quiet \.pub-q2\s*\{[^}]+\}/]
     assert para
     assert_match(/display:\s*block/, para)
     verse = css[/\.is-quiet \.verse\s*\{[^}]+\}/]

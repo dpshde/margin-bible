@@ -1,0 +1,40 @@
+<%
+  covering = local_assigns[:covering] || []
+  exact = local_assigns[:exact]
+  range_note = local_assigns[:range_note]
+  range_slug = local_assigns[:range_slug]
+  trays_open = local_assigns[:trays_open]
+  is_end = local_assigns[:is_end]
+  passage_label = local_assigns[:passage_label]
+  vslug = local_assigns[:vslug]
+%>
+<% if covering.any? && !trays_open %>
+  <div class="rail" aria-hidden="true"></div>
+<% end %>
+<% covering.each do |note| %>
+  <section class="note-card">
+    <div class="note-tray" data-reader-target="tray" data-note-slug="<%= note.slug %>" <%= "hidden" unless trays_open %>>
+      <%= render "reader/note_editor", slug: note.slug, note: note, label: note.passage.label %>
+    </div>
+  </section>
+<% end %>
+<% if is_end && range_slug && range_note.nil? %>
+  <div
+    class="note-tray"
+    data-reader-target="tray"
+    data-range-composer
+    data-range-slug="<%= range_slug %>"
+  >
+    <%= render "reader/note_editor", slug: range_slug, note: nil, label: passage_label %>
+  </div>
+<% end %>
+<% unless exact %>
+  <div
+    class="note-tray"
+    data-reader-target="tray"
+    data-verse-composer
+    <%= "hidden" unless local_assigns[:is_single_open] %>
+  >
+    <%= render "reader/note_editor", slug: vslug, note: nil, label: nil %>
+  </div>
+<% end %>
