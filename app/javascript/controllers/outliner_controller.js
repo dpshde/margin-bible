@@ -2,13 +2,13 @@ import { Controller } from "@hotwired/stimulus"
 import {
   arrowBlockNav,
   backspaceAtStart,
+  applySpaceIndent,
   blockHasBullet,
   caretForNeighbor,
   consumeListMarker,
-  canIndentSubtree,
-  indentFromControl,
   indentSubtree,
   shouldBulletOnSpace,
+  shouldIndentOnSpace,
   insertNewline,
   insertPastedLines,
   isEmptyBlocks,
@@ -122,10 +122,6 @@ export default class extends Controller {
   }
 
   onFocusIn(event) {
-    if (event.target.closest(".oindent")) {
-      this.syncIndentControls()
-      return
-    }
     const textEl = event.target.closest(".otext")
     if (!textEl || !this.element.contains(textEl) || textEl.dataset.editing === "1") return
     const index = this.indexOf(textEl)
@@ -135,7 +131,6 @@ export default class extends Controller {
     textEl.dataset.editing = "1"
     this.fillEditable(textEl, this.blocks[index].text, { decorate: false })
     if (offset != null) this.setCaret(textEl, offset)
-    this.syncIndentControls()
   }
 
   onFocusOut(event) {
@@ -155,10 +150,18 @@ export default class extends Controller {
     this.syncFromDom()
     const index = this.indexOf(textEl)
     if (index < 0) return
-    if (!shouldBulletOnSpace(this.blocks[index].text, this.caretOffset(textEl))) return
+    const caret = this.caretOffset(textEl)
+    if (shouldBulletOnSpace(this.blocks[index].text, caret)) {
+      event.preventDefault()
+      this.blocks[index].bullet = true
+      this.blocks[index].text = ""
+      this.render(this.blocks[index].id, 0)
+      this.emitChange()
+      return
+    }
+    if (!shouldIndentOnSpace(this.blocks[index].text, caret)) return
     event.preventDefault()
-    this.blocks[index].bullet = true
-    this.blocks[index].text = ""
+    applySpaceIndent(this.blocks, index)
     this.render(this.blocks[index].id, 0)
     this.emitChange()
   }
@@ -168,8 +171,12 @@ export default class extends Controller {
     if (!textEl) return
     this.syncFromDom()
     const index = this.indexOf(textEl)
-    if (index >= 0 && consumeListMarker(this.blocks[index])) {
-      this.render(this.blocks[index].id, 0)
+    if (index >= 0) {
+      const consumedMarker = consumeListMarker(this.blocks[index])
+      const consumedSpaces = /^ {2}/.test(this.blocks[index].text) && applySpaceIndent(this.blocks, index)
+      if (consumedMarker || consumedSpaces) {
+        this.render(this.blocks[index].id, 0)
+      }
     }
     this.clearSelectScope()
     this.emitChange()
@@ -220,7 +227,6 @@ export default class extends Controller {
         this.render(this.blocks[index].id, this.caretOffset(textEl))
         this.emitChange()
       }
-      this.syncIndentControls()
       return
     }
 
@@ -353,57 +359,10 @@ export default class extends Controller {
     return this.blocks.findIndex((block) => block.id === id)
   }
 
-  keepFocus(event) {
-    event.preventDefault()
-  }
-
-  indent(event) {
-    event.preventDefault()
-    this.applyIndent(1)
-  }
-
-  outdent(event) {
-    event.preventDefault()
-    this.applyIndent(-1)
-  }
-
-  applyIndent(delta) {
-    this.syncFromDom()
-    const index = this.focusedBlockIndex()
-    if (index < 0) return
-    const current = this.blocks[index]
-    const textEl = this.element.querySelector(`[data-block-id="${CSS.escape(current.id)}"] .otext`)
-    const caret = textEl ? this.caretOffset(textEl) : 0
-    if (!indentFromControl(this.blocks, index, delta)) return
-    this.focusedId = current.id
-    this.render(current.id, caret)
-    this.emitChange()
-  }
-
-  focusedBlockIndex() {
-    const active = this.element.querySelector(".otext:focus")
-    if (active) return this.indexOf(active)
-    if (this.focusedId) {
-      return this.blocks.findIndex((block) => block.id === this.focusedId)
-    }
-    return -1
-  }
-
-  syncIndentControls() {
-    const index = this.focusedBlockIndex()
-    const indentBtn = this.element.querySelector("[data-oindent='in']")
-    const outdentBtn = this.element.querySelector("[data-oindent='out']")
-    if (indentBtn) indentBtn.disabled = !canIndentSubtree(this.blocks, index, 1)
-    if (outdentBtn) outdentBtn.disabled = !canIndentSubtree(this.blocks, index, -1)
-  }
-
   render(focusId, caret) {
-    const chrome = [ ...this.element.querySelectorAll(":scope > .oindent") ]
     const fragment = document.createDocumentFragment()
-    chrome.forEach((node) => fragment.append(node))
     this.blocks.forEach((block) => fragment.append(this.rowElement(block)))
     this.element.replaceChildren(fragment)
-    this.syncIndentControls()
     if (!focusId) return
     this.focusBlock(focusId, caret)
   }

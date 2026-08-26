@@ -46,7 +46,7 @@ class ReaderVerseCssTest < ActiveSupport::TestCase
     assert rail
     assert_match(/display:\s*none/, rail)
     refute_includes rail, ".oindent"
-    assert_match(/\.is-quiet \.outliner:focus-within \.oindent\s*\{[^}]*display:\s*flex/, css)
+    refute_match(/\.oindent/, css)
     refute_match(/\.is-quiet \.obullet\s*\{\s*display:\s*none/, css)
     assert_match(/\.is-quiet \.oblock\.is-bullet \.obullet\s*\{[^}]*display:\s*block/, css)
     assert_match(/\.is-quiet \.chapter-tray\s*\{\s*display:\s*none/, css)

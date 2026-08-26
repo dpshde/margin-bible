@@ -6,9 +6,11 @@ import {
   caretForNeighbor,
   consumeListMarker,
   canIndentSubtree,
+  applySpaceIndent,
   indentFromControl,
   indentSubtree,
   shouldBulletOnSpace,
+  shouldIndentOnSpace,
   insertNewline,
   insertPastedLines,
   isEmptyBlocks,
@@ -126,10 +128,16 @@ function clone(blocks) {
   const emptyChild = { id: "b_ii09", indent: 1, text: "", bullet: false }
   const grandchild = { id: "b_jj0a", indent: 2, text: "Keep", bullet: false }
   const blocks = clone([parent, emptyChild, grandchild])
-  backspaceAtStart(blocks, 1)
-  assert.equal(blocks.length, 2)
-  assert.equal(blocks[1].id, "b_jj0a")
-  assert.equal(blocks[1].indent, 1)
+  const result = backspaceAtStart(blocks, 1)
+  assert.equal(result.changed, true)
+  assert.equal(result.focusId, "b_ii09")
+  assert.equal(result.caret, 0)
+  assert.equal(blocks.length, 3)
+  assert.equal(blocks[1].id, "b_ii09")
+  assert.equal(blocks[1].indent, 0)
+  assert.equal(blocks[1].text, "")
+  assert.equal(blocks[2].id, "b_jj0a")
+  assert.equal(blocks[2].indent, 1)
 }
 
 {
@@ -251,6 +259,67 @@ function clone(blocks) {
   assert.equal(nextSelectScope(null), "line")
   assert.equal(nextSelectScope("line"), "all")
   assert.equal(nextSelectScope("all"), "line")
+}
+
+{
+  assert.equal(shouldIndentOnSpace("", 0), false)
+  assert.equal(shouldIndentOnSpace("hello", 0), false)
+  assert.equal(shouldIndentOnSpace("hello", 1), false)
+  assert.equal(shouldIndentOnSpace(" ", 1), true)
+  assert.equal(shouldIndentOnSpace(" ", 0), true)
+  assert.equal(shouldIndentOnSpace("  Child", 0), true)
+  assert.equal(shouldIndentOnSpace("-", 1), false)
+}
+
+{
+  const blocks = clone([parent, { id: "b_space", indent: 0, text: "  Child", bullet: true }])
+  assert.equal(applySpaceIndent(blocks, 1), true)
+  assert.equal(blocks[1].indent, 1)
+  assert.equal(blocks[1].text, "Child")
+  assert.equal(blocks[1].text.startsWith(" "), false)
+}
+
+{
+  const blocks = clone([parent, { id: "b_one", indent: 0, text: " ", bullet: true }])
+  assert.equal(applySpaceIndent(blocks, 1), true)
+  assert.equal(blocks[1].indent, 1)
+  assert.equal(blocks[1].text, "")
+}
+
+{
+  const blocks = clone([{ id: "b_first", indent: 0, text: "  First", bullet: true }])
+  assert.equal(applySpaceIndent(blocks, 0), true)
+  assert.equal(blocks[0].indent, 0)
+  assert.equal(blocks[0].text, "First")
+}
+
+{
+  const blocks = clone([parent, { id: "b_out", indent: 1, text: "Child", bullet: true }])
+  const result = backspaceAtStart(blocks, 1)
+  assert.equal(result.changed, true)
+  assert.equal(result.focusId, "b_out")
+  assert.equal(result.caret, 0)
+  assert.equal(blocks.length, 2)
+  assert.equal(blocks[1].indent, 0)
+  assert.equal(blocks[1].text, "Child")
+  assert.equal(blocks[1].bullet, true)
+}
+
+{
+  const blocks = clone([parent, { id: "b_drop", indent: 0, text: "Child", bullet: true }])
+  const result = backspaceAtStart(blocks, 1)
+  assert.equal(result.changed, true)
+  assert.equal(blocks.length, 2)
+  assert.equal(blocks[1].indent, 0)
+  assert.equal(blocks[1].bullet, false)
+  assert.equal(blocks[1].text, "Child")
+}
+
+{
+  const blocks = clone([{ id: "b_plain", indent: 0, text: "First", bullet: false }])
+  const result = backspaceAtStart(blocks, 0)
+  assert.equal(result.changed, false)
+  assert.equal(blocks[0].text, "First")
 }
 
 console.log("outliner-blocks: ok")

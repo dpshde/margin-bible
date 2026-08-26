@@ -261,8 +261,9 @@ class ReaderControllerTest < ActionDispatch::IntegrationTest
     assert_select ".note-tray .tray-head .tray-bookmark + .tray-external"
     assert_select ".note-tray .tray-head .tray-external + .tray-clear"
     assert_select ".tray-meta", count: 0
-    assert_select ".outliner .oindent button[data-oindent='out'][aria-label='Outdent']"
-    assert_select ".outliner .oindent button[data-oindent='in'][aria-label='Indent']"
+    assert_select ".oindent", count: 0
+    assert_select ".oindent-btn", count: 0
+    assert_select "[data-oindent]", count: 0
     assert_select ".tray-head", text: /Autosaves/, count: 0
     assert_select ".tray-head a", text: /route\.bible/, count: 0
     assert_select "textarea.note-input", count: 0

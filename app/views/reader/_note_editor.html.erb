@@ -10,36 +10,6 @@
   data-slug="<%= slug %>"
   data-action="outliner:change->reader#autosave"
 >
-  <div class="oindent" role="toolbar" aria-label="Indent line">
-    <button
-      type="button"
-      class="oindent-btn"
-      data-oindent="out"
-      data-action="pointerdown->outliner#keepFocus click->outliner#outdent"
-      aria-label="Outdent"
-      title="Outdent"
-      disabled
-    >
-      <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-        <path d="M7 4h7M7 8h7M7 12h5" />
-        <path d="M5 4 2 8l3 4" />
-      </svg>
-    </button>
-    <button
-      type="button"
-      class="oindent-btn"
-      data-oindent="in"
-      data-action="pointerdown->outliner#keepFocus click->outliner#indent"
-      aria-label="Indent"
-      title="Indent"
-      disabled
-    >
-      <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-        <path d="M2 4h7M2 8h7M2 12h5" />
-        <path d="m11 4 3 4-3 4" />
-      </svg>
-    </button>
-  </div>
   <% editor_blocks.each do |block| %>
     <div class="oblock<%= " is-bullet" unless block["bullet"] == false %>" data-block-id="<%= block["id"] %>" data-bullet="<%= block["bullet"] == false ? "0" : "1" %>" style="--depth: <%= block["indent"].to_i %>">
       <span class="obullet" aria-hidden="true"></span>
