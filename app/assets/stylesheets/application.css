@@ -248,7 +248,7 @@ button, input, textarea { font: inherit; color: inherit; }
 .is-quiet .verse:first-child .section-head { margin-top: .15em; }
 .is-quiet .section-head.spaced { margin-top: 1.1em; }
 .is-quiet .verse-press {
-  display: inline;
+  display: contents;
   width: auto;
   padding: 0;
   margin: 0;
@@ -497,7 +497,7 @@ button, input, textarea { font: inherit; color: inherit; }
   padding: 0;
 }
 .is-nums-hidden .verse-press { grid-template-columns: minmax(0, 1fr); }
-.is-quiet .verse-press { grid-template-columns: none; }
+.is-quiet .verse-press { display: contents; grid-template-columns: none; }
 .is-nums-hidden .vnum { display: none; }
 
 .note-card,

@@ -52,7 +52,7 @@ class ReaderVerseCssTest < ActiveSupport::TestCase
     refute_match(/margin-bottom:\s*[1-9]/, verse)
     press = css[/\.is-quiet \.verse-press\s*\{[^}]+\}/]
     assert press
-    assert_match(/display:\s*inline/, press)
+    assert_match(/display:\s*contents/, press)
     assert_match(/padding:\s*0/, press)
     vtext = css[/\.is-quiet \.vtext\s*\{[^}]+\}/]
     assert vtext
