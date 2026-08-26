@@ -7,6 +7,9 @@ module Margin
     CODES = DATA["codes"].freeze
     NAMES = DATA["names"].freeze
     CHAPTER_COUNTS = DATA["chapterCounts"].freeze
+    NT_START = CODES.index("MAT")
+    OT_CODES = (NT_START ? CODES.take(NT_START) : CODES).freeze
+    NT_CODES = (NT_START ? CODES.drop(NT_START) : []).freeze
     VERSE_COUNTS = DATA["verseCounts"].freeze
     ALIASES = DATA["aliases"].transform_keys { |k| k.to_s.downcase.gsub(/[^a-z0-9]/, "") }.freeze
 
@@ -37,6 +40,14 @@ module Margin
     def prev_book(code)
       i = CODES.index(code.to_s.upcase)
       CODES[i - 1] if i && i.positive?
+    end
+
+    def ot_codes
+      OT_CODES
+    end
+
+    def nt_codes
+      NT_CODES
     end
   end
 end

@@ -189,8 +189,16 @@ class ReaderControllerTest < ActionDispatch::IntegrationTest
     get read_path("jhn.1")
     assert_select "button.topbar-title-btn[aria-haspopup='dialog'][aria-expanded='false'][aria-controls='chapter-grid']", "John 1"
     assert_select ".chapter-grid[hidden][role='dialog'][aria-labelledby='chapter-grid-heading']" do
-      assert_select ".chapter-grid-book#chapter-grid-heading", "John"
-      assert_select "a.chapter-grid-cell", 21
+      assert_select "button.chapter-grid-book#chapter-grid-heading[data-action='click->reader#toggleBookPicker']", "John"
+      assert_select ".chapter-grid-books[hidden]"
+      assert_select ".chapter-grid-books .chapter-grid-group", "Old Testament"
+      assert_select ".chapter-grid-books .chapter-grid-group", "New Testament"
+      assert_select ".chapter-grid-books button.chapter-grid-cell[data-book]", 66
+      assert_select ".chapter-grid-books button.chapter-grid-cell[data-book='GEN']", "GEN"
+      assert_select ".chapter-grid-books button.chapter-grid-cell[data-book='MAT']", "MAT"
+      assert_select ".chapter-grid-books button.chapter-grid-cell[data-book='REV']", "REV"
+      assert_select ".chapter-grid-books button.chapter-grid-cell.is-current[data-book='JHN']", "JHN"
+      assert_select "[data-reader-target='chapterCells'] a.chapter-grid-cell", 21
       assert_select "a.chapter-grid-cell.is-current[href='/jhn.1'][aria-current='page']", "1"
       assert_select "a.chapter-grid-cell[href='/jhn.2']", "2"
       assert_select "a.chapter-grid-cell[href='/jhn.21']", "21"

@@ -120,11 +120,25 @@ button, input, textarea { font: inherit; color: inherit; }
   box-shadow: 0 12px 40px color-mix(in srgb, var(--ink) 12%, transparent);
 }
 .chapter-grid-book {
-  margin: 0 0 .75rem;
+  appearance: none; -webkit-appearance: none;
+  display: block; width: 100%; margin: 0 0 .75rem; padding: 0;
+  border: 0; background: transparent; cursor: pointer;
+  font: inherit; text-align: left;
   font-size: .82rem; font-weight: 600;
   letter-spacing: .06em; text-transform: uppercase;
   color: var(--muted);
 }
+.chapter-grid-book:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--ink) 28%, transparent);
+  outline-offset: 2px;
+}
+.chapter-grid-group {
+  margin: .85rem 0 .4rem;
+  font-size: .72rem; font-weight: 600;
+  letter-spacing: .06em; text-transform: uppercase;
+  color: var(--faint);
+}
+.chapter-grid-group:first-child { margin-top: 0; }
 .chapter-grid-cells {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(var(--tap), 1fr));
@@ -484,6 +498,7 @@ html[data-theme="dark"] .wj { color: color-mix(in srgb, #e0a39c 62%, var(--ink))
 .reader-chrome .suggest li:last-child button { border-radius: 0; }
 .is-quiet .reader-chrome {
   padding: 0; background: transparent; border: 0; border-radius: 0;
+  box-shadow: none;
 }
 .jump { position: relative; margin: .4rem 0 1.2rem; }
 .jump input[type="search"] {
@@ -963,10 +978,11 @@ rails-passkey-sign-in-button { display: block; width: 100%; }
   html:not(.hotwire-native) .reader-chrome.is-tucked {
     transform: translateX(-50%) translateY(calc(100% + 1.6rem));
   }
-  html:not(.hotwire-native).is-quiet .reader-chrome {
+  html:not(.hotwire-native) .is-quiet .reader-chrome {
     padding: 0; background: transparent; border: 0; border-radius: 0;
+    box-shadow: none;
   }
-  html:not(.hotwire-native).is-quiet .reader-chrome .jump input[type="search"] {
+  html:not(.hotwire-native) .is-quiet .reader-chrome .jump input[type="search"] {
     background: var(--paper-raised);
   }
 }

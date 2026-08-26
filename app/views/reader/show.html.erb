@@ -25,6 +25,8 @@
   data-reader-passage-slug-value="<%= @passage.slug %>"
   data-reader-export-url-value="<%= export_path %>"
   data-reader-book-value="<%= @chapter.book %>"
+  data-reader-book-names-value="<%= Margin::Books::NAMES.to_json %>"
+  data-reader-chapter-counts-value="<%= Margin::Books::CHAPTER_COUNTS.to_json %>"
   <% if span_start %>
     data-reader-span-start-value="<%= span_start %>"
     data-reader-span-end-value="<%= span_end %>"
@@ -101,8 +103,40 @@
     aria-labelledby="chapter-grid-heading"
   >
     <div class="chapter-grid-sheet" data-action="click->reader#keepChapterGrid">
-      <p class="chapter-grid-book" id="chapter-grid-heading"><%= Margin::Books.name_for(@chapter.book) %></p>
-      <div class="chapter-grid-cells">
+      <button
+        type="button"
+        class="chapter-grid-book"
+        id="chapter-grid-heading"
+        data-reader-target="gridHeading"
+        data-action="click->reader#toggleBookPicker"
+        aria-expanded="false"
+        aria-controls="chapter-grid-books"
+      ><%= Margin::Books.name_for(@chapter.book) %></button>
+      <div id="chapter-grid-books" class="chapter-grid-books" data-reader-target="bookList" hidden>
+        <p class="chapter-grid-group">Old Testament</p>
+        <div class="chapter-grid-cells">
+          <% Margin::Books.ot_codes.each do |code| %>
+            <button
+              type="button"
+              class="chapter-grid-cell<%= " is-current" if code == @chapter.book %>"
+              data-book="<%= code %>"
+              data-action="click->reader#pickGridBook"
+            ><%= code %></button>
+          <% end %>
+        </div>
+        <p class="chapter-grid-group">New Testament</p>
+        <div class="chapter-grid-cells">
+          <% Margin::Books.nt_codes.each do |code| %>
+            <button
+              type="button"
+              class="chapter-grid-cell<%= " is-current" if code == @chapter.book %>"
+              data-book="<%= code %>"
+              data-action="click->reader#pickGridBook"
+            ><%= code %></button>
+          <% end %>
+        </div>
+      </div>
+      <div class="chapter-grid-cells" data-reader-target="chapterCells">
         <% 1.upto(Margin::Books.chapter_count(@chapter.book)) do |n| %>
           <%= link_to n, read_path(Margin::Passage.new(book: @chapter.book, chapter: n).slug),
                 class: "chapter-grid-cell#{" is-current" if n == @chapter.chapter}",

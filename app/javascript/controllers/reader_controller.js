@@ -2,6 +2,7 @@ import { Controller } from "@hotwired/stimulus"
 import { rangeDragIntent, versePointerDecision } from "../lib/chapter-swipe"
 import {
   applyChapterGridOpen,
+  chapterCellsHtml,
   chapterGridIsOpen,
   toggleChapterGridOpen
 } from "../lib/chapter-grid"
@@ -39,7 +40,7 @@ import {
 } from "../lib/share-text"
 
 export default class extends Controller {
-  static targets = ["tray", "chapterTray", "rangeTemplate", "title", "numsToggle", "copyButton", "quietToggle", "chapterGrid"]
+  static targets = ["tray", "chapterTray", "rangeTemplate", "title", "numsToggle", "copyButton", "quietToggle", "chapterGrid", "gridHeading", "bookList", "chapterCells"]
   static values = {
     focus: Number,
     spanStart: Number,
@@ -53,7 +54,9 @@ export default class extends Controller {
     nextUrl: String,
     signedIn: Boolean,
     exportUrl: String,
-    book: String
+    book: String,
+    bookNames: Object,
+    chapterCounts: Object
   }
 
   connect() {
@@ -394,7 +397,10 @@ export default class extends Controller {
       this.hasTitleTarget ? this.titleTarget : null
     )
     this.element.classList.toggle("is-grid-open", open)
-    if (open) this.revealChrome()
+    if (open) {
+      this.showChapterPane(this.bookValue)
+      this.revealChrome()
+    }
   }
 
   closeChapterGrid(event) {
@@ -402,10 +408,51 @@ export default class extends Controller {
     if (!this.hasChapterGridTarget || !chapterGridIsOpen(this.chapterGridTarget)) return
     applyChapterGridOpen(this.chapterGridTarget, this.hasTitleTarget ? this.titleTarget : null, false)
     this.element.classList.remove("is-grid-open")
+    this.showChapterPane(this.bookValue)
   }
 
   keepChapterGrid(event) {
     event.stopPropagation()
+  }
+
+  toggleBookPicker() {
+    if (!this.hasBookListTarget) return
+    if (!this.bookListTarget.hidden) {
+      this.showChapterPane(this.gridBook || this.bookValue)
+      return
+    }
+    this.showBookPane()
+  }
+
+  pickGridBook(event) {
+    const book = event.currentTarget.dataset.book
+    if (!book) return
+    this.showChapterPane(book)
+  }
+
+  showBookPane() {
+    if (this.hasBookListTarget) this.bookListTarget.hidden = false
+    if (this.hasChapterCellsTarget) this.chapterCellsTarget.hidden = true
+    if (this.hasGridHeadingTarget) {
+      this.gridHeadingTarget.textContent = "Books"
+      this.gridHeadingTarget.setAttribute("aria-expanded", "true")
+    }
+  }
+
+  showChapterPane(book) {
+    this.gridBook = book
+    if (this.hasBookListTarget) this.bookListTarget.hidden = true
+    if (this.hasChapterCellsTarget) {
+      this.chapterCellsTarget.hidden = false
+      this.chapterCellsTarget.innerHTML = chapterCellsHtml(book, this.chapterCountsValue[book], {
+        currentBook: this.bookValue,
+        currentChapter: this.chapterValue
+      })
+    }
+    if (this.hasGridHeadingTarget) {
+      this.gridHeadingTarget.textContent = this.bookNamesValue[book] || book
+      this.gridHeadingTarget.setAttribute("aria-expanded", "false")
+    }
   }
 
   revealChrome() {
