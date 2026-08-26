@@ -260,17 +260,18 @@ button, input, textarea { font: inherit; color: inherit; }
   width: 100%;
   max-width: none;
   min-width: 0;
-  margin: 0 0 .4em;
   font-family: var(--read);
   font-weight: 300;
   font-size: 1.18rem;
   line-height: 1.55;
   --rail-shift: 0px;
 }
+.pub-p { margin: 0 0 1em; }
 .pub-line { width: 100%; max-width: none; min-width: 0; }
+.pub-q1, .pub-q2 { margin: 0 0 .1em; }
 .pub-q1 { padding-left: 1.05rem; text-indent: -.4rem; --rail-shift: 1.05rem; }
 .pub-q2 { padding-left: 1.5rem; text-indent: -.4rem; --rail-shift: 1.5rem; }
-.pub-b { display: block; height: .4em; }
+.pub-b { display: block; height: .7em; }
 .pub-r {
   display: block;
   margin: .12em 0 .55em;
@@ -598,13 +599,17 @@ html[data-theme="dark"] .wj { color: color-mix(in srgb, #e0a39c 62%, var(--ink))
 }
 
 .section-head {
-  margin: 0 0 .45rem;
+  margin: 0 0 .3rem;
   margin-left: calc(var(--verse-gutter) + var(--verse-gutter-gap));
   padding: 0;
   font-family: var(--sans); font-size: 1.42rem; font-weight: 700;
   line-height: 1.25; color: var(--ink); letter-spacing: -.02em;
 }
-.section-head.spaced { margin-top: 1.5rem; }
+.section-head.spaced { margin-top: 1.65rem; }
+.section-head + .pub-p,
+.section-head + .pub-r + .pub-p {
+  margin-top: 0;
+}
 
 .verse {
   display: block;
@@ -660,7 +665,7 @@ html[data-theme="dark"] .wj { color: color-mix(in srgb, #e0a39c 62%, var(--ink))
 .verse-press {
   display: grid; grid-template-columns: var(--verse-gutter) 1fr; gap: var(--verse-gutter-gap); width: 100%;
   border: 0; background: transparent; text-align: left; cursor: pointer;
-  padding: .05rem 0; touch-action: manipulation;
+  padding: 0; touch-action: manipulation;
 }
 .verse-press > .vnum { grid-column: 1; }
 .verse-press > .vtext,
@@ -1055,7 +1060,7 @@ html.hotwire-native .reader-dock { display: flex; }
     --verse-inset: .2rem;
   }
   .verse { padding-left: var(--verse-inset); }
-  .verse-press { padding: .04rem 0; }
+  .verse-press { padding: 0; }
   .vnum { font-size: .68rem; padding-top: .36rem; }
   .is-quiet .verse,
   .is-quiet .verse-press {
