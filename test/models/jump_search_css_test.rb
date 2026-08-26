@@ -17,9 +17,9 @@ class JumpSearchCssTest < ActiveSupport::TestCase
     jump = css[/\n\.jump input\[type="search"\]\s*\{[^}]+\}/]
     assert jump
     assert_match(/font-size:\s*16px/, jump)
-    reader_jump = css[/\n\.reader > \.jump\s*\{[^}]+\}/]
-    assert reader_jump
-    assert_match(/position:\s*fixed/, reader_jump)
+    chrome = css[/\n\.reader-chrome \.jump input\[type="search"\]\s*\{[^}]+\}/]
+    assert chrome
+    assert_match(/font-size:\s*16px/, chrome)
     page = css[/\n\.page input\[type="email"\], \.page input\[type="search"\], \.page input\[type="text"\]\s*\{[^}]+\}/]
     assert page
     assert_match(/font-size:\s*16px/, page)
@@ -137,6 +137,6 @@ class JumpSearchCssTest < ActiveSupport::TestCase
     assert_match(/padding:\s*0/, chrome)
     refute_match(/right:\s*5\.1rem/, css)
     assert_match(/\.reader-chrome\.is-tucked/, css)
-    assert_match(/\.reader > \.jump \.suggest \{[\s\S]*bottom:\s*100%/, css)
+    assert_match(/\.reader-chrome \.suggest \{[\s\S]*bottom:\s*100%/, css)
   end
 end

@@ -121,14 +121,14 @@ class ReaderControllerTest < ActionDispatch::IntegrationTest
     assert_select "header.topbar form.jump", count: 0
     assert_select "main.reader .reader-chrome[data-controller='chrome']"
     assert_select ".reader-veil[aria-hidden='true']"
-    assert_select "main.reader .reader-chrome .chrome-bar form.jump", count: 0
-    assert_select "main.reader .reader-chrome form.jump", count: 0
+    assert_select "main.reader .reader-chrome .chrome-bar form.jump"
     assert_select "main.reader .reader-chrome .chrome-bar .reader-dock"
-    assert_select "main.reader > form.jump" do
+    assert_select "main.reader .reader-chrome form.jump" do
       assert_select "input#q[type=search][placeholder='John 3:16']"
       assert_select "ul.suggest"
       assert_select "button", text: /Search/, count: 0
     end
+    assert_select "main.reader > form.jump", count: 0
     assert_select ".fn", count: 0
     assert_select "sup", text: "†", count: 0
   end
@@ -308,14 +308,14 @@ class ReaderControllerTest < ActionDispatch::IntegrationTest
     assert_select ".chapter-tray .outliner[data-slug='jhn.1'] .otext", "Chapter only."
   end
 
-  test "a Genesis range keeps jump outside chrome and paints span ends" do
+  test "a Genesis range keeps jump in chrome and paints span ends" do
     get read_path("gen.1.1-2")
     assert_response :success
     assert_select "#v1.is-span.is-span-start"
     assert_select "#v2.is-span.is-span-end"
     assert_select "#v2 .outliner[data-slug='gen.1.1-2']"
-    assert_select "main.reader > form.jump"
-    assert_select "main.reader .reader-chrome form.jump", count: 0
+    assert_select "main.reader .reader-chrome .chrome-bar form.jump"
+    assert_select "main.reader > form.jump", count: 0
     assert_select ".fn", count: 0
     refute_includes @response.body, "†"
   end

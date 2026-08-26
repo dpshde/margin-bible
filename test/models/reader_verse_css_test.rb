@@ -152,15 +152,16 @@ class ReaderVerseCssTest < ActiveSupport::TestCase
     assert_match(/border-radius:\s*50%/, btn)
   end
 
-  test "quiet reading hides chrome and keeps a bare jump sibling" do
+  test "quiet reading drops the chrome shell around jump" do
+    quiet_chrome = css[/\.is-quiet \.reader-chrome\s*\{[^}]+\}/]
+    assert quiet_chrome
+    assert_match(/background:\s*transparent/, quiet_chrome)
+    assert_match(/border:\s*0/, quiet_chrome)
+    assert_match(/padding:\s*0/, quiet_chrome)
+    refute_match(/\.is-quiet \.reader-chrome\s*\{\s*display:\s*none/, css)
     refute_match(/\.is-quiet \.jump[^{]*\{[^}]*display:\s*none/, css)
-    assert_match(/\.is-quiet \.reader-chrome\s*\{\s*display:\s*none/, css)
-    quiet_jump = css[/\.is-quiet \.jump input\[type="search"\]\s*\{[^}]+\}/]
-    assert quiet_jump
-    assert_match(/background:\s*transparent/, quiet_jump)
-    assert_match(/border:\s*0/, quiet_jump)
-    assert_match(/border-radius:\s*0/, quiet_jump)
-    assert_match(/\.reader > \.jump\s*\{[^}]*position:\s*fixed/, css)
+    refute_match(/\.is-quiet \.jump input\[type="search"\]\s*\{[^}]*background:\s*transparent/, css)
+    refute_match(/\.reader > \.jump\s*\{/, css)
     assert_match(/\.is-quiet \.chapter-tray\s*\{\s*display:\s*none/, css)
   end
 
