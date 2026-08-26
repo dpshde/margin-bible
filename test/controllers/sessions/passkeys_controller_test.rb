@@ -17,7 +17,7 @@ class Sessions::PasskeysControllerTest < ActionDispatch::IntegrationTest
 
     delete session_path
     get root_path
-    assert_select "a.ghost.quiet", "Sign in"
+    assert_select "header.topbar details.topbar-menu a.menu-item", "Sign in"
 
     get new_session_path
     challenge = refresh_webauthn_challenge(purpose: "authentication")
@@ -31,6 +31,29 @@ class Sessions::PasskeysControllerTest < ActionDispatch::IntegrationTest
     follow_redirect!
     assert_select "header.topbar a.ghost.quiet", text: "Passkeys", count: 0
     assert_select "header.topbar details.topbar-menu a.menu-item", "Passkeys"
+  end
+
+  test "passkey sign-in imports guest pack notes onto the claimed library" do
+    claim_as(@user)
+    library = Library.last
+    challenge = refresh_webauthn_challenge(purpose: "registration")
+    raw = webauthn_client.create(challenge: challenge)
+    post passkeys_path, params: passkey_registration_params_from(raw)
+    delete session_path
+
+    get new_session_path
+    challenge = refresh_webauthn_challenge(purpose: "authentication")
+    assertion = webauthn_client.get(challenge: challenge)
+    post session_passkey_path, params: passkey_authentication_params_from(assertion).merge(
+      pack: {
+        notes: {
+          "jhn.3.16" => { "blocks" => [ { "id" => "b_g1", "indent" => 0, "text" => "Guest after return." } ] }
+        }
+      }.to_json
+    )
+
+    assert_redirected_to root_path
+    assert_equal "Guest after return.", library.notes.find_by!(slug: "jhn.3.16").blocks[0]["text"]
   end
 
   test "a bad assertion stays on the sign-in page" do

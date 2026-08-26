@@ -7,13 +7,21 @@ import {
   inboxSections,
   loadPack,
   memoryStorage,
+  normalizeBlocks,
   notesForChapter,
   persistNote,
   rememberRead,
   setLastRead,
   setNoteBookmarked,
   shouldUseGuestPack,
-  upsertNote
+  upsertNote,
+  packHasImportableNotes,
+  applyImportResult,
+  clearGuestNotes,
+  clearGuestPackMirrored,
+  guestPackMirrored,
+  markGuestPackMirrored,
+  shouldPostGuestPack
 } from "../../app/javascript/lib/guest-pack.js"
 import {
   belongsToChapter,
@@ -44,6 +52,14 @@ function blocks(text, id = "b_aa01") {
   assert.deepEqual(pack.notes["jhn.1.16"].blocks, blocks("The Word."))
   assert.equal(pack.notes["jhn.1.16"].created_at, now.toISOString())
   assert.equal(JSON.parse(store.getItem(GUEST_PACK_KEY)).notes["jhn.1.16"].slug, "jhn.1.16")
+}
+
+{
+  const store = storage()
+  upsertNote("jhn.1.16", [{ id: "b_plain", indent: 0, text: "Plain.", bullet: false }], { storage: store })
+  const note = loadPack(store).notes["jhn.1.16"]
+  assert.equal(note.blocks[0].bullet, false)
+  assert.deepEqual(normalizeBlocks([{ id: "b_old", indent: 0, text: "Legacy" }])[0].bullet, true)
 }
 
 {
@@ -179,7 +195,7 @@ function blocks(text, id = "b_aa01") {
     }
   })
   assert.equal(patched, 1)
-  assert.deepEqual(loadPack(store).notes, {})
+  assert.equal(loadPack(store).notes["jhn.1.16"].blocks[0].text, "Server.")
 
   persistNote({
     signedIn: false,
@@ -191,6 +207,37 @@ function blocks(text, id = "b_aa01") {
     }
   })
   assert.equal(loadPack(store).notes["jhn.1.16"].blocks[0].text, "Local.")
+}
+
+{
+  const store = storage()
+  assert.equal(packHasImportableNotes({ notes: {} }), false)
+  upsertNote("jhn.1.16", blocks("Keep."), { storage: store })
+  upsertNote("jhn.1.17", [{ id: "b_empty", indent: 0, text: "  " }], { storage: store })
+  assert.equal(packHasImportableNotes(loadPack(store)), true)
+  clearGuestNotes(store)
+  assert.deepEqual(loadPack(store).notes, {})
+  assert.equal(packHasImportableNotes(loadPack(store)), false)
+}
+
+{
+  const pack = { notes: { "heb.11.1": { blocks: blocks("Faith.") } } }
+  assert.equal(shouldPostGuestPack({ signedIn: true, mirrored: false, pack }), true)
+  assert.equal(shouldPostGuestPack({ signedIn: true, mirrored: true, pack }), false)
+  assert.equal(shouldPostGuestPack({ signedIn: false, mirrored: false, pack }), false)
+  assert.deepEqual(applyImportResult({ imported: 2 }), {
+    clearPack: false,
+    reload: false,
+    mirrored: true,
+    paintPack: true
+  })
+  assert.equal(applyImportResult({ imported: 0 }).paintPack, false)
+  const store = storage()
+  assert.equal(guestPackMirrored(store), false)
+  markGuestPackMirrored(store)
+  assert.equal(guestPackMirrored(store), true)
+  clearGuestPackMirrored(store)
+  assert.equal(guestPackMirrored(store), false)
 }
 
 console.log("guest-pack: ok")

@@ -1,16 +1,63 @@
 import { Controller } from "@hotwired/stimulus"
-import { inboxSections, loadPack, previewText, shouldUseGuestPack } from "../lib/guest-pack"
+import {
+  applyImportResult,
+  guestPackMirrored,
+  inboxSections,
+  loadPack,
+  markGuestPackMirrored,
+  previewText,
+  shouldPostGuestPack,
+  shouldUseGuestPack
+} from "../lib/guest-pack"
 import { hrefForSlug, slugLabel } from "../lib/passage-span"
 
 export default class extends Controller {
   static targets = ["continue", "list"]
-  static values = { signedIn: Boolean }
+  static values = { signedIn: Boolean, importUrl: String }
 
   connect() {
+    if (this.signedInValue) {
+      this.importGuestPack()
+      return
+    }
     if (!shouldUseGuestPack(this.signedInValue)) return
     const pack = loadPack()
     this.renderContinue(pack)
     if (Object.keys(pack.notes || {}).length) this.renderList(pack)
+  }
+
+  async importGuestPack() {
+    if (globalThis.__marginSigningOut) return
+    const pack = loadPack()
+    if (!shouldPostGuestPack({
+      signedIn: this.signedInValue,
+      mirrored: guestPackMirrored(),
+      pack
+    })) return
+
+    const token = document.querySelector('meta[name="csrf-token"]')?.content
+    const url = this.hasImportUrlValue ? this.importUrlValue : "/guest_pack"
+    try {
+      const response = await fetch(url, {
+        method: "POST",
+        credentials: "same-origin",
+        headers: {
+          "X-CSRF-Token": token,
+          Accept: "application/json",
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ pack })
+      })
+      if (!response.ok) return
+      if (globalThis.__marginSigningOut) return
+
+      const data = await response.json()
+      const result = applyImportResult(data)
+      if (result.mirrored) markGuestPackMirrored()
+      if (result.paintPack) this.renderList(pack)
+    } catch {
+      // Keep the guest pack for a later visit.
+    }
   }
 
   renderContinue(pack) {

@@ -13,7 +13,8 @@ class ReaderController < ApplicationController
     @trail = current_library.trail_passages.reject { |passage| passage.slug == @passage.slug }
 
     @verses = Margin::Bsb.hydrate_chapter!(@chapter.book, @chapter.chapter)
-    if @verses.empty?
+    @usj_nodes = Margin::Usj.chapter_nodes(@chapter.book, @chapter.chapter)
+    if @usj_nodes.empty? && @verses.empty?
       render :missing, status: :not_found
       return
     end

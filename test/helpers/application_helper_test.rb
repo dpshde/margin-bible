@@ -4,9 +4,10 @@ require "test_helper"
 
 class ApplicationHelperTest < ActionView::TestCase
   test "wiki_note_html leaves raw markers out of storage and renders inline markdown" do
-    html = wiki_note_html("See **John** and *grace* and `logos` plus [[jhn.1.6|next]]")
+    html = wiki_note_html("See **John** and *grace* and _mercy_ and `logos` plus [[jhn.1.6|next]]")
     assert_includes html, "<strong>John</strong>"
     assert_includes html, "<em>grace</em>"
+    assert_includes html, "<em>mercy</em>"
     assert_includes html, "<code>logos</code>"
     assert_includes html, 'href="/jhn.1.6"'
     assert_includes html, 'class="wiki"'
@@ -47,5 +48,15 @@ class ApplicationHelperTest < ActionView::TestCase
     html = wiki_outliner_html("[[not-a-passage]]")
     assert_includes html, "[[not-a-passage]]"
     refute_includes html, "class=\"wiki\""
+  end
+
+  test "wiki_outliner_html renders display-only bold and italics" do
+    html = wiki_outliner_html("See **Word** and *life* and _light_")
+    assert_includes html, "<strong>Word</strong>"
+    assert_includes html, "<em>life</em>"
+    assert_includes html, "<em>light</em>"
+    refute_includes html, "**Word**"
+    refute_includes html, "*life*"
+    refute_includes html, "_light_"
   end
 end

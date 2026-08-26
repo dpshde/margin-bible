@@ -12,28 +12,39 @@
     </div>
     <h1 class="topbar-title">Sign in</h1>
     <div class="topbar-actions">
-      <%= render "shared/theme_seg" %>
+      <%= render "shared/header_menu", account: false %>
     </div>
   </header>
 <% end %>
 
-<main class="page">
-  <p class="lede">A magic link claims this library. Notes already on this device stay put.</p>
+<main class="page" data-controller="sign-in">
+  <p class="lede">A passkey signs you in. Notes already on this device stay put.</p>
 
   <% if @dev_login_path %>
     <%= link_to "Open sign-in link", @dev_login_path, class: "primary" %>
   <% end %>
 
-  <%= form_with url: session_path, method: :post do %>
-    <label class="sr-only" for="email">Email</label>
-    <input id="email" name="email" type="email" required autocomplete="username webauthn" placeholder="you@example.com">
-    <button type="submit" class="primary">Email me a link</button>
-  <% end %>
+  <div class="auth-passkey">
+    <div class="auth-passkey-use" data-sign-in-target="use">
+      <%= passkey_sign_in_button "Use a passkey", session_passkey_path,
+            options: @authentication_options,
+            mediation: "conditional",
+            class: "primary" %>
+    </div>
+
+    <div class="auth-passkey-create" data-sign-in-target="create">
+      <%= passkey_registration_button "Create a passkey", session_passkey_registration_path,
+            options: @registration_options,
+            class: "primary" %>
+      <p class="muted">Claims the notes on this device.</p>
+    </div>
+  </div>
 
   <p class="auth-or">or</p>
 
-  <%= passkey_sign_in_button "Use a passkey", session_passkey_path,
-        options: @authentication_options,
-        mediation: "conditional",
-        class: "secondary" %>
+  <%= form_with url: session_path, method: :post do %>
+    <label class="sr-only" for="email">Email</label>
+    <input id="email" name="email" type="email" required autocomplete="username webauthn" placeholder="you@example.com">
+    <button type="submit" class="secondary">Email me a link</button>
+  <% end %>
 </main>

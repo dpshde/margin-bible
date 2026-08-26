@@ -1,13 +1,15 @@
 <% content_for :title, "Notes" %>
 
-<div class="inbox" data-controller="search inbox" data-inbox-signed-in-value="<%= signed_in? %>">
+<div class="inbox" data-controller="search inbox" data-inbox-signed-in-value="<%= signed_in? %>" data-inbox-import-url-value="<%= guest_pack_path %>">
+  <% if @pack_mirror.present? %>
+    <script type="application/json" id="inbox-pack-mirror"><%= raw json_escape(@pack_mirror.to_json) %></script>
+  <% end %>
   <% unless hotwire_native_app? %>
     <header class="topbar">
       <div class="topbar-side"></div>
       <h1 class="topbar-title">Notes</h1>
       <div class="topbar-actions">
-        <%= render "shared/theme_seg" %>
-        <%= render "shared/account_nav", appearance: :quiet %>
+        <%= render "shared/header_menu" %>
       </div>
     </header>
   <% end %>

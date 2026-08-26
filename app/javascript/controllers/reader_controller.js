@@ -1,5 +1,17 @@
 import { Controller } from "@hotwired/stimulus"
-import { chapterSwipe, isHorizontalIntent, isTapGesture } from "../lib/chapter-swipe"
+import { rangeDragIntent, versePointerDecision } from "../lib/chapter-swipe"
+import {
+  applyChapterGridOpen,
+  chapterCellsHtml,
+  chapterGridIsOpen,
+  toggleChapterGridOpen
+} from "../lib/chapter-grid"
+import {
+  applyClearedNoteTray,
+  expandControlDisabled,
+  shouldShowExpandedTray,
+  trayHasNoteContent
+} from "../lib/expand-notes"
 import {
   applyNoteToPack,
   loadPack,
@@ -28,7 +40,7 @@ import {
 } from "../lib/share-text"
 
 export default class extends Controller {
-  static targets = ["tray", "chapterTray", "rangeTemplate", "title", "numsToggle", "copyButton", "quietToggle"]
+  static targets = ["tray", "chapterTray", "rangeTemplate", "title", "numsToggle", "copyButton", "quietToggle", "chapterGrid", "gridHeading", "bookList", "chapterCells"]
   static values = {
     focus: Number,
     spanStart: Number,
@@ -42,7 +54,9 @@ export default class extends Controller {
     nextUrl: String,
     signedIn: Boolean,
     exportUrl: String,
-    book: String
+    book: String,
+    bookNames: Object,
+    chapterCounts: Object
   }
 
   connect() {
@@ -65,6 +79,8 @@ export default class extends Controller {
     if (this.guestSession) {
       rememberRead(this.passageSlugValue || this.chapterSlugValue)
       queueMicrotask(() => this.hydrateGuestNotes())
+    } else {
+      queueMicrotask(() => this.mirrorSignedInNotes())
     }
   }
 
@@ -92,7 +108,7 @@ export default class extends Controller {
 
   pressStart(event) {
     if (event.pointerType === "mouse" && event.button !== 0) return
-    if (event.target.closest(".note-tray, .chapter-tray, .otext, a, input, textarea, .jump, .topbar, .reader-dock, .reader-chrome")) return
+    if (event.target.closest(".note-tray, .chapter-tray, .otext, a, input, textarea, .jump, .topbar, .reader-dock, .reader-chrome, .chapter-grid")) return
     this.pointerOrigin = { x: event.clientX, y: event.clientY, t: event.timeStamp }
     const press = event.target.closest(".verse-press")
     const verse = press?.closest("[data-verse]")
@@ -106,6 +122,7 @@ export default class extends Controller {
     }
     this.dragging = false
     this.swipeAxis = null
+    this.dragStartTop = verse ? this.verseBox(verse).top : null
     this.pointerId = event.pointerId
     window.addEventListener("pointermove", this.onPointerMove, { passive: false })
     window.addEventListener("pointerup", this.onPointerUp)
@@ -116,25 +133,28 @@ export default class extends Controller {
     if (this.pointerOrigin == null) return
     const dx = event.clientX - this.pointerOrigin.x
     const dy = event.clientY - this.pointerOrigin.y
-    if (isHorizontalIntent(dx, dy)) {
-      this.swipeAxis = "x"
-      this.ignoreClick = true
-      return
-    }
-    if (this.swipeAxis === "x") return
     if (this.dragStart == null) return
     const n = this.verseAtPoint(event.clientX, event.clientY)
-    if (!n) return
-    if (n !== this.dragStart) {
-      this.dragging = true
-      this.ignoreClick = true
-      event.preventDefault()
-      this.pressEl?.setPointerCapture?.(event.pointerId)
-      this.element.classList.add("is-picking")
-    }
-    if (n !== this.dragCurrent) {
+    const startEl = this.verseEl(this.dragStart)
+    const startRange = rangeDragIntent({
+      startVerse: this.dragStart,
+      currentVerse: n,
+      startVerseTop: this.dragStartTop,
+      currentStartVerseTop: startEl ? this.verseBox(startEl).top : null,
+      dx,
+      dy
+    })
+    if (!startRange && !this.dragging) return
+    this.dragging = true
+    this.swipeAxis = null
+    this.ignoreClick = true
+    event.preventDefault()
+    const box = this.pressEl?.querySelector?.(".vtext") || this.pressEl
+    box?.setPointerCapture?.(event.pointerId)
+    this.element.classList.add("is-picking")
+    if (n && n !== this.dragCurrent) {
       this.dragCurrent = n
-      if (this.dragging) this.previewSpan(this.dragStart, n)
+      this.previewSpan(this.dragStart, n)
     }
   }
 
@@ -144,38 +164,36 @@ export default class extends Controller {
     const start = this.dragStart
     const wasDragging = this.dragging
     const origin = this.pointerOrigin
-    const axis = this.swipeAxis
     const dx = origin ? event.clientX - origin.x : 0
     const dy = origin ? event.clientY - origin.y : 0
     const elapsedMs = origin ? event.timeStamp - origin.t : 0
     this.ignoreClick = true
     this.resetDrag()
-    const swipe = chapterSwipe({
+    const decision = versePointerDecision({
       dx,
       dy,
       elapsedMs,
-      rangeDragging: wasDragging && axis !== "x"
+      startVerse: start,
+      endVerse: hovered,
+      dragging: wasDragging
     })
-    if (swipe) {
-      const url = swipe === "next" ? this.nextUrlValue : this.prevUrlValue
-      if (url) {
-        this.visitChapter(url)
-        return
-      }
-    }
-    if (axis === "x") return
-    if (wasDragging && start != null && hovered !== start) {
-      this.selection = selectionFromDrag(start, hovered)
-      this.applySelection({ replaceUrl: true })
+    if (decision.type === "chapter") {
+      const url = decision.direction === "next" ? this.nextUrlValue : this.prevUrlValue
+      if (url) this.visitChapter(url)
       return
     }
-    if (!isTapGesture(dx, dy) || start == null) return
+    if (decision.type === "range") {
+      this.selection = selectionFromDrag(decision.start, decision.end)
+      this.applySelection({ replaceUrl: true, focus: true })
+      return
+    }
+    if (decision.type !== "tap" || start == null) return
     if (this.verseEl(start)?.classList.contains("is-open")) {
       this.selection = null
     } else {
       this.selection = selectionFromTap(start, this.selection)
     }
-    this.applySelection({ replaceUrl: true })
+    this.applySelection({ replaceUrl: true, focus: true })
   }
 
   openVerse(event) {
@@ -206,11 +224,11 @@ export default class extends Controller {
     this.applySelection({ replaceUrl: true })
   }
 
-  applySelection({ replaceUrl }) {
+  applySelection({ replaceUrl, focus = true }) {
     this.clearEphemeralRanges()
     this.element.classList.remove("is-picking")
     this.element.querySelectorAll(".verse").forEach((row) => {
-      row.classList.remove("is-open", "is-span")
+      row.classList.remove("is-open", "is-span", "is-span-start", "is-span-end")
     })
     this.element.querySelectorAll(".note-tray").forEach((tray) => { tray.hidden = true })
 
@@ -222,10 +240,16 @@ export default class extends Controller {
     }
 
     const { start, end } = this.selection
-    for (let n = start; n <= end; n += 1) this.verseEl(n)?.classList.add("is-span")
+    this.element.querySelectorAll(".verse").forEach((row) => {
+      const n = Number(row.dataset.verse)
+      const inSpan = n >= start && n <= end
+      row.classList.toggle("is-span", inSpan)
+      row.classList.toggle("is-span-start", inSpan && n === start)
+      row.classList.toggle("is-span-end", inSpan && n === end)
+    })
 
-    if (start === end) this.openSingle(start)
-    else this.openRange(start, end)
+    if (start === end) this.openSingle(start, { focus })
+    else this.openRange(start, end, { focus })
 
     this.updateTitle(this.selection)
     this.refreshExpand()
@@ -237,22 +261,25 @@ export default class extends Controller {
     if (!span) return
     this.element.querySelectorAll(".verse").forEach((row) => {
       const n = Number(row.dataset.verse)
-      row.classList.toggle("is-span", n >= span.start && n <= span.end)
+      const inSpan = n >= span.start && n <= span.end
+      row.classList.toggle("is-span", inSpan)
+      row.classList.toggle("is-span-start", inSpan && n === span.start)
+      row.classList.toggle("is-span-end", inSpan && n === span.end)
     })
     this.updateTitle(span)
   }
 
-  openSingle(n) {
+  openSingle(n, { focus = true } = {}) {
     const row = this.verseEl(n)
     if (!row) return
     row.classList.add("is-open")
     row.querySelectorAll(".note-tray").forEach((tray) => {
       tray.hidden = tray.hasAttribute("data-range-composer")
     })
-    this.focusFirstVisible(row)
+    if (focus) this.focusFirstVisible(row)
   }
 
-  openRange(start, end) {
+  openRange(start, end, { focus = true } = {}) {
     const slug = rangeSlug(this.chapterSlugValue, start, end)
     const row = this.verseEl(end)
     if (!row) return
@@ -272,10 +299,10 @@ export default class extends Controller {
     }
     if (rangeTray) {
       rangeTray.hidden = false
-      this.focusOutliner(rangeTray)
+      if (focus) this.focusOutliner(rangeTray)
       return
     }
-    this.focusFirstVisible(row)
+    if (focus) this.focusFirstVisible(row)
   }
 
   rangeTrayFor(row, slug) {
@@ -344,9 +371,7 @@ export default class extends Controller {
       button.setAttribute("aria-label", quiet ? "Exit focus" : "Focus")
       button.title = quiet ? "Exit focus" : "Focus"
     })
-    this.element.querySelectorAll("[data-controller~='chrome']").forEach((el) => {
-      el.dispatchEvent(new Event("chrome:reveal"))
-    })
+    this.revealChrome()
     if (!quiet) return
     this.flushPending()
     if (this.hasChapterTrayTarget) {
@@ -364,6 +389,76 @@ export default class extends Controller {
     })
     this.selection = null
     this.applySelection({ replaceUrl: true })
+  }
+
+  toggleChapterGrid() {
+    const open = toggleChapterGridOpen(
+      this.hasChapterGridTarget ? this.chapterGridTarget : null,
+      this.hasTitleTarget ? this.titleTarget : null
+    )
+    this.element.classList.toggle("is-grid-open", open)
+    if (open) {
+      this.showChapterPane(this.bookValue)
+      this.revealChrome()
+    }
+  }
+
+  closeChapterGrid(event) {
+    if (event?.type === "click" && event.target !== this.chapterGridTarget) return
+    if (!this.hasChapterGridTarget || !chapterGridIsOpen(this.chapterGridTarget)) return
+    applyChapterGridOpen(this.chapterGridTarget, this.hasTitleTarget ? this.titleTarget : null, false)
+    this.element.classList.remove("is-grid-open")
+    this.showChapterPane(this.bookValue)
+  }
+
+  keepChapterGrid(event) {
+    event.stopPropagation()
+  }
+
+  toggleBookPicker() {
+    if (!this.hasBookListTarget) return
+    if (!this.bookListTarget.hidden) {
+      this.showChapterPane(this.gridBook || this.bookValue)
+      return
+    }
+    this.showBookPane()
+  }
+
+  pickGridBook(event) {
+    const book = event.currentTarget.dataset.book
+    if (!book) return
+    this.showChapterPane(book)
+  }
+
+  showBookPane() {
+    if (this.hasBookListTarget) this.bookListTarget.hidden = false
+    if (this.hasChapterCellsTarget) this.chapterCellsTarget.hidden = true
+    if (this.hasGridHeadingTarget) {
+      this.gridHeadingTarget.textContent = "Books"
+      this.gridHeadingTarget.setAttribute("aria-expanded", "true")
+    }
+  }
+
+  showChapterPane(book) {
+    this.gridBook = book
+    if (this.hasBookListTarget) this.bookListTarget.hidden = true
+    if (this.hasChapterCellsTarget) {
+      this.chapterCellsTarget.hidden = false
+      this.chapterCellsTarget.innerHTML = chapterCellsHtml(book, this.chapterCountsValue[book], {
+        currentBook: this.bookValue,
+        currentChapter: this.chapterValue
+      })
+    }
+    if (this.hasGridHeadingTarget) {
+      this.gridHeadingTarget.textContent = this.bookNamesValue[book] || book
+      this.gridHeadingTarget.setAttribute("aria-expanded", "false")
+    }
+  }
+
+  revealChrome() {
+    this.element.querySelectorAll("[data-controller~='chrome']").forEach((el) => {
+      el.dispatchEvent(new Event("chrome:reveal"))
+    })
   }
 
   toggleChapter() {
@@ -429,9 +524,13 @@ export default class extends Controller {
     this.element.querySelectorAll(".note-tray[data-note-slug]").forEach((tray) => {
       const row = tray.closest(".verse")
       const n = Number(row?.dataset.verse)
-      const selected = row?.classList.contains("is-open")
-      const collapsed = this.collapsedNotes.has(n)
-      tray.hidden = collapsed || !(expanding || selected)
+      const show = shouldShowExpandedTray({
+        expanding,
+        selected: row?.classList.contains("is-open"),
+        collapsed: this.collapsedNotes.has(n),
+        hasContent: this.trayHasContent(tray)
+      })
+      tray.hidden = !show
     })
   }
 
@@ -654,10 +753,8 @@ export default class extends Controller {
     const host = event.currentTarget.closest(".outliner")
     if (!host) return
     host._dirty = true
-    if (this.guestSession) {
-      this.saveGuest(host)
-      return
-    }
+    this.saveGuest(host)
+    if (this.guestSession) return
     clearTimeout(host._kvTimer)
     host._kvTimer = setTimeout(() => {
       host._kvTimer = null
@@ -667,10 +764,8 @@ export default class extends Controller {
   }
 
   flushPending() {
-    if (this.guestSession) {
-      this.flushGuestPack()
-      return
-    }
+    this.flushGuestPack()
+    if (this.guestSession) return
     this.element.querySelectorAll(".outliner").forEach((host) => {
       if (host._kvTimer) {
         clearTimeout(host._kvTimer)
@@ -726,6 +821,11 @@ export default class extends Controller {
   }
 
   markHostNote(host) {
+    const tray = host.closest(".note-tray")
+    if (tray) {
+      this.syncNoteTray(tray)
+      return
+    }
     const verse = host.closest(".verse")
     if (verse) verse.classList.toggle("has-note", this.anyNoteText(verse))
   }
@@ -734,6 +834,10 @@ export default class extends Controller {
     const pack = loadPack()
     const notes = notesForChapter(this.chapterSlugValue, pack)
     notes.forEach((note) => this.applyGuestNote(note))
+  }
+
+  mirrorSignedInNotes() {
+    this.flushGuestPack()
   }
 
   applyGuestNote(note) {
@@ -756,9 +860,10 @@ export default class extends Controller {
     controller.applyBlocks([])
     this.syncBookmarkButton(tray, false)
     host._dirty = true
-    if (this.guestSession) this.saveGuest(host)
-    else this.save(host)
+    this.saveGuest(host)
+    if (!this.guestSession) this.save(host)
     host._dirty = false
+    if (tray.classList.contains("note-tray")) this.syncNoteTray(tray)
   }
 
   toggleBookmark(event) {
@@ -772,11 +877,8 @@ export default class extends Controller {
     const next = !button.classList.contains("is-on")
     this.syncBookmarkButton(tray, next)
     const payload = controller.payload()
-    if (this.guestSession) {
-      setNoteBookmarked(payload.slug, next)
-      return
-    }
-    this.saveBookmark(host, next)
+    setNoteBookmarked(payload.slug, next)
+    if (!this.guestSession) this.saveBookmark(host, next)
   }
 
   async saveBookmark(host, bookmarked) {
@@ -816,19 +918,64 @@ export default class extends Controller {
       return
     }
     controller.applyBlocks(note.blocks)
-    this.markGuestCoverage(note.slug)
+    this.syncNoteTray(tray)
   }
 
-  markGuestCoverage(slug) {
+  trayHasContent(tray) {
+    return trayHasNoteContent(tray, (host) => {
+      const controller = this.outlinerController(host)
+      return controller ? controller.isEmpty() : true
+    })
+  }
+
+  syncNoteTray(tray) {
+    if (!tray?.classList.contains("note-tray")) return
+    const host = tray.querySelector(".outliner")
+    const empty = !this.trayHasContent(tray)
+    const slug = host?.dataset.slug || tray.dataset.noteSlug || tray.dataset.rangeSlug
+    if (empty) {
+      applyClearedNoteTray(tray)
+    } else if (slug) {
+      tray.dataset.noteSlug = slug
+    }
+    this.syncCoverageForSlug(slug)
+    this.syncExpandControl()
+    this.refreshExpand()
+  }
+
+  syncCoverageForSlug(slug) {
     const parsed = parseSlug(slug)
     if (!parsed || parsed.kind === "chapter") return
     const start = parsed.verseStart
     const end = parsed.verseEnd || parsed.verseStart
-    for (let n = start; n <= end; n += 1) this.verseEl(n)?.classList.add("has-note")
-    this.element.querySelectorAll("[data-action='click->reader#toggleExpand']").forEach((expand) => {
-      expand.disabled = false
+    for (let n = start; n <= end; n += 1) {
+      const verse = this.verseEl(n)
+      if (verse) verse.classList.toggle("has-note", this.verseHasCoveringNote(n))
+    }
+  }
+
+  verseHasCoveringNote(n) {
+    return [ ...this.element.querySelectorAll(".note-tray") ].some((tray) => {
+      if (!this.trayHasContent(tray)) return false
+      const slug = tray.dataset.noteSlug || tray.querySelector(".outliner")?.dataset.slug
+      const parsed = parseSlug(slug)
+      if (!parsed || parsed.kind === "chapter") return false
+      const start = parsed.verseStart
+      const end = parsed.verseEnd || parsed.verseStart
+      return n >= start && n <= end
     })
-    if (this.element.classList.contains("is-expanded")) this.refreshExpand()
+  }
+
+  syncExpandControl() {
+    const hasNotes = [ ...this.element.querySelectorAll(".note-tray") ].some((tray) => this.trayHasContent(tray))
+    if (expandControlDisabled(hasNotes)) this.element.classList.remove("is-expanded")
+    this.element.querySelectorAll("[data-action='click->reader#toggleExpand']").forEach((button) => {
+      button.disabled = expandControlDisabled(hasNotes)
+      if (!hasNotes) {
+        button.classList.remove("is-on")
+        button.setAttribute("aria-pressed", "false")
+      }
+    })
   }
 
   trayForSlug(slug) {
@@ -866,6 +1013,11 @@ export default class extends Controller {
     return this.element.querySelector(`#v${n}`)
   }
 
+  verseBox(verse) {
+    const node = verse?.querySelector?.(".vtext") || verse
+    return node.getBoundingClientRect()
+  }
+
   verseAtPoint(x, y) {
     const node = document.elementFromPoint(x, y)
     const verse = node?.closest?.("[data-verse]")
@@ -876,6 +1028,7 @@ export default class extends Controller {
   resetDrag() {
     this.dragStart = null
     this.dragCurrent = null
+    this.dragStartTop = null
     this.dragging = false
     this.swipeAxis = null
     this.pressEl = null

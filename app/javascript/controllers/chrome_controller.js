@@ -1,5 +1,5 @@
 import { Controller } from "@hotwired/stimulus"
-import { nearRevealEdge, nextChromeHidden } from "../lib/chrome-hide"
+import { chromeLocked, nearRevealEdge, nextChromeHidden } from "../lib/chrome-hide"
 
 export default class extends Controller {
   static values = { edge: { type: String, default: "bottom" } }
@@ -62,9 +62,13 @@ export default class extends Controller {
   }
 
   locked() {
-    return this.element.contains(document.activeElement)
-      || Boolean(this.element.querySelector(".suggest:not([hidden])"))
-      || Boolean(this.element.querySelector("details[open]"))
+    return chromeLocked({
+      activeElement: document.activeElement,
+      root: this.element,
+      suggestOpen: Boolean(this.element.querySelector(".suggest:not([hidden])")),
+      menuOpen: Boolean(this.element.querySelector("details[open]")),
+      gridOpen: Boolean(document.querySelector(".chapter-grid.is-open"))
+    })
   }
 
   sync() {

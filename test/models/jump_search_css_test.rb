@@ -13,6 +13,18 @@ class JumpSearchCssTest < ActiveSupport::TestCase
     refute_match(/\.jump[^{]*outline:\s*[^;]*blue/i, css)
   end
 
+  test "jump and page fields stay at 16px so iOS does not focus-zoom" do
+    jump = css[/\n\.jump input\[type="search"\]\s*\{[^}]+\}/]
+    assert jump
+    assert_match(/font-size:\s*16px/, jump)
+    chrome = css[/\n\.reader-chrome \.jump input\[type="search"\]\s*\{[^}]+\}/]
+    assert chrome
+    assert_match(/font-size:\s*16px/, chrome)
+    page = css[/\n\.page input\[type="email"\], \.page input\[type="search"\], \.page input\[type="text"\]\s*\{[^}]+\}/]
+    assert page
+    assert_match(/font-size:\s*16px/, page)
+  end
+
   test "reader dock fab sits in the chrome bar" do
     fab = css[/\.reader-dock-btn\s*\{[^}]+\}/]
     assert fab
@@ -102,6 +114,7 @@ class JumpSearchCssTest < ActiveSupport::TestCase
     refute_match(/min-height:\s*2\.25rem/, chip)
     refute_match(/border-radius:\s*999px/, chip)
     assert_match(/background:\s*transparent/, chip)
+    assert_match(/text-decoration:\s*underline/, chip)
   end
 
   test "reader bottom veil fades paper to the screen edge" do

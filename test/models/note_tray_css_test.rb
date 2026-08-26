@@ -32,4 +32,39 @@ class NoteTrayCssTest < ActiveSupport::TestCase
     refute_match(/outline:\s*[^;]*blue/i, css)
     refute_match(/box-shadow:\s*[^;]*#(?:4|5|6|7|8|9|a)[0-9a-f]{2}ff/i, css)
   end
+
+  test "note text shows display-only bold and italics" do
+    assert_match(/\.otext strong\s*\{\s*font-weight:\s*600/, css)
+    assert_match(/\.otext em\s*\{\s*font-style:\s*italic/, css)
+  end
+
+  test "editable note surfaces stay at 16px so iOS does not focus-zoom" do
+    otext = css[/\n\.otext,\s*\n\.note-input\s*\{[^}]+\}/]
+    assert otext
+    assert_match(/font-size:\s*16px/, otext)
+    vtext = css[/\n\.vtext\s*\{[^}]+\}/]
+    assert vtext
+    assert_match(/font-size:\s*1\.18rem/, vtext)
+    refute_match(/font-size:\s*16px/, vtext)
+  end
+
+  test "viewport locks page scale on the reader" do
+    layout = Rails.root.join("app/views/layouts/application.html.erb").read
+    assert_match(
+      /width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover/,
+      layout
+    )
+  end
+
+  test "chapter and verse press disable extra touch zoom" do
+    chapter = css[/\n\.chapter\s*\{[^}]+\}/]
+    assert chapter
+    assert_match(/touch-action:\s*manipulation/, chapter)
+    press = css[/\n\.verse-press\s*\{[^}]+\}/]
+    assert press
+    assert_match(/touch-action:\s*manipulation/, press)
+    picking = css[/\n\.chapter\.is-picking\s*\{[^}]+\}/]
+    assert picking
+    assert_match(/touch-action:\s*none/, picking)
+  end
 end

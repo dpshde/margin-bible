@@ -2,11 +2,13 @@ import { Controller } from "@hotwired/stimulus"
 import {
   arrowBlockNav,
   backspaceAtStart,
+  applySpaceIndent,
   blockHasBullet,
   caretForNeighbor,
   consumeListMarker,
   indentSubtree,
   shouldBulletOnSpace,
+  shouldIndentOnSpace,
   insertNewline,
   insertPastedLines,
   isEmptyBlocks,
@@ -14,7 +16,7 @@ import {
   serializeBlocks,
   splitSibling
 } from "../lib/outliner-blocks"
-import { wikiTokens } from "../lib/wiki-markup"
+import { displayTokens } from "../lib/wiki-markup"
 
 export default class extends Controller {
   static values = { slug: String }
@@ -22,7 +24,7 @@ export default class extends Controller {
   connect() {
     this.blocks = this.readRows()
     if (!this.blocks.length) {
-      this.blocks = [{ id: this.element.dataset.emptyId || "b_empty", indent: 0, text: "", bullet: false }]
+      this.blocks = [{ id: this.element.dataset.emptyId || "b_empty", indent: 0, text: "", bullet: true }]
     }
     this.onInput = this.onInput.bind(this)
     this.onBeforeInput = this.onBeforeInput.bind(this)
@@ -33,6 +35,7 @@ export default class extends Controller {
     this.onMouseDown = this.onMouseDown.bind(this)
     this.onCopy = this.onCopy.bind(this)
     this.selectScope = null
+    this.focusedId = null
     this.element.addEventListener("input", this.onInput)
     this.element.addEventListener("beforeinput", this.onBeforeInput)
     this.element.addEventListener("keydown", this.onKeydown)
@@ -82,7 +85,7 @@ export default class extends Controller {
         text: String(block.text || ""),
         bullet: blockHasBullet(block)
       }))
-      : [{ id: this.element.dataset.emptyId || "b_empty", indent: 0, text: "", bullet: false }]
+      : [{ id: this.element.dataset.emptyId || "b_empty", indent: 0, text: "", bullet: true }]
     this.blocks = incoming
     this.render()
   }
@@ -123,6 +126,7 @@ export default class extends Controller {
     if (!textEl || !this.element.contains(textEl) || textEl.dataset.editing === "1") return
     const index = this.indexOf(textEl)
     if (index < 0) return
+    this.focusedId = this.blocks[index].id
     const offset = this.caretOffset(textEl, { fallback: "keep" })
     textEl.dataset.editing = "1"
     this.fillEditable(textEl, this.blocks[index].text, { decorate: false })
@@ -146,10 +150,18 @@ export default class extends Controller {
     this.syncFromDom()
     const index = this.indexOf(textEl)
     if (index < 0) return
-    if (!shouldBulletOnSpace(this.blocks[index].text, this.caretOffset(textEl))) return
+    const caret = this.caretOffset(textEl)
+    if (shouldBulletOnSpace(this.blocks[index].text, caret)) {
+      event.preventDefault()
+      this.blocks[index].bullet = true
+      this.blocks[index].text = ""
+      this.render(this.blocks[index].id, 0)
+      this.emitChange()
+      return
+    }
+    if (!shouldIndentOnSpace(this.blocks[index].text, caret)) return
     event.preventDefault()
-    this.blocks[index].bullet = true
-    this.blocks[index].text = ""
+    applySpaceIndent(this.blocks, index)
     this.render(this.blocks[index].id, 0)
     this.emitChange()
   }
@@ -159,8 +171,12 @@ export default class extends Controller {
     if (!textEl) return
     this.syncFromDom()
     const index = this.indexOf(textEl)
-    if (index >= 0 && consumeListMarker(this.blocks[index])) {
-      this.render(this.blocks[index].id, 0)
+    if (index >= 0) {
+      const consumedMarker = consumeListMarker(this.blocks[index])
+      const consumedSpaces = /^ {2}/.test(this.blocks[index].text) && applySpaceIndent(this.blocks, index)
+      if (consumedMarker || consumedSpaces) {
+        this.render(this.blocks[index].id, 0)
+      }
     }
     this.clearSelectScope()
     this.emitChange()
@@ -419,6 +435,12 @@ export default class extends Controller {
           chunks.push("\n")
         } else if (child.nodeType === Node.ELEMENT_NODE && child.matches("a.wiki")) {
           chunks.push(child.dataset.wikiRaw || child.textContent)
+        } else if (child.nodeName === "STRONG") {
+          chunks.push(`**${child.textContent || ""}**`)
+        } else if (child.nodeName === "EM") {
+          chunks.push(`*${child.textContent || ""}*`)
+        } else if (child.nodeName === "CODE") {
+          chunks.push(`\`${child.textContent || ""}\``)
         } else {
           visit(child)
         }
@@ -439,7 +461,7 @@ export default class extends Controller {
   }
 
   appendDecoratedLine(element, line) {
-    wikiTokens(line).forEach((token) => {
+    displayTokens(line).forEach((token) => {
       if (token.type === "wiki" && token.href) {
         const link = document.createElement("a")
         link.className = "wiki"
@@ -448,9 +470,15 @@ export default class extends Controller {
         link.contentEditable = "false"
         link.textContent = token.label
         element.append(link)
-      } else {
-        element.append(document.createTextNode(token.type === "wiki" ? token.raw : token.value))
+        return
       }
+      if (token.type === "strong" || token.type === "em" || token.type === "code") {
+        const mark = document.createElement(token.type === "strong" ? "strong" : token.type === "em" ? "em" : "code")
+        mark.textContent = token.value
+        element.append(mark)
+        return
+      }
+      element.append(document.createTextNode(token.type === "wiki" ? token.raw : token.value))
     })
   }
 

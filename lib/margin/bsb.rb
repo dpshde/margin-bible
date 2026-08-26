@@ -45,7 +45,7 @@ module Margin
     end
 
     def chapter_from_pack(book, chapter)
-      pack[pack_key(book, chapter)]
+      Usj.pack_chapter(book, chapter) || pack[pack_key(book, chapter)]
     end
 
     def hydrate_chapter!(book, chapter)
@@ -78,20 +78,23 @@ module Margin
     def seed_all!
       now = Time.current
       rows = []
-      pack.each_value do |chapter|
-        book = chapter["book"].to_s.upcase
-        ch = chapter["chapter"].to_i
-        Array(chapter["verses"]).each do |vr|
-          rows << {
-            translation: TRANSLATION,
-            book: book,
-            chapter: ch,
-            verse: vr["v"].to_i,
-            text: vr["text"].to_s,
-            heading: vr["heading"].presence,
-            created_at: now,
-            updated_at: now
-          }
+      Books::CODES.each do |code|
+        1.upto(Books.chapter_count(code)).each do |ch|
+          data = Usj.pack_chapter(code, ch)
+          next unless data
+
+          Array(data["verses"]).each do |vr|
+            rows << {
+              translation: TRANSLATION,
+              book: code,
+              chapter: ch,
+              verse: vr["v"].to_i,
+              text: vr["text"].to_s,
+              heading: vr["heading"].presence,
+              created_at: now,
+              updated_at: now
+            }
+          end
         end
       end
       Verse.where(translation: TRANSLATION).delete_all

@@ -7,12 +7,18 @@ class SessionsController < ApplicationController
 
   def new
     @authentication_options = passkey_authentication_options
+    @registration_options = passkey_registration_options(holder: pending_passkey_holder)
     token = flash[:dev_login_token]
     @dev_login_path = magic_login_path(token) if token.present?
   end
 
   def create
-    email = params.require(:email)
+    email = User.normalized_email(params.require(:email))
+    if email.blank?
+      redirect_to new_session_path, alert: "Enter an email."
+      return
+    end
+
     user = User.find_or_create_by!(email: email)
     link = MagicLink.issue!(user: user, library: current_library)
     mailed = deliver_sign_in_mail(link)

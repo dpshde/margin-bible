@@ -11,6 +11,15 @@ class PassageTest < ActiveSupport::TestCase
     assert_equal "John 3:16", p.label
   end
 
+  test "parses official USJ ref loc into a reader slug" do
+    range = Margin::Passage.parse_usj_loc("MAT 4:18-22")
+    assert_equal "mat.4.18-22", range.slug
+    assert range.range?
+    assert_equal "luk.5.1-11", Margin::Passage.parse_usj_loc("LUK 5:1-11").slug
+    assert_equal "isa.40.3", Margin::Passage.parse_usj_loc("ISA 40:3").slug
+    assert_equal "jhn.1", Margin::Passage.parse_usj_loc("JHN 1").slug
+  end
+
   test "parses human reference" do
     p = Margin::Passage.parse("John 3:16-18")
     assert_equal "range", p.kind

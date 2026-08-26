@@ -35,5 +35,4 @@ ios/**/DerivedData/
 /mobile/
 /_build/
 /deps/
-.vercel
 .env*.local

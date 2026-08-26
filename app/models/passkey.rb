@@ -21,11 +21,12 @@ class Passkey < ApplicationRecord
 
     def registration_options(holder:)
       holder.ensure_webauthn_id!
+      handle = holder.try(:webauthn_name) || holder.email.presence || "margin"
       relying_party.options_for_registration(
         user: {
           id: holder.webauthn_id,
-          name: holder.email,
-          display_name: holder.email
+          name: handle,
+          display_name: handle
         },
         exclude: holder.passkeys.pluck(:external_id),
         authenticator_selection: {

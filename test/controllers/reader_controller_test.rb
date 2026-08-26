@@ -84,6 +84,7 @@ class ReaderControllerTest < ActionDispatch::IntegrationTest
     get read_path("jhn.1")
     assert_response :success
     assert_select "[data-reader-signed-in-value='false']"
+    assert_select %(meta[name="viewport"][content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover"])
     assert_select "h2.section-head", "The Beginning"
     assert_select "h2.section-head", "The Witness of John"
     assert_select ".vtext", /beginning was the Word/
@@ -94,6 +95,7 @@ class ReaderControllerTest < ActionDispatch::IntegrationTest
     assert_select "header.topbar[data-controller='chrome'][data-chrome-edge-value='top'][data-action='chrome:reveal->chrome#show']" do
       assert_select ".topbar-side a.inbox-link[href='/'][aria-label='Notes inbox'][data-action='click->reader#flushPending']"
       assert_select "h1.topbar-title", "John 1"
+      assert_select "button.topbar-title-btn[data-action='click->reader#toggleChapterGrid'][aria-haspopup='dialog'][aria-controls='chapter-grid']", "John 1"
       assert_select "button.header-quiet-button[data-action='click->reader#toggleQuiet'][aria-label='Focus']"
       assert_select "button.header-copy-button[data-action='click->reader#copyPassage'][aria-label='Copy chapter text and notes']"
       assert_select ".header-copy-button svg.copy-idle"
@@ -125,6 +127,82 @@ class ReaderControllerTest < ActionDispatch::IntegrationTest
       assert_select "input#q[type=search][placeholder='John 3:16']"
       assert_select "ul.suggest"
       assert_select "button", text: /Search/, count: 0
+    end
+    assert_select "main.reader > form.jump", count: 0
+    assert_select ".fn", count: 0
+    assert_select "sup", text: "†", count: 0
+  end
+
+  test "First Disciples is several USJ paragraphs with a poetry pair at 1:23" do
+    Verse.delete_all
+    get read_path("jhn.1")
+    assert_select "h2.section-head[data-usfm='s1']", "The Beginning"
+    assert_select "h2.section-head[data-usfm='s1']", "The Witness of John"
+    assert_select "h2.section-head[data-usfm='s1']", "The Word Became Flesh"
+    assert_select "h2.section-head[data-usfm='s1']", "The First Disciples"
+    first = css_select("h2.section-head").find { |node| node.text == "The First Disciples" }
+    assert first
+    assert_equal "r", first.next_element["data-usfm"]
+    xref = first.next_element
+    assert_equal "pub-r", xref["class"]
+    refs = xref.css("a.pub-ref")
+    assert_equal [ "Matthew 4:18–22", "Mark 1:16–20", "Luke 5:1–11" ], refs.map(&:text)
+    assert_equal [ "/mat.4.18-22", "/mrk.1.16-20", "/luk.5.1-11" ], refs.map { |el| el["href"] }
+    refute refs.any? { |el| el.text.strip == "Luke" }
+    paras = []
+    node = first.next_element
+    while node && node.name != "h2"
+      paras << node if node["data-usfm"] == "p"
+      node = node.next_element
+    end
+    assert_operator paras.size, :>=, 4
+    assert_equal [ 35, 36, 37 ], paras[0].css("[data-verse]").map { |el| el["data-verse"].to_i }.uniq
+    assert_equal [ 38 ], paras[1].css("[data-verse]").map { |el| el["data-verse"].to_i }.uniq
+    refute_equal (35..42).to_a, paras[0].css("[data-verse]").map { |el| el["data-verse"].to_i }.uniq
+    mission = css_select("h2.section-head").find { |node| node.text == "The Mission of John the Baptist" }
+    assert mission
+    isa = mission.next_element
+    assert_equal "r", isa["data-usfm"]
+    assert_select "a.pub-ref[href='/isa.40.1-5']", "Isaiah 40:1–5"
+    assert_select "a.pub-ref[href='/mat.3.1-12']", "Matthew 3:1–12"
+    replies = []
+    node = isa.next_element
+    while node && node.name != "h2"
+      if node["data-usfm"] == "p" && node.css(".vnum").empty? && node.text.match?(/I am not|Prophet|He answered/)
+        replies << node
+      end
+      node = node.next_element
+    end
+    assert_equal 3, replies.size
+    replies.each do |para|
+      assert para.at_css(".verse-press > .vtext")
+      assert_nil para.at_css(".vnum")
+      assert para.at_css(".pub-line") || para["class"].to_s.include?("pub-line")
+    end
+    assert_select ".pub-q1[data-usfm='q1']", /voice of one calling/
+    assert_select ".pub-q2[data-usfm='q2']", /Make straight the way for the Lord/
+    assert_select ".vnum[data-usfm='v']", "35"
+    assert_select ".wj", /What do you want/
+  end
+
+  test "chapter title opens this book's chapter grid" do
+    get read_path("jhn.1")
+    assert_select "button.topbar-title-btn[aria-haspopup='dialog'][aria-expanded='false'][aria-controls='chapter-grid']", "John 1"
+    assert_select ".chapter-grid[hidden][role='dialog'][aria-labelledby='chapter-grid-heading']" do
+      assert_select "button.chapter-grid-book#chapter-grid-heading[data-action='click->reader#toggleBookPicker']", "John"
+      assert_select ".chapter-grid-books[hidden]"
+      assert_select ".chapter-grid-books .chapter-grid-group", "Old Testament"
+      assert_select ".chapter-grid-books .chapter-grid-group", "New Testament"
+      assert_select ".chapter-grid-books button.chapter-grid-cell[data-book]", 66
+      assert_select ".chapter-grid-books button.chapter-grid-cell[data-book='GEN']", "GEN"
+      assert_select ".chapter-grid-books button.chapter-grid-cell[data-book='MAT']", "MAT"
+      assert_select ".chapter-grid-books button.chapter-grid-cell[data-book='REV']", "REV"
+      assert_select ".chapter-grid-books button.chapter-grid-cell.is-current[data-book='JHN']", "JHN"
+      assert_select "[data-reader-target='chapterCells'] a.chapter-grid-cell", 21
+      assert_select "a.chapter-grid-cell.is-current[href='/jhn.1'][aria-current='page']", "1"
+      assert_select "a.chapter-grid-cell[href='/jhn.2']", "2"
+      assert_select "a.chapter-grid-cell[href='/jhn.21']", "21"
+      assert_select "a.chapter-grid-cell[href='/gen.1']", count: 0
     end
   end
 
@@ -194,12 +272,15 @@ class ReaderControllerTest < ActionDispatch::IntegrationTest
     assert_select ".note-tray .tray-head .tray-bookmark + .tray-external"
     assert_select ".note-tray .tray-head .tray-external + .tray-clear"
     assert_select ".tray-meta", count: 0
+    assert_select ".oindent", count: 0
+    assert_select ".oindent-btn", count: 0
+    assert_select "[data-oindent]", count: 0
     assert_select ".tray-head", text: /Autosaves/, count: 0
     assert_select ".tray-head a", text: /route\.bible/, count: 0
     assert_select "textarea.note-input", count: 0
     assert_select ".outliner[data-slug='jhn.1'] .otext"
-    assert_select ".outliner[data-slug='jhn.1'] .oblock[data-bullet='0']"
-    assert_select ".outliner[data-slug='jhn.1'] .oblock.is-bullet", count: 0
+    assert_select ".outliner[data-slug='jhn.1'] .oblock[data-bullet='1']"
+    assert_select ".outliner[data-slug='jhn.1'] .oblock.is-bullet"
   end
 
   test "autosaves a verse note" do
@@ -235,6 +316,29 @@ class ReaderControllerTest < ActionDispatch::IntegrationTest
     assert_select ".chapter-tray .outliner[data-slug='jhn.1'] .otext", "Chapter only."
   end
 
+  test "a Genesis range keeps jump in chrome and paints span ends" do
+    get read_path("gen.1.1-2")
+    assert_response :success
+    assert_select "#v1.is-span.is-span-start"
+    assert_select "#v2.is-span.is-span-end"
+    assert_select "#v2 .outliner[data-slug='gen.1.1-2']"
+    assert_select "main.reader .reader-chrome .chrome-bar form.jump"
+    assert_select "main.reader > form.jump", count: 0
+    assert_select ".fn", count: 0
+    refute_includes @response.body, "†"
+  end
+
+  test "a Matthew range marks poetry verses in the same span" do
+    get read_path("mat.3.1-12")
+    assert_response :success
+    assert_select "#v1.is-span.is-span-start"
+    assert_select "#v12.is-span.is-span-end"
+    assert_select ".pub-q1 .verse.is-span", /voice of one calling/
+    assert_select ".pub-q2 .verse.is-span", /straight/
+    assert_select "main.reader .reader-chrome .chrome-bar form.jump"
+    assert_select "main.reader > form.jump", count: 0
+  end
+
   test "range slug marks the span and opens one range tray" do
     [ 2, 3 ].each do |n|
       Verse.create!(
@@ -245,9 +349,10 @@ class ReaderControllerTest < ActionDispatch::IntegrationTest
 
     get read_path("jhn.1.1-3")
     assert_response :success
-    assert_select "#v1.is-span"
+    assert_select "#v1.is-span.is-span-start"
     assert_select "#v2.is-span"
-    assert_select "#v3.is-span"
+    assert_select "#v2.is-span-start", count: 0
+    assert_select "#v3.is-span.is-span-end"
     assert_select "#v3.is-open"
     assert_select "#v1.is-open", count: 0
     assert_select "#v3 .outliner[data-slug='jhn.1.1-3']"
@@ -310,7 +415,10 @@ class ReaderControllerTest < ActionDispatch::IntegrationTest
 
     get read_path("jhn.1")
     assert_select "#v1 .outliner[data-slug='jhn.1.1'] a.wiki[href='/jhn.1.6'][data-wiki-raw='[[jhn.1.6|John]]']", "John"
-    assert_select "#v1 .outliner[data-slug='jhn.1.1'] .otext", /See \*\*Word\*\* and \*life\* and `logos` and John/
+    assert_select "#v1 .outliner[data-slug='jhn.1.1'] .otext strong", "Word"
+    assert_select "#v1 .outliner[data-slug='jhn.1.1'] .otext em", "life"
+    assert_select "#v1 .outliner[data-slug='jhn.1.1'] .otext code", "logos"
+    assert_select "#v1 .outliner[data-slug='jhn.1.1'] .otext", /See Word and life and logos and John/
     assert_select "#v1 .note-preview", count: 0
   end
 end

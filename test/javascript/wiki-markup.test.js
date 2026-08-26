@@ -1,5 +1,5 @@
 import assert from "node:assert/strict"
-import { resolveWikiTarget, wikiRaw, wikiTokens } from "../../app/javascript/lib/wiki-markup.js"
+import { displayTokens, inlineMdTokens, resolveWikiTarget, wikiRaw, wikiTokens } from "../../app/javascript/lib/wiki-markup.js"
 
 {
   const resolved = resolveWikiTarget("John 3:16")
@@ -34,4 +34,21 @@ import { resolveWikiTarget, wikiRaw, wikiTokens } from "../../app/javascript/lib
 {
   assert.equal(wikiRaw("jhn.1.6", "John"), "[[jhn.1.6|John]]")
   assert.equal(wikiRaw("jhn.1"), "[[jhn.1]]")
+}
+
+{
+  const tokens = inlineMdTokens("See **Word** and *life* and _light_")
+  assert.equal(tokens[0].value, "See ")
+  assert.deepEqual(tokens[1], { type: "strong", value: "Word" })
+  assert.equal(tokens[2].value, " and ")
+  assert.deepEqual(tokens[3], { type: "em", value: "life" })
+  assert.equal(tokens[4].value, " and ")
+  assert.deepEqual(tokens[5], { type: "em", value: "light" })
+}
+
+{
+  const tokens = displayTokens("See **Word** and [[jhn.1.6|John]]")
+  assert.deepEqual(tokens[1], { type: "strong", value: "Word" })
+  assert.equal(tokens[3].type, "wiki")
+  assert.equal(tokens[3].href, "/jhn.1.6")
 }

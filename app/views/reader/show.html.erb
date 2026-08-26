@@ -13,7 +13,7 @@
 
 <div
   data-controller="reader search"
-  data-action="pointerdown->reader#pressStart"
+  data-action="pointerdown->reader#pressStart keydown.esc@window->reader#closeChapterGrid"
   data-reader-focus-value="<%= @focus_verse %>"
   data-reader-chapter-slug-value="<%= @chapter.slug %>"
   data-reader-notes-url-value="<%= notes_path %>"
@@ -25,6 +25,8 @@
   data-reader-passage-slug-value="<%= @passage.slug %>"
   data-reader-export-url-value="<%= export_path %>"
   data-reader-book-value="<%= @chapter.book %>"
+  data-reader-book-names-value="<%= Margin::Books::NAMES.to_json %>"
+  data-reader-chapter-counts-value="<%= Margin::Books::CHAPTER_COUNTS.to_json %>"
   <% if span_start %>
     data-reader-span-start-value="<%= span_start %>"
     data-reader-span-end-value="<%= span_end %>"
@@ -41,7 +43,17 @@
           </svg>
         <% end %>
       </div>
-      <h1 class="topbar-title" data-reader-target="title"><%= @passage.kind == "chapter" ? @chapter.label : @passage.label %></h1>
+      <h1 class="topbar-title">
+        <button
+          type="button"
+          class="topbar-title-btn"
+          data-reader-target="title"
+          data-action="click->reader#toggleChapterGrid"
+          aria-haspopup="dialog"
+          aria-expanded="false"
+          aria-controls="chapter-grid"
+        ><%= @passage.kind == "chapter" ? @chapter.label : @passage.label %></button>
+      </h1>
       <div class="topbar-actions">
         <button
           type="button"
@@ -80,6 +92,60 @@
     </header>
   <% end %>
 
+  <div
+    id="chapter-grid"
+    class="chapter-grid"
+    hidden
+    data-reader-target="chapterGrid"
+    data-action="click->reader#closeChapterGrid"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="chapter-grid-heading"
+  >
+    <div class="chapter-grid-sheet" data-action="click->reader#keepChapterGrid">
+      <button
+        type="button"
+        class="chapter-grid-book"
+        id="chapter-grid-heading"
+        data-reader-target="gridHeading"
+        data-action="click->reader#toggleBookPicker"
+        aria-expanded="false"
+        aria-controls="chapter-grid-books"
+      ><%= Margin::Books.name_for(@chapter.book) %></button>
+      <div id="chapter-grid-books" class="chapter-grid-books" data-reader-target="bookList" hidden>
+        <p class="chapter-grid-group">Old Testament</p>
+        <div class="chapter-grid-cells">
+          <% Margin::Books.ot_codes.each do |code| %>
+            <button
+              type="button"
+              class="chapter-grid-cell<%= " is-current" if code == @chapter.book %>"
+              data-book="<%= code %>"
+              data-action="click->reader#pickGridBook"
+            ><%= code %></button>
+          <% end %>
+        </div>
+        <p class="chapter-grid-group">New Testament</p>
+        <div class="chapter-grid-cells">
+          <% Margin::Books.nt_codes.each do |code| %>
+            <button
+              type="button"
+              class="chapter-grid-cell<%= " is-current" if code == @chapter.book %>"
+              data-book="<%= code %>"
+              data-action="click->reader#pickGridBook"
+            ><%= code %></button>
+          <% end %>
+        </div>
+      </div>
+      <div class="chapter-grid-cells" data-reader-target="chapterCells">
+        <% 1.upto(Margin::Books.chapter_count(@chapter.book)) do |n| %>
+          <%= link_to n, read_path(Margin::Passage.new(book: @chapter.book, chapter: n).slug),
+                class: "chapter-grid-cell#{" is-current" if n == @chapter.chapter}",
+                aria: { current: (n == @chapter.chapter ? "page" : nil) } %>
+        <% end %>
+      </div>
+    </div>
+  </div>
+
   <main class="reader">
     <div class="reader-chrome" data-controller="chrome" data-action="chrome:reveal->chrome#show">
       <%= render "reader/trail" %>
@@ -94,60 +160,17 @@
     </section>
 
     <article class="chapter">
-      <% @verses.each do |verse| %>
-        <% vslug = @chapter.verse_slug(verse.verse) %>
-        <% covering = @notes_by_verse[verse.verse] || [] %>
-        <% exact = covering.find { |note| note.slug == vslug } %>
-        <% range_note = range_slug && covering.find { |note| note.slug == range_slug } %>
-        <% in_span = span_start && verse.verse >= span_start && verse.verse <= span_end %>
-        <% is_end = range_selected && verse.verse == span_end %>
-        <% is_single_open = single_selected && verse.verse == span_start %>
-        <% trays_open = is_single_open || is_end %>
-        <div
-          class="verse <%= "has-note" if covering.any? %> <%= "is-open" if trays_open %> <%= "is-span" if in_span %>"
-          id="v<%= verse.verse %>"
-          data-verse="<%= verse.verse %>"
-          data-slug="<%= vslug %>"
-        >
-          <% if verse.heading.present? %>
-            <h2 class="section-head <%= "spaced" if verse.verse > 1 %>"><%= verse.heading %></h2>
-          <% end %>
-          <button type="button" class="verse-press" data-action="click->reader#openVerse">
-            <span class="vnum"><%= verse.verse %></span>
-            <span class="vtext"><%= verse.text %></span>
-          </button>
-          <% if covering.any? && !trays_open %>
-            <div class="rail" aria-hidden="true"></div>
-          <% end %>
-          <% covering.each do |note| %>
-            <section class="note-card">
-              <div class="note-tray" data-reader-target="tray" data-note-slug="<%= note.slug %>" <%= "hidden" unless trays_open %>>
-                <%= render "reader/note_editor", slug: note.slug, note: note, label: note.passage.label %>
-              </div>
-            </section>
-          <% end %>
-          <% if is_end && range_slug && range_note.nil? %>
-            <div
-              class="note-tray"
-              data-reader-target="tray"
-              data-range-composer
-              data-range-slug="<%= range_slug %>"
-            >
-              <%= render "reader/note_editor", slug: range_slug, note: nil, label: @passage.label %>
-            </div>
-          <% end %>
-          <% unless exact %>
-            <div
-              class="note-tray"
-              data-reader-target="tray"
-              data-verse-composer
-              <%= "hidden" unless is_single_open %>
-            >
-              <%= render "reader/note_editor", slug: vslug, note: nil, label: nil %>
-            </div>
-          <% end %>
-        </div>
-      <% end %>
+      <%= render_usj_chapter(
+            @usj_nodes,
+            chapter: @chapter,
+            notes_by_verse: @notes_by_verse,
+            span_start:,
+            span_end:,
+            range_slug:,
+            range_selected:,
+            single_selected:,
+            passage_label: @passage.label
+          ) %>
     </article>
 
     <template data-reader-target="rangeTemplate">

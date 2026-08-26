@@ -16,8 +16,7 @@ module ApplicationHelper
       placeholders << "<code>#{Regexp.last_match(1)}</code>"
       "\u0000#{placeholders.length - 1}\u0000"
     }
-    html = html.gsub(/\*\*([\s\S]+?)\*\*/) { "<strong>#{Regexp.last_match(1)}</strong>" }
-    html = html.gsub(/(?<!\*)\*(?!\*)([\s\S]+?)(?<!\*)\*(?!\*)/) { "<em>#{Regexp.last_match(1)}</em>" }
+    html = apply_inline_md(html)
     html = html.gsub(/\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/) {
       target = Regexp.last_match(1)
       label = Regexp.last_match(2).presence || target
@@ -47,8 +46,28 @@ module ApplicationHelper
           ERB::Util.html_escape(part)
         end
       else
-        ERB::Util.html_escape(part).gsub("\n", "<br>")
+        inline_md_display_html(part)
       end
     }.join.html_safe
+  end
+
+  private
+
+  def apply_inline_md(html)
+    html = html.gsub(/\*\*([\s\S]+?)\*\*/) { "<strong>#{Regexp.last_match(1)}</strong>" }
+    html = html.gsub(/(?<!\*)\*(?!\*)([\s\S]+?)(?<!\*)\*(?!\*)/) { "<em>#{Regexp.last_match(1)}</em>" }
+    html.gsub(/(?<![A-Za-z0-9&])_([^_\n]+?)_(?![A-Za-z0-9])/) { "<em>#{Regexp.last_match(1)}</em>" }
+  end
+
+  def inline_md_display_html(text)
+    html = ERB::Util.html_escape(text.to_s)
+    placeholders = []
+    html = html.gsub(/`([^`]+)`/) {
+      placeholders << "<code>#{Regexp.last_match(1)}</code>"
+      "\u0000#{placeholders.length - 1}\u0000"
+    }
+    html = apply_inline_md(html)
+    html = html.gsub(/\u0000(\d+)\u0000/) { placeholders[Regexp.last_match(1).to_i] }
+    html.gsub("\n", "<br>")
   end
 end

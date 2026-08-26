@@ -8,7 +8,7 @@ export function newBlockId() {
   return `b_${[...bytes].map((byte) => byte.toString(16).padStart(2, "0")).join("")}`
 }
 
-export function newBlock(indent = 0, text = "", id = newBlockId(), { bullet = false } = {}) {
+export function newBlock(indent = 0, text = "", id = newBlockId(), { bullet = true } = {}) {
   return { id, indent, text, bullet }
 }
 
@@ -34,13 +34,18 @@ export function clampIndent(blocks) {
   return blocks
 }
 
-export function indentSubtree(blocks, index, delta) {
+export function canIndentSubtree(blocks, index, delta) {
+  if (!Array.isArray(blocks) || index < 0 || index >= blocks.length) return false
   if (delta > 0) {
     if (index === 0) return false
-    if (blocks[index].indent >= blocks[index - 1].indent + 1) return false
-  } else if (blocks[index].indent <= 0) {
-    return false
+    return blocks[index].indent < blocks[index - 1].indent + 1
   }
+  if (delta < 0) return blocks[index].indent > 0
+  return false
+}
+
+export function indentSubtree(blocks, index, delta) {
+  if (!canIndentSubtree(blocks, index, delta)) return false
 
   const end = subtreeEnd(blocks, index)
   for (let cursor = index; cursor < end; cursor += 1) {
@@ -50,12 +55,35 @@ export function indentSubtree(blocks, index, delta) {
   return true
 }
 
+export function indentFromControl(blocks, index, delta) {
+  return indentSubtree(blocks, index, delta)
+}
+
+export function shouldIndentOnSpace(text, offset) {
+  const value = String(text || "")
+  const at = Number(offset)
+  if (!Number.isFinite(at) || at < 0) return false
+  if (at === 1 && value.startsWith(" ")) return true
+  if (at === 0 && value.startsWith(" ")) return true
+  return false
+}
+
+export function applySpaceIndent(blocks, index) {
+  if (!Array.isArray(blocks) || index < 0 || index >= blocks.length) return false
+  const block = blocks[index]
+  const before = String(block.text || "")
+  if (!before.startsWith(" ")) return false
+  block.text = before.replace(/^ +/, "")
+  indentSubtree(blocks, index, 1)
+  return true
+}
+
 export function splitSibling(blocks, index, offset) {
   const current = blocks[index]
   const left = current.text.slice(0, offset)
   const right = current.text.slice(offset)
   current.text = left
-  const created = newBlock(current.indent, right, newBlockId(), { bullet: false })
+  const created = newBlock(current.indent, right)
   blocks.splice(subtreeEnd(blocks, index), 0, created)
   return created
 }
@@ -84,6 +112,11 @@ export function insertNewline(blocks, index, offset) {
 
 export function backspaceAtStart(blocks, index) {
   const current = blocks[index]
+  if (current.indent > 0) {
+    indentSubtree(blocks, index, -1)
+    return { changed: true, focusId: current.id, caret: 0 }
+  }
+
   if (blockHasBullet(current)) {
     current.bullet = false
     return { changed: true, focusId: current.id, caret: 0 }
@@ -186,7 +219,7 @@ export function insertPastedLines(blocks, index, offset, paste) {
   current.text = current.text.slice(0, offset) + lines[0]
   const created = lines.slice(1).map((line, lineIndex, list) => {
     const isLast = lineIndex === list.length - 1
-    return newBlock(current.indent, line + (isLast ? after : ""), newBlockId(), { bullet: false })
+    return newBlock(current.indent, line + (isLast ? after : ""))
   })
   blocks.splice(index + 1, 0, ...created)
   const last = created[created.length - 1]
