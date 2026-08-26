@@ -8,7 +8,7 @@ class ReaderVerseCssTest < ActiveSupport::TestCase
   end
 
   test "open verse is a thin rail, not a filled rounded island" do
-    refute_match(/\.verse\.is-open[^{]*\{[^}]*background:/m, css)
+    refute_match(/\.verse\.is-open\s*\{[^}]*background:/m, css)
     refute_match(/\.verse\.is-span\s*\{[^}]*background:/m, css)
     refute_match(/\.verse\.is-span \.vtext\s*\{[^}]*background:/m, css)
     refute_match(/--mark-fill/, css)
@@ -165,9 +165,15 @@ class ReaderVerseCssTest < ActiveSupport::TestCase
   end
 
   test "range span rail is one continuous left edge" do
-    assert_match(/\.verse\.is-span:not\(\.is-span-start\)::before/, css)
-    assert_match(/\.verse\.is-span:not\(\.is-span-start\)::before\s*\{[^}]*background:\s*var\(--sel-rail-open\)/, css)
-    assert_match(/\.pub-p:has\(> \.verse\.is-span:last-child\):has\(\+ \.pub-p > \.verse\.is-span\)/, css)
+    span = css[/\.verse\.is-open,\s*\.verse\.is-span\s*\{[^}]+\}/]
+    assert span
+    assert_match(/border-left:\s*0/, span)
+    rail = css[/\.verse\.is-open::before,\s*\.verse\.is-span::before\s*\{[^}]+\}/]
+    assert rail
+    assert_match(/width:\s*2px/, rail)
+    assert_match(/background:\s*var\(--sel-rail-open\)/, rail)
+    assert_match(/\.verse\.is-span:not\(\.is-span-start\)::before\s*\{\s*top:\s*-1\.25em/, css)
+    refute_match(/\.verse\.is-open, \.verse\.is-span \{[^}]*border-left:\s*2px/, css)
     refute_match(/\.fn\s*\{/, css)
   end
 
