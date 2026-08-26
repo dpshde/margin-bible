@@ -30,6 +30,18 @@ class Sessions::PasskeyRegistrationsControllerTest < ActionDispatch::Integration
 
     assert_redirected_to root_path
     assert_equal user, library.reload.user
+
+    patch account_path, params: { email: "reader@example.com" }
+    assert_equal "reader@example.com", user.reload.email
+
+    delete session_path
+    get new_session_path
+    challenge = refresh_webauthn_challenge(purpose: "authentication")
+    assertion = webauthn_client.get(challenge: challenge)
+    post session_passkey_path, params: passkey_authentication_params_from(assertion)
+    assert_redirected_to root_path
+    assert_equal user, library.reload.user
+    assert_equal "reader@example.com", user.reload.email
   end
 
   test "passkey-first claim imports guest pack notes without absorbing slugs" do

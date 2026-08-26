@@ -13,7 +13,12 @@ class SessionsController < ApplicationController
   end
 
   def create
-    email = params.require(:email)
+    email = User.normalized_email(params.require(:email))
+    if email.blank?
+      redirect_to new_session_path, alert: "Enter an email."
+      return
+    end
+
     user = User.find_or_create_by!(email: email)
     link = MagicLink.issue!(user: user, library: current_library)
     mailed = deliver_sign_in_mail(link)

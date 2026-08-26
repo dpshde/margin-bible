@@ -23,6 +23,7 @@ class PasskeysControllerTest < ActionDispatch::IntegrationTest
     get passkeys_path
     assert_response :success
     assert_select "h1", "Passkeys"
+    assert_select "section.account-email input#account_email[value='reader@example.com']"
     assert_select "rails-passkey-registration-button button[data-passkey='register']", "Register a passkey"
     assert_select "rails-passkey-registration-button[options*='client-device']"
 

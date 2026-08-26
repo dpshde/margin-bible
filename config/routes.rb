@@ -12,6 +12,7 @@ Rails.application.routes.draw do
   get "login/:token" => "sessions#show", as: :magic_login
   resource :passkey_challenge, only: :create
   resources :passkeys, only: %i[index create edit update destroy]
+  resource :account, only: :update
   post "guest_pack" => "guest_packs#create", as: :guest_pack
 
   get "resolve" => "resolves#show", as: :resolve

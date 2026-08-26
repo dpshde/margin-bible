@@ -600,6 +600,8 @@ rails-passkey-registration-button,
 rails-passkey-sign-in-button { display: block; width: 100%; }
 .auth-passkey-create { margin-top: .65rem; }
 .auth-passkey-create .muted { margin: .45rem 0 0; }
+.account-email { margin: 1.8rem 0 0; }
+.account-email h2 { margin: 0 0 .35rem; font-size: 1.05rem; }
 
 .inbox-main { max-width: var(--page-max); margin: 0 auto; padding: .75rem 1.1rem 6rem; }
 .inbox-continue {

@@ -19,6 +19,16 @@
   <% end %>
   <p class="muted">Your browser will ask for Face ID, a fingerprint, a PIN, or a security key.</p>
 
+  <section class="account-email">
+    <h2>Email</h2>
+    <p class="muted">Optional. Add one if you also want a magic link to this same library.</p>
+    <%= form_with url: account_path, method: :patch do %>
+      <label class="sr-only" for="account_email">Email</label>
+      <input id="account_email" name="email" type="email" value="<%= current_user.email %>" autocomplete="email" placeholder="you@example.com">
+      <button type="submit" class="secondary"><%= current_user.email.present? ? "Save email" : "Add email" %></button>
+    <% end %>
+  </section>
+
   <p class="muted"><%= link_to "Back to notes", root_path %></p>
   <%= button_to "Sign out", session_path, method: :delete, class: "text-btn" %>
 </main>

@@ -9,9 +9,13 @@ class User < ApplicationRecord
     end
   end
 
-  normalizes :email, with: ->(e) { e.to_s.strip.downcase.presence }
+  normalizes :email, with: ->(e) { User.normalized_email(e) }
 
   validates :email, uniqueness: true, allow_nil: true, format: { with: URI::MailTo::EMAIL_REGEXP, allow_nil: true }
+
+  def self.normalized_email(value)
+    value.to_s.strip.downcase.presence
+  end
 
   def webauthn_name
     email.presence || "margin"

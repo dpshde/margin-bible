@@ -34,4 +34,12 @@ class UserTest < ActiveSupport::TestCase
     user = User.create!(email: "reader@example.com")
     assert_equal "reader@example.com", user.webauthn_name
   end
+
+  test "normalized_email strips and downcases so find_or_create_by hits the same user" do
+    user = User.create!
+    user.update!(email: "Reader@Example.com")
+    found = User.find_or_create_by!(email: User.normalized_email("READER@example.com"))
+    assert_equal user, found
+    assert_equal 1, User.where(email: "reader@example.com").count
+  end
 end
