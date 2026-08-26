@@ -74,6 +74,51 @@ class HomeControllerTest < ActionDispatch::IntegrationTest
     assert_select ".inbox-day", /Today/
   end
 
+  test "bookmarked notes sit in a Bookmarks section at the top" do
+    get root_path
+    library = Library.last
+    library.notes.create!(
+      slug: "jhn.3.16", osis: "JHN.3.16", kind: "verse", book: "JHN", chapter: 3,
+      verse_start: 16, blocks: [ { "id" => "n", "indent" => 0, "text" => "Love." } ],
+      created_at: 1.hour.ago
+    )
+    library.notes.create!(
+      slug: "jhn.1.1", osis: "JHN.1.1", kind: "verse", book: "JHN", chapter: 1,
+      verse_start: 1, blocks: [ { "id" => "b", "indent" => 0, "text" => "Logos." } ],
+      bookmarked: true,
+      created_at: 2.days.ago
+    )
+
+    get root_path
+    days = css_select(".inbox-day").map { |node| node.text.strip }
+    assert_equal [ "Bookmarks", "Today" ], days
+    titles = css_select(".inbox-card-title").map { |node| node.text.strip }
+    assert_equal [ "John 1:1", "John 3:16" ], titles
+    assert_select ".inbox-card.is-bookmarked[href='/jhn.1.1']"
+    assert_select ".inbox-card.is-bookmarked", count: 1
+  end
+
+  test "inbound q from route.bible opens the passage" do
+    get root_path, params: { q: "John 3:16" }
+    assert_redirected_to read_path("jhn.3.16")
+  end
+
+  test "inbound osis from route.bible opens the passage" do
+    get root_path, params: { osis: "JHN.3.16" }
+    assert_redirected_to read_path("jhn.3.16")
+  end
+
+  test "inbound ref from route.bible opens a range" do
+    get root_path, params: { ref: "John 3:16-18" }
+    assert_redirected_to read_path("jhn.3.16-18")
+  end
+
+  test "unparseable inbound q stays on the inbox" do
+    get root_path, params: { q: "not-a-passage" }
+    assert_response :success
+    assert_select "h1.topbar-title", "Notes"
+  end
+
   test "clicking an inbox card opens the note slug" do
     get root_path
     Library.last.notes.create!(

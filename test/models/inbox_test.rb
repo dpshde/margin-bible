@@ -46,6 +46,28 @@ class InboxTest < ActiveSupport::TestCase
     refute sections.any? { |section| section[:notes].empty? }
   end
 
+  test "bookmarked notes bubble to a Bookmarks section and leave recency" do
+    library = Library.create!
+    kept = library.notes.create!(
+      slug: "jhn.3.16", osis: "JHN.3.16", kind: "verse", book: "JHN", chapter: 3,
+      verse_start: 16, blocks: [ { "id" => "a", "indent" => 0, "text" => "Love." } ],
+      created_at: Time.zone.local(2026, 8, 25, 12, 0, 0)
+    )
+    pinned = library.notes.create!(
+      slug: "jhn.1.1", osis: "JHN.1.1", kind: "verse", book: "JHN", chapter: 1,
+      verse_start: 1, blocks: [ { "id" => "b", "indent" => 0, "text" => "Logos." } ],
+      bookmarked: true,
+      created_at: Time.zone.local(2026, 8, 4, 9, 0, 0),
+      updated_at: Time.zone.local(2026, 8, 25, 18, 0, 0)
+    )
+
+    sections = Margin::Inbox.sections(library.notes.to_a, today: @today)
+    assert_equal [ "Bookmarks", "Today" ], sections.map { |section| section[:label] }
+    assert_equal :bookmarks, sections.first[:kind]
+    assert_equal [ pinned.slug ], sections.first[:notes].map(&:slug)
+    assert_equal [ kept.slug ], sections.last[:notes].map(&:slug)
+  end
+
   test "chapter notes keep a chapter_note query" do
     assert_equal({ chapter_note: 1 }, Margin::Inbox.href_options(Note.new(kind: "chapter")))
     assert_equal({}, Margin::Inbox.href_options(Note.new(kind: "verse")))

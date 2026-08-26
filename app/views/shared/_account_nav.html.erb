@@ -1,0 +1,19 @@
+<% appearance = local_assigns.fetch(:appearance, :quiet) %>
+<% if signed_in? %>
+  <% items = capture do %>
+    <%= link_to "Passkeys", passkeys_path, class: "menu-item" %>
+    <%= button_to "Sign out", session_path, method: :delete, class: "menu-item" %>
+  <% end %>
+  <% if appearance == :menu %>
+    <%= items %>
+  <% else %>
+    <details class="topbar-menu">
+      <summary class="icon-btn" title="Menu" aria-label="Menu">≡</summary>
+      <div class="menu-panel" onclick="if (event.target.closest('button, a')) this.closest('details').removeAttribute('open')">
+        <%= items %>
+      </div>
+    </details>
+  <% end %>
+<% else %>
+  <%= link_to "Sign in", new_session_path, class: appearance == :menu ? "menu-item" : "ghost quiet" %>
+<% end %>

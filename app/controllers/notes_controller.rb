@@ -18,6 +18,9 @@ class NotesController < ApplicationController
       verse_end: passage.verse_end
     )
     apply_note_content!(note)
+    if params.key?(:bookmarked)
+      note.bookmarked = ActiveModel::Type::Boolean.new.cast(params[:bookmarked])
+    end
 
     if note.empty_content?
       note.destroy if note.persisted?
@@ -26,7 +29,7 @@ class NotesController < ApplicationController
     end
 
     note.save!
-    render json: { ok: true, slug: note.slug, updated_at: note.updated_at }
+    render json: { ok: true, slug: note.slug, updated_at: note.updated_at, bookmarked: note.bookmarked? }
   end
 
   private

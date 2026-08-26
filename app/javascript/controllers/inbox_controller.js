@@ -14,11 +14,12 @@ export default class extends Controller {
   }
 
   renderContinue(pack) {
-    if (!this.hasContinueTarget || !pack.last_read) return
+    const latest = pack.trail?.[0] || pack.last_read
+    if (!this.hasContinueTarget || !latest) return
     const link = this.continueTarget.querySelector("a")
     if (!link) return
-    link.href = `/${pack.last_read}`
-    link.textContent = `Continue ${slugLabel(pack.last_read)}`
+    link.href = `/${latest}`
+    link.textContent = `Continue ${slugLabel(latest)}`
     this.continueTarget.hidden = false
   }
 
@@ -35,7 +36,7 @@ export default class extends Controller {
     const nodes = []
     sections.forEach((section) => {
       const heading = document.createElement("h2")
-      heading.className = "inbox-day"
+      heading.className = section.kind === "bookmarks" ? "inbox-day is-bookmarks" : "inbox-day"
       heading.textContent = section.label
       nodes.push(heading)
       section.notes.forEach((note) => nodes.push(this.cardFor(note)))
@@ -48,9 +49,18 @@ export default class extends Controller {
     card.className = "inbox-card"
     card.href = hrefForSlug(note.slug)
 
+    if (note.bookmarked) card.classList.add("is-bookmarked")
+
     const title = document.createElement("p")
     title.className = "inbox-card-title"
-    title.textContent = slugLabel(note.slug)
+    if (note.bookmarked) {
+      const mark = document.createElement("span")
+      mark.className = "inbox-mark"
+      mark.setAttribute("aria-hidden", "true")
+      mark.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="12" height="12" fill="currentColor" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"><path d="M4 2.25h8v11.1L8 11.1 4 13.35z" /></svg>'
+      title.append(mark)
+    }
+    title.append(document.createTextNode(slugLabel(note.slug)))
     card.append(title)
 
     const preview = previewText(note.blocks)

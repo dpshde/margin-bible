@@ -1,0 +1,7 @@
+<% if @trail.any? %>
+  <nav class="trail trail-inline" aria-label="Recent passages">
+    <% @trail.each do |passage| %>
+      <%= link_to passage.label, read_path(passage.slug), class: "trail-chip", data: { turbo_prefetch: true } %>
+    <% end %>
+  </nav>
+<% end %>

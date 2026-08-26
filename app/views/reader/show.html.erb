@@ -22,6 +22,9 @@
   data-reader-prev-url-value="<%= @prev ? read_path(@prev.slug) : "" %>"
   data-reader-next-url-value="<%= @next ? read_path(@next.slug) : "" %>"
   data-reader-signed-in-value="<%= signed_in? %>"
+  data-reader-passage-slug-value="<%= @passage.slug %>"
+  data-reader-export-url-value="<%= export_path %>"
+  data-reader-book-value="<%= @chapter.book %>"
   <% if span_start %>
     data-reader-span-start-value="<%= span_start %>"
     data-reader-span-end-value="<%= span_end %>"
@@ -40,21 +43,27 @@
       </div>
       <h1 class="topbar-title" data-reader-target="title"><%= @passage.kind == "chapter" ? @chapter.label : @passage.label %></h1>
       <div class="topbar-actions">
-        <details class="topbar-menu">
-          <summary class="icon-btn" title="Menu" aria-label="Menu">≡</summary>
-          <div class="menu-panel" onclick="if (event.target.closest('button, a')) this.closest('details').removeAttribute('open')">
-            <button type="button" class="menu-item" data-action="click->reader#share" data-reader-route-bible-param="<%= @route_bible_url %>">Share</button>
-            <button type="button" class="menu-item <%= "is-on" if @chapter_note %>" data-action="click->reader#toggleChapter">Chapter note</button>
-            <button type="button" class="menu-item" data-action="click->reader#toggleExpand" <%= "disabled" unless @verse_notes.any? %>>Expand notes</button>
-            <%= link_to "Sign in", new_session_path, class: "menu-item" %>
-          </div>
-        </details>
+        <button
+          type="button"
+          class="icon-btn header-copy-button"
+          data-reader-target="copyButton"
+          data-action="click->reader#copyPassage"
+          aria-label="Copy passage reference, text, and notes"
+          title="Copy passage reference, text, and notes"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16">
+            <rect x="9" y="9" width="10" height="10" rx="2"></rect>
+            <path d="M5 15V7a2 2 0 0 1 2-2h8"></path>
+          </svg>
+        </button>
       </div>
     </header>
   <% end %>
 
   <main class="reader">
     <%= render "shared/jump" %>
+    <%= render "reader/trail" %>
+    <%= render "reader/dock" %>
 
     <section class="chapter-tray" data-reader-target="chapterTray" <%= "hidden" unless params[:chapter_note] %>>
       <%= render "reader/note_editor", slug: @chapter.slug, note: @chapter_note, label: "Chapter note · #{@chapter.label}" %>

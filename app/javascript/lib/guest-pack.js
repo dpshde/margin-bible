@@ -64,7 +64,11 @@ export function loadPack(storage = defaultStorage()) {
       ? parsed.notes
       : {}
     const pack = { notes }
+    if (Array.isArray(parsed?.trail)) {
+      pack.trail = parsed.trail.map((item) => String(item)).filter(Boolean).slice(0, 3)
+    }
     if (parsed?.last_read) pack.last_read = String(parsed.last_read)
+    if (!pack.trail?.length && pack.last_read) pack.trail = [ pack.last_read ]
     return pack
   } catch {
     return { notes: {} }
@@ -73,6 +77,8 @@ export function loadPack(storage = defaultStorage()) {
 
 export function writePack(pack, storage = defaultStorage()) {
   const payload = { notes: pack.notes || {} }
+  const trail = Array.isArray(pack.trail) ? pack.trail.filter(Boolean).slice(0, 3) : []
+  if (trail.length) payload.trail = trail
   if (pack.last_read) payload.last_read = pack.last_read
   storage.setItem(GUEST_PACK_KEY, JSON.stringify(payload))
   return pack
@@ -94,9 +100,23 @@ export function applyNoteToPack(pack, slug, blocks, now = new Date()) {
     slug: key,
     blocks: normalized,
     created_at: existing?.created_at || iso,
-    updated_at: iso
+    updated_at: iso,
+    bookmarked: existing?.bookmarked === true
   }
   return true
+}
+
+export function setNoteBookmarked(slug, bookmarked, storage = defaultStorage(), now = new Date()) {
+  const key = String(slug || "").trim()
+  const pack = loadPack(storage)
+  const note = pack.notes[key]
+  if (!note || emptyContent(note.blocks)) return pack
+  const next = Boolean(bookmarked)
+  if (note.bookmarked === next) return pack
+  note.bookmarked = next
+  note.updated_at = now.toISOString()
+  writePack(pack, storage)
+  return pack
 }
 
 export function upsertNote(slug, blocks, { storage = defaultStorage(), now = new Date() } = {}) {
@@ -105,14 +125,22 @@ export function upsertNote(slug, blocks, { storage = defaultStorage(), now = new
   return pack
 }
 
-export function setLastRead(slug, storage = defaultStorage()) {
+export function rememberRead(slug, storage = defaultStorage()) {
   const key = String(slug || "").trim()
   if (!key) return loadPack(storage)
   const pack = loadPack(storage)
-  if (pack.last_read === key) return pack
+  const trail = Array.isArray(pack.trail) ? pack.trail.filter(Boolean) : []
+  if (pack.last_read && !trail.includes(pack.last_read)) trail.push(pack.last_read)
+  const next = [ key, ...trail.filter((item) => item !== key) ].slice(0, 3)
+  if (pack.last_read === key && JSON.stringify(pack.trail || []) === JSON.stringify(next)) return pack
+  pack.trail = next
   pack.last_read = key
   writePack(pack, storage)
   return pack
+}
+
+export function setLastRead(slug, storage = defaultStorage()) {
+  return rememberRead(slug, storage)
 }
 
 export function notesForChapter(chapterSlug, pack) {
@@ -149,17 +177,30 @@ export function dayLabel(date, today) {
 export function inboxSections(pack, { now = new Date() } = {}) {
   const notes = Object.values(pack?.notes || {})
     .filter((note) => !emptyContent(note.blocks))
+  const bookmarked = notes
+    .filter((note) => note.bookmarked)
+    .sort((left, right) => utcDate(right.updated_at || right.created_at) - utcDate(left.updated_at || left.created_at))
+  const rest = notes
+    .filter((note) => !note.bookmarked)
     .sort((left, right) => utcDate(right.created_at) - utcDate(left.created_at))
+  const sections = []
+  if (bookmarked.length) {
+    sections.push({ label: "Bookmarks", notes: bookmarked, kind: "bookmarks" })
+  }
   const grouped = new Map()
-  for (const note of notes) {
+  for (const note of rest) {
     const key = dateKey(utcDate(note.created_at))
     if (!grouped.has(key)) grouped.set(key, [])
     grouped.get(key).push(note)
   }
-  return [...grouped.entries()].map(([, dayNotes]) => ({
-    label: dayLabel(utcDate(dayNotes[0].created_at), now),
-    notes: dayNotes
-  }))
+  for (const [, dayNotes] of grouped) {
+    sections.push({
+      label: dayLabel(utcDate(dayNotes[0].created_at), now),
+      notes: dayNotes,
+      kind: "day"
+    })
+  }
+  return sections
 }
 
 function dateKey(date) {

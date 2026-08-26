@@ -23,10 +23,18 @@ test:
 # Writable paths inside the image. Vercel Fluid previews are ephemeral
 # (scale-to-zero); that is expected for test. BSB is seeded into these
 # files at image build so cold start does not reload ~31k verses.
+# When DATABASE_URL is set (Railway/Neon/Vercel Postgres), primary is
+# durable Postgres. Cache/queue/cable stay on local sqlite.
 production:
   primary:
+    <% if ENV["DATABASE_URL"].present? %>
+    adapter: postgresql
+    url: <%= ENV["DATABASE_URL"] %>
+    max_connections: <%= ENV.fetch("RAILS_MAX_THREADS") { 5 } %>
+    <% else %>
     <<: *default
     database: storage/production.sqlite3
+    <% end %>
   cache:
     <<: *default
     database: storage/production_cache.sqlite3

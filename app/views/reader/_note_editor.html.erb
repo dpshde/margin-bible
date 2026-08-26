@@ -3,12 +3,38 @@
   editor_blocks = Array(note&.blocks)
   editor_blocks = [ { "id" => "b_#{SecureRandom.hex(4)}", "indent" => 0, "text" => "" } ] if editor_blocks.empty?
 %>
+<div
+  class="outliner"
+  data-controller="outliner"
+  data-outliner-slug-value="<%= slug %>"
+  data-slug="<%= slug %>"
+  data-action="outliner:change->reader#autosave"
+>
+  <% editor_blocks.each do |block| %>
+    <div class="oblock" data-block-id="<%= block["id"] %>" style="--depth: <%= block["indent"].to_i %>">
+      <span class="obullet" aria-hidden="true"></span>
+      <div class="otext" contenteditable="true" role="textbox" aria-multiline="true" spellcheck="true"><%= wiki_outliner_html(block["text"]) %></div>
+    </div>
+  <% end %>
+</div>
 <div class="tray-head">
   <% if display_label.present? %>
     <p class="tray-label"><%= display_label %></p>
   <% else %>
     <p class="tray-label sr-only">Note</p>
   <% end %>
+  <button
+    type="button"
+    class="tray-bookmark <%= "is-on" if note&.bookmarked? %>"
+    data-action="click->reader#toggleBookmark"
+    aria-pressed="<%= note&.bookmarked? ? "true" : "false" %>"
+    aria-label="Bookmark note"
+    title="Bookmark"
+  >
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true">
+      <path d="M4 2.25h8v11.1L8 11.1 4 13.35z" />
+    </svg>
+  </button>
   <a
     class="tray-external"
     href="<%= route_bible_url(slug) %>"
@@ -21,18 +47,4 @@
       <path d="M13 3 3 13" />
     </svg>
   </a>
-</div>
-<div
-  class="outliner"
-  data-controller="outliner"
-  data-outliner-slug-value="<%= slug %>"
-  data-slug="<%= slug %>"
-  data-action="outliner:change->reader#autosave"
->
-  <% editor_blocks.each do |block| %>
-    <div class="oblock" data-block-id="<%= block["id"] %>" style="--depth: <%= block["indent"].to_i %>">
-      <span class="obullet" aria-hidden="true"></span>
-      <div class="otext" contenteditable="true" role="textbox" aria-multiline="true" spellcheck="true"><%= block["text"] %></div>
-    </div>
-  <% end %>
 </div>

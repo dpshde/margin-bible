@@ -4,7 +4,8 @@ import {
   applyNoteToPack,
   loadPack,
   notesForChapter,
-  setLastRead,
+  rememberRead,
+  setNoteBookmarked,
   shouldUseGuestPack,
   writePack
 } from "../lib/guest-pack"
@@ -15,20 +16,30 @@ import {
   selectionFromDrag,
   selectionFromTap
 } from "../lib/passage-span"
+import { loadHideVerseNums, saveHideVerseNums } from "../lib/reader-prefs"
+import {
+  formatChapterShare,
+  formatVerseShare,
+  notesForVerse,
+  passageUrl
+} from "../lib/share-text"
 
 export default class extends Controller {
-  static targets = ["tray", "preview", "chapterTray", "rangeTemplate", "title"]
+  static targets = ["tray", "preview", "chapterTray", "rangeTemplate", "title", "numsToggle", "copyButton"]
   static values = {
     focus: Number,
     spanStart: Number,
     spanEnd: Number,
     chapterSlug: String,
+    passageSlug: String,
     notesUrl: String,
     bookLabel: String,
     chapter: Number,
     prevUrl: String,
     nextUrl: String,
-    signedIn: Boolean
+    signedIn: Boolean,
+    exportUrl: String,
+    book: String
   }
 
   connect() {
@@ -40,11 +51,15 @@ export default class extends Controller {
     document.addEventListener("turbo:before-visit", this.flushPending)
     window.addEventListener("pagehide", this.flushPending)
     document.addEventListener("visibilitychange", this.onVisibility)
+    this.applyNums(loadHideVerseNums())
     if (this.selection) {
-      this.verseEl(this.selection.start)?.scrollIntoView({ block: "center" })
+      this.applySelection({ replaceUrl: false })
+      const row = this.verseEl(this.selection.end)
+      row?.scrollIntoView({ block: "center" })
+      queueMicrotask(() => this.focusFirstVisible(row))
     }
     if (this.guestSession) {
-      setLastRead(this.chapterSlugValue)
+      rememberRead(this.passageSlugValue || this.chapterSlugValue)
       queueMicrotask(() => this.hydrateGuestNotes())
     }
   }
@@ -73,7 +88,7 @@ export default class extends Controller {
 
   pressStart(event) {
     if (event.pointerType === "mouse" && event.button !== 0) return
-    if (event.target.closest(".note-tray, .note-preview, .otext, a, input, textarea, .jump, .topbar")) return
+    if (event.target.closest(".note-tray, .note-preview, .otext, a, input, textarea, .jump, .topbar, .reader-dock")) return
     this.pointerOrigin = { x: event.clientX, y: event.clientY, t: event.timeStamp }
     const press = event.target.closest(".verse-press")
     const verse = press?.closest("[data-verse]")
@@ -295,6 +310,19 @@ export default class extends Controller {
     this.refreshExpand()
   }
 
+  toggleNums() {
+    this.applyNums(!this.element.classList.contains("is-nums-hidden"))
+  }
+
+  applyNums(hidden) {
+    this.element.classList.toggle("is-nums-hidden", hidden)
+    if (this.hasNumsToggleTarget) {
+      this.numsToggleTarget.classList.toggle("is-on", hidden)
+      this.numsToggleTarget.setAttribute("aria-pressed", hidden ? "true" : "false")
+    }
+    saveHideVerseNums(hidden)
+  }
+
   refreshExpand() {
     const expanding = this.element.classList.contains("is-expanded")
     this.element.querySelectorAll(".verse.has-note").forEach((row) => {
@@ -308,15 +336,142 @@ export default class extends Controller {
     })
   }
 
-  async share(event) {
-    const slug = this.currentSlug()
-    const url = slug ? `https://route.bible/${slug}` : (event.params.routeBible || window.location.href)
-    try {
-      await navigator.clipboard.writeText(url)
-      event.currentTarget.title = "Copied"
-    } catch {
-      window.prompt("Copy route.bible link", url)
+  async copyPassage(event) {
+    this.flushPending()
+    const text = this.shareTextFor(this.verseScope() ? "verse" : "chapter")
+    const ok = await this.writeClipboard(text)
+    this.markCopied(event.currentTarget, ok)
+  }
+
+  async sharePassage(event) {
+    this.flushPending()
+    const scope = event.params.scope === "verse" ? "verse" : "chapter"
+    const text = this.shareTextFor(scope)
+    const title = text.split("\n")[0] || "Margin"
+    if (navigator.share) {
+      try {
+        await navigator.share({ title, text })
+        return
+      } catch (error) {
+        if (error?.name === "AbortError") return
+      }
     }
+    const ok = await this.writeClipboard(text)
+    this.markCopied(event.currentTarget, ok)
+  }
+
+  async exportDocument(event) {
+    this.flushPending()
+    const scope = event.params.scope === "bible" ? "bible" : "book"
+    const withNotes = event.params.notes === true
+    const body = new URLSearchParams({
+      scope,
+      notes: withNotes ? "1" : "0",
+      book: this.bookValue || this.chapterSlugValue.split(".")[0]
+    })
+    if (this.guestSession && withNotes) {
+      body.set("pack", JSON.stringify(loadPack().notes || {}))
+    }
+    const token = document.querySelector('meta[name="csrf-token"]')?.content
+    const res = await fetch(this.exportUrlValue || "/export", {
+      method: "POST",
+      headers: {
+        Accept: "text/markdown",
+        "X-CSRF-Token": token,
+        "Content-Type": "application/x-www-form-urlencoded"
+      },
+      body
+    })
+    if (!res.ok) return
+    const blob = await res.blob()
+    const header = res.headers.get("Content-Disposition") || ""
+    const match = header.match(/filename="([^"]+)"/)
+    const name = match?.[1] || `${scope}${withNotes ? "-notes" : ""}.md`
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement("a")
+    link.href = url
+    link.download = name
+    link.click()
+    URL.revokeObjectURL(url)
+  }
+
+  shareTextFor(scope) {
+    const notes = this.liveNotes()
+    const span = this.verseScope()
+    if (scope === "verse" && span) {
+      const verses = this.chapterVerses(notes, span.start, span.end)
+      const slug = rangeSlug(this.chapterSlugValue, span.start, span.end)
+      const label = this.shareLabel(span)
+      const url = passageUrl(slug)
+      if (span.start === span.end) {
+        const row = verses[0]
+        return formatVerseShare({
+          label,
+          text: row?.text || "",
+          notes: row?.notes || [],
+          url
+        })
+      }
+      return formatChapterShare({ label, verses, url })
+    }
+    return formatChapterShare({
+      label: `${this.bookLabelValue} ${this.chapterValue}`,
+      chapterNote: notes.find((note) => note.slug === this.chapterSlugValue)?.blocks,
+      verses: this.chapterVerses(notes),
+      url: passageUrl(this.chapterSlugValue)
+    })
+  }
+
+  liveNotes() {
+    return [...this.element.querySelectorAll(".outliner")].flatMap((host) => {
+      const controller = this.outlinerController(host)
+      if (!controller || controller.isEmpty()) return []
+      const payload = controller.payload()
+      return payload?.slug ? [ { slug: payload.slug, blocks: payload.blocks } ] : []
+    })
+  }
+
+  chapterVerses(notes, from, to) {
+    return [...this.element.querySelectorAll(".verse")].flatMap((row) => {
+      const n = Number(row.dataset.verse)
+      if (!Number.isFinite(n)) return []
+      if (from != null && n < from) return []
+      if (to != null && n > to) return []
+      return [ {
+        n,
+        heading: row.querySelector(".section-head")?.textContent?.trim() || "",
+        text: row.querySelector(".vtext")?.textContent || "",
+        notes: notesForVerse(notes, this.chapterSlugValue, n)
+      } ]
+    })
+  }
+
+  verseScope() {
+    return this.selection || this.initialSelection()
+  }
+
+  shareLabel(span) {
+    return passageLabel(this.bookLabelValue, this.chapterValue, span.start, span.end)
+  }
+
+  async writeClipboard(text) {
+    try {
+      await navigator.clipboard.writeText(text)
+      return true
+    } catch {
+      window.prompt("Copy", text)
+      return false
+    }
+  }
+
+  markCopied(button, ok) {
+    if (!button || !ok) return
+    const prior = button.getAttribute("title")
+    button.title = "Copied"
+    window.setTimeout(() => {
+      if (prior) button.title = prior
+      else button.removeAttribute("title")
+    }, 1600)
   }
 
   currentSlug() {
@@ -416,7 +571,55 @@ export default class extends Controller {
     if (!tray && parsed?.kind === "range") tray = this.materializeRangeTray(parsed, note.slug)
     if (!tray && parsed?.kind === "chapter" && this.hasChapterTrayTarget) tray = this.chapterTrayTarget
     if (!tray) return
+    this.syncBookmarkButton(tray, note.bookmarked)
     this.applyBlocksWhenReady(tray, note)
+  }
+
+  toggleBookmark(event) {
+    event.preventDefault()
+    event.stopPropagation()
+    const button = event.currentTarget
+    const tray = button.closest(".note-tray, .chapter-tray")
+    const host = tray?.querySelector(".outliner")
+    const controller = this.outlinerController(host)
+    if (!controller || controller.isEmpty()) return
+    const next = !button.classList.contains("is-on")
+    this.syncBookmarkButton(tray, next)
+    const payload = controller.payload()
+    if (this.guestSession) {
+      setNoteBookmarked(payload.slug, next)
+      return
+    }
+    this.saveBookmark(host, next)
+  }
+
+  async saveBookmark(host, bookmarked) {
+    const token = document.querySelector('meta[name="csrf-token"]')?.content
+    const payload = this.outlinerPayload(host)
+    if (!payload) return
+    const body = new URLSearchParams({
+      slug: payload.slug,
+      text: payload.text,
+      blocks: JSON.stringify(payload.blocks),
+      bookmarked: bookmarked ? "1" : "0"
+    })
+    await fetch(this.notesUrlValue, {
+      method: "PATCH",
+      keepalive: true,
+      headers: {
+        Accept: "application/json",
+        "X-CSRF-Token": token,
+        "Content-Type": "application/x-www-form-urlencoded"
+      },
+      body
+    })
+  }
+
+  syncBookmarkButton(root, on) {
+    const button = root?.querySelector?.(".tray-bookmark")
+    if (!button) return
+    button.classList.toggle("is-on", Boolean(on))
+    button.setAttribute("aria-pressed", on ? "true" : "false")
   }
 
   applyBlocksWhenReady(tray, note, attempt = 0) {

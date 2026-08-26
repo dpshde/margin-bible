@@ -1,0 +1,16 @@
+<% content_for :title, "Edit passkey" %>
+<main class="page">
+  <h1>Edit passkey</h1>
+  <% if params[:created] %>
+    <p>Your passkey has been registered. Give it a name so you can tell devices apart later.</p>
+  <% end %>
+
+  <%= form_with model: @passkey, url: passkey_path(@passkey) do |form| %>
+    <label for="passkey_name">Name</label>
+    <%= form.text_field :name, autofocus: true, autocomplete: "off", placeholder: "MacBook, iPhone, YubiKey" %>
+    <%= form.submit "Save", class: "primary" %>
+  <% end %>
+
+  <%= button_to "Remove this passkey", passkey_path(@passkey), method: :delete, class: "danger-btn", data: { turbo_confirm: "Remove this passkey?" } %>
+  <p class="muted"><%= link_to "Back to passkeys", passkeys_path %></p>
+</main>

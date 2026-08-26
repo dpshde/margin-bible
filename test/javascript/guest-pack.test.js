@@ -9,7 +9,9 @@ import {
   memoryStorage,
   notesForChapter,
   persistNote,
+  rememberRead,
   setLastRead,
+  setNoteBookmarked,
   shouldUseGuestPack,
   upsertNote
 } from "../../app/javascript/lib/guest-pack.js"
@@ -97,9 +99,21 @@ function blocks(text, id = "b_aa01") {
   const store = storage()
   const pack = setLastRead("jhn.1", store)
   assert.equal(pack.last_read, "jhn.1")
+  assert.deepEqual(pack.trail, [ "jhn.1" ])
   const again = store.getItem(GUEST_PACK_KEY)
   setLastRead("jhn.1", store)
   assert.equal(store.getItem(GUEST_PACK_KEY), again)
+}
+
+{
+  const store = storage()
+  rememberRead("jhn.1", store)
+  rememberRead("jhn.3.16", store)
+  rememberRead("jhn.2", store)
+  rememberRead("jhn.3.16", store)
+  const pack = loadPack(store)
+  assert.deepEqual(pack.trail, [ "jhn.3.16", "jhn.2", "jhn.1" ])
+  assert.equal(pack.last_read, "jhn.3.16")
 }
 
 {
@@ -120,6 +134,23 @@ function blocks(text, id = "b_aa01") {
   assert.deepEqual(sections.map((section) => section.label), ["Today", "Tuesday · Aug 4"])
   assert.deepEqual(sections[0].notes.map((note) => note.slug), ["jhn.3", "jhn.3.16-18"])
   assert.deepEqual(sections[1].notes.map((note) => note.slug), ["jhn.3.16", "jhn.1.1"])
+}
+
+{
+  const store = storage()
+  upsertNote("jhn.3.16", blocks("Love."), { storage: store, now: new Date("2026-08-25T12:00:00.000Z") })
+  upsertNote("jhn.1.1", blocks("Logos."), { storage: store, now: new Date("2026-08-04T09:00:00.000Z") })
+  setNoteBookmarked("jhn.1.1", true, store, new Date("2026-08-25T18:00:00.000Z"))
+  const sections = inboxSections(loadPack(store), { now: new Date("2026-08-25T20:00:00.000Z") })
+  assert.deepEqual(sections.map((section) => section.label), ["Bookmarks", "Today"])
+  assert.equal(sections[0].kind, "bookmarks")
+  assert.deepEqual(sections[0].notes.map((note) => note.slug), ["jhn.1.1"])
+  assert.deepEqual(sections[1].notes.map((note) => note.slug), ["jhn.3.16"])
+  const again = setNoteBookmarked("jhn.1.1", true, store)
+  assert.equal(again.notes["jhn.1.1"].bookmarked, true)
+  setNoteBookmarked("jhn.1.1", false, store)
+  const unpinned = inboxSections(loadPack(store), { now: new Date("2026-08-25T20:00:00.000Z") })
+  assert.deepEqual(unpinned.map((section) => section.label), ["Today", "Tuesday · Aug 4"])
 }
 
 {

@@ -1,0 +1,24 @@
+<% content_for :title, "Passkeys" %>
+<main class="page">
+  <h1>Passkeys</h1>
+  <p>Passkeys let you sign in without waiting for another email. Set one up on this device after you claim the library.</p>
+
+  <% if @passkeys.any? %>
+    <ul class="passkey-list">
+      <%= render partial: "passkeys/passkey", collection: @passkeys %>
+    </ul>
+  <% end %>
+
+  <%= passkey_registration_button passkeys_path,
+        options: @registration_options,
+        class: "secondary",
+        error: {},
+        cancellation: {},
+        duplicate: {} do %>
+    Register a passkey
+  <% end %>
+  <p class="muted">Your browser will ask for Face ID, a fingerprint, a PIN, or a security key.</p>
+
+  <p class="muted"><%= link_to "Back to notes", root_path %></p>
+  <%= button_to "Sign out", session_path, method: :delete, class: "text-btn" %>
+</main>

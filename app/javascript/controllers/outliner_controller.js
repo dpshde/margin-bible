@@ -10,6 +10,7 @@ import {
   serializeBlocks,
   splitSibling
 } from "../lib/outliner-blocks"
+import { wikiTokens } from "../lib/wiki-markup"
 
 export default class extends Controller {
   static values = { slug: String }
@@ -18,20 +19,29 @@ export default class extends Controller {
     this.blocks = this.readRows()
     if (!this.blocks.length) {
       this.blocks = [{ id: this.element.dataset.emptyId || "b_empty", indent: 0, text: "" }]
-      this.render()
     }
     this.onInput = this.onInput.bind(this)
     this.onKeydown = this.onKeydown.bind(this)
     this.onPaste = this.onPaste.bind(this)
+    this.onFocusIn = this.onFocusIn.bind(this)
+    this.onFocusOut = this.onFocusOut.bind(this)
+    this.onMouseDown = this.onMouseDown.bind(this)
     this.element.addEventListener("input", this.onInput)
     this.element.addEventListener("keydown", this.onKeydown)
     this.element.addEventListener("paste", this.onPaste)
+    this.element.addEventListener("focusin", this.onFocusIn)
+    this.element.addEventListener("focusout", this.onFocusOut)
+    this.element.addEventListener("mousedown", this.onMouseDown)
+    if (this.blocks.length) this.render()
   }
 
   disconnect() {
     this.element.removeEventListener("input", this.onInput)
     this.element.removeEventListener("keydown", this.onKeydown)
     this.element.removeEventListener("paste", this.onPaste)
+    this.element.removeEventListener("focusin", this.onFocusIn)
+    this.element.removeEventListener("focusout", this.onFocusOut)
+    this.element.removeEventListener("mousedown", this.onMouseDown)
   }
 
   payload() {
@@ -68,6 +78,37 @@ export default class extends Controller {
     const last = this.element.querySelector(".oblock:last-child .otext")
     last?.focus()
     if (last) this.setCaret(last, this.readEditableText(last).length)
+  }
+
+  onMouseDown(event) {
+    const link = event.target.closest("a.wiki")
+    if (!link || !this.element.contains(link)) return
+    event.preventDefault()
+    event.stopPropagation()
+    const href = link.getAttribute("href")
+    if (!href) return
+    if (window.Turbo) window.Turbo.visit(href)
+    else window.location.assign(href)
+  }
+
+  onFocusIn(event) {
+    const textEl = event.target.closest(".otext")
+    if (!textEl || !this.element.contains(textEl) || textEl.dataset.editing === "1") return
+    const index = this.indexOf(textEl)
+    if (index < 0) return
+    textEl.dataset.editing = "1"
+    this.fillEditable(textEl, this.blocks[index].text, { decorate: false })
+    this.setCaret(textEl, this.readEditableText(textEl).length)
+  }
+
+  onFocusOut(event) {
+    const textEl = event.target.closest(".otext")
+    if (!textEl || !this.element.contains(textEl)) return
+    this.syncFromDom()
+    delete textEl.dataset.editing
+    const index = this.indexOf(textEl)
+    if (index < 0) return
+    this.fillEditable(textEl, this.blocks[index].text, { decorate: true })
   }
 
   onInput(event) {
@@ -236,17 +277,47 @@ export default class extends Controller {
   }
 
   readEditableText(element) {
-    return this.editableNodes(element).map((node) => (
-      node.nodeName === "BR" ? "\n" : node.nodeValue
-    )).join("")
+    const chunks = []
+    const visit = (node) => {
+      node.childNodes.forEach((child) => {
+        if (child.nodeType === Node.TEXT_NODE) {
+          chunks.push(child.nodeValue)
+        } else if (child.nodeName === "BR") {
+          chunks.push("\n")
+        } else if (child.nodeType === Node.ELEMENT_NODE && child.matches("a.wiki")) {
+          chunks.push(child.dataset.wikiRaw || child.textContent)
+        } else {
+          visit(child)
+        }
+      })
+    }
+    if (element) visit(element)
+    return chunks.join("")
   }
 
-  fillEditable(element, text) {
+  fillEditable(element, text, { decorate = true } = {}) {
     element.replaceChildren()
     const lines = String(text).split("\n")
     lines.forEach((line, i) => {
-      element.append(document.createTextNode(line))
+      if (decorate) this.appendDecoratedLine(element, line)
+      else element.append(document.createTextNode(line))
       if (i < lines.length - 1) element.append(document.createElement("br"))
+    })
+  }
+
+  appendDecoratedLine(element, line) {
+    wikiTokens(line).forEach((token) => {
+      if (token.type === "wiki" && token.href) {
+        const link = document.createElement("a")
+        link.className = "wiki"
+        link.href = token.href
+        link.dataset.wikiRaw = token.raw
+        link.contentEditable = "false"
+        link.textContent = token.label
+        element.append(link)
+      } else {
+        element.append(document.createTextNode(token.type === "wiki" ? token.raw : token.value))
+      }
     })
   }
 

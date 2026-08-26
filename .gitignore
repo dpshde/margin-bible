@@ -30,3 +30,8 @@ legacy/node_modules/
 # Hotwire Native iOS
 ios/**/xcuserdata/
 ios/**/DerivedData/
+
+# Local Expo / Elixir leftovers outside legacy/
+/mobile/
+/_build/
+/deps/

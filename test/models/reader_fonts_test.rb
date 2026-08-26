@@ -13,7 +13,15 @@ class ReaderFontsTest < ActiveSupport::TestCase
     assert_match(/\.vtext\s*\{[^}]*font-family:\s*var\(--read\)/m, css)
     assert_match(/\.topbar-title\s*\{[^}]*font-family:\s*var\(--sans\)/m, css)
     assert_match(/\.section-head\s*\{[^}]*font-family:\s*var\(--sans\)/m, css)
+    assert_match(/\.section-head\s*\{[^}]*font-weight:\s*700/m, css)
+    assert_match(/\.section-head\s*\{[^}]*font-size:\s*1\.42rem/m, css)
+    assert_match(/\.vtext\s*\{[^}]*font-size:\s*1\.18rem/m, css)
+    assert_match(/\.vtext\s*\{[^}]*font-weight:\s*300/m, css)
     assert_no_match(/Iowan|Palatino|--serif/, css)
     refute_match(/\.section-head\s*\{[^}]*font-style:\s*italic/m, css)
+  end
+
+  test "root type scale is a touch smaller than browser default" do
+    assert_match(/^html \{ font-size: 95%; \}$/, css)
   end
 end

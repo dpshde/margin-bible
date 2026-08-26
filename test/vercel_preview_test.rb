@@ -12,6 +12,7 @@ class VercelPreviewTest < ActiveSupport::TestCase
       aliases: true
     )
 
+    assert_nil ENV["DATABASE_URL"]
     assert_equal "storage/production.sqlite3", yaml.dig("production", "primary", "database")
     assert_equal "storage/production_cache.sqlite3", yaml.dig("production", "cache", "database")
     assert_equal "storage/production_queue.sqlite3", yaml.dig("production", "queue", "database")
@@ -42,6 +43,8 @@ class VercelPreviewTest < ActiveSupport::TestCase
     assert_match(/npm run build/, dockerfile)
     assert_match(/assets:precompile/, dockerfile)
     assert_match(/vendor\/scripture/, dockerfile)
+    assert_match(/libpq5/, dockerfile)
+    assert_match(/libpq-dev/, dockerfile)
     assert_match(/MARGIN_BSB_URL=https:\/\/arweave\.net\/B6yeNb3lk_VkiIp-fTWVh13TlM94LjLK6kC63BPXa8s/, dockerfile)
     assert_match(/margin:build_bsb_pack/, dockerfile)
     assert_match(/margin:seed_scripture/, dockerfile)

@@ -2,14 +2,14 @@
 
 class ResolvesController < ApplicationController
   def show
-    q = params[:q].to_s
-    passage = Margin::Passage.parse(q)
+    q = params[:q].presence || params[:osis].presence || params[:ref].presence
+    passage = inbound_passage
     respond_to do |format|
       format.html do
         if passage
           redirect_to read_path(passage.slug)
         else
-          redirect_to read_path("jhn.1"), alert: "Couldn’t resolve #{q.inspect}."
+          redirect_to read_path("jhn.1"), alert: "Couldn’t resolve #{q.to_s.inspect}."
         end
       end
       format.json do

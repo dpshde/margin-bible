@@ -9,7 +9,8 @@ class ReaderController < ApplicationController
     end
 
     @chapter = Margin::Passage.new(book: @passage.book, chapter: @passage.chapter)
-    current_library.update_column(:last_read_slug, @chapter.slug)
+    current_library.remember_read!(@passage.slug)
+    @trail = current_library.trail_passages.reject { |passage| passage.slug == @passage.slug }
 
     @verses = Margin::Bsb.hydrate_chapter!(@chapter.book, @chapter.chapter)
     if @verses.empty?

@@ -1,0 +1,58 @@
+<div class="reader-dock">
+  <details class="reader-dock-menu">
+    <summary class="reader-dock-btn" aria-label="Reader actions">
+      <%= ph_icon("dots-three", size: 22) %>
+    </summary>
+    <div class="reader-dock-panel" onclick="if (event.target.closest('button, a')) this.closest('details').removeAttribute('open')">
+      <% if @trail.any? %>
+        <nav class="dock-recent" aria-label="Recent passages">
+          <% @trail.each do |passage| %>
+            <%= link_to read_path(passage.slug), class: "dock-item", data: { turbo_prefetch: true } do %>
+              <%= ph_icon("clock-counter-clockwise") %>
+              <span><%= passage.label %></span>
+            <% end %>
+          <% end %>
+        </nav>
+        <hr class="dock-sep">
+      <% end %>
+      <button type="button" class="dock-item <%= "is-on" if @chapter_note %>" data-action="click->reader#toggleChapter">
+        <%= ph_icon("note-pencil") %>
+        <span>Chapter note</span>
+      </button>
+      <button type="button" class="dock-item" data-action="click->reader#toggleExpand" <%= "disabled" unless @verse_notes.any? %>>
+        <%= ph_icon("arrows-out") %>
+        <span>Expand notes</span>
+      </button>
+      <button type="button" class="dock-item" data-reader-target="numsToggle" data-action="click->reader#toggleNums" aria-pressed="false">
+        <%= ph_icon("list-numbers") %>
+        <span>Hide verse numbers</span>
+      </button>
+      <hr class="dock-sep">
+      <button type="button" class="dock-item" data-action="click->reader#sharePassage" data-reader-scope-param="verse">
+        <%= ph_icon("share") %>
+        <span>Share verse</span>
+      </button>
+      <button type="button" class="dock-item" data-action="click->reader#sharePassage" data-reader-scope-param="chapter">
+        <%= ph_icon("share-network") %>
+        <span>Share chapter</span>
+      </button>
+      <hr class="dock-sep">
+      <button type="button" class="dock-item" data-action="click->reader#exportDocument" data-reader-scope-param="book" data-reader-notes-param="false">
+        <%= ph_icon("book") %>
+        <span>Export book</span>
+      </button>
+      <button type="button" class="dock-item" data-action="click->reader#exportDocument" data-reader-scope-param="book" data-reader-notes-param="true">
+        <%= ph_icon("notebook") %>
+        <span>Export book with notes</span>
+      </button>
+      <button type="button" class="dock-item" data-action="click->reader#exportDocument" data-reader-scope-param="bible" data-reader-notes-param="false">
+        <%= ph_icon("book-open") %>
+        <span>Export Bible</span>
+      </button>
+      <button type="button" class="dock-item" data-action="click->reader#exportDocument" data-reader-scope-param="bible" data-reader-notes-param="true">
+        <%= ph_icon("books") %>
+        <span>Export Bible with notes</span>
+      </button>
+    </div>
+  </details>
+</div>

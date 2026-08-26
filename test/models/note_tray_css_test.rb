@@ -7,6 +7,14 @@ class NoteTrayCssTest < ActiveSupport::TestCase
     Rails.root.join("app/assets/stylesheets/application.css").read
   end
 
+  test "chapter tray is not a second card around the editor" do
+    rule = css[/\.chapter-tray\s*\{[^}]+\}/]
+    assert rule
+    refute_match(/background:/, rule)
+    refute_match(/border-radius:/, rule)
+    refute_match(/padding:/, rule)
+  end
+
   test "tray head is a label-left icon-right row" do
     assert_match(/\.tray-head\s*\{[^}]*display:\s*flex/m, css)
     assert_match(/\.tray-head\s*\{[^}]*justify-content:\s*space-between/m, css)

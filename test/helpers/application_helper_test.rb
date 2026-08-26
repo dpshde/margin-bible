@@ -35,4 +35,17 @@ class ApplicationHelperTest < ActionView::TestCase
     assert_includes html, "[[not-a-passage]]"
     refute_includes html, "<em>x</em>"
   end
+
+  test "wiki_outliner_html turns scripture wiki into a non-editable link" do
+    html = wiki_outliner_html("See [[jhn.1.6|the Baptist]] and [[John 1]]")
+    assert_includes html, 'href="/jhn.1.6"'
+    assert_includes html, 'data-wiki-raw="[[jhn.1.6|the Baptist]]"'
+    assert_includes html, "contenteditable=\"false\""
+    assert_includes html, ">the Baptist</a>"
+    assert_includes html, 'href="/jhn.1"'
+    assert_includes html, ">John 1</a>"
+    html = wiki_outliner_html("[[not-a-passage]]")
+    assert_includes html, "[[not-a-passage]]"
+    refute_includes html, "class=\"wiki\""
+  end
 end

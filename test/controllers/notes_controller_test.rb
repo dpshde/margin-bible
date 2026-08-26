@@ -74,4 +74,29 @@ class NotesControllerTest < ActionDispatch::IntegrationTest
     patch notes_path, params: { slug: "jhn.1.1", text: "   " }
     assert_nil Library.last.notes.find_by(slug: "jhn.1.1")
   end
+
+  test "bookmarking a note does not change its body" do
+    patch notes_path, params: { slug: "jhn.1.1", text: "The Logos." }
+    note = Library.last.notes.find_by!(slug: "jhn.1.1")
+    refute note.bookmarked?
+
+    patch notes_path, params: {
+      slug: "jhn.1.1",
+      text: "The Logos.",
+      blocks: [ { id: note.blocks[0]["id"], indent: 0, text: "The Logos." } ].to_json,
+      bookmarked: "1"
+    }
+    note.reload
+    assert note.bookmarked?
+    assert_equal "The Logos.", note.blocks[0]["text"]
+
+    patch notes_path, params: {
+      slug: "jhn.1.1",
+      text: "The Logos. Edited.",
+      blocks: [ { id: note.blocks[0]["id"], indent: 0, text: "The Logos. Edited." } ].to_json
+    }
+    note.reload
+    assert note.bookmarked?
+    assert_equal "The Logos. Edited.", note.blocks[0]["text"]
+  end
 end
