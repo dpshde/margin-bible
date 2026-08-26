@@ -276,6 +276,7 @@ button, input, textarea { font: inherit; color: inherit; }
   width: 100%; border: 1px solid var(--line); background: var(--paper-raised);
   border-radius: .5rem; padding: .6rem .8rem;
   outline: none; box-shadow: none;
+  font-size: 16px;
 }
 .jump input[type="search"]::-webkit-search-decoration { display: none; }
 .jump input[type="search"]:focus,
@@ -296,6 +297,7 @@ button, input, textarea { font: inherit; color: inherit; }
 .page input[type="email"], .page input[type="search"], .page input[type="text"] {
   width: 100%; border: 1px solid var(--line); background: var(--paper-raised);
   border-radius: .55rem; padding: .75rem 1rem;
+  font-size: 16px;
 }
 .suggest {
   --list-radius: .5rem;
@@ -438,10 +440,12 @@ a.tray-label:hover { color: var(--ink); }
 .oblock:not(.is-bullet):hover .obullet {
   background: var(--faint); opacity: .35;
 }
-.otext {
+.otext,
+.note-input {
   flex: 1; min-width: 0; min-height: 1.45em; line-height: 1.45;
   white-space: pre-wrap; word-break: break-word; caret-color: var(--ink);
   outline: none; border: 0; box-shadow: none;
+  font-size: 16px;
 }
 .otext:focus, .otext:focus-visible,
 .outliner:focus, .outliner:focus-visible,

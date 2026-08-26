@@ -32,4 +32,21 @@ class NoteTrayCssTest < ActiveSupport::TestCase
     refute_match(/outline:\s*[^;]*blue/i, css)
     refute_match(/box-shadow:\s*[^;]*#(?:4|5|6|7|8|9|a)[0-9a-f]{2}ff/i, css)
   end
+
+  test "editable note surfaces stay at 16px so iOS does not focus-zoom" do
+    otext = css[/\n\.otext,\s*\n\.note-input\s*\{[^}]+\}/]
+    assert otext
+    assert_match(/font-size:\s*16px/, otext)
+    vtext = css[/\n\.vtext\s*\{[^}]+\}/]
+    assert vtext
+    assert_match(/font-size:\s*1\.18rem/, vtext)
+    refute_match(/font-size:\s*16px/, vtext)
+  end
+
+  test "viewport does not lock pinch zoom" do
+    layout = Rails.root.join("app/views/layouts/application.html.erb").read
+    assert_match(/width=device-width,initial-scale=1,viewport-fit=cover/, layout)
+    refute_match(/maximum-scale/, layout)
+    refute_match(/user-scalable/, layout)
+  end
 end
