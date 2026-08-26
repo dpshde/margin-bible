@@ -572,6 +572,7 @@ html[data-theme="dark"] .wj { color: color-mix(in srgb, #e0a39c 62%, var(--ink))
 .section-head.spaced { margin-top: 1.5rem; }
 
 .verse {
+  display: block;
   position: relative; padding: 0 0 0 var(--verse-inset);
 }
 .verse.has-note { border-left: 2px solid var(--sel-rail); }

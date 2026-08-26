@@ -95,6 +95,7 @@ class ReaderVerseCssTest < ActiveSupport::TestCase
     assert_match(/\.is-quiet \.oblock\s*\{[^}]*display:\s*flex/, css)
     assert_match(/\.is-quiet \.note-tray\s*\{[^}]*padding:\s*0/, css)
     assert_match(/\.verse-press\s*\{[^}]*padding:\s*\.05rem 0/, css)
+    assert_match(/\.verse\s*\{[^}]*display:\s*block/, css)
     assert_match(/\.verse\s*\{[^}]*padding:\s*0 0 0 var\(--verse-inset\)/, css)
     verse = css[/\.is-quiet \.verse\s*\{[^}]+\}/]
     assert verse
