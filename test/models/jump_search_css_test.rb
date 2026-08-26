@@ -114,7 +114,11 @@ class JumpSearchCssTest < ActiveSupport::TestCase
     refute_match(/min-height:\s*2\.25rem/, chip)
     refute_match(/border-radius:\s*999px/, chip)
     assert_match(/background:\s*transparent/, chip)
-    assert_match(/text-decoration:\s*underline/, chip)
+    assert_match(/text-decoration:\s*none/, chip)
+    refute_match(/text-decoration:\s*underline/, chip)
+    icon = css[/\.trail-icon\s*\{[^}]+\}/]
+    assert icon
+    assert_match(/color:\s*var\(--faint\)/, icon)
   end
 
   test "reader bottom veil fades paper to the screen edge" do

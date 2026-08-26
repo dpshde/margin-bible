@@ -2,7 +2,7 @@ import { defaultStorage } from "./guest-pack.js"
 
 export const THEME_KEY = "margin.theme"
 export const THEME_PREFS = [ "light", "system", "dark" ]
-export const PAPER = { light: "#f6f5f2", dark: "#121211" }
+export const PAPER = { light: "#f6f5f2", dark: "#1a1816" }
 
 export function parseTheme(raw) {
   return THEME_PREFS.includes(raw) ? raw : "light"

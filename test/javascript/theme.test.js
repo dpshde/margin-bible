@@ -36,7 +36,7 @@ import {
   assert.equal(applied.pref, "system")
   assert.equal(root.dataset.theme, "system")
   assert.equal(PAPER.light, "#f6f5f2")
-  assert.equal(PAPER.dark, "#121211")
+  assert.equal(PAPER.dark, "#1a1816")
 }
 
 console.log("theme: ok")

@@ -20,10 +20,11 @@ class ReaderVerseCssTest < ActiveSupport::TestCase
   end
 
   test "continuation verse-press keeps vtext out of the number gutter" do
-    assert_match(/\.verse-press > \.vtext\s*\{[^}]*grid-column:\s*2/, css)
-    assert_match(/\.is-nums-hidden \.verse-press > \.vtext\s*\{[^}]*grid-column:\s*1/, css)
+    assert_match(/\.verse-press > \.vtext,\s*\n\.verse-press > :not\(\.vnum\)\s*\{[^}]*grid-column:\s*2/, css)
+    assert_match(/\.is-nums-hidden \.verse-press > \.vtext,\s*\n\.is-nums-hidden \.verse-press > :not\(\.vnum\)\s*\{[^}]*grid-column:\s*1/, css)
     assert_match(/\.is-quiet \.verse-press\s*\{[^}]*display:\s*contents/, css)
     assert_match(/\.is-quiet \.verse-press\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\)/, css)
+    assert_match(/\.is-quiet \.verse-press > \.vtext,\s*\n\.is-quiet \.verse-press > :not\(\.vnum\)\s*\{[^}]*grid-column:\s*unset/, css)
     assert_match(/\.pub-line\s*\{[^}]*width:\s*100%/, css)
   end
 
@@ -37,7 +38,9 @@ class ReaderVerseCssTest < ActiveSupport::TestCase
   end
 
   test "header copy flashes a check when pressed" do
-    assert_match(/\.header-copy-button\.is-copied \.copy-done/, css)
+    assert_match(/\.header-copy-button\.is-copied\s*\{\s*color:\s*var\(--ink\)/, css)
+    assert_match(/\.header-copy-button\.is-copied \.copy-idle/, css)
+    assert_match(/\.header-copy-button\.is-copied \.copy-done\s*\{[^}]*display:\s*inline-flex/, css)
     assert_match(/@keyframes copy-confirm/, css)
   end
 
@@ -86,12 +89,12 @@ class ReaderVerseCssTest < ActiveSupport::TestCase
     refute_match(/margin:\s*0 0 \.7em/, para)
     quiet_p = css[/\.is-quiet \.pub-p\s*\{[^}]+\}/]
     assert quiet_p
-    assert_match(/text-indent:\s*1\.35em/, quiet_p)
-    refute_match(/\.is-quiet \.section-head \+ \.pub-p,\s*\.is-quiet \.section-head \+ \.pub-r \+ \.pub-p\s*\{[^}]*text-indent:\s*0/m, css)
+    assert_match(/text-indent:\s*1\.2em/, quiet_p)
+    assert_match(/\.is-quiet \.section-head \+ \.pub-p,\s*\n\.is-quiet \.section-head \+ \.pub-r \+ \.pub-p\s*\{[^}]*text-indent:\s*0/m, css)
     assert_match(/\.is-quiet \.pub-q1\s*\{[^}]*padding-left:\s*\.85rem/m, css)
     assert_match(/\.is-quiet \.pub-q2\s*\{[^}]*padding-left:\s*1\.2rem/m, css)
     assert_match(/\.is-quiet \.pub-b\s*\{[^}]*height:\s*\.18em/, css)
-    assert_match(/\.is-quiet \.section-head\.spaced\s*\{[^}]*margin-top:\s*1em/, css)
+    assert_match(/\.is-quiet \.section-head\.spaced\s*\{[^}]*margin-top:\s*2\.25em/, css)
     assert_match(/\.is-quiet \.oblock\s*\{[^}]*display:\s*flex/, css)
     assert_match(/\.is-quiet \.oblock\s*\{[^}]*padding:[^}]*var\(--depth/, css)
     quiet_block = css[/\.is-quiet \.oblock\s*\{[^}]+\}/]
@@ -106,7 +109,7 @@ class ReaderVerseCssTest < ActiveSupport::TestCase
     assert_match(/padding:\s*0/, quiet_otext)
     refute_match(/padding-left:/, quiet_otext)
     assert_match(/\.is-quiet \.note-tray\s*\{[^}]*padding:\s*0/, css)
-    assert_match(/\.verse-press\s*\{[^}]*padding:\s*\.05rem 0/, css)
+    assert_match(/\.verse-press\s*\{[^}]*padding:\s*0/, css)
     assert_match(/\.verse\s*\{[^}]*display:\s*block/, css)
     assert_match(/\.verse\s*\{[^}]*padding:\s*0 0 0 var\(--verse-inset\)/, css)
     verse = css[/\.is-quiet \.verse\s*\{[^}]+\}/]
@@ -213,6 +216,37 @@ class ReaderVerseCssTest < ActiveSupport::TestCase
     assert hidden
     assert_match(/display:\s*none/, hidden)
     refute_match(/content:/, hidden)
+  end
+
+  test "regular reading follows USFM paragraphs without becoming Focus" do
+    pub_p = css[/\n\.pub-p\s*\{[^}]+\}/]
+    assert pub_p
+    assert_match(/margin:\s*0/, pub_p)
+    refute_match(/margin:\s*0 0 1em/, pub_p)
+    assert_match(/hanging-punctuation:\s*first/, pub_p)
+    q = css[/\n\.pub-q1, \.pub-q2\s*\{[^}]+\}/]
+    assert q
+    assert_match(/margin:\s*0 0 \.1em/, q)
+    assert_match(/\.pub-b\s*\{[^}]*height:\s*\.7em/, css)
+    assert_match(/\.section-head\.spaced\s*\{[^}]*margin-top:\s*2\.25em/, css)
+    assert_match(/\.section-head \+ \.pub-p,\s*\n\.section-head \+ \.pub-r \+ \.pub-p\s*\{[^}]*margin-top:\s*0/, css)
+    assert_match(/\.pub-p \+ \.pub-p\s*\{[^}]*text-indent:\s*1\.2em/, css)
+    regular_verse = css[/\n\.verse\s*\{[^}]+\}/]
+    assert regular_verse
+    assert_match(/display:\s*block/, regular_verse)
+    refute_match(/display:\s*contents/, regular_verse)
+    regular_press = css[/\n\.verse-press\s*\{[^}]+\}/]
+    assert regular_press
+    assert_match(/display:\s*grid/, regular_press)
+    refute_match(/display:\s*contents/, regular_press)
+    quiet_p = css[/\.is-quiet \.pub-p,\s*\.is-quiet \.pub-q1,\s*\.is-quiet \.pub-q2\s*\{[^}]+\}/]
+    assert quiet_p
+    assert_match(/margin:\s*0/, quiet_p)
+    assert_match(/\.is-quiet \.pub-p\s*\{[^}]*text-indent:\s*1\.2em/, css)
+    assert_match(/\.is-quiet \.verse\s*\{[^}]*display:\s*contents/, css)
+    assert_match(/\.is-quiet \.verse-press\s*\{[^}]*display:\s*contents/, css)
+    assert_match(/\.verse-press\s*\{[^}]*display:\s*grid/, css)
+    assert_match(/\.verse-press > \.vnum\s*\{[^}]*grid-column:\s*1/, css)
   end
 
   test "note tray shares the verse text column" do

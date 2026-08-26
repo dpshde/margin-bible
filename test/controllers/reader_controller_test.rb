@@ -34,6 +34,7 @@ class ReaderControllerTest < ActionDispatch::IntegrationTest
     assert_select %(link[rel="prefetch"][href="/jhn.2"])
     assert_select %(a[data-turbo-prefetch="true"][href="/luk.24"])
     assert_select %(a[data-turbo-prefetch="true"][href="/jhn.2"])
+    assert_select %(form.jump[data-action*="keydown@window->search#shortcut"])
     assert_equal Verse.where(book: "JHN", chapter: 1).count, Verse.count
     assert Verse.count.positive?
     assert_equal 0, Verse.where.not(book: "JHN", chapter: 1).count
@@ -88,6 +89,10 @@ class ReaderControllerTest < ActionDispatch::IntegrationTest
     assert_select "h2.section-head", "The Beginning"
     assert_select "h2.section-head", "The Witness of John"
     assert_select ".vtext", /beginning was the Word/
+    assert_select ".verse.is-open", count: 0
+    assert_select ".note-tray:not([hidden])", count: 0
+    assert_select ".note-tray[hidden]"
+    assert_select ".is-expanded", count: 0
   end
 
   test "browser header is inbox, title, copy, and a desktop overflow" do
@@ -97,7 +102,7 @@ class ReaderControllerTest < ActionDispatch::IntegrationTest
       assert_select "h1.topbar-title", "John 1"
       assert_select "button.topbar-title-btn[data-action='click->reader#toggleChapterGrid'][aria-haspopup='dialog'][aria-controls='chapter-grid']", "John 1"
       assert_select "button.header-quiet-button[data-action='click->reader#toggleQuiet'][aria-label='Focus']"
-      assert_select "button.header-copy-button[data-action='click->reader#copyPassage'][aria-label='Copy chapter text and notes']"
+      assert_select "button.header-copy-button[data-action='click->reader#copyPassage'][aria-label='Copy chapter text and notes'][aria-live='polite']"
       assert_select ".header-copy-button svg.copy-idle"
       assert_select ".header-copy-button .copy-done"
       assert_select ".topbar-actions details.reader-actions-menu summary[aria-label='Reader actions']"
@@ -118,6 +123,8 @@ class ReaderControllerTest < ActionDispatch::IntegrationTest
     assert_select ".dock-theme .theme-seg button[data-theme-pref='light']", "Light"
     assert_select ".dock-theme .theme-seg button[data-theme-pref='system']", "System"
     assert_select ".dock-theme .theme-seg button[data-theme-pref='dark']", "Dark"
+    assert_select ".dock-theme .face-seg button[data-face-pref='serif']", "Serif"
+    assert_select ".dock-theme .face-seg button[data-face-pref='deca']", "Deca"
     assert_select "header.topbar form.jump", count: 0
     assert_select "main.reader .reader-chrome[data-controller='chrome']"
     assert_select ".reader-veil[aria-hidden='true']"
@@ -128,6 +135,7 @@ class ReaderControllerTest < ActionDispatch::IntegrationTest
       assert_select "ul.suggest"
       assert_select "button", text: /Search/, count: 0
     end
+    assert_select %(main.reader .reader-chrome form.jump[data-action*="keydown@window->search#shortcut"])
     assert_select "main.reader > form.jump", count: 0
     assert_select ".fn", count: 0
     assert_select "sup", text: "†", count: 0
@@ -183,6 +191,18 @@ class ReaderControllerTest < ActionDispatch::IntegrationTest
     assert_select ".pub-q2[data-usfm='q2']", /Make straight the way for the Lord/
     assert_select ".vnum[data-usfm='v']", "35"
     assert_select ".wj", /What do you want/
+  end
+
+  test "Mark 5:9 attribution stays in the text column after a new p" do
+    Verse.delete_all
+    get read_path("mrk.5.9")
+    assert_response :success
+    assert_select ".wj > #v9", count: 0
+    assert_select "#v9 .verse-press > .vtext .wj", /What is your name/
+    assert_select "#v9 .verse-press > .vtext", /Jesus asked/
+    assert_select ".verse.is-continuation[data-verse='9'] .verse-press > .vtext", /My name is Legion/
+    assert_select ".verse.is-continuation[data-verse='9'] .vnum", count: 0
+    assert_select "#v9 .verse-press > .vnum", "9"
   end
 
   test "chapter title opens this book's chapter grid" do
@@ -400,6 +420,15 @@ class ReaderControllerTest < ActionDispatch::IntegrationTest
     assert_select ".dock-recent a.dock-item[href='/jhn.3.16']", "John 3:16"
     assert_select ".dock-recent a.dock-item[href='/jhn.1']", "John 1"
     assert_select "nav.trail-inline a[href='/jhn.2']", count: 0
+    assert_select "nav.trail-inline .trail-icon[aria-hidden='true']", 1
+    assert_select "nav.trail-inline .trail-icon svg", 1
+  end
+
+  test "empty trail does not render a history icon" do
+    get read_path("jhn.1")
+    assert_response :success
+    assert_select "nav.trail-inline", count: 0
+    assert_select ".trail-icon", count: 0
   end
 
   test "verse outliner renders wiki without absorbing markers" do
