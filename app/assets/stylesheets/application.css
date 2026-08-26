@@ -620,10 +620,6 @@ rails-passkey-registration-button,
 rails-passkey-sign-in-button { display: block; width: 100%; }
 .auth-passkey { margin-top: 0; }
 .auth-passkey-create .muted { margin: .45rem 0 0; }
-.auth-passkey-switch {
-  display: block; width: 100%; margin-top: .75rem;
-  text-align: center; font-size: .9rem;
-}
 .account-email { margin: 1.8rem 0 0; }
 .account-email h2 { margin: 0 0 .35rem; font-size: 1.05rem; }
 

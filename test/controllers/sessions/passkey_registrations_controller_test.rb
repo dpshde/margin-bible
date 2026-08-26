@@ -78,8 +78,10 @@ class Sessions::PasskeyRegistrationsControllerTest < ActionDispatch::Integration
     assert_select "header.topbar details.topbar-menu a.menu-item", "Sign in"
 
     get new_session_path
-    assert_select "rails-passkey-sign-in-button button[data-passkey='sign_in']", "Use a passkey"
-    assert_select "button.primary[data-passkey='register']", count: 1
+    assert_select ".auth-passkey-create:not([hidden]) button.primary[data-passkey='register']", "Create a passkey"
+    assert_select ".auth-passkey-use[hidden] button[data-passkey='sign_in']", "Use a passkey"
+    assert_no_match(/I already have a passkey/, response.body)
+    assert_no_match(/Create a new passkey/, response.body)
 
     challenge = refresh_webauthn_challenge(purpose: "authentication")
     assertion = webauthn_client.get(challenge: challenge)
