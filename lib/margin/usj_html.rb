@@ -60,8 +60,7 @@ module Margin
         @buf << %(<h2 class="section-head#{' spaced' if @seen.any?}" data-usfm="s1">#{h(text)}</h2>)
       when :r
         @buf << %(<p class="pub-r" data-usfm="r">)
-        render_inline(node["content"], refs: true)
-        close_verse
+        render_refs(node["content"])
         @buf << "</p>"
       when :b
         @buf << %(<div class="pub-b" data-usfm="b" aria-hidden="true"></div>)
@@ -71,6 +70,64 @@ module Margin
         close_verse
         @buf << "</div>"
       end
+    end
+
+    def render_refs(nodes)
+      Array(nodes).each do |node|
+        case node
+        when String
+          emit_ref_string(node)
+        when Hash
+          if ref_node?(node)
+            emit_ref_unit(Margin::Usj.plain_text(node["content"]))
+          else
+            render_refs(node["content"])
+          end
+        end
+      end
+    end
+
+    def ref_node?(node)
+      node["type"] == "ref" || node["marker"].to_s == "ref"
+    end
+
+    def emit_ref_unit(text)
+      return if text.blank?
+
+      @buf << %(<span class="pub-ref">#{h(text)}</span>)
+    end
+
+    # Separators ("; ") stay breakable. A string that is itself a citation
+    # (no USJ ref child) still becomes one nowrap unit. Several citations in
+    # one string wrap only at the semicolon.
+    def emit_ref_string(text)
+      return if text.nil?
+
+      if text.include?(";") && citation_string?(text)
+        text.split(/(; )/).each { |part| emit_ref_or_punct(part) }
+      elsif citation_string?(text)
+        emit_ref_or_punct(text)
+      else
+        @buf << h(text)
+      end
+    end
+
+    def emit_ref_or_punct(part)
+      match = part.match(/\A(\(*)(.*?)(\)*)\z/)
+      if match && citation_string?(match[2])
+        @buf << h(match[1]) if match[1].present?
+        emit_ref_unit(match[2].strip)
+        @buf << h(match[3]) if match[3].present?
+      elsif citation_string?(part)
+        emit_ref_unit(part.strip)
+      else
+        @buf << h(part)
+      end
+    end
+
+    def citation_string?(text)
+      stripped = text.to_s.strip
+      stripped.match?(/[A-Za-z].*\d/) && !stripped.match?(/\A[();,.\s]+\z/)
     end
 
     def render_inline(nodes, refs: false)

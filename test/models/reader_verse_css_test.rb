@@ -44,6 +44,23 @@ class ReaderVerseCssTest < ActiveSupport::TestCase
     refute_match(/border-left-color:/, quiet)
   end
 
+  test "parallel refs are chrome, hidden in quiet, and nowrap per citation" do
+    xref = css[/\.pub-r\s*\{[^}]+\}/]
+    assert xref
+    assert_match(/font-family:\s*var\(--sans\)/, xref)
+    assert_match(/font-size:\s*\.72rem/, xref)
+    assert_match(/color:\s*var\(--muted\)/, xref)
+    refute_match(/font-family:\s*var\(--read\)/, xref)
+    unit = css[/\.pub-ref\s*\{[^}]+\}/]
+    assert unit
+    assert_match(/white-space:\s*nowrap/, unit)
+    assert_match(/display:\s*inline-block/, unit)
+    quiet_r = css[/\.is-quiet \.pub-r\s*\{[^}]+\}/]
+    assert quiet_r
+    assert_match(/display:\s*none/, quiet_r)
+    assert_match(/margin:\s*0/, quiet_r)
+  end
+
   test "quiet reading is a USFM paragraph, not a verse card stack" do
     assert_match(/\.pub-p, \.pub-q1, \.pub-q2\s*\{[^}]*display:\s*block/m, css)
     assert_match(/\.pub-q1\s*\{[^}]*padding-left:/m, css)
@@ -51,6 +68,12 @@ class ReaderVerseCssTest < ActiveSupport::TestCase
     para = css[/\.is-quiet \.pub-p,\s*\.is-quiet \.pub-q1,\s*\.is-quiet \.pub-q2\s*\{[^}]+\}/]
     assert para
     assert_match(/display:\s*block/, para)
+    assert_match(/margin:\s*0 0 \.36em/, para)
+    refute_match(/margin:\s*0 0 \.7em/, para)
+    assert_match(/\.is-quiet \.pub-q1\s*\{[^}]*padding-left:\s*\.85rem/m, css)
+    assert_match(/\.is-quiet \.pub-q2\s*\{[^}]*padding-left:\s*1\.2rem/m, css)
+    assert_match(/\.is-quiet \.pub-b\s*\{[^}]*height:\s*\.28em/, css)
+    assert_match(/\.is-quiet \.section-head\.spaced\s*\{[^}]*margin-top:\s*\.9em/, css)
     verse = css[/\.is-quiet \.verse\s*\{[^}]+\}/]
     assert verse
     assert_match(/display:\s*contents/, verse)

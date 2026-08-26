@@ -140,6 +140,11 @@ class ReaderControllerTest < ActionDispatch::IntegrationTest
     first = css_select("h2.section-head").find { |node| node.text == "The First Disciples" }
     assert first
     assert_equal "r", first.next_element["data-usfm"]
+    xref = first.next_element
+    assert_equal "pub-r", xref["class"]
+    refs = xref.css("span.pub-ref").map { |el| el.text }
+    assert_equal [ "Matthew 4:18–22", "Mark 1:16–20", "Luke 5:1–11" ], refs
+    refute refs.any? { |text| text.strip == "Luke" }
     paras = []
     node = first.next_element
     while node && node.name != "h2"
