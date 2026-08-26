@@ -148,7 +148,7 @@ module Margin
           elsif type == "char" && marker == "wj"
             emit_wj { render_inline(node["content"]) }
           elsif type == "note"
-            emit_footnote(node)
+            next
           elsif type == "ref" || (type == "char" && marker == "ref")
             emit_text(Margin::Usj.plain_text(node["content"]))
           else
@@ -173,6 +173,8 @@ module Margin
       trays_open = verse_trays_open?(n)
       classes << "is-open" if trays_open
       classes << "is-span" if in_span?(n)
+      classes << "is-span-start" if @span_start && n == @span_start && in_span?(n)
+      classes << "is-span-end" if @span_end && n == @span_end && in_span?(n)
       id = first ? %( id="v#{n}") : ""
       @buf << %(<span class="#{classes.join(" ")}"#{id} data-verse="#{n}" data-slug="#{h(slug)}">)
       @buf << %(<button type="button" class="verse-press" data-action="click->reader#openVerse">)
@@ -215,24 +217,6 @@ module Margin
 
       @buf << "</span>"
       @wj_depth -= 1
-    end
-
-    def emit_footnote(node)
-      title = footnote_title(node)
-      return if title.blank?
-
-      start_verse(@current_verse) if @current_verse && !@verse_open
-      return unless @verse_open
-
-      @buf << %(<sup class="fn" title="#{h(title)}">†</sup>)
-    end
-
-    def footnote_title(node)
-      bits = []
-      Margin::Usj.walk(node["content"]) do |kind, value|
-        bits << value if kind == :text
-      end
-      bits.join.gsub(/\s+/, " ").strip
     end
 
     def attach_trays(html)

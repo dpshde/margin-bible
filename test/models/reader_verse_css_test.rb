@@ -9,7 +9,7 @@ class ReaderVerseCssTest < ActiveSupport::TestCase
 
   test "open verse is a thin rail, not a filled rounded island" do
     refute_match(/\.verse\.is-open[^{]*\{[^}]*background:/m, css)
-    refute_match(/\.verse\.is-span[^{]*\{[^}]*background:/m, css)
+    refute_match(/\.verse\.is-span\s*\{[^}]*background:/m, css)
     refute_match(/\.verse\.is-span \.vtext\s*\{[^}]*background:/m, css)
     refute_match(/--mark-fill/, css)
     assert_match(/\.verse\.is-span \.vtext\s*\{[^}]*color:/m, css)
@@ -152,30 +152,23 @@ class ReaderVerseCssTest < ActiveSupport::TestCase
     assert_match(/border-radius:\s*50%/, btn)
   end
 
-  test "quiet reading keeps jump but strips the card around it" do
+  test "quiet reading hides chrome and keeps a bare jump sibling" do
     refute_match(/\.is-quiet \.jump[^{]*\{[^}]*display:\s*none/, css)
-    refute_match(/\.is-quiet \.reader-chrome\s*\{[^}]*display:\s*none/, css)
-    quiet_chrome = css[/\.is-quiet \.reader-chrome\s*\{[^}]+\}/]
-    assert quiet_chrome
-    assert_match(/background:\s*transparent/, quiet_chrome)
-    assert_match(/border:\s*0/, quiet_chrome)
-    assert_match(/border-radius:\s*0/, quiet_chrome)
-    refute_match(/display:\s*none/, quiet_chrome)
-    quiet_jump = css[/\.is-quiet \.jump input\[type="search"\],\s*\.is-quiet \.reader-chrome \.jump input\[type="search"\]\s*\{[^}]+\}/]
+    assert_match(/\.is-quiet \.reader-chrome\s*\{\s*display:\s*none/, css)
+    quiet_jump = css[/\.is-quiet \.jump input\[type="search"\]\s*\{[^}]+\}/]
     assert quiet_jump
     assert_match(/background:\s*transparent/, quiet_jump)
     assert_match(/border:\s*0/, quiet_jump)
     assert_match(/border-radius:\s*0/, quiet_jump)
-    assert_match(/html:not\(\.hotwire-native\) \.is-quiet \.reader-chrome\s*\{[^}]*background:\s*transparent/, css)
+    assert_match(/\.reader > \.jump\s*\{[^}]*position:\s*fixed/, css)
     assert_match(/\.is-quiet \.chapter-tray\s*\{\s*display:\s*none/, css)
   end
 
-  test "footnote marker is a spaced superscript dagger" do
-    fn = css[/\.fn\s*\{[^}]+\}/]
-    assert fn
-    assert_match(/vertical-align:\s*super/, fn)
-    assert_match(/font-size:\s*\.62em/, fn)
-    assert_match(/margin-left:\s*\.28rem/, fn)
+  test "range span rail is one continuous left edge" do
+    assert_match(/\.verse\.is-span:not\(\.is-span-start\)::before/, css)
+    assert_match(/\.verse\.is-span:not\(\.is-span-start\)::before\s*\{[^}]*background:\s*var\(--sel-rail-open\)/, css)
+    assert_match(/\.pub-p:has\(> \.verse\.is-span:last-child\):has\(\+ \.pub-p > \.verse\.is-span\)/, css)
+    refute_match(/\.fn\s*\{/, css)
   end
 
   test "hiding verse numbers drops the gutter and the digits" do

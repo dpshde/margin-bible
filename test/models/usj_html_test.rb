@@ -38,6 +38,40 @@ class UsjHtmlTest < ActionView::TestCase
     assert_equal "/luk.5.1-11", doc.css("a.pub-ref").last["href"]
   end
 
+  test "USJ footnotes are omitted from the reading flow" do
+    html = render_usj_chapter(
+      [
+        {
+          "type" => "para", "marker" => "p", "content" => [
+            { "type" => "verse", "number" => "1", "sid" => "JHN 1:1" },
+            "The Word became flesh among us.",
+            {
+              "type" => "note", "marker" => "f", "content" => [
+                { "type" => "char", "marker" => "fr", "content" => [ "1:14 " ] },
+                "Or tabernacled among us"
+              ]
+            },
+            " We have seen His glory."
+          ]
+        }
+      ],
+      chapter: Margin::Passage.parse("jhn.1"),
+      notes_by_verse: {},
+      span_start: nil,
+      span_end: nil,
+      range_slug: nil,
+      range_selected: false,
+      single_selected: false,
+      passage_label: "John 1"
+    )
+
+    refute_includes html, "†"
+    refute_includes html, "class=\"fn\""
+    refute_includes html, "tabernacled"
+    assert_includes html, "The Word became flesh among us."
+    assert_includes html, "We have seen His glory."
+  end
+
   test "a string-only r line still wraps only at the semicolon" do
     html = render_refs("(Matthew 4:18–22; Mark 1:16–20; Luke 5:1–11)")
 

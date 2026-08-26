@@ -121,13 +121,16 @@ class ReaderControllerTest < ActionDispatch::IntegrationTest
     assert_select "header.topbar form.jump", count: 0
     assert_select "main.reader .reader-chrome[data-controller='chrome']"
     assert_select ".reader-veil[aria-hidden='true']"
-    assert_select "main.reader .reader-chrome .chrome-bar form.jump"
+    assert_select "main.reader .reader-chrome .chrome-bar form.jump", count: 0
+    assert_select "main.reader .reader-chrome form.jump", count: 0
     assert_select "main.reader .reader-chrome .chrome-bar .reader-dock"
-    assert_select "main.reader .reader-chrome form.jump" do
+    assert_select "main.reader > form.jump" do
       assert_select "input#q[type=search][placeholder='John 3:16']"
       assert_select "ul.suggest"
       assert_select "button", text: /Search/, count: 0
     end
+    assert_select ".fn", count: 0
+    assert_select "sup", text: "†", count: 0
   end
 
   test "First Disciples is several USJ paragraphs with a poetry pair at 1:23" do
@@ -305,6 +308,18 @@ class ReaderControllerTest < ActionDispatch::IntegrationTest
     assert_select ".chapter-tray .outliner[data-slug='jhn.1'] .otext", "Chapter only."
   end
 
+  test "a Genesis range keeps jump outside chrome and paints span ends" do
+    get read_path("gen.1.1-2")
+    assert_response :success
+    assert_select "#v1.is-span.is-span-start"
+    assert_select "#v2.is-span.is-span-end"
+    assert_select "#v2 .outliner[data-slug='gen.1.1-2']"
+    assert_select "main.reader > form.jump"
+    assert_select "main.reader .reader-chrome form.jump", count: 0
+    assert_select ".fn", count: 0
+    refute_includes @response.body, "†"
+  end
+
   test "range slug marks the span and opens one range tray" do
     [ 2, 3 ].each do |n|
       Verse.create!(
@@ -315,9 +330,10 @@ class ReaderControllerTest < ActionDispatch::IntegrationTest
 
     get read_path("jhn.1.1-3")
     assert_response :success
-    assert_select "#v1.is-span"
+    assert_select "#v1.is-span.is-span-start"
     assert_select "#v2.is-span"
-    assert_select "#v3.is-span"
+    assert_select "#v2.is-span-start", count: 0
+    assert_select "#v3.is-span.is-span-end"
     assert_select "#v3.is-open"
     assert_select "#v1.is-open", count: 0
     assert_select "#v3 .outliner[data-slug='jhn.1.1-3']"

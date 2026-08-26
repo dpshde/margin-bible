@@ -116,10 +116,10 @@
     <div class="reader-chrome" data-controller="chrome" data-action="chrome:reveal->chrome#show">
       <%= render "reader/trail" %>
       <div class="chrome-bar">
-        <%= render "shared/jump" %>
         <%= render "reader/dock" %>
       </div>
     </div>
+    <%= render "shared/jump" %>
 
     <section class="chapter-tray" data-reader-target="chapterTray" data-action="keydown->reader#closeChapterOnEscape" <%= "hidden" unless params[:chapter_note] %>>
       <%= render "reader/note_editor", slug: @chapter.slug, note: @chapter_note, label: "Chapter note · #{@chapter.label}", closable: true %>

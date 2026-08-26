@@ -225,7 +225,7 @@ export default class extends Controller {
     this.clearEphemeralRanges()
     this.element.classList.remove("is-picking")
     this.element.querySelectorAll(".verse").forEach((row) => {
-      row.classList.remove("is-open", "is-span")
+      row.classList.remove("is-open", "is-span", "is-span-start", "is-span-end")
     })
     this.element.querySelectorAll(".note-tray").forEach((tray) => { tray.hidden = true })
 
@@ -237,7 +237,13 @@ export default class extends Controller {
     }
 
     const { start, end } = this.selection
-    for (let n = start; n <= end; n += 1) this.verseEl(n)?.classList.add("is-span")
+    this.element.querySelectorAll(".verse").forEach((row) => {
+      const n = Number(row.dataset.verse)
+      const inSpan = n >= start && n <= end
+      row.classList.toggle("is-span", inSpan)
+      row.classList.toggle("is-span-start", inSpan && n === start)
+      row.classList.toggle("is-span-end", inSpan && n === end)
+    })
 
     if (start === end) this.openSingle(start, { focus })
     else this.openRange(start, end, { focus })
@@ -252,7 +258,10 @@ export default class extends Controller {
     if (!span) return
     this.element.querySelectorAll(".verse").forEach((row) => {
       const n = Number(row.dataset.verse)
-      row.classList.toggle("is-span", n >= span.start && n <= span.end)
+      const inSpan = n >= span.start && n <= span.end
+      row.classList.toggle("is-span", inSpan)
+      row.classList.toggle("is-span-start", inSpan && n === span.start)
+      row.classList.toggle("is-span-end", inSpan && n === span.end)
     })
     this.updateTitle(span)
   }
