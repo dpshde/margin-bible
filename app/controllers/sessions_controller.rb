@@ -7,6 +7,7 @@ class SessionsController < ApplicationController
 
   def new
     @authentication_options = passkey_authentication_options
+    @registration_options = passkey_registration_options(holder: pending_passkey_holder)
     token = flash[:dev_login_token]
     @dev_login_path = magic_login_path(token) if token.present?
   end

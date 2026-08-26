@@ -50,6 +50,16 @@ export function shouldUseGuestPack(signedIn) {
   return signedIn !== true
 }
 
+export function packHasImportableNotes(pack) {
+  return Object.values(pack?.notes || {}).some((note) => !emptyContent(note?.blocks))
+}
+
+export function clearGuestNotes(storage = defaultStorage()) {
+  const pack = loadPack(storage)
+  pack.notes = {}
+  return writePack(pack, storage)
+}
+
 export function persistNote({ signedIn, slug, blocks, storage, now, patch }) {
   if (!shouldUseGuestPack(signedIn)) {
     return patch({ slug, blocks })

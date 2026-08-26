@@ -1,6 +1,6 @@
 <% content_for :title, "Notes" %>
 
-<div class="inbox" data-controller="search inbox" data-inbox-signed-in-value="<%= signed_in? %>">
+<div class="inbox" data-controller="search inbox" data-inbox-signed-in-value="<%= signed_in? %>" data-inbox-import-url-value="<%= guest_pack_path %>">
   <% unless hotwire_native_app? %>
     <header class="topbar">
       <div class="topbar-side"></div>

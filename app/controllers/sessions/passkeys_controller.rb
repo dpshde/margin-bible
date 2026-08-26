@@ -2,6 +2,7 @@
 
 class Sessions::PasskeysController < ApplicationController
   include PasskeyRequest
+  include GuestPackImport
 
   rate_limit to: 10, within: 3.minutes, only: :create, with: -> {
     redirect_to new_session_path, alert: "Try again later."
@@ -10,6 +11,7 @@ class Sessions::PasskeysController < ApplicationController
   def create
     if (credential = Passkey.authenticate(passkey_authentication_params, challenge: consume_webauthn_challenge))
       claim_library_for!(credential.user)
+      import_posted_guest_pack
       redirect_to root_path, notice: "Welcome back. Your notes are on this library."
     else
       redirect_to new_session_path, alert: "That passkey didn't work. Try again."

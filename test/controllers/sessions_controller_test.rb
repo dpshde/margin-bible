@@ -3,7 +3,7 @@
 require "test_helper"
 
 class SessionsControllerTest < ActionDispatch::IntegrationTest
-  test "sign-in page offers magic link and a passkey button" do
+  test "sign-in page offers magic link, use a passkey, and create a passkey" do
     get new_session_path
     assert_response :success
     assert_select "header.topbar a[aria-label='Notes'][href='/']"
@@ -14,6 +14,8 @@ class SessionsControllerTest < ActionDispatch::IntegrationTest
     assert_select "rails-passkey-sign-in-button[mediation='conditional']"
     assert_select "rails-passkey-sign-in-button[options*='client-device']"
     assert_select "rails-passkey-sign-in-button button.secondary[data-passkey='sign_in']", "Use a passkey"
+    assert_select "rails-passkey-registration-button button.secondary[data-passkey='register']", "Create a passkey"
+    assert_select ".auth-passkey-create .muted", /claims the notes on this device/i
     assert_select "a", text: "Back to notes", count: 0
     assert_select "p.auth-or", "or"
   end

@@ -6,9 +6,7 @@ class PasskeyChallengesController < ApplicationController
   def create
     options =
       if params[:purpose] == "registration"
-        return head :unauthorized unless signed_in?
-
-        passkey_registration_options(holder: current_user)
+        passkey_registration_options(holder: current_user || pending_passkey_holder)
       else
         passkey_authentication_options
       end

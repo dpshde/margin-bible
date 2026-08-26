@@ -17,7 +17,7 @@
   </header>
 <% end %>
 
-<main class="page">
+<main class="page" data-controller="sign-in">
   <p class="lede">A magic link claims this library. Notes already on this device stay put.</p>
 
   <% if @dev_login_path %>
@@ -36,4 +36,11 @@
         options: @authentication_options,
         mediation: "conditional",
         class: "secondary" %>
+
+  <div class="auth-passkey-create">
+    <%= passkey_registration_button "Create a passkey", session_passkey_registration_path,
+          options: @registration_options,
+          class: "secondary" %>
+    <p class="muted">Claims the notes on this device.</p>
+  </div>
 </main>

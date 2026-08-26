@@ -13,7 +13,9 @@ import {
   setLastRead,
   setNoteBookmarked,
   shouldUseGuestPack,
-  upsertNote
+  upsertNote,
+  packHasImportableNotes,
+  clearGuestNotes
 } from "../../app/javascript/lib/guest-pack.js"
 import {
   belongsToChapter,
@@ -191,6 +193,17 @@ function blocks(text, id = "b_aa01") {
     }
   })
   assert.equal(loadPack(store).notes["jhn.1.16"].blocks[0].text, "Local.")
+}
+
+{
+  const store = storage()
+  assert.equal(packHasImportableNotes({ notes: {} }), false)
+  upsertNote("jhn.1.16", blocks("Keep."), { storage: store })
+  upsertNote("jhn.1.17", [{ id: "b_empty", indent: 0, text: "  " }], { storage: store })
+  assert.equal(packHasImportableNotes(loadPack(store)), true)
+  clearGuestNotes(store)
+  assert.deepEqual(loadPack(store).notes, {})
+  assert.equal(packHasImportableNotes(loadPack(store)), false)
 }
 
 console.log("guest-pack: ok")

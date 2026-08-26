@@ -7,10 +7,12 @@ Rails.application.routes.draw do
 
   resource :session, only: %i[new create destroy] do
     resource :passkey, only: :create, controller: "sessions/passkeys"
+    resource :passkey_registration, only: :create, controller: "sessions/passkey_registrations"
   end
   get "login/:token" => "sessions#show", as: :magic_login
   resource :passkey_challenge, only: :create
   resources :passkeys, only: %i[index create edit update destroy]
+  post "guest_pack" => "guest_packs#create", as: :guest_pack
 
   get "resolve" => "resolves#show", as: :resolve
   get "go" => "resolves#show"

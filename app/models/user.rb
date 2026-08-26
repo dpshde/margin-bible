@@ -9,14 +9,19 @@ class User < ApplicationRecord
     end
   end
 
-  normalizes :email, with: ->(e) { e.to_s.strip.downcase }
+  normalizes :email, with: ->(e) { e.to_s.strip.downcase.presence }
 
-  validates :email, presence: true, uniqueness: true, format: { with: URI::MailTo::EMAIL_REGEXP }
+  validates :email, uniqueness: true, allow_nil: true, format: { with: URI::MailTo::EMAIL_REGEXP, allow_nil: true }
+
+  def webauthn_name
+    email.presence || "margin"
+  end
 
   def ensure_webauthn_id!
     return webauthn_id if webauthn_id.present?
 
-    update!(webauthn_id: WebAuthn.generate_user_id)
+    generated = WebAuthn.generate_user_id
+    persisted? ? update!(webauthn_id: generated) : self.webauthn_id = generated
     webauthn_id
   end
 end

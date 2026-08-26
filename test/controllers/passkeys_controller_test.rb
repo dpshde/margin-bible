@@ -10,6 +10,11 @@ class PasskeysControllerTest < ActionDispatch::IntegrationTest
   test "guests cannot manage passkeys" do
     get passkeys_path
     assert_redirected_to new_session_path
+
+    post passkeys_path, params: {
+      passkey: { id: "nope", client_data_json: "e30", attestation_object: "e30" }
+    }
+    assert_redirected_to new_session_path
   end
 
   test "signed-in user registers names and removes a passkey" do
@@ -41,8 +46,9 @@ class PasskeysControllerTest < ActionDispatch::IntegrationTest
     assert_not Passkey.exists?(passkey.id)
   end
 
-  test "registration challenge is unauthorized for guests" do
+  test "guests can request a sign-in registration challenge" do
     post passkey_challenge_path, params: { purpose: "registration" }
-    assert_response :unauthorized
+    assert_response :success
+    assert JSON.parse(response.body).fetch("challenge").present?
   end
 end
