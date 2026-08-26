@@ -118,6 +118,13 @@ class ReaderVerseCssTest < ActiveSupport::TestCase
     assert_match(/\.is-nums-hidden \.verse\s*\{[^}]*padding-left:\s*var\(--verse-inset\)/, css)
   end
 
+  test "quiet plus nums-hidden hides verse number milestones" do
+    hidden = css[/\.is-quiet\.is-nums-hidden \.vnum\s*\{[^}]+\}/]
+    assert hidden
+    assert_match(/display:\s*none/, hidden)
+    refute_match(/content:/, hidden)
+  end
+
   test "note tray shares the verse text column" do
     assert_match(/--verse-gutter:\s*1\.4rem/, css)
     assert_match(/grid-template-columns:\s*var\(--verse-gutter\) 1fr/, css)

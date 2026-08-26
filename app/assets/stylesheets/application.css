@@ -275,6 +275,11 @@ button, input, textarea { font: inherit; color: inherit; }
   vertical-align: super;
   text-align: left;
 }
+.is-quiet.is-nums-hidden .vnum {
+  display: none;
+  padding: 0;
+  width: 0;
+}
 .is-quiet .vtext {
   display: inline;
   font-size: max(16px, 1.18rem);
