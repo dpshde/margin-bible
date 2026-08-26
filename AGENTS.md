@@ -42,7 +42,7 @@ Production: Railway builds `Dockerfile` (`railway.json`). Set `SECRET_KEY_BASE`,
 | BSB + headings | `vendor/scripture/bsb` (Arweave JSONL → chapter pack), `Verse` |
 | Library cookie | `ApplicationController#set_current_library` |
 | Hotwire Native path config | `public/configurations/ios_v1.json` (bundled copy in `ios/Margin/`) |
-| iOS shell | `ios/Margin.xcodeproj` — SPM `hotwire-native-ios`, localhost debug / margin.bible (or `MARGIN_BASE_URL`) release |
+| iOS shell | `ios/Margin.xcodeproj` — SPM `hotwire-native-ios`, localhost debug / Railway prod (`MARGIN_BASE_URL`) release |
 
 ## Must not
 

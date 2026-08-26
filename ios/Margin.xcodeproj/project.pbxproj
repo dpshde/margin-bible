@@ -188,6 +188,7 @@
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 467UZHSCC3;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Margin/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Margin;
@@ -198,6 +199,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
+				MARGIN_BASE_URL = "http://localhost:3000";
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = bible.margin.ios;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -212,6 +214,7 @@
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 467UZHSCC3;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Margin/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Margin;
@@ -222,6 +225,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
+				MARGIN_BASE_URL = "https://web-production-0b88ca.up.railway.app";
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = bible.margin.ios;
 				PRODUCT_NAME = "$(TARGET_NAME)";
