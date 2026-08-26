@@ -19,3 +19,12 @@ export function nextChromeHidden({
 export function nearBottomEdge(clientY, innerHeight, zone = 96) {
   return innerHeight - clientY <= zone
 }
+
+export function nearTopEdge(clientY, zone = 72) {
+  return clientY <= zone
+}
+
+export function nearRevealEdge(clientY, innerHeight, edge = "bottom", zone) {
+  if (edge === "top") return nearTopEdge(clientY, zone || 72)
+  return nearBottomEdge(clientY, innerHeight, zone || 96)
+}

@@ -60,12 +60,20 @@ export function splitSibling(blocks, index, offset) {
   return created
 }
 
+const LIST_MARKER = /^[-–—*+•]\s+/
+
 export function consumeListMarker(block) {
-  const match = String(block.text || "").match(/^(- |\* )/)
-  if (!match || blockHasBullet(block)) return 0
+  const text = String(block.text || "")
+  const match = text.match(LIST_MARKER)
+  if (!match) return 0
   block.bullet = true
-  block.text = block.text.slice(match[1].length)
-  return match[1].length
+  block.text = text.slice(match[0].length)
+  return match[0].length
+}
+
+export function shouldBulletOnSpace(text, offset) {
+  const value = String(text || "")
+  return offset === value.length && /^[-–—*+]$/.test(value)
 }
 
 export function insertNewline(blocks, index, offset) {

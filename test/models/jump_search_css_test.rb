@@ -13,13 +13,17 @@ class JumpSearchCssTest < ActiveSupport::TestCase
     refute_match(/\.jump[^{]*outline:\s*[^;]*blue/i, css)
   end
 
-  test "reader dock fab is a large center control" do
+  test "reader dock fab sits in the chrome bar" do
     fab = css[/\.reader-dock-btn\s*\{[^}]+\}/]
     assert fab
-    assert_match(/width:\s*3\.5rem/, fab)
-    assert_match(/height:\s*3\.5rem/, fab)
-    assert_match(/border-radius:\s*50%/, fab)
+    assert_match(/width:\s*var\(--tap\)/, fab)
+    assert_match(/min-height:\s*var\(--tap\)/, fab)
+    assert_match(/border-radius:\s*\.5rem/, fab)
+    refute_match(/border-radius:\s*50%/, fab)
     refute_match(/box-shadow:/, fab)
+    bar = css[/\.chrome-bar\s*\{[^}]+\}/]
+    assert bar
+    assert_match(/display:\s*flex/, bar)
     open_fab = css[/\.reader-dock-menu\[open\] \.reader-dock-btn\s*\{[^}]+\}/]
     assert open_fab
     assert_match(/background:\s*var\(--paper-raised\)/, open_fab)
@@ -49,11 +53,11 @@ class JumpSearchCssTest < ActiveSupport::TestCase
   test "reader dock fab is mobile-only on the web" do
     assert_match(/@media \(min-width: 641px\) \{[\s\S]*?\.reader-dock \{ display: none; \}/, css)
     assert_match(/\.reader-actions-menu \{ display: none; \}/, css)
-    assert_match(/html\.hotwire-native \.reader-dock \{ display: block; \}/, css)
+    assert_match(/html\.hotwire-native \.reader-dock \{ display: flex; \}/, css)
   end
 
   test "suggest hint is quiet grey preview copy" do
-    hint = css[/\.suggest-hint\s*\{[^}]+\}/]
+    hint = css[/\n\.suggest-hint\s*\{[^}]+\}/]
     assert hint
     assert_match(/color:\s*var\(--faint\)/, hint)
     assert_match(/pointer-events:\s*none/, hint)
@@ -110,10 +114,16 @@ class JumpSearchCssTest < ActiveSupport::TestCase
     assert_match(/pointer-events:\s*none/, veil)
   end
 
-  test "desktop web chrome is a bottom bar that can tuck" do
-    assert_match(/html:not\(\.hotwire-native\) \.reader-chrome \{/, css)
-    assert_match(/position:\s*fixed/, css[/@media \(min-width: 641px\) \{[\s\S]*html:not\(\.hotwire-native\) \.reader-chrome \{[\s\S]*?\n  \}/])
+  test "reader chrome is a bottom bar that can tuck" do
+    chrome = css[/\n\.reader-chrome \{\n[^}]+\}/]
+    assert chrome
+    assert_match(/position:\s*fixed/, chrome)
+    assert_match(/bottom:/, chrome)
+    assert_match(/right:\s*1rem/, chrome)
+    assert_match(/background:\s*transparent/, chrome)
+    assert_match(/padding:\s*0/, chrome)
+    refute_match(/right:\s*5\.1rem/, css)
     assert_match(/\.reader-chrome\.is-tucked/, css)
-    assert_match(/html:not\(\.hotwire-native\) \.reader-chrome \.suggest \{[\s\S]*bottom:\s*100%/, css)
+    assert_match(/\.reader-chrome \.suggest \{[\s\S]*bottom:\s*100%/, css)
   end
 end

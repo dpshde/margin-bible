@@ -1,15 +1,19 @@
 import { Controller } from "@hotwired/stimulus"
-import { nearBottomEdge, nextChromeHidden } from "../lib/chrome-hide"
+import { nearRevealEdge, nextChromeHidden } from "../lib/chrome-hide"
 
 export default class extends Controller {
+  static values = { edge: { type: String, default: "bottom" } }
+
   connect() {
     this.hidden = false
     this.lastY = window.scrollY
     this.onScroll = this.onScroll.bind(this)
     this.onMove = this.onMove.bind(this)
     this.onFocusIn = this.show.bind(this)
+    this.onPointer = this.onMove.bind(this)
     window.addEventListener("scroll", this.onScroll, { passive: true })
     window.addEventListener("mousemove", this.onMove, { passive: true })
+    window.addEventListener("pointerdown", this.onPointer, { passive: true })
     this.element.addEventListener("focusin", this.onFocusIn)
     this.sync()
   }
@@ -17,17 +21,22 @@ export default class extends Controller {
   disconnect() {
     window.removeEventListener("scroll", this.onScroll)
     window.removeEventListener("mousemove", this.onMove)
+    window.removeEventListener("pointerdown", this.onPointer)
     this.element.removeEventListener("focusin", this.onFocusIn)
   }
 
   onScroll() {
-    if (!this.floats()) return this.show()
     const scrollY = window.scrollY
+    if (!this.floats()) {
+      this.lastY = scrollY
+      return this.show()
+    }
     this.hidden = nextChromeHidden({
       hidden: this.hidden,
       scrollY,
       lastY: this.lastY,
-      locked: this.locked()
+      locked: this.locked(),
+      minY: this.edgeValue === "top" ? 8 : 24
     })
     this.lastY = scrollY
     this.sync()
@@ -35,23 +44,27 @@ export default class extends Controller {
 
   onMove(event) {
     if (!this.floats() || this.locked()) return
-    if (nearBottomEdge(event.clientY, window.innerHeight)) this.show()
+    if (nearRevealEdge(event.clientY, window.innerHeight, this.edgeValue)) this.show()
   }
 
   show() {
     this.hidden = false
+    this.lastY = window.scrollY
     this.sync()
   }
 
   floats() {
-    return window.matchMedia("(min-width: 641px)").matches
-      && !document.documentElement.classList.contains("hotwire-native")
-      && !window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return false
+    if (this.edgeValue === "top") {
+      return Boolean(this.element.closest(".is-quiet"))
+    }
+    return true
   }
 
   locked() {
     return this.element.contains(document.activeElement)
       || Boolean(this.element.querySelector(".suggest:not([hidden])"))
+      || Boolean(this.element.querySelector("details[open]"))
   }
 
   sync() {

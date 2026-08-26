@@ -13,12 +13,17 @@ class NoteTrayCssTest < ActiveSupport::TestCase
     refute_match(/background:/, rule)
     refute_match(/border-radius:/, rule)
     refute_match(/padding:/, rule)
+    assert_match(/calc\(var\(--verse-inset\) \+ var\(--verse-gutter\) \+ var\(--verse-gutter-gap\)\)/, rule)
   end
 
   test "tray head is a label-left icon-right row" do
     assert_match(/\.tray-head\s*\{[^}]*display:\s*flex/m, css)
     assert_match(/\.tray-head\s*\{[^}]*justify-content:\s*space-between/m, css)
     refute_match(/\.tray-meta/, css)
+  end
+
+  test "phone tray actions are tap sized" do
+    assert_match(/@media \(max-width: 640px\) \{[\s\S]*\.tray-clear,[\s\S]*min-height:\s*var\(--tap\)/, css)
   end
 
   test "note editor has no blue focus ring" do

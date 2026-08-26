@@ -6,6 +6,7 @@ import {
   caretForNeighbor,
   consumeListMarker,
   indentSubtree,
+  shouldBulletOnSpace,
   insertNewline,
   insertPastedLines,
   isEmptyBlocks,
@@ -129,6 +130,16 @@ function clone(blocks) {
   assert.equal(block.bullet, true)
   assert.equal(block.text, "Hello")
   assert.equal(consumeListMarker(block), 0)
+}
+
+{
+  const leftover = { id: "b_left", indent: 0, text: "- ", bullet: true }
+  assert.equal(consumeListMarker(leftover), 2)
+  assert.equal(leftover.text, "")
+  assert.equal(shouldBulletOnSpace("-", 1), true)
+  assert.equal(shouldBulletOnSpace("*", 1), true)
+  assert.equal(shouldBulletOnSpace("- Hello", 7), false)
+  assert.equal(shouldBulletOnSpace("", 0), false)
 }
 
 {

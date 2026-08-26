@@ -6,6 +6,7 @@ import {
   caretForNeighbor,
   consumeListMarker,
   indentSubtree,
+  shouldBulletOnSpace,
   insertNewline,
   insertPastedLines,
   isEmptyBlocks,
@@ -24,6 +25,7 @@ export default class extends Controller {
       this.blocks = [{ id: this.element.dataset.emptyId || "b_empty", indent: 0, text: "", bullet: false }]
     }
     this.onInput = this.onInput.bind(this)
+    this.onBeforeInput = this.onBeforeInput.bind(this)
     this.onKeydown = this.onKeydown.bind(this)
     this.onPaste = this.onPaste.bind(this)
     this.onFocusIn = this.onFocusIn.bind(this)
@@ -32,6 +34,7 @@ export default class extends Controller {
     this.onCopy = this.onCopy.bind(this)
     this.selectScope = null
     this.element.addEventListener("input", this.onInput)
+    this.element.addEventListener("beforeinput", this.onBeforeInput)
     this.element.addEventListener("keydown", this.onKeydown)
     this.element.addEventListener("paste", this.onPaste)
     this.element.addEventListener("copy", this.onCopy)
@@ -43,6 +46,7 @@ export default class extends Controller {
 
   disconnect() {
     this.element.removeEventListener("input", this.onInput)
+    this.element.removeEventListener("beforeinput", this.onBeforeInput)
     this.element.removeEventListener("keydown", this.onKeydown)
     this.element.removeEventListener("paste", this.onPaste)
     this.element.removeEventListener("copy", this.onCopy)
@@ -135,14 +139,28 @@ export default class extends Controller {
     this.fillEditable(textEl, this.blocks[index].text, { decorate: true })
   }
 
+  onBeforeInput(event) {
+    if (event.data !== " ") return
+    const textEl = event.target.closest(".otext")
+    if (!textEl) return
+    this.syncFromDom()
+    const index = this.indexOf(textEl)
+    if (index < 0) return
+    if (!shouldBulletOnSpace(this.blocks[index].text, this.caretOffset(textEl))) return
+    event.preventDefault()
+    this.blocks[index].bullet = true
+    this.blocks[index].text = ""
+    this.render(this.blocks[index].id, 0)
+    this.emitChange()
+  }
+
   onInput(event) {
     const textEl = event.target.closest(".otext")
     if (!textEl) return
     this.syncFromDom()
     const index = this.indexOf(textEl)
     if (index >= 0 && consumeListMarker(this.blocks[index])) {
-      const caret = Math.max(0, this.caretOffset(textEl) - 2)
-      this.render(this.blocks[index].id, caret)
+      this.render(this.blocks[index].id, 0)
     }
     this.clearSelectScope()
     this.emitChange()

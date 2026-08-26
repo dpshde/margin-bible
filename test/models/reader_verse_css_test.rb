@@ -24,7 +24,13 @@ class ReaderVerseCssTest < ActiveSupport::TestCase
     assert phone
     assert_match(/--verse-gutter:\s*1\.05rem/, phone)
     assert_match(/--verse-gutter-gap:\s*\.45rem/, phone)
-    assert_match(/\.verse\s*\{[^}]*padding-left:\s*\.2rem/m, phone)
+    assert_match(/--verse-inset:\s*\.2rem/, phone)
+    assert_match(/padding-left:\s*var\(--verse-inset\)/, phone)
+  end
+
+  test "header copy flashes a check when pressed" do
+    assert_match(/\.header-copy-button\.is-copied \.copy-done/, css)
+    assert_match(/@keyframes copy-confirm/, css)
   end
 
   test "quiet reading fades the note rail" do
@@ -39,8 +45,30 @@ class ReaderVerseCssTest < ActiveSupport::TestCase
     assert_match(/\.is-quiet \.dock-recent \+ \.dock-sep/, css)
   end
 
+  test "quiet reading keeps chapter text below the pill" do
+    quiet_reader = css[/\.is-quiet \.reader\s*\{[^}]+\}/]
+    assert quiet_reader
+    assert_match(/padding-top:\s*calc\(4\.25rem \+ env\(safe-area-inset-top, 0px\)\)/, quiet_reader)
+  end
+
+  test "quiet header becomes a pill that can tuck" do
+    pill = css[/\.is-quiet \.topbar\s*\{[^}]+\}/]
+    assert pill
+    assert_match(/position:\s*fixed/, pill)
+    assert_match(/border-radius:\s*999px/, pill)
+    assert_match(/overflow:\s*hidden/, pill)
+    assert_match(/left:\s*\.7rem/, pill)
+    assert_match(/right:\s*\.7rem/, pill)
+    refute_match(/100vw/, pill)
+    assert_match(/\.is-quiet \.topbar\.is-tucked/, css)
+    assert_match(/\.is-quiet \.header-copy-button,/, css)
+    btn = css[/\.is-quiet \.topbar \.icon-btn\s*\{[^}]+\}/]
+    assert btn
+    assert_match(/border-radius:\s*50%/, btn)
+  end
+
   test "quiet reading drops the chrome shell around jump" do
-    quiet_chrome = css[/html:not\(\.hotwire-native\) \.is-quiet \.reader-chrome\s*\{[^}]+\}/]
+    quiet_chrome = css[/\.is-quiet \.reader-chrome\s*\{[^}]+\}/]
     assert quiet_chrome
     assert_match(/background:\s*transparent/, quiet_chrome)
     assert_match(/border:\s*0/, quiet_chrome)
@@ -50,10 +78,8 @@ class ReaderVerseCssTest < ActiveSupport::TestCase
   test "hiding verse numbers drops the gutter and the digits" do
     assert_match(/\.is-nums-hidden \.vnum\s*\{\s*display:\s*none/, css)
     assert_match(/\.is-nums-hidden \.verse-press\s*\{\s*grid-template-columns:\s*minmax\(0, 1fr\)/, css)
-    hidden = css[/\.is-nums-hidden \.verse\s*\{[^}]+\}/]
-    assert hidden
-    assert_match(/--verse-gutter:\s*0px/, hidden)
-    assert_match(/padding-left:\s*\.7rem/, hidden)
+    assert_match(/--verse-gutter:\s*0px/, css)
+    assert_match(/\.is-nums-hidden \.verse\s*\{[^}]*padding-left:\s*var\(--verse-inset\)/, css)
   end
 
   test "note tray shares the verse text column" do

@@ -1,5 +1,5 @@
 import { Controller } from "@hotwired/stimulus"
-import { chapterSwipe } from "../lib/chapter-swipe"
+import { chapterSwipe, isHorizontalIntent, isTapGesture } from "../lib/chapter-swipe"
 import {
   applyNoteToPack,
   loadPack,
@@ -96,15 +96,16 @@ export default class extends Controller {
     this.pointerOrigin = { x: event.clientX, y: event.clientY, t: event.timeStamp }
     const press = event.target.closest(".verse-press")
     const verse = press?.closest("[data-verse]")
+    this.pressEl = press
     if (verse) {
       this.dragStart = Number(verse.dataset.verse)
       this.dragCurrent = this.dragStart
-      press.setPointerCapture?.(event.pointerId)
     } else {
       this.dragStart = null
       this.dragCurrent = null
     }
     this.dragging = false
+    this.swipeAxis = null
     this.pointerId = event.pointerId
     window.addEventListener("pointermove", this.onPointerMove, { passive: false })
     window.addEventListener("pointerup", this.onPointerUp)
@@ -112,12 +113,23 @@ export default class extends Controller {
   }
 
   onPointerMove(event) {
+    if (this.pointerOrigin == null) return
+    const dx = event.clientX - this.pointerOrigin.x
+    const dy = event.clientY - this.pointerOrigin.y
+    if (isHorizontalIntent(dx, dy)) {
+      this.swipeAxis = "x"
+      this.ignoreClick = true
+      return
+    }
+    if (this.swipeAxis === "x") return
     if (this.dragStart == null) return
     const n = this.verseAtPoint(event.clientX, event.clientY)
     if (!n) return
     if (n !== this.dragStart) {
       this.dragging = true
+      this.ignoreClick = true
       event.preventDefault()
+      this.pressEl?.setPointerCapture?.(event.pointerId)
       this.element.classList.add("is-picking")
     }
     if (n !== this.dragCurrent) {
@@ -132,18 +144,17 @@ export default class extends Controller {
     const start = this.dragStart
     const wasDragging = this.dragging
     const origin = this.pointerOrigin
+    const axis = this.swipeAxis
+    const dx = origin ? event.clientX - origin.x : 0
+    const dy = origin ? event.clientY - origin.y : 0
+    const elapsedMs = origin ? event.timeStamp - origin.t : 0
     this.ignoreClick = true
     this.resetDrag()
-    if (wasDragging && start != null && hovered !== start) {
-      this.selection = selectionFromDrag(start, hovered)
-      this.applySelection({ replaceUrl: true })
-      return
-    }
-    const swipe = origin && chapterSwipe({
-      dx: event.clientX - origin.x,
-      dy: event.clientY - origin.y,
-      elapsedMs: event.timeStamp - origin.t,
-      rangeDragging: wasDragging
+    const swipe = chapterSwipe({
+      dx,
+      dy,
+      elapsedMs,
+      rangeDragging: wasDragging && axis !== "x"
     })
     if (swipe) {
       const url = swipe === "next" ? this.nextUrlValue : this.prevUrlValue
@@ -152,7 +163,13 @@ export default class extends Controller {
         return
       }
     }
-    if (start == null) return
+    if (axis === "x") return
+    if (wasDragging && start != null && hovered !== start) {
+      this.selection = selectionFromDrag(start, hovered)
+      this.applySelection({ replaceUrl: true })
+      return
+    }
+    if (!isTapGesture(dx, dy) || start == null) return
     if (this.verseEl(start)?.classList.contains("is-open")) {
       this.selection = null
     } else {
@@ -326,6 +343,9 @@ export default class extends Controller {
       button.setAttribute("aria-pressed", quiet ? "true" : "false")
       button.setAttribute("aria-label", quiet ? "Exit focus" : "Focus")
       button.title = quiet ? "Exit focus" : "Focus"
+    })
+    this.element.querySelectorAll("[data-controller~='chrome']").forEach((el) => {
+      el.dispatchEvent(new Event("chrome:reveal"))
     })
     if (!quiet) return
     this.flushPending()
@@ -611,12 +631,18 @@ export default class extends Controller {
 
   markCopied(button, ok) {
     if (!button || !ok) return
-    const prior = button.getAttribute("title")
-    button.title = "Copied"
-    window.setTimeout(() => {
-      if (prior) button.title = prior
+    const priorTitle = button.getAttribute("title")
+    const priorLabel = button.getAttribute("aria-label")
+    button.classList.add("is-copied")
+    button.setAttribute("title", "Copied")
+    button.setAttribute("aria-label", "Copied")
+    window.clearTimeout(button._copiedTimer)
+    button._copiedTimer = window.setTimeout(() => {
+      button.classList.remove("is-copied")
+      if (priorTitle) button.setAttribute("title", priorTitle)
       else button.removeAttribute("title")
-    }, 1600)
+      if (priorLabel) button.setAttribute("aria-label", priorLabel)
+    }, 1400)
   }
 
   currentSlug() {
@@ -718,6 +744,21 @@ export default class extends Controller {
     if (!tray) return
     this.syncBookmarkButton(tray, note.bookmarked)
     this.applyBlocksWhenReady(tray, note)
+  }
+
+  clearNote(event) {
+    event.preventDefault()
+    event.stopPropagation()
+    const tray = event.currentTarget.closest(".note-tray, .chapter-tray")
+    const host = tray?.querySelector(".outliner")
+    const controller = this.outlinerController(host)
+    if (!controller) return
+    controller.applyBlocks([])
+    this.syncBookmarkButton(tray, false)
+    host._dirty = true
+    if (this.guestSession) this.saveGuest(host)
+    else this.save(host)
+    host._dirty = false
   }
 
   toggleBookmark(event) {
@@ -836,6 +877,8 @@ export default class extends Controller {
     this.dragStart = null
     this.dragCurrent = null
     this.dragging = false
+    this.swipeAxis = null
+    this.pressEl = null
     this.pointerOrigin = null
     this.teardownPointer()
   }
