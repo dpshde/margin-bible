@@ -7,6 +7,23 @@ class NoteTrayCssTest < ActiveSupport::TestCase
     Rails.root.join("app/assets/stylesheets/application.css").read
   end
 
+  test "regular outliner does not inherit publication hanging indent" do
+    assert_match(/\.note-card,\s*\n\.verse > \.note-tray\s*\{[^}]*text-indent:\s*0/m, css)
+    assert_match(/\.note-tray\s*\{[^}]*text-indent:\s*0/, css)
+    outliner = css[/\n\.outliner\s*\{[^}]+\}/]
+    assert outliner
+    assert_match(/display:\s*block/, outliner)
+    assert_match(/text-indent:\s*0/, outliner)
+    assert_match(/min-height:\s*5\.5rem/, outliner)
+    refute_match(/display:\s*contents/, outliner)
+    tray = css[/\n\.note-tray\s*\{[^}]+\}/]
+    assert tray
+    refute_match(/display:\s*contents/, tray)
+    assert_match(/\.pub-p \.otext,\s*\n\.pub-q1 \.otext,\s*\n\.pub-q2 \.otext\s*\{[^}]*text-indent:\s*0/, css)
+    assert_match(/\.verse:has\(\.note-tray:not\(\[hidden\]\)\) \+ \.verse\s*\{[^}]*margin-top:\s*\.45rem/, css)
+    assert_match(/\.is-quiet \.note-tray:not\(\[hidden\]\),\s*\n\.is-quiet \.outliner\s*\{[^}]*display:\s*contents/, css)
+  end
+
   test "chapter tray is not a second card around the editor" do
     rule = css[/\.chapter-tray\s*\{[^}]+\}/]
     assert rule
