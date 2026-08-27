@@ -42,4 +42,74 @@ class IosSiteConfigurationTest < ActiveSupport::TestCase
     assert_includes pbxproj, "DEVELOPMENT_TEAM = 467UZHSCC3;"
     assert_includes pbxproj, "CODE_SIGN_STYLE = Automatic;"
   end
+
+  test "AppIcon catalog is wired so CFBundleIconName is produced" do
+    catalog = Rails.root.join("ios/Margin/Assets.xcassets")
+    contents = JSON.parse(catalog.join("AppIcon.appiconset/Contents.json").read)
+
+    assert catalog.directory?
+    assert_includes pbxproj, "path = Assets.xcassets;"
+    assert_includes pbxproj, "Assets.xcassets in Resources"
+    assert_includes pbxproj, "ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;"
+    assert_includes info_plist, "<key>CFBundleIconName</key>"
+    assert_includes info_plist, "<string>AppIcon</string>"
+    assert(contents["images"].any? { |image| image["filename"] == "AppIcon-120.png" && image["size"] == "60x60" && image["scale"] == "2x" })
+    assert(contents["images"].any? { |image| image["filename"] == "AppIcon-180.png" && image["size"] == "60x60" && image["scale"] == "3x" })
+    assert(contents["images"].any? { |image| image["filename"] == "AppIcon-1024.png" && image["idiom"] == "ios-marketing" })
+  end
+
+  test "iPhone AppIcon PNGs exist at the sizes Apple validation named" do
+    {
+      "AppIcon-120.png" => 120,
+      "AppIcon-180.png" => 180,
+      "AppIcon-1024.png" => 1024
+    }.each do |name, pixels|
+      info = png_info(appiconset.join(name))
+      assert_equal [pixels, pixels], [info[:width], info[:height]], name
+      assert_equal 2, info[:color_type], "#{name} must be opaque RGB (no alpha)"
+      refute info[:has_trns], "#{name} must not carry a tRNS chunk"
+    end
+  end
+
+  test "iPhone-only target clears iPad icon and multitasking orientation errors" do
+    assert_includes pbxproj, "TARGETED_DEVICE_FAMILY = 1;"
+    refute_includes pbxproj, 'TARGETED_DEVICE_FAMILY = "1,2";'
+    refute_includes pbxproj, "UIRequiresFullScreen"
+    contents = JSON.parse(appiconset.join("Contents.json").read)
+    refute(contents["images"].any? { |image| image["idiom"] == "ipad" })
+  end
+
+  test "version is 1.0 (2) without changing hosts, team, or bundle id" do
+    assert_includes pbxproj, "CURRENT_PROJECT_VERSION = 2;"
+    refute_includes pbxproj, "CURRENT_PROJECT_VERSION = 1;"
+    assert_includes pbxproj, "MARKETING_VERSION = 1.0;"
+    assert_includes pbxproj, %(MARGIN_BASE_URL = "#{LOCAL_HOST}")
+    assert_includes pbxproj, %(MARGIN_BASE_URL = "#{PRODUCTION_HOST}")
+    assert_equal 2, pbxproj.scan("PRODUCT_BUNDLE_IDENTIFIER = bible.margin.ios;").size
+    assert_equal 2, pbxproj.scan("DEVELOPMENT_TEAM = 467UZHSCC3;").size
+  end
+
+  private
+
+  def appiconset
+    Rails.root.join("ios/Margin/Assets.xcassets/AppIcon.appiconset")
+  end
+
+  def png_info(path)
+    data = path.binread
+    assert data.start_with?("\x89PNG\r\n\x1A\n".b), "#{path} is not a PNG"
+    type = data[12, 4]
+    assert_equal "IHDR", type, "#{path} first chunk must be IHDR"
+    width, height, _bit_depth, color_type = data[16, 10].unpack("NNC2")
+    offset = 8
+    has_trns = false
+    while offset + 12 <= data.bytesize
+      length = data[offset, 4].unpack1("N")
+      chunk = data[offset + 4, 4]
+      break if chunk == "IEND"
+      has_trns = true if chunk == "tRNS"
+      offset += 12 + length
+    end
+    { width: width, height: height, color_type: color_type, has_trns: has_trns }
+  end
 end
