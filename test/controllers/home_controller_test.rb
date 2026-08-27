@@ -48,68 +48,72 @@ class HomeControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "inbox lists notes newest created_at first and keeps indent" do
-    get root_path
-    library = Library.last
-    library.update_column(:last_read_slug, "jhn.1")
-    library.notes.create!(
-      slug: "jhn.3.16", osis: "JHN.3.16", kind: "verse", book: "JHN", chapter: 3,
-      verse_start: 16,
-      blocks: [
-        { "id" => "p", "indent" => 0, "text" => "Parent thought" },
-        { "id" => "c", "indent" => 1, "text" => "Child thought" }
-      ],
-      created_at: 2.days.ago
-    )
-    library.notes.create!(
-      slug: "jhn.3.16-18", osis: "JHN.3.16-18", kind: "range", book: "JHN", chapter: 3,
-      verse_start: 16, verse_end: 18,
-      blocks: [ { "id" => "r", "indent" => 0, "text" => "Range thought" } ],
-      created_at: 1.hour.ago
-    )
-    library.notes.create!(
-      slug: "jhn.1", osis: "JHN.1", kind: "chapter", book: "JHN", chapter: 1,
-      blocks: [ { "id" => "ch", "indent" => 0, "text" => "Chapter thought" } ],
-      created_at: 30.minutes.ago
-    )
+    travel_to Time.zone.local(2026, 8, 26, 15, 0, 0) do
+      get root_path
+      library = Library.last
+      library.update_column(:last_read_slug, "jhn.1")
+      library.notes.create!(
+        slug: "jhn.3.16", osis: "JHN.3.16", kind: "verse", book: "JHN", chapter: 3,
+        verse_start: 16,
+        blocks: [
+          { "id" => "p", "indent" => 0, "text" => "Parent thought" },
+          { "id" => "c", "indent" => 1, "text" => "Child thought" }
+        ],
+        created_at: 2.days.ago
+      )
+      library.notes.create!(
+        slug: "jhn.3.16-18", osis: "JHN.3.16-18", kind: "range", book: "JHN", chapter: 3,
+        verse_start: 16, verse_end: 18,
+        blocks: [ { "id" => "r", "indent" => 0, "text" => "Range thought" } ],
+        created_at: 1.hour.ago
+      )
+      library.notes.create!(
+        slug: "jhn.1", osis: "JHN.1", kind: "chapter", book: "JHN", chapter: 1,
+        blocks: [ { "id" => "ch", "indent" => 0, "text" => "Chapter thought" } ],
+        created_at: 30.minutes.ago
+      )
 
-    get root_path
-    assert_select ".inbox-empty", count: 0
-    titles = css_select(".inbox-card-title").map { |node| node.text.strip }
-    assert_equal [ "John 1", "John 3:16–18", "John 3:16" ], titles
-    assert_select ".inbox-card[href='/jhn.1?chapter_note=1']"
-    assert_select ".inbox-card[href='/jhn.3.16-18']"
-    assert_select ".inbox-card[href='/jhn.3.16']"
-    assert_select ".inbox-preview .preview-line[style='--depth: 1']", "Child thought"
-    assert_select ".inbox-day", /Today/
-    assert_select "#inbox-pack-mirror", count: 0
+      get root_path
+      assert_select ".inbox-empty", count: 0
+      titles = css_select(".inbox-card-title").map { |node| node.text.strip }
+      assert_equal [ "John 1", "John 3:16–18", "John 3:16" ], titles
+      assert_select ".inbox-card[href='/jhn.1?chapter_note=1']"
+      assert_select ".inbox-card[href='/jhn.3.16-18']"
+      assert_select ".inbox-card[href='/jhn.3.16']"
+      assert_select ".inbox-preview .preview-line[style='--depth: 1']", "Child thought"
+      assert_select ".inbox-day", /Today/
+      assert_select "#inbox-pack-mirror", count: 0
+    end
   end
 
   test "bookmarked notes sit in a Bookmarks section at the top" do
-    get root_path
-    library = Library.last
-    library.notes.create!(
-      slug: "jhn.3.16", osis: "JHN.3.16", kind: "verse", book: "JHN", chapter: 3,
-      verse_start: 16, blocks: [ { "id" => "n", "indent" => 0, "text" => "Love." } ],
-      created_at: 1.hour.ago
-    )
-    library.notes.create!(
-      slug: "jhn.1.1", osis: "JHN.1.1", kind: "verse", book: "JHN", chapter: 1,
-      verse_start: 1, blocks: [ { "id" => "b", "indent" => 0, "text" => "Logos." } ],
-      bookmarked: true,
-      created_at: 2.days.ago
-    )
+    travel_to Time.zone.local(2026, 8, 26, 15, 0, 0) do
+      get root_path
+      library = Library.last
+      library.notes.create!(
+        slug: "jhn.3.16", osis: "JHN.3.16", kind: "verse", book: "JHN", chapter: 3,
+        verse_start: 16, blocks: [ { "id" => "n", "indent" => 0, "text" => "Love." } ],
+        created_at: 1.hour.ago
+      )
+      library.notes.create!(
+        slug: "jhn.1.1", osis: "JHN.1.1", kind: "verse", book: "JHN", chapter: 1,
+        verse_start: 1, blocks: [ { "id" => "b", "indent" => 0, "text" => "Logos." } ],
+        bookmarked: true,
+        created_at: 2.days.ago
+      )
 
-    get root_path
-    days = css_select(".inbox-day").map { |node| node.text.strip }
-    assert_equal [ "Bookmarks", "Today" ], days
-    assert_select "details.inbox-book" do
-      assert_select "summary.inbox-book-summary .inbox-book-name", "John"
-      assert_select "summary.inbox-book-summary .inbox-book-count", "1"
-      assert_select ".inbox-card.is-bookmarked[href='/jhn.1.1']"
+      get root_path
+      days = css_select(".inbox-day").map { |node| node.text.strip }
+      assert_equal [ "Bookmarks", "Today" ], days
+      assert_select "details.inbox-book" do
+        assert_select "summary.inbox-book-summary .inbox-book-name", "John"
+        assert_select "summary.inbox-book-summary .inbox-book-count", "1"
+        assert_select ".inbox-card.is-bookmarked[href='/jhn.1.1']"
+      end
+      titles = css_select(".inbox-card-title").map { |node| node.text.strip }
+      assert_equal [ "John 1:1", "John 3:16" ], titles
+      assert_select ".inbox-card.is-bookmarked", count: 1
     end
-    titles = css_select(".inbox-card-title").map { |node| node.text.strip }
-    assert_equal [ "John 1:1", "John 3:16" ], titles
-    assert_select ".inbox-card.is-bookmarked", count: 1
   end
 
   test "signed-in inbox dumps notes so sign-out can snapshot the guest pack" do
