@@ -1,0 +1,8 @@
+#!/usr/bin/env sh
+# Run every Node test under test/javascript (same loader flags as GitHub CI).
+set -eu
+cd "$(dirname "$0")/.."
+
+for file in test/javascript/*.test.js; do
+  node --experimental-default-type=module "$file"
+done

@@ -7,3 +7,70 @@ description = "Foreman Rails + JS watch on :3000"
 dir = "{{config_root}}"
 run = "bin/dev"
 raw = true
+
+# --- test ---
+
+[tasks.test]
+description = "Full Rails test suite"
+dir = "{{config_root}}"
+run = "bin/rails test"
+
+[tasks."test:js"]
+description = "Node tests in test/javascript"
+dir = "{{config_root}}"
+run = "bin/test-js"
+
+[tasks.ci]
+description = "JS tests then Rails suite (GitHub CI locally)"
+dir = "{{config_root}}"
+run = "bin/test-js && bin/rails test"
+
+# --- lint ---
+
+[tasks.tidy]
+description = "Safe RuboCop autocorrect"
+dir = "{{config_root}}"
+run = "bin/rubocop -a"
+
+# --- railway ---
+# Production: https://web-production-0b88ca.up.railway.app
+# PR previews: service web-pr-N → https://web-pr-N-production.up.railway.app
+
+[tasks.prod]
+description = "HEAD Railway production /heb.11"
+dir = "{{config_root}}"
+run = '''
+curl -sfI https://web-production-0b88ca.up.railway.app/heb.11 >/dev/null
+echo "ok https://web-production-0b88ca.up.railway.app/heb.11"
+'''
+
+[tasks.refs]
+description = "Fail if prod Heb 11 Moses refs are glued after a semicolon"
+dir = "{{config_root}}"
+run = '''
+url="https://web-production-0b88ca.up.railway.app/heb.11"
+html=$(curl -sf "$url")
+case "$html" in
+  *"Exodus 2–15;Acts"*) echo "fail: glued Moses refs at $url"; exit 1 ;;
+esac
+printf '%s' "$html" | grep -Eq 'Exodus 2–15</(a|span)>; <a' || {
+  echo "fail: missing '; ' after Moses semicolon at $url"
+  exit 1
+}
+echo "ok: semicolon space at $url"
+'''
+
+[tasks.preview]
+description = "HEAD Railway PR preview web-pr-N /heb.11"
+dir = "{{config_root}}"
+run = '''
+n="${1:-}"
+if [ -z "$n" ]; then
+  echo "Railway PR previews are services named web-pr-N"
+  echo "usage: mise run preview -- <N>  # https://web-pr-N-production.up.railway.app"
+  exit 1
+fi
+url="https://web-pr-${n}-production.up.railway.app/heb.11"
+curl -sfI "$url" >/dev/null
+echo "ok $url"
+'''
