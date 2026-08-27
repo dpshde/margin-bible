@@ -3,7 +3,7 @@ import { loadPack } from "../lib/guest-pack"
 import { passkeyPrimaryMode } from "../lib/passkey-hint"
 
 export default class extends Controller {
-  static targets = [ "use", "create" ]
+  static targets = [ "use", "create", "register" ]
 
   connect() {
     this.element.addEventListener("passkey:success", this.attachPack)
@@ -17,6 +17,11 @@ export default class extends Controller {
   applyMode(_mode = "use") {
     if (this.hasUseTarget) this.useTarget.hidden = false
     if (this.hasCreateTarget) this.createTarget.hidden = false
+  }
+
+  startRegistration() {
+    if (!this.hasRegisterTarget) return
+    this.registerTarget.querySelector("[data-passkey='register']")?.click()
   }
 
   attachPack = (event) => {

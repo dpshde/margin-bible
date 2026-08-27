@@ -10,12 +10,13 @@ class SessionsController < ApplicationController
     @registration_options = passkey_registration_options(holder: pending_passkey_holder)
     token = flash[:dev_login_token]
     @dev_login_path = magic_login_path(token) if token.present?
+    render :new_email_first if Margin::Features.email_first_sign_in?(request)
   end
 
   def create
     email = User.normalized_email(params.require(:email))
     if email.blank?
-      redirect_to new_session_path, alert: "Enter an email."
+      redirect_to new_session_return_path, alert: "Enter an email."
       return
     end
 
@@ -28,7 +29,7 @@ class SessionsController < ApplicationController
     else
       "Couldn’t send email. Use the sign-in link below."
     end
-    redirect_to new_session_path, notice: notice
+    redirect_to new_session_return_path, notice: notice
   end
 
   def show
@@ -45,6 +46,12 @@ class SessionsController < ApplicationController
   end
 
   private
+    def new_session_return_path
+      return new_session_path(signin: "email") if params[:signin].to_s == "email"
+
+      new_session_path
+    end
+
     def deliver_sign_in_mail(link)
       return false unless ENV["SMTP_ADDRESS"].present?
 

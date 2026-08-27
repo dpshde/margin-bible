@@ -1,14 +1,14 @@
-import { rememberPasskeyHint } from "./passkey-hint"
+import { passkeyAutoStartSteps, refocusPasskeyUsername, rememberPasskeyHint } from "./passkey-hint"
 import { register, authenticate } from "./webauthn"
 
 class PasskeyButton extends HTMLElement {
   connectedCallback() {
-    this.button.addEventListener("click", this.#perform)
+    this.button.addEventListener("click", this.onButtonClick)
   }
 
   disconnectedCallback() {
     this.abortConditionalMediation?.()
-    this.button.removeEventListener("click", this.#perform)
+    this.button.removeEventListener("click", this.onButtonClick)
     this.button.disabled = false
     this.#hideErrors()
   }
@@ -29,7 +29,11 @@ class PasskeyButton extends HTMLElement {
     return this.getAttribute("challenge-url")
   }
 
-  #perform = async () => {
+  onButtonClick = () => {
+    this.startCeremony()
+  }
+
+  startCeremony = async ({ silentCancel = false, mediation } = {}) => {
     await this.abortConditionalMediation?.()
     this.button.disabled = true
     this.#hideErrors()
@@ -42,15 +46,21 @@ class PasskeyButton extends HTMLElement {
       if (!options) throw new Error("Missing passkey options")
 
       await refreshChallenge(options, this.challengeUrl, this.purpose)
-      const passkey = await this.perform(options, this.modalCeremony)
+      const passkey = await this.perform(options, {
+        ...this.modalCeremony,
+        ...(mediation ? { mediation } : {})
+      })
 
       rememberPasskeyHint()
       this.button.dispatchEvent(new CustomEvent("passkey:success", { bubbles: true }))
       this.fillForm(passkey)
       this.form.submit()
+      return true
     } catch (error) {
       this.button.disabled = false
+      if (silentCancel && errorType(error) === "cancelled") return false
       this.#handleError(error)
+      return false
     }
   }
 
@@ -62,6 +72,7 @@ class PasskeyButton extends HTMLElement {
   }
 
   #showError(type) {
+    this.#hideErrors()
     const el = this.querySelector(`[data-passkey-error="${type}"]`)
     if (el) el.hidden = false
   }
@@ -93,7 +104,7 @@ class PasskeySignInButton extends PasskeyButton {
 
   connectedCallback() {
     super.connectedCallback()
-    if (this.mediation === "conditional") this.#attemptConditionalMediation()
+    if (this.mediation === "conditional" || this.hasAttribute("auto-start")) this.#autoStartSignIn()
   }
 
   get mediation() {
@@ -118,24 +129,58 @@ class PasskeySignInButton extends PasskeyButton {
     await new Promise((resolve) => setTimeout(resolve, 100))
   }
 
+  async #autoStartSignIn() {
+    const steps = passkeyAutoStartSteps({
+      passkeysSupported: passkeysAvailable(),
+      hasOptions: Boolean(this.options),
+      immediateAvailable: await this.#immediateGetAvailable(),
+      userActivated: Boolean(navigator.userActivation?.isActive)
+    })
+
+    for (const step of steps) {
+      if (step === "immediate") {
+        const signedIn = await this.startCeremony({ silentCancel: true, mediation: "immediate" })
+        if (signedIn) return
+        continue
+      }
+
+      if (step === "conditional" && await this.#conditionalMediationAvailable()) {
+        await this.#attemptConditionalMediation()
+      }
+    }
+  }
+
   async #attemptConditionalMediation() {
-    if (await this.#conditionalMediationAvailable()) {
-      const options = this.options
+    const options = this.options
 
-      this.form.dispatchEvent(new CustomEvent("passkey:start", { bubbles: true }))
+    this.form.dispatchEvent(new CustomEvent("passkey:start", { bubbles: true }))
 
-      this.#conditionalMediationController = new AbortController()
-      this.#conditionalMediationPromise = this.#runConditionalMediation(options)
+    this.#conditionalMediationController = new AbortController()
+    this.#conditionalMediationPromise = this.#runConditionalMediation(options)
+  }
+
+  #offerPasskeyAutofill() {
+    refocusPasskeyUsername(document.querySelector('input[autocomplete~="webauthn"]'))
+  }
+
+  async #immediateGetAvailable() {
+    try {
+      const capabilities = await window.PublicKeyCredential.getClientCapabilities?.()
+      return Boolean(capabilities?.immediateGet)
+    } catch {
+      return false
     }
   }
 
   async #runConditionalMediation(options) {
     try {
       await refreshChallenge(options, this.challengeUrl, this.purpose)
-      const passkey = await this.perform(options, {
+      const pending = this.perform(options, {
         signal: this.#conditionalMediationController.signal,
         mediation: this.mediation
       })
+      this.#offerPasskeyAutofill()
+      const passkey = await pending
 
       rememberPasskeyHint()
       this.form.dispatchEvent(new CustomEvent("passkey:success", { bubbles: true }))
