@@ -1,10 +1,61 @@
 # frozen_string_literal: true
 
 class Note < ApplicationRecord
+  SOURCES = %w[human agent].freeze
+
   belongs_to :library
 
   validates :slug, :osis, :kind, :book, :chapter, presence: true
   validates :slug, uniqueness: { scope: :library_id }
+  validates :source, inclusion: { in: SOURCES }
+
+  # source / agent_name / agent_color are write-signature columns for a later
+  # agent-write slice. Read-only MCP tools never set them; the reader does not
+  # render agent color yet.
+
+  def self.search_in(library, book: nil, chapter: nil, osis: nil, query: nil)
+    rel = library.notes
+    if osis.present?
+      passage = Margin::Passage.parse(osis)
+      rel = passage ? rel.where(slug: passage.slug) : rel.none
+    end
+    if book.present?
+      code = Margin::Books.resolve_alias(book) || book.to_s.upcase
+      rel = rel.where(book: code)
+    end
+    rel = rel.where(chapter: chapter.to_i) if chapter.present?
+    notes = rel.order(:book, :chapter, :verse_start, :id)
+    return notes if query.blank?
+
+    needle = query.to_s.downcase
+    notes.select { |note| note.body_text.downcase.include?(needle) }
+  end
+
+  def self.covering_verse(library, input)
+    passage = Margin::Passage.parse(input)
+    return none unless passage&.verse_start
+
+    verse = passage.verse_start
+    library.notes
+      .where(book: passage.book, chapter: passage.chapter)
+      .where.not(kind: "chapter")
+      .where.not(verse_start: nil)
+      .where("verse_start <= ?", verse)
+      .where("verse_end IS NULL OR verse_end >= ?", verse)
+      .order(:verse_start, :id)
+  end
+
+  def as_mcp
+    {
+      slug: slug,
+      osis: osis,
+      kind: kind,
+      body: body_text,
+      created_at: created_at&.iso8601,
+      updated_at: updated_at&.iso8601
+    }
+  end
+
 
   def passage
     Margin::Passage.parse(slug)

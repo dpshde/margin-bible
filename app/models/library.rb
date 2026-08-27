@@ -6,6 +6,9 @@ class Library < ApplicationRecord
   belongs_to :user, optional: true
   has_many :notes, dependent: :destroy
   has_many :magic_links, dependent: :destroy
+  has_many :oauth_authorizations, dependent: :destroy
+  has_many :oauth_access_tokens, dependent: :destroy
+
 
   before_validation :assign_claim_token, on: :create
 

@@ -35,7 +35,7 @@ class SessionsController < ApplicationController
     link = MagicLink.live.find_by!(token: params[:token])
     claim_library_for!(link.user)
     link.destroy
-    redirect_to root_path, notice: "Welcome back."
+    redirect_to after_authentication_path, notice: "Welcome back."
   end
 
   def destroy

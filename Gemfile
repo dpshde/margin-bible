@@ -40,6 +40,9 @@ gem "image_processing", "~> 1.2"
 # WebAuthn passkeys (Fizzy-shaped: magic link claims, passkey signs back in)
 gem "webauthn", "~> 3.4"
 
+# Official MCP Ruby SDK — Streamable HTTP is a Rack app we mount at /mcp.
+gem "mcp", "~> 1.3"
+
 group :development, :test do
   # See https://guides.rubyonrails.org/debugging_rails_applications.html#debugging-with-the-debug-gem
   gem "debug", platforms: %i[ mri windows ], require: "debug/prelude"

@@ -1166,3 +1166,11 @@ html.hotwire-native .reader-dock { display: flex; }
     min-height: 0;
   }
 }
+
+.grant-scope {
+  margin: 0 0 1.25rem;
+  padding-left: 1.2rem;
+  color: var(--ink-soft);
+  line-height: 1.5;
+}
+.grant-scope li + li { margin-top: .35rem; }

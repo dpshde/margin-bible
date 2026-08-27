@@ -3,6 +3,9 @@
 class User < ApplicationRecord
   has_many :libraries, dependent: :nullify
   has_many :magic_links, dependent: :destroy
+  has_many :oauth_authorizations, dependent: :destroy
+  has_many :oauth_access_tokens, dependent: :destroy
+
   has_many :passkeys, dependent: :destroy do
     def register(params, challenge:)
       Passkey.register(params, holder: proxy_association.owner, challenge: challenge)

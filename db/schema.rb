@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_26_190000) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_27_010001) do
   create_table "libraries", force: :cascade do |t|
     t.string "claim_token", null: false
     t.datetime "created_at", null: false
@@ -35,6 +35,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_26_190000) do
   end
 
   create_table "notes", force: :cascade do |t|
+    t.string "agent_color"
+    t.string "agent_name"
     t.json "blocks", default: [], null: false
     t.string "book", null: false
     t.boolean "bookmarked", default: false, null: false
@@ -44,6 +46,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_26_190000) do
     t.integer "library_id", null: false
     t.string "osis", null: false
     t.string "slug", null: false
+    t.string "source", default: "human", null: false
     t.datetime "updated_at", null: false
     t.integer "verse_end"
     t.integer "verse_start"
@@ -51,6 +54,55 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_26_190000) do
     t.index ["library_id", "bookmarked"], name: "index_notes_on_library_id_and_bookmarked"
     t.index ["library_id", "slug"], name: "index_notes_on_library_id_and_slug", unique: true
     t.index ["library_id"], name: "index_notes_on_library_id"
+  end
+
+  create_table "oauth_access_tokens", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.datetime "expires_at", null: false
+    t.integer "library_id", null: false
+    t.integer "oauth_client_id", null: false
+    t.string "refresh_digest", null: false
+    t.datetime "refresh_expires_at", null: false
+    t.datetime "revoked_at"
+    t.string "scopes", null: false
+    t.string "token_digest", null: false
+    t.datetime "updated_at", null: false
+    t.integer "user_id", null: false
+    t.index ["library_id", "revoked_at"], name: "index_oauth_access_tokens_on_library_id_and_revoked_at"
+    t.index ["library_id"], name: "index_oauth_access_tokens_on_library_id"
+    t.index ["oauth_client_id"], name: "index_oauth_access_tokens_on_oauth_client_id"
+    t.index ["refresh_digest"], name: "index_oauth_access_tokens_on_refresh_digest", unique: true
+    t.index ["token_digest"], name: "index_oauth_access_tokens_on_token_digest", unique: true
+    t.index ["user_id"], name: "index_oauth_access_tokens_on_user_id"
+  end
+
+  create_table "oauth_authorizations", force: :cascade do |t|
+    t.string "code_challenge", null: false
+    t.string "code_challenge_method", default: "S256", null: false
+    t.string "code_digest", null: false
+    t.datetime "created_at", null: false
+    t.datetime "expires_at", null: false
+    t.integer "library_id", null: false
+    t.integer "oauth_client_id", null: false
+    t.string "redirect_uri", null: false
+    t.string "scopes", null: false
+    t.datetime "updated_at", null: false
+    t.datetime "used_at"
+    t.integer "user_id", null: false
+    t.index ["code_digest"], name: "index_oauth_authorizations_on_code_digest", unique: true
+    t.index ["library_id"], name: "index_oauth_authorizations_on_library_id"
+    t.index ["oauth_client_id"], name: "index_oauth_authorizations_on_oauth_client_id"
+    t.index ["user_id"], name: "index_oauth_authorizations_on_user_id"
+  end
+
+  create_table "oauth_clients", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.string "name", null: false
+    t.json "redirect_uris", default: [], null: false
+    t.string "token_endpoint_auth_method", default: "none", null: false
+    t.string "uid", null: false
+    t.datetime "updated_at", null: false
+    t.index ["uid"], name: "index_oauth_clients_on_uid", unique: true
   end
 
   create_table "passkeys", force: :cascade do |t|
@@ -92,5 +144,11 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_26_190000) do
   add_foreign_key "magic_links", "libraries"
   add_foreign_key "magic_links", "users"
   add_foreign_key "notes", "libraries"
+  add_foreign_key "oauth_access_tokens", "libraries"
+  add_foreign_key "oauth_access_tokens", "oauth_clients"
+  add_foreign_key "oauth_access_tokens", "users"
+  add_foreign_key "oauth_authorizations", "libraries"
+  add_foreign_key "oauth_authorizations", "oauth_clients"
+  add_foreign_key "oauth_authorizations", "users"
   add_foreign_key "passkeys", "users"
 end

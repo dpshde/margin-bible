@@ -12,7 +12,7 @@ class Sessions::PasskeysController < ApplicationController
     if (credential = Passkey.authenticate(passkey_authentication_params, challenge: consume_webauthn_challenge))
       claim_library_for!(credential.user)
       import_posted_guest_pack
-      redirect_to root_path, notice: "Welcome back. Your notes are on this library."
+      redirect_to after_authentication_path, notice: "Welcome back. Your notes are on this library."
     else
       redirect_to new_session_path, alert: "That passkey didn't work. Try again."
     end

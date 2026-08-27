@@ -28,6 +28,10 @@ class ApplicationController < ActionController::Base
       redirect_to new_session_path, alert: "Claim this library with a magic link first."
     end
 
+    def after_authentication_path
+      session.delete(:return_to).presence || root_path
+    end
+
     def claim_library_for!(user)
       library =
         if user.libraries.any?

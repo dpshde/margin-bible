@@ -20,6 +20,20 @@ Rails.application.routes.draw do
   post "export" => "exports#create", as: :export
   patch "notes" => "notes#upsert", as: :notes
 
+  get ".well-known/oauth-protected-resource" => "well_known#oauth_protected_resource"
+  get ".well-known/oauth-protected-resource/mcp" => "well_known#oauth_protected_resource"
+  get ".well-known/oauth-authorization-server" => "well_known#oauth_authorization_server"
+
+  match "mcp", to: "mcp#handle", via: %i[get post delete options], as: :mcp
+
+  get "oauth/authorize" => "oauth/authorizations#new", as: :oauth_authorize
+  post "oauth/authorize" => "oauth/authorizations#create"
+  post "oauth/deny" => "oauth/authorizations#destroy", as: :oauth_deny
+  post "oauth/token" => "oauth/tokens#create", as: :oauth_token
+  post "oauth/register" => "oauth/registrations#create", as: :oauth_register
+  post "oauth/revoke" => "oauth/revocations#create", as: :oauth_revoke
+  resources :oauth_connections, only: %i[index destroy], path: "oauth/connections", controller: "oauth/connections"
+
   get "*slug" => "reader#show",
       as: :read,
       format: false,
