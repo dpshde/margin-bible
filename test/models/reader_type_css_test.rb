@@ -19,8 +19,8 @@ class ReaderTypeCssTest < ActiveSupport::TestCase
     assert_match(/\.vtext\s*\{[^}]*letter-spacing:\s*0/, css)
     refute_match(/text-align:\s*justify/, css)
     assert_match(/--page-max:\s*36em/, css)
-    assert_match(/html\[data-face="deca"\] \.wj\s*\{[^}]*border-left:/m, css)
-    assert_match(/html\[data-face="deca"\] \.wj\s*\{[^}]*font-style:\s*normal/m, css)
+    refute_match(/data-face="deca"/, css)
+    refute_match(/Lexend Deca/, css)
   end
 
   test "Jesus words are italic body color not rust" do
@@ -32,9 +32,12 @@ class ReaderTypeCssTest < ActiveSupport::TestCase
     refute_match(/#e0a39c/, css)
   end
 
-  test "paragraph indent skips the first after a heading and skips trays" do
-    assert_match(/\.section-head \+ \.pub-p,\s*\n\.section-head \+ \.pub-r \+ \.pub-p\s*\{[^}]*text-indent:\s*0/m, css)
+  test "paragraph indent after a heading matches later paragraphs and skips trays" do
+    assert_match(/\.section-head \+ \.pub-p,\s*\n\.section-head \+ \.pub-r \+ \.pub-p\s*\{[^}]*text-indent:\s*1\.2em/m, css)
+    assert_match(/\.section-head \+ \.pub-p > \.verse:first-child \.verse-press > \.vtext,\s*\n\.section-head \+ \.pub-r \+ \.pub-p > \.verse:first-child \.verse-press > \.vtext\s*\{[^}]*text-indent:\s*1\.2em/m, css)
     assert_match(/\.pub-p \+ \.pub-p\s*\{[^}]*text-indent:\s*1\.2em/, css)
+    assert_match(/\.pub-q1\s*\{[^}]*text-indent:\s*-\.4rem/, css)
+    assert_match(/\.pub-q2\s*\{[^}]*text-indent:\s*-\.4rem/, css)
     assert_match(/\.pub-p \.otext,\s*\n\.pub-q1 \.otext,\s*\n\.pub-q2 \.otext\s*\{[^}]*text-indent:\s*0/, css)
     assert_match(/\.note-tray:not\(\[hidden\]\)\s*\{\s*display:\s*block/, css)
     assert_match(/\.note-tray\[hidden\]\s*\{\s*display:\s*none !important/, css)
@@ -49,7 +52,12 @@ class ReaderTypeCssTest < ActiveSupport::TestCase
     refute_match(/font-weight:\s*700/, head)
     refute_match(/font-weight:\s*800/, head)
     assert_match(/\.section-head\.spaced\s*\{[^}]*margin-top:\s*2\.25em/, css)
-    assert_match(/margin:\s*0 0 1\.15em/, head)
+    assert_match(/margin:\s*0 0 \.85em/, head)
+    refute_match(/margin:\s*0 0 1\.15em/, head)
+    assert_match(/\.section-head:has\(\+ \.pub-r\)\s*\{\s*margin-bottom:\s*\.08em/, css)
+    assert_match(/\.section-head \+ \.pub-r\s*\{\s*margin-top:\s*0/, css)
+    assert_match(/\.is-quiet \.section-head:has\(\+ \.pub-r\)\s*\{\s*margin-bottom:\s*\.85em/, css)
+    assert_match(/\.is-quiet \.pub-r\s*\{[^}]*display:\s*none/, css)
     refute_match(/\.note-tray\s*\{[^}]*margin-top:\s*1\.15em/, css)
   end
 end

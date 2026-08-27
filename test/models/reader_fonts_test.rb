@@ -11,10 +11,11 @@ class ReaderFontsTest < ActiveSupport::TestCase
     assert_match(/--read:\s*"Source Serif 4", "Iowan Old Style", Palatino, serif/, css)
     assert_match(/--sans:\s*"Poppins", system-ui, sans-serif/, css)
     assert_match(/--page-max:\s*36em/, css)
-    assert_match(/html\[data-face="deca"\]\s*\{[^}]*--read:\s*"Lexend Deca"/m, css)
+    refute_match(/html\[data-face="deca"\]/, css)
+    refute_match(/Lexend Deca/, css)
     assert_match(/\.vtext\s*\{[^}]*font-family:\s*var\(--read\)/m, css)
     assert_match(/\.topbar-title\s*\{[^}]*font-family:\s*var\(--sans\)/m, css)
-    assert_match(/\.section-head\s*\{[^}]*font-family:\s*var\(--sans\)/m, css)
+    assert_match(/\.section-head\s*\{[^}]*font-family:\s*var\(--read\)/m, css)
     assert_match(/\.section-head\s*\{[^}]*font-weight:\s*600/m, css)
     assert_match(/\.section-head\s*\{[^}]*font-size:\s*1\.45rem/m, css)
     assert_match(/\.vtext\s*\{[^}]*font-size:\s*var\(--read-size\)/m, css)
@@ -27,12 +28,25 @@ class ReaderFontsTest < ActiveSupport::TestCase
     assert_match(/^html \{ font-size: 95%; \}$/, css)
   end
 
-  test "layout loads Source Serif 4 and Deca without Lexend 300" do
+  test "layout loads Source Serif 4 without Deca" do
     layout = Rails.root.join("app/views/layouts/application.html.erb").read
     assert_match(/family=Source\+Serif\+4/, layout)
-    assert_match(/family=Lexend\+Deca/, layout)
+    refute_match(/family=Lexend\+Deca/, layout)
     assert_match(/family=Poppins/, layout)
     refute_match(/family=Lexend:wght@300/, layout)
     assert_match(/data-face/, layout)
+    refute_match(/face !== "serif" && face !== "deca"/, layout)
+    assert_match(/if \(face !== "serif"\) face = "serif"/, layout)
+  end
+
+  test "layout loads Fathom once with site EMYGRIAR" do
+    layout = Rails.root.join("app/views/layouts/application.html.erb").read
+    assert_match(
+      /<!-- Fathom - beautiful, simple website analytics -->\s*<script src="https:\/\/cdn\.usefathom\.com\/script\.js" data-site="EMYGRIAR" defer><\/script>\s*<!-- \/ Fathom -->/m,
+      layout
+    )
+    assert_equal 1, layout.scan("cdn.usefathom.com/script.js").size
+    assert_equal 1, layout.scan('data-site="EMYGRIAR"').size
+    refute_match(/gtag|plausible|umami|analytics\.js/, layout)
   end
 end
