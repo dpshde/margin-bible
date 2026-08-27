@@ -19,6 +19,7 @@
   --sel-rail-open: color-mix(in srgb, var(--ink) 42%, transparent);
   --read: "Source Serif 4", "Iowan Old Style", Palatino, serif;
   --sans: "Poppins", system-ui, sans-serif;
+  --head: "Lexend", system-ui, sans-serif;
 }
 html[data-theme="dark"] {
   color-scheme: dark;
@@ -80,7 +81,7 @@ button, input, textarea { font: inherit; color: inherit; }
   border-bottom: 1px solid var(--line);
 }
 .topbar-title {
-  margin: 0; font-family: var(--sans); font-size: 1.05rem; font-weight: 600;
+  margin: 0; font-family: var(--head); font-size: 1.05rem; font-weight: 600;
   text-align: center; letter-spacing: -.01em;
   min-width: 0;
 }
@@ -128,6 +129,7 @@ button, input, textarea { font: inherit; color: inherit; }
   width: auto; max-width: 100%; margin: 0 0 .75rem; padding: 0;
   border: 0; background: transparent; cursor: pointer;
   font: inherit; text-align: left;
+  font-family: var(--head);
   font-size: .82rem; font-weight: 600;
   letter-spacing: .06em; text-transform: uppercase;
   color: var(--muted);
@@ -611,7 +613,7 @@ a.pub-ref:focus-visible {
   margin: 0 0 .85em;
   margin-left: calc(var(--verse-gutter) + var(--verse-gutter-gap));
   padding: 0;
-  font-family: var(--read); font-size: 1.45rem; font-weight: 600;
+  font-family: var(--head); font-size: 1.45rem; font-weight: 600;
   line-height: 1.25; color: var(--ink); letter-spacing: .01em;
   scroll-margin-top: calc(4.25rem + env(safe-area-inset-top, 0px));
 }
@@ -620,7 +622,7 @@ a.pub-ref:focus-visible {
   margin: 1.15em 0 .45em;
   margin-left: calc(var(--verse-gutter) + var(--verse-gutter-gap));
   padding: 0;
-  font-family: var(--read); font-size: 1.05rem; font-weight: 600;
+  font-family: var(--head); font-size: 1.05rem; font-weight: 600;
   line-height: 1.3; color: var(--ink-soft); letter-spacing: .01em;
   scroll-margin-top: calc(4.25rem + env(safe-area-inset-top, 0px));
 }
@@ -997,7 +999,7 @@ a.tray-label:hover { color: var(--ink); }
 .pager a { text-decoration: none; color: var(--muted); }
 
 .page { max-width: 28rem; margin: 0 auto; padding: 1.5rem 1.2rem 4rem; }
-.page h1 { font-family: var(--sans); font-weight: 600; }
+.page h1 { font-family: var(--head); font-weight: 600; }
 .auth-sheet {
   display: flex;
   flex-direction: column;
@@ -1106,11 +1108,12 @@ rails-passkey-sign-in-button { display: block; width: 100%; }
 .account-email h2 { margin: 0 0 .35rem; font-size: 1.05rem; }
 
 .inbox-main { max-width: var(--page-max); margin: 0 auto; padding: .75rem 1.1rem 6rem; }
-.inbox-continue {
-  margin: 0 0 .55rem; font-family: var(--sans); font-size: .86rem;
+.inbox-continue-link svg { display: block; }
+.inbox-native-continue {
+  display: flex; align-items: center;
+  max-width: var(--page-max); margin: 0 auto;
+  padding: 0 .35rem;
 }
-.inbox-continue a { color: var(--muted); text-decoration: none; }
-.inbox-continue a:hover { color: var(--ink-soft); }
 .inbox-empty {
   margin: 2.4rem 1rem 0; text-align: center; color: var(--muted);
   font-family: var(--sans); font-size: .95rem; line-height: 1.5;
@@ -1118,7 +1121,7 @@ rails-passkey-sign-in-button { display: block; width: 100%; }
 .inbox-day {
   margin: 1.2rem 0 .55rem; padding-bottom: .25rem;
   border-bottom: 1px solid var(--line);
-  font-family: var(--sans); font-size: .78rem; font-weight: 600;
+  font-family: var(--head); font-size: .78rem; font-weight: 600;
   letter-spacing: .06em; text-transform: uppercase; color: var(--muted);
 }
 .inbox-card {
@@ -1232,6 +1235,9 @@ html.hotwire-native {
 }
 html.hotwire-native body {
   padding-top: var(--chrome-top);
+}
+html.hotwire-native .inbox-native-continue {
+  padding-left: .35rem;
 }
 html.hotwire-native .is-quiet .reader {
   padding-top: .75rem;

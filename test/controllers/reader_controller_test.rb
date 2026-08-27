@@ -276,6 +276,14 @@ class ReaderControllerTest < ActionDispatch::IntegrationTest
     assert_match(%r{Exodus 2–15</(?:a|span)>; <a class="pub-ref"}, response.body)
     assert_select ".reader-dock-panel [data-pane='toc'] .dock-item", "Acts 7:20–22"
     refute_includes css_select(".reader-dock-panel [data-pane='toc'] .dock-item").map(&:text).join, "Exodus 2–15;Acts"
+    gen_john = css_select(".pub-r").find { |node| node.text.include?("Genesis 1:1") }
+    assert gen_john, "expected the Genesis 1 heading refs"
+    assert_match(/Genesis 1:1–2; John 1:1–5/, gen_john.text)
+    refute_includes gen_john.text, ";John"
+    gen_rom = css_select(".pub-r").find { |node| node.text.include?("Genesis 15") }
+    assert gen_rom, "expected the Genesis 15 heading refs"
+    assert_match(/Genesis 15–22; Romans 4:1–12/, gen_rom.text)
+    refute_includes gen_rom.text, ";Romans"
   end
 
   test "Mark 5:9 attribution stays in the text column after a new p" do

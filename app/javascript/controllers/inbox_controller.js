@@ -9,6 +9,7 @@ import {
   shouldPostGuestPack,
   shouldUseGuestPack
 } from "../lib/guest-pack"
+import { applyContinueLink, playContinueHaptic } from "../lib/inbox-continue"
 import { hrefForSlug, slugLabel } from "../lib/passage-span"
 import { playHaptic } from "../lib/haptics"
 
@@ -73,14 +74,13 @@ export default class extends Controller {
     }
   }
 
+  continueTap() {
+    playContinueHaptic()
+  }
+
   renderContinue(pack) {
-    const latest = pack.trail?.[0] || pack.last_read
-    if (!this.hasContinueTarget || !latest) return
-    const link = this.continueTarget.querySelector("a")
-    if (!link) return
-    link.href = `/${latest}`
-    link.textContent = `Continue ${slugLabel(latest)}`
-    this.continueTarget.hidden = false
+    if (!this.hasContinueTarget) return
+    applyContinueLink(this.continueTarget, pack, { labelFor: slugLabel })
   }
 
   renderList(pack) {

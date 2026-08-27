@@ -38,6 +38,10 @@ class HomeControllerTest < ActionDispatch::IntegrationTest
     assert_select ".inbox-empty", "No notes yet. Open a passage and write under a verse — they’ll show up here newest first."
     assert_select "main.inbox-main form.jump input#q"
     assert_select %(main.inbox-main form.jump[data-action*="keydown@window->search#shortcut"])
+    assert_select "header.topbar a.inbox-continue-link[href='/jhn.1'][aria-label='Continue reading']"
+    assert_select "header.topbar a.inbox-continue-link[title='John 1']"
+    assert_select "p.inbox-continue", count: 0
+    assert_no_match(/Continue Hebrews 11/, response.body)
     assert_no_match %r{\Ahttp://www\.example\.com/jhn\.1}, response.headers["Location"].to_s
   end
 
@@ -45,8 +49,26 @@ class HomeControllerTest < ActionDispatch::IntegrationTest
     get read_path("jhn.1")
     get root_path
     assert_select ".inbox-empty", /Open a passage and write under a verse/
-    assert_select ".inbox-continue a[href='/jhn.1']", "Continue John 1"
+    assert_select "header.topbar a.inbox-continue-link[href='/jhn.1'][aria-label='Continue reading']", count: 1
+    assert_select "header.topbar a.inbox-continue-link[title='John 1']"
+    assert_select "p.inbox-continue", count: 0
+    assert_no_match(/Continue John 1/, response.body)
     assert_select ".inbox-card", count: 0
+  end
+
+  test "notes header book icon continues the last-read slug" do
+    get root_path
+    Library.last.update_columns(last_read_slug: "heb.11", read_trail: [ "heb.11" ])
+    get root_path
+    assert_select "header.topbar a.inbox-continue-link[href='/heb.11'][aria-label='Continue reading']"
+    assert_select "header.topbar a.inbox-continue-link[title='Hebrews 11']"
+    assert_select "p.inbox-continue", count: 0
+    assert_no_match(/Continue Hebrews 11/, response.body)
+
+    get root_path, headers: { "User-Agent" => "Margin iOS; Hotwire Native iOS; Turbo Native iOS;" }
+    assert_select "header.topbar", count: 0
+    assert_select ".inbox-native-continue a.inbox-continue-link[href='/heb.11'][aria-label='Continue reading']"
+    assert_select ".inbox-native-continue a.inbox-continue-link[title='Hebrews 11']"
   end
 
   test "inbox lists notes newest created_at first and keeps indent" do
@@ -158,6 +180,7 @@ class HomeControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_select "html.hotwire-native"
     assert_select "header.topbar", count: 0
+    assert_select ".inbox-native-continue a.inbox-continue-link[href='/jhn.1'][aria-label='Continue reading']"
     assert_select "main.inbox-main form.jump input#q"
     assert_select ".inbox-empty", "No notes yet. Open a passage and write under a verse — they’ll show up here newest first."
   end

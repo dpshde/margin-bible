@@ -1,4 +1,5 @@
 <% content_for :title, "Notes" %>
+<% continue_passage = @continue || Margin::Passage.parse("jhn.1") %>
 
 <div class="inbox" data-controller="search inbox" data-inbox-signed-in-value="<%= signed_in? %>" data-inbox-import-url-value="<%= guest_pack_path %>">
   <% if @pack_mirror.present? %>
@@ -6,23 +7,21 @@
   <% end %>
   <% unless hotwire_native_app? %>
     <header class="topbar">
-      <div class="topbar-side"></div>
+      <div class="topbar-side">
+        <%= render "home/continue_link", passage: continue_passage %>
+      </div>
       <h1 class="topbar-title">Notes</h1>
       <div class="topbar-actions">
         <%= render "shared/header_menu" %>
       </div>
     </header>
+  <% else %>
+    <div class="inbox-native-continue">
+      <%= render "home/continue_link", passage: continue_passage %>
+    </div>
   <% end %>
 
   <main class="inbox-main">
-    <p class="inbox-continue" data-inbox-target="continue" <%= "hidden" unless @continue %>>
-      <% if @continue %>
-        <%= link_to "Continue #{@continue.label}", read_path(@continue.slug) %>
-      <% else %>
-        <a href="/"></a>
-      <% end %>
-    </p>
-
     <%= render "shared/jump" %>
 
     <div data-inbox-target="list">
