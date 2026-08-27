@@ -31,9 +31,38 @@ class McpControllerTest < ActionDispatch::IntegrationTest
     assert_response :unauthorized
   end
 
+  test "server/discover advertises the 2026-07-28 protocol" do
+    assert_equal "2026-07-28", Margin::Mcp::PROTOCOL_VERSION
+    assert_equal MCP::Configuration::LATEST_STABLE_PROTOCOL_VERSION, Margin::Mcp::PROTOCOL_VERSION
+
+    mcp_json({ jsonrpc: "2.0", id: 1, method: "server/discover" }, token: @token)
+    assert_response :success
+    result = mcp_result.fetch("result")
+    assert_equal [ "2026-07-28" ], result["supportedVersions"]
+    assert_equal "complete", result["resultType"]
+    assert result.dig("capabilities", "tools")
+  end
+
+  test "legacy initialize negotiates the latest handshake version" do
+    mcp_json({
+      jsonrpc: "2.0",
+      id: 1,
+      method: "initialize",
+      params: {
+        protocolVersion: "2026-07-28",
+        capabilities: {},
+        clientInfo: { name: "legacy-agent", version: "1.0" }
+      }
+    }, token: @token, protocol: :legacy)
+    assert_response :success
+    assert_equal Margin::Mcp::HANDSHAKE_VERSION, mcp_result.dig("result", "protocolVersion")
+    assert_equal "2025-11-25", mcp_result.dig("result", "protocolVersion")
+  end
+
   test "write tools are absent from tools/list" do
     mcp_json({ jsonrpc: "2.0", id: 1, method: "tools/list" }, token: @token)
     assert_response :success
+    assert_equal "complete", mcp_result.dig("result", "resultType")
     names = mcp_result.dig("result", "tools").map { |tool| tool["name"] }
     assert_includes names, "list_notes"
     assert_includes names, "get_note"
@@ -125,9 +154,10 @@ class McpControllerTest < ActionDispatch::IntegrationTest
       method: "tools/call",
       params: { name: "create_note", arguments: { osis: "jhn.3.16", body: "nope" } }
     }, token: @token)
-    assert_response :success
+    assert_includes [ 200, 400 ], response.status
     refute mcp_result["result"]
     assert mcp_result["error"]
+    assert_match(/create_note/, mcp_result.dig("error", "data").to_s)
   end
 
   private

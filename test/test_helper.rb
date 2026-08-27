@@ -77,10 +77,28 @@ class ActionDispatch::IntegrationTest
     [ verifier, Margin::Oauth.pkce_challenge(verifier) ]
   end
 
-  def mcp_json(body, token: nil)
+  def mcp_json(body, token: nil, protocol: :modern)
+    payload = body.deep_dup
+    method = payload[:method] || payload["method"]
     headers = { "Accept" => "application/json" }
     headers["Authorization"] = "Bearer #{token}" if token
-    post mcp_path, params: body, as: :json, headers: headers
+
+    if protocol == :modern
+      params = (payload[:params] || payload["params"] || {}).dup
+      params[:_meta] ||= {
+        MCP::RequestEnvelope::PROTOCOL_VERSION_META_KEY => Margin::Mcp::PROTOCOL_VERSION,
+        MCP::RequestEnvelope::CLIENT_CAPABILITIES_META_KEY => {},
+        MCP::RequestEnvelope::CLIENT_INFO_META_KEY => { "name" => "margin-test", "version" => "1.0" }
+      }
+      payload[:params] = params
+      headers["Accept"] = "application/json, text/event-stream"
+      headers["MCP-Protocol-Version"] = Margin::Mcp::PROTOCOL_VERSION
+      headers["Mcp-Method"] = method
+      name = params[:name] || params["name"]
+      headers["Mcp-Name"] = name if name.present?
+    end
+
+    post mcp_path, params: payload, as: :json, headers: headers
   end
 
   def mcp_result

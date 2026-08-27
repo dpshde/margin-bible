@@ -23,14 +23,15 @@ class OauthAuthorization < ApplicationRecord
     [ record, raw ]
   end
 
-  def self.consume(code)
-    return unless code.present?
+  def self.find_usable(code)
+    return if code.blank?
 
     record = find_by(code_digest: Margin::Oauth.digest(code))
-    return unless record&.usable?
+    record if record&.usable?
+  end
 
-    record.update!(used_at: Time.current)
-    record
+  def consume!
+    update!(used_at: Time.current)
   end
 
   def usable?

@@ -19,7 +19,7 @@ class Oauth::TokensController < ActionController::API
 
   private
     def exchange_code
-      grant = OauthAuthorization.consume(params[:code])
+      grant = OauthAuthorization.find_usable(params[:code])
       unless grant
         json_error("invalid_grant", "Authorization code is missing, used, or expired.")
         return
@@ -40,6 +40,7 @@ class Oauth::TokensController < ActionController::API
         return
       end
 
+      grant.consume!
       render_tokens(*OauthAccessToken.issue!(
         client: grant.oauth_client,
         library: grant.library,

@@ -5,6 +5,10 @@ module Margin
   module Mcp
     SERVER_NAME = "margin.bible"
     SERVER_VERSION = "1.0.0"
+    # Latest MCP spec the official ruby-sdk serves (SEP-2575 stateless lifecycle).
+    PROTOCOL_VERSION = MCP::Configuration::LATEST_STABLE_PROTOCOL_VERSION
+    # initialize can only negotiate pre-2026-07-28 handshake versions.
+    HANDSHAKE_VERSION = MCP::Configuration::LATEST_HANDSHAKE_PROTOCOL_VERSION
     WRITE_TOOL_NAMES = %w[
       create_note update_note delete_note write_note upsert_note
       create_notes update_notes delete_notes
@@ -21,7 +25,8 @@ module Margin
                       "Overlapping notes stay separate — a verse note and a range note that covers it are two records. " \
                       "Do not invent write tools.",
         tools: [ ListNotes, GetNote, ListNotesCoveringVerse ],
-        server_context: { library: library }
+        server_context: { library: library },
+        configuration: MCP::Configuration.new(protocol_version: HANDSHAKE_VERSION)
       )
     end
 
