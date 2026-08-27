@@ -273,6 +273,7 @@ class ReaderControllerTest < ActionDispatch::IntegrationTest
     assert moses, "expected the Moses heading refs"
     assert_match(/Exodus 2–15; Acts 7:20–22/, moses.text)
     refute_includes moses.text, ";Acts"
+    assert_match(%r{Exodus 2–15</(?:a|span)>; <a class="pub-ref"}, response.body)
     assert_select ".reader-dock-panel [data-pane='toc'] .dock-item", "Exodus 2–15"
     assert_select ".reader-dock-panel [data-pane='toc'] .dock-item", "Acts 7:20–22"
   end

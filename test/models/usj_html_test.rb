@@ -27,6 +27,7 @@ class UsjHtmlTest < ActionView::TestCase
     r = doc.at_css(".pub-r")
     refute_match(/\A\(/, r.text.strip)
     refute_match(/\)\z/, r.text.strip)
+    assert_match(%r{Matthew 4:18–22</a>; <a class="pub-ref"}, html)
   end
 
   test "USJ loc becomes an in-app reader slug" do
