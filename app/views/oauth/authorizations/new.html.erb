@@ -1,0 +1,49 @@
+<% content_for :title, "Connect an agent" %>
+<% unless hotwire_native_app? %>
+  <header class="topbar">
+    <div class="topbar-side">
+      <%= link_to root_path, class: "icon-btn", title: "Notes", "aria-label": "Notes" do %>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true">
+          <path d="M3 4.5h10" />
+          <path d="M3 8h10" />
+          <path d="M3 11.5h7" />
+        </svg>
+      <% end %>
+    </div>
+    <h1 class="topbar-title">Connect</h1>
+    <div class="topbar-actions">
+      <%= render "shared/header_menu", account: false %>
+    </div>
+  </header>
+<% end %>
+
+<main class="page">
+  <h1>Connect <%= @client.name %></h1>
+  <p class="lede"><%= @client.name %> wants to read notes in the library you are signed into. It cannot write, edit, or delete notes.</p>
+
+  <ul class="grant-scope">
+    <li>Read notes (list, open, and notes covering a verse)</li>
+    <li>Only this library — not anyone else’s</li>
+  </ul>
+
+  <%= form_with url: oauth_authorize_path, method: :post do %>
+    <%= hidden_field_tag :client_id, @client.uid %>
+    <%= hidden_field_tag :redirect_uri, @oauth_request[:redirect_uri] %>
+    <%= hidden_field_tag :scope, @scopes %>
+    <%= hidden_field_tag :state, @oauth_request[:state] %>
+    <%= hidden_field_tag :code_challenge, @oauth_request[:code_challenge] %>
+    <%= hidden_field_tag :code_challenge_method, Margin::Oauth::CHALLENGE_METHOD %>
+    <%= hidden_field_tag :resource, params[:resource] if params[:resource].present? %>
+    <button type="submit" class="primary">Allow read access</button>
+  <% end %>
+
+  <%= form_with url: oauth_deny_path, method: :post do %>
+    <%= hidden_field_tag :client_id, @client.uid %>
+    <%= hidden_field_tag :redirect_uri, @oauth_request[:redirect_uri] %>
+    <%= hidden_field_tag :scope, @scopes %>
+    <%= hidden_field_tag :state, @oauth_request[:state] %>
+    <%= hidden_field_tag :code_challenge, @oauth_request[:code_challenge] %>
+    <%= hidden_field_tag :code_challenge_method, Margin::Oauth::CHALLENGE_METHOD %>
+    <button type="submit" class="secondary">Deny</button>
+  <% end %>
+</main>

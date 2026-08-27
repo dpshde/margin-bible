@@ -2,6 +2,7 @@
 <% if signed_in? %>
   <% items = capture do %>
     <%= link_to "Passkeys", passkeys_path, class: "menu-item" %>
+    <%= link_to "Agents", oauth_connections_path, class: "menu-item" %>
     <%= button_to "Sign out", session_path, method: :delete, class: "menu-item" %>
   <% end %>
   <% if appearance == :menu %>

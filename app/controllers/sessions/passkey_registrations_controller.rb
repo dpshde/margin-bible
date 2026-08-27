@@ -21,7 +21,7 @@ class Sessions::PasskeyRegistrationsController < ApplicationController
     end
     claim_library_for!(user)
     import_posted_guest_pack
-    redirect_to root_path, notice: "You're in. Your notes are on this library."
+    redirect_to after_authentication_path, notice: "You're in. Your notes are on this library."
   rescue WebAuthn::Error, ActiveRecord::RecordInvalid, ArgumentError
     redirect_to new_session_path, alert: "Something went wrong while registering your passkey."
   end

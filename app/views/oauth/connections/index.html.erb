@@ -1,0 +1,25 @@
+<% content_for :title, "Connected agents" %>
+<main class="page">
+  <h1>Connected agents</h1>
+  <p class="lede">Agents you have granted read access to this library. They cannot write notes.</p>
+
+  <% if @tokens.any? %>
+    <ul class="passkey-list">
+      <% @tokens.each do |token| %>
+        <li class="passkey-item">
+          <div class="passkey-link">
+            <span>
+              <%= token.oauth_client.name %>
+              <span class="muted"> · <%= token.scopes %></span>
+            </span>
+            <%= button_to "Revoke", oauth_connection_path(token), method: :delete, class: "text-btn" %>
+          </div>
+        </li>
+      <% end %>
+    </ul>
+  <% else %>
+    <p class="muted">No agents connected. An agent host adds <code>/mcp</code> and you grant access on the consent screen.</p>
+  <% end %>
+
+  <p class="muted"><%= link_to "Back to notes", root_path %></p>
+</main>
