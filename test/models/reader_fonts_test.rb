@@ -10,18 +10,31 @@ class ReaderFontsTest < ActiveSupport::TestCase
   test "reading text uses Source Serif 4 and chrome uses Poppins" do
     assert_match(/--read:\s*"Source Serif 4", "Iowan Old Style", Palatino, serif/, css)
     assert_match(/--sans:\s*"Poppins", system-ui, sans-serif/, css)
+    assert_match(/--head:\s*"Lexend", system-ui, sans-serif/, css)
     assert_match(/--page-max:\s*36em/, css)
     refute_match(/html\[data-face="deca"\]/, css)
     refute_match(/Lexend Deca/, css)
     assert_match(/\.vtext\s*\{[^}]*font-family:\s*var\(--read\)/m, css)
-    assert_match(/\.topbar-title\s*\{[^}]*font-family:\s*var\(--sans\)/m, css)
-    assert_match(/\.section-head\s*\{[^}]*font-family:\s*var\(--read\)/m, css)
+    assert_match(/\.topbar-title\s*\{[^}]*font-family:\s*var\(--head\)/m, css)
+    assert_match(/\.section-head\s*\{[^}]*font-family:\s*var\(--head\)/m, css)
     assert_match(/\.section-head\s*\{[^}]*font-weight:\s*600/m, css)
     assert_match(/\.section-head\s*\{[^}]*font-size:\s*1\.45rem/m, css)
+    assert_match(/\.section-sub\s*\{[^}]*font-family:\s*var\(--head\)/m, css)
+    assert_match(/\.inbox-day\s*\{[^}]*font-family:\s*var\(--head\)/m, css)
     assert_match(/\.vtext\s*\{[^}]*font-size:\s*var\(--read-size\)/m, css)
     assert_match(/\.vtext\s*\{[^}]*font-weight:\s*400/m, css)
     refute_match(/--read:\s*"Lexend",/, css)
+    refute_match(/\.vtext\s*\{[^}]*font-family:\s*var\(--head\)/m, css)
+    refute_match(/\.pub-p, \.pub-q1, \.pub-q2\s*\{[^}]*font-family:\s*var\(--head\)/m, css)
     refute_match(/\.section-head\s*\{[^}]*font-style:\s*italic/m, css)
+  end
+
+  test "section headings use Lexend" do
+    head = css[/\n\.section-head\s*\{[^}]+\}/]
+    assert head
+    assert_match(/font-family:\s*var\(--head\)/, head)
+    assert_match(/--head:\s*"Lexend", system-ui, sans-serif/, css)
+    refute_match(/\.section-head\s*\{[^}]*font-family:\s*var\(--read\)/m, css)
   end
 
   test "root type scale is a touch smaller than browser default" do
@@ -33,6 +46,7 @@ class ReaderFontsTest < ActiveSupport::TestCase
     assert_match(/family=Source\+Serif\+4/, layout)
     refute_match(/family=Lexend\+Deca/, layout)
     assert_match(/family=Poppins/, layout)
+    assert_match(/family=Lexend:wght@500;600;700/, layout)
     refute_match(/family=Lexend:wght@300/, layout)
     assert_match(/data-face/, layout)
     refute_match(/face !== "serif" && face !== "deca"/, layout)
