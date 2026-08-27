@@ -81,4 +81,12 @@ class SessionsControllerTest < ActionDispatch::IntegrationTest
     get read_path("jhn.1")
     assert_select "[data-reader-signed-in-value='false']"
   end
+
+  test "hides the web topbar for a Hotwire Native client" do
+    get new_session_path, headers: { "User-Agent" => "Margin iOS; Hotwire Native iOS; Turbo Native iOS;" }
+    assert_response :success
+    assert_select "html.hotwire-native"
+    assert_select "header.topbar", count: 0
+    assert_select "main.page .lede", /passkey signs you in/i
+  end
 end

@@ -1,6 +1,7 @@
 :root {
   color-scheme: light;
   --tap: 2.75rem;
+  --safe-top: env(safe-area-inset-top, 0px);
   --paper: #f6f5f2;
   --paper-raised: #ffffff;
   --ink: #1c1917;
@@ -72,7 +73,8 @@ button, input, textarea { font: inherit; color: inherit; }
 .topbar {
   position: sticky; top: 0; z-index: 5;
   display: grid; grid-template-columns: 1fr auto 1fr; align-items: center;
-  gap: .5rem; padding: .55rem 1rem;
+  gap: .5rem;
+  padding: calc(.55rem + var(--safe-top)) 1rem .55rem;
   background: color-mix(in srgb, var(--paper) 88%, transparent);
   backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--line);
@@ -1114,6 +1116,15 @@ rails-passkey-sign-in-button { display: block; width: 100%; }
   .tray-clear svg,
   .tray-close svg,
   .tray-external svg { width: 1.2rem; height: 1.2rem; }
+}
+html.hotwire-native {
+  --chrome-top: calc(var(--tap) + var(--safe-top));
+}
+html.hotwire-native body {
+  padding-top: var(--chrome-top);
+}
+html.hotwire-native .is-quiet .reader {
+  padding-top: .75rem;
 }
 html.hotwire-native .reader-dock { display: flex; }
 @media (max-width: 390px) {
