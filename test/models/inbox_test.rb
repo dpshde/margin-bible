@@ -7,7 +7,7 @@ class InboxTest < ActiveSupport::TestCase
     @today = Date.new(2026, 8, 25)
   end
 
-  test "day labels match Keyverse rails" do
+  test "day labels use Today, Yesterday, and weekday format" do
     assert_equal "Today", Margin::Inbox.day_label(@today, today: @today)
     assert_equal "Yesterday", Margin::Inbox.day_label(@today - 1, today: @today)
     assert_equal "Tuesday · Aug 4", Margin::Inbox.day_label(Date.new(2026, 8, 4), today: @today)
