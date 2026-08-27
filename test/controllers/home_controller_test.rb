@@ -35,7 +35,7 @@ class HomeControllerTest < ActionDispatch::IntegrationTest
     assert_select "header.topbar details.topbar-menu a.menu-item", "Sign in"
     assert_select "header.topbar a.ghost.quiet", text: "Sign in", count: 0
     assert_select "[data-inbox-signed-in-value='false']"
-    assert_select ".inbox-empty", /No notes yet/
+    assert_select ".inbox-empty", "No notes yet. Open a passage and write under a verse — they’ll show up here newest first."
     assert_select "main.inbox-main form.jump input#q"
     assert_select %(main.inbox-main form.jump[data-action*="keydown@window->search#shortcut"])
     assert_no_match %r{\Ahttp://www\.example\.com/jhn\.1}, response.headers["Location"].to_s
@@ -159,6 +159,7 @@ class HomeControllerTest < ActionDispatch::IntegrationTest
     assert_select "html.hotwire-native"
     assert_select "header.topbar", count: 0
     assert_select "main.inbox-main form.jump input#q"
+    assert_select ".inbox-empty", "No notes yet. Open a passage and write under a verse — they’ll show up here newest first."
   end
 
   test "clicking an inbox card opens the note slug" do
