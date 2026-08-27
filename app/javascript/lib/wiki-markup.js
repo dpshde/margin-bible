@@ -1,5 +1,6 @@
 import { tryParseAnyPassage } from "grab-bcv"
 import { slugLabel } from "./passage-span.js"
+import { hrefForXref } from "./xref-peek.js"
 
 const WIKI_TOKEN = /\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g
 
@@ -10,7 +11,7 @@ export function resolveWikiTarget(raw) {
   if (!parsed.ok) return null
   const slug = String(parsed.value.canonical || "").toLowerCase()
   if (!slug) return null
-  return { slug, href: `/${slug}`, label: slugLabel(slug) }
+  return { slug, href: hrefForXref(slug), label: slugLabel(slug) }
 }
 
 export function wikiTokens(text) {
@@ -30,7 +31,7 @@ export function wikiTokens(text) {
       target,
       label: customLabel || resolved?.label || target,
       slug: resolved?.slug || null,
-      href: resolved ? `/${resolved.slug}` : null
+      href: resolved?.href || null
     })
     last = match.index + match[0].length
     match = pattern.exec(source)

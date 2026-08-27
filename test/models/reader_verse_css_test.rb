@@ -12,11 +12,18 @@ class ReaderVerseCssTest < ActiveSupport::TestCase
     refute_match(/\.verse\.is-span\s*\{[^}]*background:/m, css)
     refute_match(/\.verse\.is-span \.vtext\s*\{[^}]*background:/m, css)
     refute_match(/--mark-fill/, css)
-    assert_match(/\.verse\.is-span \.vtext\s*\{[^}]*color:/m, css)
+    mark = css[/\.verse\.is-span \.vrun,\s*\n\.verse\.is-xref \.vrun,\s*\n\.is-quiet \.verse\.is-open \.vrun\s*\{[^}]+\}/]
+    assert mark
+    assert_match(/background:\s*color-mix\(in srgb, var\(--ink\) 4%, transparent\)/, mark)
+    assert_match(/box-decoration-break:\s*clone/, mark)
+    refute_match(/\.verse\.is-xref \.vtext\s*\{[^}]*background:/m, css)
+    refute_match(/\.verse\.is-xref\s*\{[^}]*::before/, css)
     has_note = css[/\.verse\.has-note\s*\{[^}]+\}/]
     assert_match(/border-left:/, has_note)
     refute_match(/background:/, has_note)
     refute_match(/border-radius:/, has_note)
+    assert_match(/\.verse\.is-continuation\.has-note,/, css)
+    assert_match(/\.verse\.is-continuation \.rail\s*\{[^}]*display:\s*none/, css)
   end
 
   test "continuation verse-press keeps vtext out of the number gutter" do
@@ -57,6 +64,7 @@ class ReaderVerseCssTest < ActiveSupport::TestCase
     assert quiet
     assert_match(/border(?:-left)?:\s*0/, quiet)
     refute_match(/border-left-color:/, quiet)
+    assert_match(/\.is-quiet \.verse\.is-open \.vrun/, css)
   end
 
   test "parallel refs are chrome, hidden in quiet, and nowrap per citation" do
@@ -75,12 +83,18 @@ class ReaderVerseCssTest < ActiveSupport::TestCase
     assert quiet_r
     assert_match(/display:\s*none/, quiet_r)
     assert_match(/margin:\s*0/, quiet_r)
+    assert_match(/@media \(max-width: 640px\)[\s\S]*\.pub-r\s*\{\s*display:\s*none/, css)
+    assert_match(/html\.hotwire-native \.pub-r\s*\{\s*display:\s*none/, css)
+    assert_match(/\.dock-outline\s*\{/, css)
+    assert_match(/\.dock-head\s*\{/, css)
+    assert_match(/\.dock-refs \.dock-item\s*\{[^}]*gap:\s*0/, css)
   end
 
   test "quiet reading is a USFM paragraph, not a verse card stack" do
     assert_match(/\.pub-p, \.pub-q1, \.pub-q2\s*\{[^}]*display:\s*block/m, css)
-    assert_match(/\.pub-q1\s*\{[^}]*padding-left:/m, css)
-    assert_match(/\.pub-q2\s*\{[^}]*padding-left:/m, css)
+    assert_match(/\.pub-q1, \.pub-q2\s*\{[^}]*padding-left:\s*0/m, css)
+    assert_match(/\.pub-q1 \.verse-press > \.vtext\s*\{[^}]*padding-left:\s*1\.05rem/, css)
+    assert_match(/\.pub-q2 \.verse-press > \.vtext\s*\{[^}]*padding-left:\s*1\.5rem/, css)
     para = css[/\.is-quiet \.pub-p,\s*\.is-quiet \.pub-q1,\s*\.is-quiet \.pub-q2\s*\{[^}]+\}/]
     assert para
     assert_match(/display:\s*block/, para)
@@ -195,8 +209,9 @@ class ReaderVerseCssTest < ActiveSupport::TestCase
     assert_match(/top:\s*0/, rail)
     assert_match(/bottom:\s*0/, rail)
     assert_match(/left:\s*calc\(-1 \* var\(--rail-shift, 0px\)\)/, rail)
-    assert_match(/\.pub-q1\s*\{[^}]*--rail-shift:\s*1\.05rem/, css)
-    assert_match(/\.pub-q2\s*\{[^}]*--rail-shift:\s*1\.5rem/, css)
+    assert_match(/\.pub-q1, \.pub-q2\s*\{[^}]*--rail-shift:\s*0px/, css)
+    refute_match(/\.pub-q1\s*\{[^}]*--rail-shift:\s*1\.05rem/, css)
+    refute_match(/\.pub-q2\s*\{[^}]*--rail-shift:\s*1\.5rem/, css)
     assert_match(/\.pub-line:has\(> \.verse\.is-span:last-child\)/, css)
     refute_match(/\.verse\.is-span:not\(\.is-span-start\)::before/, css)
     refute_match(/::before\s*\{[^}]*top:\s*-/, css)
@@ -257,6 +272,9 @@ class ReaderVerseCssTest < ActiveSupport::TestCase
     assert_match(/\.is-quiet \.verse-press\s*\{[^}]*display:\s*contents/, css)
     assert_match(/\.verse-press\s*\{[^}]*display:\s*grid/, css)
     assert_match(/\.verse-press > \.vnum\s*\{[^}]*grid-column:\s*1/, css)
+    assert_match(/\.pub-q1, \.pub-q2\s*\{[^}]*padding-left:\s*0/, css)
+    assert_match(/\.pub-q1 \.verse-press > \.vtext\s*\{[^}]*padding-left:\s*1\.05rem/, css)
+    assert_match(/\.pub-q2 \.verse-press > \.vtext\s*\{[^}]*padding-left:\s*1\.5rem/, css)
   end
 
   test "note tray shares the verse text column" do

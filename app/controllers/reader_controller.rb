@@ -14,6 +14,7 @@ class ReaderController < ApplicationController
 
     @verses = Margin::Bsb.hydrate_chapter!(@chapter.book, @chapter.chapter)
     @usj_nodes = Margin::Usj.chapter_nodes(@chapter.book, @chapter.chapter)
+    @section_outline = Margin::Usj.section_outline(@usj_nodes)
     if @usj_nodes.empty? && @verses.empty?
       render :missing, status: :not_found
       return

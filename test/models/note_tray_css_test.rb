@@ -80,9 +80,12 @@ class NoteTrayCssTest < ActiveSupport::TestCase
     chapter = css[/\n\.chapter\s*\{[^}]+\}/]
     assert chapter
     assert_match(/touch-action:\s*manipulation/, chapter)
+    assert_match(/-webkit-tap-highlight-color:\s*transparent/, chapter)
     press = css[/\n\.verse-press\s*\{[^}]+\}/]
     assert press
     assert_match(/touch-action:\s*manipulation/, press)
+    assert_match(/-webkit-tap-highlight-color:\s*transparent/, press)
+    assert_match(/outline:\s*none/, press)
     picking = css[/\n\.chapter\.is-picking\s*\{[^}]+\}/]
     assert picking
     assert_match(/touch-action:\s*none/, picking)

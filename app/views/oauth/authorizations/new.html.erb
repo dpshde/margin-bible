@@ -26,24 +26,26 @@
     <li>Only this library — not anyone else’s</li>
   </ul>
 
-  <%= form_with url: oauth_authorize_path, method: :post do %>
-    <%= hidden_field_tag :client_id, @client.uid %>
-    <%= hidden_field_tag :redirect_uri, @oauth_request[:redirect_uri] %>
-    <%= hidden_field_tag :scope, @scopes %>
-    <%= hidden_field_tag :state, @oauth_request[:state] %>
-    <%= hidden_field_tag :code_challenge, @oauth_request[:code_challenge] %>
-    <%= hidden_field_tag :code_challenge_method, Margin::Oauth::CHALLENGE_METHOD %>
-    <%= hidden_field_tag :resource, params[:resource] if params[:resource].present? %>
-    <button type="submit" class="primary">Allow read access</button>
-  <% end %>
+  <div class="grant-actions">
+    <%= form_with url: oauth_authorize_path, method: :post, data: { turbo: false } do %>
+      <%= hidden_field_tag :client_id, @client.uid %>
+      <%= hidden_field_tag :redirect_uri, @oauth_request[:redirect_uri] %>
+      <%= hidden_field_tag :scope, @scopes %>
+      <%= hidden_field_tag :state, @oauth_request[:state] %>
+      <%= hidden_field_tag :code_challenge, @oauth_request[:code_challenge] %>
+      <%= hidden_field_tag :code_challenge_method, Margin::Oauth::CHALLENGE_METHOD %>
+      <%= hidden_field_tag :resource, params[:resource] if params[:resource].present? %>
+      <button type="submit" class="primary">Allow read access</button>
+    <% end %>
 
-  <%= form_with url: oauth_deny_path, method: :post do %>
-    <%= hidden_field_tag :client_id, @client.uid %>
-    <%= hidden_field_tag :redirect_uri, @oauth_request[:redirect_uri] %>
-    <%= hidden_field_tag :scope, @scopes %>
-    <%= hidden_field_tag :state, @oauth_request[:state] %>
-    <%= hidden_field_tag :code_challenge, @oauth_request[:code_challenge] %>
-    <%= hidden_field_tag :code_challenge_method, Margin::Oauth::CHALLENGE_METHOD %>
-    <button type="submit" class="secondary">Deny</button>
-  <% end %>
+    <%= form_with url: oauth_deny_path, method: :post, data: { turbo: false } do %>
+      <%= hidden_field_tag :client_id, @client.uid %>
+      <%= hidden_field_tag :redirect_uri, @oauth_request[:redirect_uri] %>
+      <%= hidden_field_tag :scope, @scopes %>
+      <%= hidden_field_tag :state, @oauth_request[:state] %>
+      <%= hidden_field_tag :code_challenge, @oauth_request[:code_challenge] %>
+      <%= hidden_field_tag :code_challenge_method, Margin::Oauth::CHALLENGE_METHOD %>
+      <button type="submit" class="secondary">Deny</button>
+    <% end %>
+  </div>
 </main>

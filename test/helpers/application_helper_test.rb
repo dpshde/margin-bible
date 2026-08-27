@@ -9,7 +9,7 @@ class ApplicationHelperTest < ActionView::TestCase
     assert_includes html, "<em>grace</em>"
     assert_includes html, "<em>mercy</em>"
     assert_includes html, "<code>logos</code>"
-    assert_includes html, 'href="/jhn.1.6"'
+    assert_includes html, 'href="/jhn.1.6?xref=1"'
     assert_includes html, 'class="wiki"'
     assert_includes html, ">next</a>"
     refute_includes html, "**John**"
@@ -39,7 +39,7 @@ class ApplicationHelperTest < ActionView::TestCase
 
   test "wiki_outliner_html turns scripture wiki into a non-editable link" do
     html = wiki_outliner_html("See [[jhn.1.6|the Baptist]] and [[John 1]]")
-    assert_includes html, 'href="/jhn.1.6"'
+    assert_includes html, 'href="/jhn.1.6?xref=1"'
     assert_includes html, 'data-wiki-raw="[[jhn.1.6|the Baptist]]"'
     assert_includes html, "contenteditable=\"false\""
     assert_includes html, ">the Baptist</a>"

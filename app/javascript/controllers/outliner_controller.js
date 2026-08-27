@@ -114,11 +114,6 @@ export default class extends Controller {
     const link = event.target.closest("a.wiki")
     if (!link || !this.element.contains(link)) return
     event.preventDefault()
-    event.stopPropagation()
-    const href = link.getAttribute("href")
-    if (!href) return
-    if (window.Turbo) window.Turbo.visit(href)
-    else window.location.assign(href)
   }
 
   onFocusIn(event) {

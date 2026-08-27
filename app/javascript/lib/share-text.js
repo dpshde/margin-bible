@@ -43,20 +43,34 @@ export function formatVerseShare({ label, text, notes, url }) {
   return lines.join("\n").trim() + "\n"
 }
 
-export function formatChapterShare({ label, chapterNote, verses, url, bullets = false }) {
+function verseRef(label, verse) {
+  if (verse?.ref) return String(verse.ref)
+  if (label && verse?.n != null) return `${label}:${verse.n}`
+  return verse?.n != null ? String(verse.n) : ""
+}
+
+function verseNoteLines(verse, bullets) {
+  return (Array.isArray(verse?.notes) ? verse.notes : [])
+    .flatMap((note) => noteLines(note.blocks, 0, bullets))
+}
+
+export function formatChapterShare({ label, chapterNote, verses, url, bullets = false, notesOnly = false }) {
   const lines = [ label ]
   const chapterBody = noteLines(chapterNote, 0, bullets)
   if (chapterBody.length) lines.push("", ...chapterBody)
 
   for (const verse of Array.isArray(verses) ? verses : []) {
+    const noteBody = verseNoteLines(verse, bullets)
+    if (notesOnly) {
+      if (!noteBody.length) continue
+      lines.push("", verseRef(label, verse), ...noteBody)
+      continue
+    }
     if (verse.heading) lines.push("", verse.heading)
     lines.push("", `${verse.n}. ${wikiToPlain(verse.text || "").trim()}`)
-    for (const note of Array.isArray(verse.notes) ? verse.notes : []) {
-      const body = noteLines(note.blocks, 0, bullets)
-      if (body.length) lines.push(...body)
-    }
+    if (noteBody.length) lines.push(...noteBody)
   }
-  if (url) lines.push("", url)
+  if (url && !notesOnly) lines.push("", url)
   return lines.join("\n").trim() + "\n"
 }
 
@@ -124,18 +138,24 @@ export function formatNoteHtml({ label, blocks }) {
   return parts.join("")
 }
 
-export function formatChapterHtml({ label, chapterNote, verses }) {
+export function formatChapterHtml({ label, chapterNote, verses, notesOnly = false }) {
   const parts = []
   if (label) parts.push(`<p><strong>${escapeHtml(label)}</strong></p>`)
   const chapterList = blocksToHtml(chapterNote)
   if (chapterList) parts.push(chapterList)
   for (const verse of Array.isArray(verses) ? verses : []) {
+    const noteLists = (Array.isArray(verse.notes) ? verse.notes : [])
+      .map((note) => blocksToHtml(note.blocks))
+      .filter(Boolean)
+    if (notesOnly) {
+      if (!noteLists.length) continue
+      parts.push(`<p><strong>${escapeHtml(verseRef(label, verse))}</strong></p>`)
+      parts.push(...noteLists)
+      continue
+    }
     if (verse.heading) parts.push(`<p><strong>${escapeHtml(verse.heading)}</strong></p>`)
     parts.push(`<p>${verse.n}. ${escapeHtml(wikiToPlain(verse.text || "").trim())}</p>`)
-    for (const note of Array.isArray(verse.notes) ? verse.notes : []) {
-      const list = blocksToHtml(note.blocks)
-      if (list) parts.push(list)
-    }
+    parts.push(...noteLists)
   }
   return parts.join("")
 }

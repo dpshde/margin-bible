@@ -3,8 +3,8 @@ import { markCopied, writeClipboard } from "../../app/javascript/lib/clipboard-c
 
 function fakeButton() {
   const attrs = {
-    title: "Copy chapter",
-    "aria-label": "Copy chapter text and notes"
+    title: "Copy notes",
+    "aria-label": "Copy chapter notes"
   }
   const classes = new Set()
   return {
@@ -117,6 +117,6 @@ function fakeButton() {
   assert.equal(button.getAttribute("aria-label"), "Copied")
   restore()
   assert.equal(button.classes.has("is-copied"), false)
-  assert.equal(button.getAttribute("title"), "Copy chapter")
-  assert.equal(button.getAttribute("aria-label"), "Copy chapter text and notes")
+  assert.equal(button.getAttribute("title"), "Copy notes")
+  assert.equal(button.getAttribute("aria-label"), "Copy chapter notes")
 }

@@ -6,8 +6,9 @@
 <%
   span_start = @passage.verse_start
   span_end = @passage.span_end
-  range_selected = @passage.range?
-  single_selected = @passage.kind == "verse"
+  xref = params[:xref].present?
+  range_selected = @passage.range? && !xref
+  single_selected = @passage.kind == "verse" && !xref
   range_slug = range_selected ? @passage.slug : nil
 %>
 
@@ -27,6 +28,7 @@
   data-reader-book-value="<%= @chapter.book %>"
   data-reader-book-names-value="<%= Margin::Books::NAMES.to_json %>"
   data-reader-chapter-counts-value="<%= Margin::Books::CHAPTER_COUNTS.to_json %>"
+  data-reader-xref-value="<%= xref %>"
   <% if span_start %>
     data-reader-span-start-value="<%= span_start %>"
     data-reader-span-end-value="<%= span_end %>"
@@ -71,8 +73,8 @@
           class="icon-btn header-copy-button"
           data-reader-target="copyButton"
           data-action="click->reader#copyPassage"
-          aria-label="Copy chapter text and notes"
-          title="Copy chapter"
+          aria-label="Copy chapter notes"
+          title="Copy notes"
           aria-live="polite"
         >
           <svg class="copy-idle" viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16">
@@ -170,6 +172,7 @@
             range_slug:,
             range_selected:,
             single_selected:,
+            xref_selected: xref,
             passage_label: @passage.label
           ) %>
     </article>

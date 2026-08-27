@@ -9,6 +9,12 @@ module ApplicationHelper
     read_path(note.slug, Margin::Inbox.href_options(note))
   end
 
+  def xref_read_path(passage)
+    return read_path(passage.slug) if passage.kind == "chapter"
+
+    read_path(passage.slug, xref: 1)
+  end
+
   def wiki_note_html(text, links: true)
     html = ERB::Util.html_escape(text.to_s)
     placeholders = []
@@ -22,7 +28,7 @@ module ApplicationHelper
       label = Regexp.last_match(2).presence || target
       passage = Margin::Passage.parse(target)
       if passage && links
-        %(<a href="#{read_path(passage.slug)}" class="wiki">#{label}</a>)
+        %(<a href="#{xref_read_path(passage)}" class="wiki">#{label}</a>)
       elsif passage
         label
       else
@@ -41,7 +47,7 @@ module ApplicationHelper
         if passage
           label = m[2].presence || passage.label
           raw = ERB::Util.html_escape(part)
-          %(<a href="#{read_path(passage.slug)}" class="wiki" data-wiki-raw="#{raw}" contenteditable="false">#{ERB::Util.html_escape(label)}</a>)
+          %(<a href="#{xref_read_path(passage)}" class="wiki" data-wiki-raw="#{raw}" contenteditable="false">#{ERB::Util.html_escape(label)}</a>)
         else
           ERB::Util.html_escape(part)
         end

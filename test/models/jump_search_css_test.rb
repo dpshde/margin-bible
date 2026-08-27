@@ -47,6 +47,8 @@ class JumpSearchCssTest < ActiveSupport::TestCase
     panel = css[/\.reader-dock-panel\s*\{[^}]+\}/]
     assert_match(/padding:\s*0/, panel)
     assert_match(/box-shadow:\s*0 0 0 1px var\(--line\)/, panel)
+    assert_match(/overflow:\s*visible/, panel)
+    assert_match(/max-height:\s*none/, panel)
     refute_match(/[0-9]+px [0-9]+px/, panel)
     menu = css[/\.menu-panel\s*\{[^}]+\}/]
     assert_match(/padding:\s*0/, menu)

@@ -1,4 +1,4 @@
-<% content_for :title, "Sign in" %>
+<% content_for :title, "Get into Margin" %>
 <% unless hotwire_native_app? %>
   <header class="topbar">
     <div class="topbar-side">
@@ -17,34 +17,36 @@
   </header>
 <% end %>
 
-<main class="page" data-controller="sign-in">
-  <p class="lede">A passkey signs you in. Notes already on this device stay put.</p>
+<main class="page auth-sheet" data-controller="sign-in">
+  <h1>Get into Margin</h1>
 
   <% if @dev_login_path %>
     <%= link_to "Open sign-in link", @dev_login_path, class: "primary" %>
   <% end %>
 
-  <div class="auth-passkey">
-    <div class="auth-passkey-use" data-sign-in-target="use">
-      <%= passkey_sign_in_button "Use a passkey", session_passkey_path,
-            options: @authentication_options,
-            mediation: "conditional",
-            class: "primary" %>
-    </div>
-
-    <div class="auth-passkey-create" data-sign-in-target="create">
-      <%= passkey_registration_button "Create a passkey", session_passkey_registration_path,
-            options: @registration_options,
-            class: "primary" %>
-      <p class="muted">Claims the notes on this device.</p>
-    </div>
-  </div>
-
-  <p class="auth-or">or</p>
-
   <%= form_with url: session_path, method: :post do %>
     <label class="sr-only" for="email">Email</label>
-    <input id="email" name="email" type="email" required autocomplete="username webauthn" placeholder="you@example.com">
-    <button type="submit" class="secondary">Email me a link</button>
+    <input id="email" name="email" type="email" required autofocus autocomplete="username webauthn" placeholder="Enter your email address…">
+    <p class="muted auth-help">
+      New here?
+      <button type="button" class="text-btn" data-action="sign-in#startRegistration">Sign up</button>
+      to create an account.<br>
+      Already have an account? Enter your email and we’ll get you signed in.
+    </p>
+    <button type="submit" class="primary auth-go">Let’s go <span aria-hidden="true">→</span></button>
   <% end %>
+
+  <div class="auth-passkey-use">
+    <%= passkey_sign_in_button "Sign in with a passkey", session_passkey_path,
+          options: @authentication_options,
+          mediation: "conditional",
+          auto_start: true,
+          class: "text-btn" %>
+  </div>
+
+  <div class="auth-passkey-create" hidden data-sign-in-target="register">
+    <%= passkey_registration_button "Create a passkey", session_passkey_registration_path,
+          options: @registration_options,
+          hidden: true %>
+  </div>
 </main>

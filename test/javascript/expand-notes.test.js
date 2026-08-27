@@ -2,6 +2,7 @@ import assert from "node:assert/strict"
 import {
   applyClearedNoteTray,
   expandControlDisabled,
+  shouldHideClearedTray,
   shouldShowExpandedTray,
   trayHasNoteContent
 } from "../../app/javascript/lib/expand-notes.js"
@@ -22,6 +23,9 @@ import {
   assert.equal(shouldShowExpandedTray({
     expanding: false, selected: false, collapsed: false, hasContent: true
   }), false)
+  assert.equal(shouldShowExpandedTray({
+    expanding: false, selected: true, collapsed: false, hasContent: false
+  }), true)
 }
 
 {
@@ -44,6 +48,13 @@ import {
   assert.equal(trayHasNoteContent(full, (host) => host.empty), true)
   assert.equal(expandControlDisabled(true), false)
   assert.equal(expandControlDisabled(false), true)
+}
+
+{
+  assert.equal(shouldHideClearedTray({ empty: true, selected: false }), true)
+  assert.equal(shouldHideClearedTray({ empty: true, selected: true }), false)
+  assert.equal(shouldHideClearedTray({ empty: false, selected: false }), false)
+  assert.equal(shouldHideClearedTray({ empty: false, selected: true }), false)
 }
 
 console.log("expand-notes: ok")

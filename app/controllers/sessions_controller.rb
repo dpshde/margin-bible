@@ -10,7 +10,6 @@ class SessionsController < ApplicationController
     @registration_options = passkey_registration_options(holder: pending_passkey_holder)
     token = flash[:dev_login_token]
     @dev_login_path = magic_login_path(token) if token.present?
-    render :new_email_first if Margin::Features.email_first_sign_in?(request)
   end
 
   def create

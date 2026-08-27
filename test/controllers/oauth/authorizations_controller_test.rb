@@ -28,8 +28,12 @@ class Oauth::AuthorizationsControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_select "h1", /Test Agent/
     assert_select "p.lede", /cannot write/i
-    assert_select "button.primary", "Allow read access"
-    assert_select "button.secondary", "Deny"
+    assert_select ".grant-actions" do
+      assert_select "button.primary", "Allow read access"
+      assert_select "button.secondary", "Deny"
+      assert_select %(form[action="#{oauth_authorize_path}"][data-turbo="false"])
+      assert_select %(form[action="#{oauth_deny_path}"][data-turbo="false"])
+    end
   end
 
   test "allowing consent issues a code bound to the signed-in library" do

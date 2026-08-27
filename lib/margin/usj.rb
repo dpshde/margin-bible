@@ -117,6 +117,70 @@ module Margin
       end
     end
 
+    def section_anchor(heading, index)
+      slug = heading.to_s.parameterize
+      slug = "s" if slug.blank?
+      "s-#{slug}-#{index}"
+    end
+
+    def section_outline(nodes)
+      groups = []
+      last = nil
+      Array(nodes).each do |node|
+        next unless node.is_a?(Hash) && node["type"] == "para"
+
+        marker = node["marker"].to_s
+        if %w[s1 s2].include?(marker)
+          heading = plain_text(node["content"]).presence
+          next if heading.blank?
+
+          last = { heading:, marker:, id: section_anchor(heading, groups.size), refs: [] }
+          groups << last
+        elsif marker == "r" && last
+          refs = citation_refs(node["content"])
+          last[:refs].concat(refs) if refs.any?
+        end
+      end
+      groups
+    end
+
+    def parallel_ref_groups(nodes)
+      section_outline(nodes)
+        .select { |group| group[:refs].any? }
+        .map { |group| { heading: group[:heading], refs: group[:refs] } }
+    end
+
+    def citation_refs(nodes)
+      out = []
+      Array(nodes).each do |node|
+        case node
+        when String
+          unwrap_ref_parens(node).split(/;\s*/).each do |part|
+            text = part.gsub(/[()]/, "").strip
+            next if text.blank? || !text.match?(/[A-Za-z].*\d/)
+
+            passage = Passage.parse(text)
+            out << { text: text, passage: passage }
+          end
+        when Hash
+          if node["type"] == "ref" || node["marker"].to_s == "ref"
+            text = plain_text(node["content"])
+            next if text.blank?
+
+            passage = Passage.parse_usj_loc(node["loc"]) || Passage.parse(text)
+            out << { text: text, passage: passage }
+          else
+            out.concat(citation_refs(node["content"]))
+          end
+        end
+      end
+      out
+    end
+
+    def unwrap_ref_parens(text)
+      text.to_s.strip.sub(/\A\(\s*/, "").sub(/\s*\)\z/, "")
+    end
+
     def plain_text(nodes)
       parts = []
       walk(nodes) do |kind, value|

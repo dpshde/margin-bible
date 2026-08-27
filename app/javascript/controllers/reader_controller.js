@@ -9,6 +9,7 @@ import {
 import {
   applyClearedNoteTray,
   expandControlDisabled,
+  shouldHideClearedTray,
   shouldShowExpandedTray,
   trayHasNoteContent
 } from "../lib/expand-notes"
@@ -28,6 +29,8 @@ import {
   selectionFromDrag,
   selectionFromTap
 } from "../lib/passage-span"
+import { parseXrefHref, sameChapterSlug, xrefKeepTarget } from "../lib/xref-peek.js"
+import { verseNodes, verseTrayHost } from "../lib/verse-host.js"
 import { loadHideVerseNums, saveHideVerseNums } from "../lib/reader-prefs"
 import { markCopied, writeClipboard } from "../lib/clipboard-copy"
 import {
@@ -57,23 +60,33 @@ export default class extends Controller {
     exportUrl: String,
     book: String,
     bookNames: Object,
-    chapterCounts: Object
+    chapterCounts: Object,
+    xref: Boolean
   }
 
   connect() {
     this.selection = this.initialSelection()
+    this.xrefSpan = null
     this.collapsedNotes = new Set()
     this.onPointerMove = this.onPointerMove.bind(this)
     this.onPointerUp = this.onPointerUp.bind(this)
     this.flushPending = this.flushPending.bind(this)
     this.onVisibility = this.onVisibility.bind(this)
+    this.dismissXref = this.dismissXref.bind(this)
+    this.followXrefClick = this.followXrefClick.bind(this)
     document.addEventListener("turbo:before-visit", this.flushPending)
     window.addEventListener("pagehide", this.flushPending)
     document.addEventListener("visibilitychange", this.onVisibility)
+    window.addEventListener("pointerdown", this.dismissXref)
+    window.addEventListener("click", this.followXrefClick, true)
     this.applyNums(loadHideVerseNums())
-    if (this.selection) {
+    if (this.xrefValue && this.hasSpanStartValue && this.spanStartValue) {
+      const end = this.hasSpanEndValue && this.spanEndValue ? this.spanEndValue : this.spanStartValue
+      this.applyXref({ start: this.spanStartValue, end }, { replaceUrl: false })
+      this.verseEl(this.spanStartValue)?.scrollIntoView({ block: "center" })
+    } else if (this.selection) {
       this.applySelection({ replaceUrl: false })
-      const row = this.verseEl(this.selection.end)
+      const row = this.verseHost(this.selection.end)
       row?.scrollIntoView({ block: "center" })
       queueMicrotask(() => this.focusFirstVisible(row))
     }
@@ -90,6 +103,8 @@ export default class extends Controller {
     document.removeEventListener("turbo:before-visit", this.flushPending)
     window.removeEventListener("pagehide", this.flushPending)
     document.removeEventListener("visibilitychange", this.onVisibility)
+    window.removeEventListener("pointerdown", this.dismissXref)
+    window.removeEventListener("click", this.followXrefClick, true)
     this.teardownPointer()
   }
 
@@ -102,6 +117,7 @@ export default class extends Controller {
   }
 
   initialSelection() {
+    if (this.xrefValue) return null
     if (!this.hasSpanStartValue || !this.spanStartValue) return null
     const end = this.hasSpanEndValue && this.spanEndValue ? this.spanEndValue : this.spanStartValue
     return { start: this.spanStartValue, end }
@@ -226,10 +242,11 @@ export default class extends Controller {
   }
 
   applySelection({ replaceUrl, focus = true }) {
+    this.xrefSpan = null
     this.clearEphemeralRanges()
     this.element.classList.remove("is-picking")
     this.element.querySelectorAll(".verse").forEach((row) => {
-      row.classList.remove("is-open", "is-span", "is-span-start", "is-span-end")
+      row.classList.remove("is-open", "is-span", "is-span-start", "is-span-end", "is-xref")
     })
     this.element.querySelectorAll(".note-tray").forEach((tray) => { tray.hidden = true })
 
@@ -271,21 +288,23 @@ export default class extends Controller {
   }
 
   openSingle(n, { focus = true } = {}) {
-    const row = this.verseEl(n)
-    if (!row) return
-    row.classList.add("is-open")
-    row.querySelectorAll(".note-tray").forEach((tray) => {
+    const rows = verseNodes(this.element, n)
+    if (!rows.length) return
+    rows.forEach((row) => row.classList.add("is-open"))
+    const host = this.verseHost(n)
+    host?.querySelectorAll(".note-tray").forEach((tray) => {
       tray.hidden = tray.hasAttribute("data-range-composer")
     })
-    if (focus) this.focusFirstVisible(row)
+    if (focus) this.focusFirstVisible(host)
   }
 
   openRange(start, end, { focus = true } = {}) {
     const slug = rangeSlug(this.chapterSlugValue, start, end)
-    const row = this.verseEl(end)
-    if (!row) return
-    row.classList.add("is-open")
-    row.querySelectorAll(".note-tray").forEach((tray) => {
+    const rows = verseNodes(this.element, end)
+    const host = this.verseHost(end)
+    if (!host) return
+    rows.forEach((row) => row.classList.add("is-open"))
+    host.querySelectorAll(".note-tray").forEach((tray) => {
       if (tray.hasAttribute("data-verse-composer")) {
         tray.hidden = true
         return
@@ -293,17 +312,17 @@ export default class extends Controller {
       tray.hidden = false
     })
 
-    let rangeTray = this.rangeTrayFor(row, slug)
+    let rangeTray = this.rangeTrayFor(host, slug)
     if (!rangeTray && this.hasRangeTemplateTarget) {
       rangeTray = this.buildRangeTray(slug, start, end)
-      row.append(rangeTray)
+      host.append(rangeTray)
     }
     if (rangeTray) {
       rangeTray.hidden = false
       if (focus) this.focusOutliner(rangeTray)
       return
     }
-    if (focus) this.focusFirstVisible(row)
+    if (focus) this.focusFirstVisible(host)
   }
 
   rangeTrayFor(row, slug) {
@@ -344,10 +363,70 @@ export default class extends Controller {
     })
   }
 
-  replaceSlug(slug) {
+  jumpSection(event) {
+    const href = event.currentTarget?.getAttribute?.("href") || ""
+    const id = href.startsWith("#") ? href.slice(1) : ""
+    if (!id) return
+    const heading = this.element.querySelector(`#${CSS.escape(id)}`)
+    if (!heading) return
+    event.preventDefault()
+    requestAnimationFrame(() => {
+      heading.scrollIntoView({ block: "start", behavior: "smooth" })
+    })
+  }
+
+  followXrefClick(event) {
+    const node = event.target?.nodeType === 1 ? event.target : event.target?.parentElement
+    const link = node?.closest?.("a.wiki, a.pub-ref")
+    if (!link || !this.element.contains(link)) return
+    const parsed = parseXrefHref(link.getAttribute("href"))
+    if (!parsed || parsed.kind === "chapter") return
+    if (!sameChapterSlug(parsed, this.chapterSlugValue)) return
+    event.preventDefault()
+    event.stopPropagation()
+    this.applyXref({ start: parsed.verseStart, end: parsed.verseEnd }, { replaceUrl: true })
+    this.verseEl(parsed.verseStart)?.scrollIntoView({ block: "center" })
+  }
+
+  applyXref(span, { replaceUrl = true } = {}) {
+    if (!span?.start) return
+    this.selection = null
+    this.xrefSpan = { start: span.start, end: span.end || span.start }
+    this.clearEphemeralRanges()
+    this.element.classList.remove("is-picking")
+    this.element.querySelectorAll(".note-tray").forEach((tray) => { tray.hidden = true })
+    this.element.querySelectorAll(".verse").forEach((row) => {
+      const n = Number(row.dataset.verse)
+      const inSpan = n >= this.xrefSpan.start && n <= this.xrefSpan.end
+      row.classList.remove("is-open", "is-span", "is-span-start", "is-span-end")
+      row.classList.toggle("is-xref", inSpan)
+    })
+    this.updateTitle(this.xrefSpan)
+    this.refreshExpand()
+    if (replaceUrl) {
+      this.replaceSlug(rangeSlug(this.chapterSlugValue, this.xrefSpan.start, this.xrefSpan.end), { query: "xref=1" })
+    }
+  }
+
+  dismissXref(event) {
+    if (!this.xrefSpan) return
+    if (xrefKeepTarget(event.target)) return
+    this.clearXref({ replaceUrl: true })
+  }
+
+  clearXref({ replaceUrl = true } = {}) {
+    if (!this.xrefSpan) return
+    this.xrefSpan = null
+    this.element.querySelectorAll(".verse.is-xref").forEach((row) => row.classList.remove("is-xref"))
+    this.updateTitle(null)
+    if (replaceUrl) this.replaceSlug(this.chapterSlugValue)
+  }
+
+  replaceSlug(slug, { query = "" } = {}) {
     if (!slug) return
-    const next = `/${slug}`
-    if (window.location.pathname === next) return
+    const next = query ? `/${slug}?${query}` : `/${slug}`
+    const current = `${window.location.pathname}${window.location.search}`
+    if (current === next) return
     const state = window.history.state && typeof window.history.state === "object" ? { ...window.history.state } : {}
     window.history.replaceState({ ...state, slug }, "", next)
   }
@@ -388,8 +467,7 @@ export default class extends Controller {
       button.classList.remove("is-on")
       button.setAttribute("aria-pressed", "false")
     })
-    this.selection = null
-    this.applySelection({ replaceUrl: true })
+    this.clearXref({ replaceUrl: false })
   }
 
   toggleChapterGrid() {
@@ -538,8 +616,12 @@ export default class extends Controller {
   async copyPassage(event) {
     const button = event.currentTarget
     this.flushPending()
-    const text = this.shareTextFor("chapter")
-    const html = this.shareHtmlFor("chapter")
+    const notes = this.liveNotes()
+    const label = `${this.bookLabelValue} ${this.chapterValue}`
+    const chapterNote = notes.find((note) => note.slug === this.chapterSlugValue)?.blocks
+    const verses = this.chapterVerses(notes)
+    const text = formatChapterShare({ label, chapterNote, verses, bullets: true, notesOnly: true })
+    const html = formatChapterHtml({ label, chapterNote, verses, notesOnly: true })
     const ok = await writeClipboard(text, html)
     markCopied(button, ok)
   }
@@ -791,7 +873,9 @@ export default class extends Controller {
       return
     }
     const verse = host.closest(".verse")
-    if (verse) verse.classList.toggle("has-note", this.anyNoteText(verse))
+    const n = Number(verse?.dataset.verse)
+    const primary = Number.isFinite(n) ? this.verseEl(n) : verse
+    if (primary) primary.classList.toggle("has-note", this.anyNoteText(this.verseHost(n) || verse))
   }
 
   hydrateGuestNotes() {
@@ -897,8 +981,12 @@ export default class extends Controller {
     const host = tray.querySelector(".outliner")
     const empty = !this.trayHasContent(tray)
     const slug = host?.dataset.slug || tray.dataset.noteSlug || tray.dataset.rangeSlug
-    if (empty) {
+    if (shouldHideClearedTray({ empty, selected: this.noteTraySelected(tray) })) {
       applyClearedNoteTray(tray)
+    } else if (empty) {
+      delete tray.dataset.noteSlug
+      tray.removeAttribute("data-note-slug")
+      tray.hidden = false
     } else if (slug) {
       tray.dataset.noteSlug = slug
     }
@@ -913,8 +1001,10 @@ export default class extends Controller {
     const start = parsed.verseStart
     const end = parsed.verseEnd || parsed.verseStart
     for (let n = start; n <= end; n += 1) {
-      const verse = this.verseEl(n)
-      if (verse) verse.classList.toggle("has-note", this.verseHasCoveringNote(n))
+      const on = this.verseHasCoveringNote(n)
+      verseNodes(this.element, n).forEach((verse) => {
+        verse.classList.toggle("has-note", on && !verse.classList.contains("is-continuation"))
+      })
     }
   }
 
@@ -950,15 +1040,15 @@ export default class extends Controller {
   }
 
   materializeRangeTray(parsed, slug) {
-    const row = this.verseEl(parsed.verseEnd)
-    if (!row || !this.hasRangeTemplateTarget) return null
-    let tray = this.rangeTrayFor(row, slug)
+    const host = this.verseHost(parsed.verseEnd)
+    if (!host || !this.hasRangeTemplateTarget) return null
+    let tray = this.rangeTrayFor(host, slug)
     if (tray) return tray
     tray = this.buildRangeTray(slug, parsed.verseStart, parsed.verseEnd)
     delete tray.dataset.ephemeral
     tray.removeAttribute("data-ephemeral")
     tray.dataset.noteSlug = slug
-    row.append(tray)
+    host.append(tray)
     return tray
   }
 
@@ -975,6 +1065,19 @@ export default class extends Controller {
 
   verseEl(n) {
     return this.element.querySelector(`#v${n}`)
+  }
+
+  verseHost(n) {
+    return verseTrayHost(this.element, n)
+  }
+
+  noteTraySelected(tray) {
+    const verse = tray.closest("[data-verse]")
+    if (!verse) return false
+    if (verse.classList.contains("is-open") || verse.classList.contains("is-span")) return true
+    const n = Number(verse.dataset.verse)
+    if (!this.selection || !Number.isFinite(n)) return false
+    return n >= this.selection.start && n <= this.selection.end
   }
 
   verseBox(verse) {

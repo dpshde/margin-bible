@@ -1,0 +1,9 @@
+# Local reader: Rails + JS watch via Foreman.
+#   mise run dev    # http://localhost:3000
+min_version = "2026.8.0"
+
+[tasks.dev]
+description = "Foreman Rails + JS watch on :3000"
+dir = "{{config_root}}"
+run = "bin/dev"
+raw = true

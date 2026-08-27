@@ -67,6 +67,9 @@ class McpControllerTest < ActionDispatch::IntegrationTest
     assert_includes names, "list_notes"
     assert_includes names, "get_note"
     assert_includes names, "list_notes_covering_verse"
+    assert_includes names, "personal_study"
+    assert_includes names, "prepare_group_study"
+    refute_includes names, "prepare_bible_study"
     Margin::Mcp::WRITE_TOOL_NAMES.each do |name|
       refute_includes names, name
     end
@@ -145,6 +148,57 @@ class McpControllerTest < ActionDispatch::IntegrationTest
     notes = structured_notes
     assert_equal [ "jhn.3.16-18" ], notes.map { |note| note["slug"] }
     assert_equal "range", notes.first["kind"]
+  end
+
+  test "prepare_group_study sections library notes and stays on this library" do
+    create_note!(@library, "jhn.1.1", "Why start with the Word instead of a scene?")
+    create_note!(@other, "jhn.1.1", "Theirs: do not use this.")
+
+    mcp_json({
+      jsonrpc: "2.0",
+      id: 9,
+      method: "tools/call",
+      params: { name: "prepare_group_study", arguments: { osis: "John 1" } }
+    }, token: @token)
+    assert_response :success
+    content = mcp_result.dig("result", "structuredContent")
+    assert_equal "group", content["kind"]
+    assert_equal "jhn.1", content.dig("passage", "slug")
+    assert_operator content["sections"].size, :>=, 3
+    assert_operator content["sections"].size, :<=, 4
+    text = mcp_result.dig("result", "content", 0, "text")
+    assert_includes text, "Why start with the Word"
+    refute_includes text, "Theirs: do not use this."
+    assert_includes text, "?mode=launcher"
+    assert_includes text, "In the beginning was the Word"
+    assert_includes text, "Warm-up"
+    assert_match(/Google map|Houston|Achilles/, text)
+  end
+
+  test "personal_study is for the reader's own learning not group facilitation" do
+    create_note!(@library, "jhn.1.14", "The Word became flesh. Jesus is FROM God.")
+
+    mcp_json({
+      jsonrpc: "2.0",
+      id: 10,
+      method: "tools/call",
+      params: { name: "personal_study", arguments: { osis: "John 1" } }
+    }, token: @token)
+    assert_response :success
+    content = mcp_result.dig("result", "structuredContent")
+    assert_equal "personal", content["kind"]
+    text = mcp_result.dig("result", "content", 0, "text")
+    assert_includes text, "personal study"
+    assert_includes text, "The Word became flesh"
+    refute_includes text, "Warm-up"
+    assert_match(/Open|Trace|Check|Press/, text)
+  end
+
+  test "server instructions require asking when study kind is unclear" do
+    instructions = Margin::Mcp.server(library: @library).instructions
+    assert_match(/personal_study/, instructions)
+    assert_match(/prepare_group_study/, instructions)
+    assert_match(/ask before calling a tool/i, instructions)
   end
 
   test "calling a write tool name fails because it is not registered" do

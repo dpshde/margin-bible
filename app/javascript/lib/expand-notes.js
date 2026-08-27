@@ -11,9 +11,10 @@ export function shouldShowExpandedTray({
   collapsed = false,
   hasContent = false
 } = {}) {
-  if (!hasContent) return false
   if (collapsed) return false
-  return expanding || selected
+  if (selected) return true
+  if (!hasContent) return false
+  return expanding
 }
 
 export function applyClearedNoteTray(tray) {
@@ -22,6 +23,10 @@ export function applyClearedNoteTray(tray) {
   tray.removeAttribute?.("data-note-slug")
   tray.hidden = true
   return tray
+}
+
+export function shouldHideClearedTray({ empty = false, selected = false } = {}) {
+  return empty && !selected
 }
 
 export function expandControlDisabled(hasNotes) {

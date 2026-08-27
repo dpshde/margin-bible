@@ -41,6 +41,19 @@ class ReaderControllerTest < ActionDispatch::IntegrationTest
     assert_equal 0, Verse.where.not(book: "JHN", chapter: 1).count
   end
 
+  test "a short Genesis range still renders the whole chapter with a text mark" do
+    get read_path("gen.1.1-2")
+    assert_response :success
+    assert_select "#v1.is-span .vrun"
+    assert_select "#v2.is-span .vrun"
+    assert_select "#v3"
+    assert_select "#v3.is-span", count: 0
+    assert_select "#v27"
+    assert_select "#v31"
+    assert_select "h3.section-sub[data-usfm='s2']"
+    assert_select ".pub-p.pub-line[data-usfm='pmo']"
+  end
+
   test "a verse slug hydrates the whole chapter page" do
     Verse.delete_all
     get read_path("jhn.1.16")
@@ -59,6 +72,19 @@ class ReaderControllerTest < ActionDispatch::IntegrationTest
     assert_select "#v16.is-span"
     assert_select "#v16 .note-tray:not([hidden]) .outliner[data-slug='jhn.1.16']"
     assert_select "#v1.is-open", count: 0
+    assert_select "h1.topbar-title", "John 1:16"
+  end
+
+  test "an xref verse URL highlights without opening the outliner" do
+    Verse.delete_all
+    get read_path("jhn.1.16", xref: 1)
+    assert_response :success
+    assert_select "[data-reader-xref-value='true']"
+    assert_select "[data-reader-span-start-value='16']"
+    assert_select "#v16.is-xref"
+    assert_select "#v16.is-open", count: 0
+    assert_select "#v16.is-span", count: 0
+    assert_select "#v16 .note-tray:not([hidden])", count: 0
     assert_select "h1.topbar-title", "John 1:16"
   end
 
@@ -103,7 +129,7 @@ class ReaderControllerTest < ActionDispatch::IntegrationTest
       assert_select "h1.topbar-title", "John 1"
       assert_select "button.topbar-title-btn[data-action='click->reader#toggleChapterGrid'][aria-haspopup='dialog'][aria-controls='chapter-grid']", "John 1"
       assert_select "button.header-quiet-button[data-action='click->reader#toggleQuiet'][aria-label='Focus']"
-      assert_select "button.header-copy-button[data-action='click->reader#copyPassage'][aria-label='Copy chapter text and notes'][aria-live='polite']"
+      assert_select "button.header-copy-button[data-action='click->reader#copyPassage'][aria-label='Copy chapter notes'][aria-live='polite']"
       assert_select ".header-copy-button svg.copy-idle"
       assert_select ".header-copy-button .copy-done"
       assert_select ".topbar-actions details.reader-actions-menu summary[aria-label='Reader actions']"
@@ -158,7 +184,7 @@ class ReaderControllerTest < ActionDispatch::IntegrationTest
     assert_equal "pub-r", xref["class"]
     refs = xref.css("a.pub-ref")
     assert_equal [ "Matthew 4:18–22", "Mark 1:16–20", "Luke 5:1–11" ], refs.map(&:text)
-    assert_equal [ "/mat.4.18-22", "/mrk.1.16-20", "/luk.5.1-11" ], refs.map { |el| el["href"] }
+    assert_equal [ "/mat.4.18-22?xref=1", "/mrk.1.16-20?xref=1", "/luk.5.1-11?xref=1" ], refs.map { |el| el["href"] }
     refute refs.any? { |el| el.text.strip == "Luke" }
     paras = []
     node = first.next_element
@@ -174,8 +200,16 @@ class ReaderControllerTest < ActionDispatch::IntegrationTest
     assert mission
     isa = mission.next_element
     assert_equal "r", isa["data-usfm"]
-    assert_select "a.pub-ref[href='/isa.40.1-5']", "Isaiah 40:1–5"
-    assert_select "a.pub-ref[href='/mat.3.1-12']", "Matthew 3:1–12"
+    assert_equal "/isa.40.1-5?xref=1", css_select("a.pub-ref").find { |el| el.text == "Isaiah 40:1–5" }&.[]("href")
+    assert_equal "/mat.3.1-12?xref=1", css_select("a.pub-ref").find { |el| el.text == "Matthew 3:1–12" }&.[]("href")
+    mission_id = Margin::Usj.section_outline(Margin::Usj.chapter_nodes("JHN", 1))
+      .find { |section| section[:heading] == "The Mission of John the Baptist" }
+      &.fetch(:id)
+    assert mission_id
+    assert_select "a.dock-head[href='##{mission_id}'][data-turbo='false']", "The Mission of John the Baptist"
+    assert_select ".dock-outline-item .dock-refs a.dock-item", "Isaiah 40:1–5"
+    refute_match(/\A\(/, isa.text.strip)
+    refute_match(/\)\z/, isa.text.strip)
     replies = []
     node = isa.next_element
     while node && node.name != "h2"
@@ -467,7 +501,8 @@ class ReaderControllerTest < ActionDispatch::IntegrationTest
     )
 
     get read_path("jhn.1")
-    assert_select "#v1 .outliner[data-slug='jhn.1.1'] a.wiki[href='/jhn.1.6'][data-wiki-raw='[[jhn.1.6|John]]']", "John"
+    assert_select "#v1 .outliner[data-slug='jhn.1.1'] a.wiki[data-wiki-raw='[[jhn.1.6|John]]']", "John"
+    assert_equal "/jhn.1.6?xref=1", css_select("#v1 .outliner[data-slug='jhn.1.1'] a.wiki").first["href"]
     assert_select "#v1 .outliner[data-slug='jhn.1.1'] .otext strong", "Word"
     assert_select "#v1 .outliner[data-slug='jhn.1.1'] .otext em", "life"
     assert_select "#v1 .outliner[data-slug='jhn.1.1'] .otext code", "logos"

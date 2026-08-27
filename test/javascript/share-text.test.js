@@ -112,6 +112,40 @@ import {
   assert.match(chapterHtml, /<p><strong>The Beginning<\/strong><\/p>/)
   assert.match(chapterHtml, /<p>1\. In the beginning\.<\/p>/)
   assert.match(chapterHtml, /<ul><li>Logos\.<\/li><\/ul>/)
+
+  const notesOnly = formatChapterShare({
+    label: "John 1",
+    chapterNote: [ { indent: 0, text: "Prologue." } ],
+    verses: [
+      {
+        n: 1,
+        heading: "The Beginning",
+        text: "In the beginning was the Word.",
+        notes: [ { blocks: [ { indent: 0, text: "The Logos." }, { indent: 1, text: "Nested." } ] } ]
+      },
+      { n: 2, heading: "", text: "He was with God in the beginning.", notes: [] }
+    ],
+    bullets: true,
+    notesOnly: true,
+    url: "https://route.bible/jhn.1"
+  })
+  assert.equal(
+    notesOnly,
+    "John 1\n\n- Prologue.\n\nJohn 1:1\n- The Logos.\n  - Nested.\n"
+  )
+  const notesHtml = formatChapterHtml({
+    label: "John 1",
+    chapterNote: [ { indent: 0, text: "Prologue." } ],
+    verses: [
+      { n: 1, text: "In the beginning.", notes: [ { blocks: [ { indent: 0, text: "Logos." } ] } ] },
+      { n: 2, text: "He was with God.", notes: [] }
+    ],
+    notesOnly: true
+  })
+  assert.equal(
+    notesHtml,
+    "<p><strong>John 1</strong></p><ul><li>Prologue.</li></ul><p><strong>John 1:1</strong></p><ul><li>Logos.</li></ul>"
+  )
 }
 
 {
