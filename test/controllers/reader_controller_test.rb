@@ -30,6 +30,7 @@ class ReaderControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_select ".vtext", /In the beginning was the Word/
     assert_select "h2.section-head", "The Beginning"
+    assert_select %(script[src="https://cdn.usefathom.com/script.js"][data-site="EMYGRIAR"][defer]), count: 1
     assert_select %(link[rel="prefetch"][href="/luk.24"])
     assert_select %(link[rel="prefetch"][href="/jhn.2"])
     assert_select %(a[data-turbo-prefetch="true"][href="/luk.24"])
@@ -123,8 +124,10 @@ class ReaderControllerTest < ActionDispatch::IntegrationTest
     assert_select ".dock-theme .theme-seg button[data-theme-pref='light']", "Light"
     assert_select ".dock-theme .theme-seg button[data-theme-pref='system']", "System"
     assert_select ".dock-theme .theme-seg button[data-theme-pref='dark']", "Dark"
-    assert_select ".dock-theme .face-seg button[data-face-pref='serif']", "Serif"
-    assert_select ".dock-theme .face-seg button[data-face-pref='deca']", "Deca"
+    assert_select ".dock-theme .face-seg", count: 0
+    assert_select "[data-face-pref]", count: 0
+    assert_select "button", text: "Deca", count: 0
+    assert_select "button", text: "Serif", count: 0
     assert_select "header.topbar form.jump", count: 0
     assert_select "main.reader .reader-chrome[data-controller='chrome']"
     assert_select ".reader-veil[aria-hidden='true']"
@@ -191,6 +194,27 @@ class ReaderControllerTest < ActionDispatch::IntegrationTest
     assert_select ".pub-q2[data-usfm='q2']", /Make straight the way for the Lord/
     assert_select ".vnum[data-usfm='v']", "35"
     assert_select ".wj", /What do you want/
+  end
+
+  test "Hebrews 11 keeps refs next to headings and a paragraph after each" do
+    Verse.delete_all
+    get read_path("heb.11")
+    assert_response :success
+    assert_select "h2.section-head[data-usfm='s1']"
+    assert_select "h2.section-head.spaced"
+    heads = css_select("h2.section-head")
+    assert_operator heads.size, :>=, 2
+    xref_heads = heads.select { |head| head.next_element&.[]("class").to_s.split.include?("pub-r") }
+    assert_operator xref_heads.size, :>=, 1
+    xref_heads.each do |head|
+      xref = head.next_element
+      para = xref.next_element
+      assert_includes para["class"].to_s, "pub-p"
+      assert para.at_css(".verse-press > .vtext")
+    end
+    assert_select "[data-face-pref]", count: 0
+    assert_select "button", text: "Deca", count: 0
+    assert_select %(script[src="https://cdn.usefathom.com/script.js"][data-site="EMYGRIAR"][defer]), count: 1
   end
 
   test "Mark 5:9 attribution stays in the text column after a new p" do

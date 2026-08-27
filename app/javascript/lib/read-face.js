@@ -1,7 +1,7 @@
 import { defaultStorage } from "./guest-pack.js"
 
 export const FACE_KEY = "margin.face"
-export const FACE_PREFS = [ "serif", "deca" ]
+export const FACE_PREFS = [ "serif" ]
 
 export function parseFace(raw) {
   return FACE_PREFS.includes(raw) ? raw : "serif"

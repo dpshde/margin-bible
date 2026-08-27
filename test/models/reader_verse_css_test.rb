@@ -90,7 +90,7 @@ class ReaderVerseCssTest < ActiveSupport::TestCase
     quiet_p = css[/\.is-quiet \.pub-p\s*\{[^}]+\}/]
     assert quiet_p
     assert_match(/text-indent:\s*1\.2em/, quiet_p)
-    assert_match(/\.is-quiet \.section-head \+ \.pub-p,\s*\n\.is-quiet \.section-head \+ \.pub-r \+ \.pub-p\s*\{[^}]*text-indent:\s*0/m, css)
+    assert_match(/\.is-quiet \.section-head \+ \.pub-p,\s*\n\.is-quiet \.section-head \+ \.pub-r \+ \.pub-p\s*\{[^}]*text-indent:\s*1\.2em/m, css)
     assert_match(/\.is-quiet \.pub-q1\s*\{[^}]*padding-left:\s*\.85rem/m, css)
     assert_match(/\.is-quiet \.pub-q2\s*\{[^}]*padding-left:\s*1\.2rem/m, css)
     assert_match(/\.is-quiet \.pub-b\s*\{[^}]*height:\s*\.18em/, css)
