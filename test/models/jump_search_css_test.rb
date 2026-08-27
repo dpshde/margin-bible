@@ -47,8 +47,12 @@ class JumpSearchCssTest < ActiveSupport::TestCase
     panel = css[/\.reader-dock-panel\s*\{[^}]+\}/]
     assert_match(/padding:\s*0/, panel)
     assert_match(/box-shadow:\s*0 0 0 1px var\(--line\)/, panel)
-    assert_match(/overflow:\s*visible/, panel)
-    assert_match(/max-height:\s*none/, panel)
+    assert_match(/max-height:\s*min\(32rem, calc\(100dvh - 8\.5rem - env\(safe-area-inset-bottom, 0px\)\)\)/, panel)
+    assert_match(/overflow-y:\s*auto/, panel)
+    assert_match(/overflow-x:\s*hidden/, panel)
+    refute_match(/max-height:\s*none/, panel)
+    refute_match(/overflow:\s*visible/, panel)
+    refute_match(/overflow:\s*scroll/, panel)
     refute_match(/[0-9]+px [0-9]+px/, panel)
     menu = css[/\.menu-panel\s*\{[^}]+\}/]
     assert_match(/padding:\s*0/, menu)
@@ -62,6 +66,23 @@ class JumpSearchCssTest < ActiveSupport::TestCase
     assert on
     assert_match(/background:\s*transparent/, on)
     assert_match(/\.dock-item\.is-on \.dock-check \{ opacity:\s*1/, css)
+  end
+
+  test "reader dock panel scrolls only when taller than the screen" do
+    panel = css[/\.reader-dock-panel\s*\{[^}]+\}/]
+    assert panel
+    assert_match(/max-height:\s*min\(32rem, calc\(100dvh - 8\.5rem - env\(safe-area-inset-bottom, 0px\)\)\)/, panel)
+    assert_match(/overflow-y:\s*auto/, panel)
+    assert_match(/overflow-x:\s*hidden/, panel)
+    assert_match(/-webkit-overflow-scrolling:\s*touch/, panel)
+    assert_match(/overscroll-behavior:\s*contain/, panel)
+    refute_match(/max-height:\s*none/, panel)
+    refute_match(/overflow:\s*visible/, panel)
+    refute_match(/overflow:\s*scroll(?!\s*-)/, panel)
+    desktop = css[/\.reader-actions-panel\s*\{[^}]+\}/]
+    assert desktop
+    assert_match(/max-height:\s*min\(28rem, calc\(100dvh - 6rem\)\)/, desktop)
+    assert_match(/overflow:\s*auto/, desktop)
   end
 
   test "reader dock fab is mobile-only on the web" do

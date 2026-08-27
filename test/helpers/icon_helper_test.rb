@@ -13,7 +13,7 @@ class IconHelperTest < ActionView::TestCase
   end
 
   test "dock icons are a known phosphor set" do
-    %w[dots-three clock-counter-clockwise note-pencil arrows-out list-numbers share share-network book notebook book-open books caret-left caret-right export check flower-lotus trash squares-four x].each do |name|
+    %w[dots-three clock-counter-clockwise note-pencil arrows-out list-dashes list-numbers share share-network book notebook book-open books caret-left caret-right export check flower-lotus trash squares-four x].each do |name|
       assert IconHelper::PHOSPHOR.key?(name), name
     end
   end
