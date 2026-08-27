@@ -214,10 +214,12 @@ class UsjHtmlTest < ActionView::TestCase
     html = render_refs("(", { "type" => "ref", "content" => [ "Exodus 2–15" ] }, ";", { "type" => "ref", "loc" => "ACT 7:20-22", "content" => [ "Acts 7:20–22" ] }, ")")
 
     doc = Nokogiri::HTML.fragment(html)
-    refs = doc.css("a.pub-ref")
+    refs = doc.css(".pub-ref")
     assert_equal [ "Exodus 2–15", "Acts 7:20–22" ], refs.map(&:text)
+    assert_equal "span", refs.first.name
+    assert_equal "a", refs.last.name
     assert_match(/Exodus 2–15; Acts 7:20–22/, doc.at_css(".pub-r").text)
-    assert_match(%r{Exodus 2–15</a>; <a class="pub-ref"}, html)
+    assert_match(%r{Exodus 2–15</span>; <a class="pub-ref"}, html)
   end
 
   test "parallel ref groups follow section headings" do
@@ -236,7 +238,9 @@ class UsjHtmlTest < ActionView::TestCase
     ])
     texts = groups.first[:refs].map { |ref| ref[:text] }
     assert_equal [ "Exodus 2–15", "Acts 7:20–22" ], texts
-    assert groups.first[:refs].all? { |ref| ref[:passage] }
+    refute texts.any? { |text| text.include?(";") }
+    assert_nil groups.first[:refs][0][:passage]
+    assert groups.first[:refs][1][:passage]
   end
 
   test "section outline lists every heading and anchors the HTML" do
