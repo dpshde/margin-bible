@@ -1012,7 +1012,7 @@ rails-passkey-sign-in-button { display: block; width: 100%; }
   text-decoration: underline;
   text-underline-offset: .15em;
 }
-.auth-create-line .passkey-error { display: block; }
+.auth-create-line .passkey-error:not([hidden]) { display: block; margin-top: .45rem; }
 .account-email { margin: 1.8rem 0 0; }
 .account-email h2 { margin: 0 0 .35rem; font-size: 1.05rem; }
 

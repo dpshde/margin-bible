@@ -23,6 +23,7 @@ class SessionsControllerTest < ActionDispatch::IntegrationTest
     assert_select ".auth-create-line button.text-btn[data-passkey='register']", "Create a passkey"
     assert_select ".auth-create-line", /New on this device\?/
     assert_select ".auth-create-line", /That keeps notes already on this phone/
+    assert_select ".auth-create-line .passkey-error[hidden]", count: 3
     assert_select "button.primary[data-passkey]", count: 0
     assert_select "button.secondary[data-passkey]", count: 0
     assert_select "button.auth-passkey-switch", count: 0
