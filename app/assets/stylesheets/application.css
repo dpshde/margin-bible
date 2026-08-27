@@ -335,7 +335,7 @@ a.pub-ref:focus-visible {
 .is-quiet .pub-p { text-indent: 1.2em; }
 .is-quiet .section-head + .pub-p,
 .is-quiet .section-head + .pub-r + .pub-p { text-indent: 1.2em; }
-.is-quiet .pub-p + .pub-p { text-indent: 1.2em; }
+.is-quiet .pub-p + .pub-p { text-indent: 1.2em; margin-top: 0; }
 .is-quiet .pub-q1 { padding-left: .85rem; text-indent: -.3rem; --rail-shift: .85rem; }
 .is-quiet .pub-q2 { padding-left: 1.2rem; text-indent: -.3rem; --rail-shift: 1.2rem; }
 .is-quiet .pub-b { height: .18em; }
@@ -618,17 +618,11 @@ a.pub-ref:focus-visible {
 .section-head + .pub-p,
 .section-head + .pub-r + .pub-p {
   margin-top: 0;
-  text-indent: 1.2em;
+  text-indent: 0;
 }
-.pub-p + .pub-p { text-indent: 1.2em; }
-.pub-p + .pub-p > .verse:first-child .verse-press > .vtext {
-  text-indent: 1.2em;
-  hanging-punctuation: first;
-}
-.section-head + .pub-p > .verse:first-child .verse-press > .vtext,
-.section-head + .pub-r + .pub-p > .verse:first-child .verse-press > .vtext {
-  text-indent: 1.2em;
-  hanging-punctuation: first;
+.pub-p + .pub-p {
+  text-indent: 0;
+  margin-top: .65em;
 }
 
 .verse {

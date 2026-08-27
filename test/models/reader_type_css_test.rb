@@ -32,10 +32,19 @@ class ReaderTypeCssTest < ActiveSupport::TestCase
     refute_match(/#e0a39c/, css)
   end
 
-  test "paragraph indent after a heading matches later paragraphs and skips trays" do
-    assert_match(/\.section-head \+ \.pub-p,\s*\n\.section-head \+ \.pub-r \+ \.pub-p\s*\{[^}]*text-indent:\s*1\.2em/m, css)
-    assert_match(/\.section-head \+ \.pub-p > \.verse:first-child \.verse-press > \.vtext,\s*\n\.section-head \+ \.pub-r \+ \.pub-p > \.verse:first-child \.verse-press > \.vtext\s*\{[^}]*text-indent:\s*1\.2em/m, css)
-    assert_match(/\.pub-p \+ \.pub-p\s*\{[^}]*text-indent:\s*1\.2em/, css)
+  test "regular mode is a flush verse list with a gap between paragraph units" do
+    after_head = css[/\n\.section-head \+ \.pub-p,\s*\n\.section-head \+ \.pub-r \+ \.pub-p\s*\{[^}]+\}/]
+    assert after_head
+    assert_match(/text-indent:\s*0/, after_head)
+    assert_match(/margin-top:\s*0/, after_head)
+    refute_match(/text-indent:\s*1\.2em/, after_head)
+    refute_match(/\.section-head \+ \.pub-p > \.verse:first-child \.verse-press > \.vtext/, css)
+    refute_match(/\.pub-p \+ \.pub-p > \.verse:first-child \.verse-press > \.vtext/, css)
+    follow = css[/\n\.pub-p \+ \.pub-p\s*\{[^}]+\}/]
+    assert follow
+    assert_match(/text-indent:\s*0/, follow)
+    assert_match(/margin-top:\s*\.65em/, follow)
+    refute_match(/text-indent:\s*1\.2em/, follow)
     assert_match(/\.pub-q1\s*\{[^}]*text-indent:\s*-\.4rem/, css)
     assert_match(/\.pub-q2\s*\{[^}]*text-indent:\s*-\.4rem/, css)
     assert_match(/\.pub-p \.otext,\s*\n\.pub-q1 \.otext,\s*\n\.pub-q2 \.otext\s*\{[^}]*text-indent:\s*0/, css)

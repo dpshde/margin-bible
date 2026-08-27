@@ -230,7 +230,13 @@ class ReaderVerseCssTest < ActiveSupport::TestCase
     assert_match(/\.pub-b\s*\{[^}]*height:\s*\.7em/, css)
     assert_match(/\.section-head\.spaced\s*\{[^}]*margin-top:\s*2\.25em/, css)
     assert_match(/\.section-head \+ \.pub-p,\s*\n\.section-head \+ \.pub-r \+ \.pub-p\s*\{[^}]*margin-top:\s*0/, css)
-    assert_match(/\.pub-p \+ \.pub-p\s*\{[^}]*text-indent:\s*1\.2em/, css)
+    assert_match(/\.section-head \+ \.pub-p,\s*\n\.section-head \+ \.pub-r \+ \.pub-p\s*\{[^}]*text-indent:\s*0/, css)
+    follow = css[/\n\.pub-p \+ \.pub-p\s*\{[^}]+\}/]
+    assert follow
+    assert_match(/text-indent:\s*0/, follow)
+    assert_match(/margin-top:\s*\.65em/, follow)
+    refute_match(/text-indent:\s*1\.2em/, follow)
+    refute_match(/\.section-head \+ \.pub-p > \.verse:first-child \.verse-press > \.vtext/, css)
     regular_verse = css[/\n\.verse\s*\{[^}]+\}/]
     assert regular_verse
     assert_match(/display:\s*block/, regular_verse)
@@ -243,6 +249,10 @@ class ReaderVerseCssTest < ActiveSupport::TestCase
     assert quiet_p
     assert_match(/margin:\s*0/, quiet_p)
     assert_match(/\.is-quiet \.pub-p\s*\{[^}]*text-indent:\s*1\.2em/, css)
+    quiet_follow = css[/\.is-quiet \.pub-p \+ \.pub-p\s*\{[^}]+\}/]
+    assert quiet_follow
+    assert_match(/text-indent:\s*1\.2em/, quiet_follow)
+    assert_match(/margin-top:\s*0/, quiet_follow)
     assert_match(/\.is-quiet \.verse\s*\{[^}]*display:\s*contents/, css)
     assert_match(/\.is-quiet \.verse-press\s*\{[^}]*display:\s*contents/, css)
     assert_match(/\.verse-press\s*\{[^}]*display:\s*grid/, css)
