@@ -10,8 +10,9 @@ class SessionsControllerTest < ActionDispatch::IntegrationTest
     assert_select "h1.topbar-title", "Sign in"
     assert_select "header.topbar .theme-seg", count: 0
     assert_select "header.topbar details.topbar-menu button.menu-item[data-theme-pref='system']", "System"
-    assert_select ".lede", text: "We'll use a passkey. Your device should ask you now."
-    assert_select ".auth-status[data-sign-in-target='status'][aria-live='polite']", "Waiting for your passkey…"
+    assert_select ".lede.auth-status[data-sign-in-target='status'][aria-live='polite']",
+      "We'll use a passkey. Your device should ask you now."
+    assert_select ".auth-status", count: 1
     assert_select "input[name='email'][autocomplete='username webauthn']"
     assert_select ".auth-backup", "Or we'll email you a one-time link."
     assert_select "button.secondary", "Email me a link"
@@ -19,19 +20,21 @@ class SessionsControllerTest < ActionDispatch::IntegrationTest
     assert_select "rails-passkey-sign-in-button[options*='client-device']"
     assert_select ".auth-passkey-use[hidden] button[hidden][data-passkey='sign_in']", "Use a passkey"
     assert_select ".auth-passkey-use button.primary", count: 0
-    assert_select ".auth-passkey-create:not([hidden]) button.text-btn[data-passkey='register']", "New on this device? Create a passkey."
+    assert_select ".auth-create-line button.text-btn[data-passkey='register']", "Create a passkey"
+    assert_select ".auth-create-line", /New on this device\?/
+    assert_select ".auth-create-line", /That keeps notes already on this phone/
     assert_select "button.primary[data-passkey]", count: 0
     assert_select "button.secondary[data-passkey]", count: 0
     assert_select "button.auth-passkey-switch", count: 0
     assert_no_match(/I already have a passkey/, response.body)
     assert_no_match(/Create a new passkey/, response.body)
-    assert_select ".auth-passkey-create .muted", "That keeps notes already on this phone."
+    assert_no_match(/Waiting for your passkey/, response.body)
     assert_select "a", text: "Back to notes", count: 0
     assert_select "p.auth-or", count: 0
     body = response.body
-    assert_operator body.index("We'll use a passkey"), :<, body.index("Waiting for your passkey")
-    assert_operator body.index("Waiting for your passkey"), :<, body.index("New on this device? Create a passkey.")
-    assert_operator body.index("New on this device? Create a passkey."), :<, body.index("Or we'll email you a one-time link.")
+    assert_operator body.index("We'll use a passkey"), :<, body.index("New on this device?")
+    assert_operator body.index("Create a passkey"), :<, body.index("That keeps notes already on this phone")
+    assert_operator body.index("That keeps notes already on this phone"), :<, body.index("Or we'll email you a one-time link.")
     assert_operator body.index("Or we'll email you a one-time link."), :<, body.index("Email me a link")
   end
 

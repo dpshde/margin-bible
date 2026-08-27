@@ -1,4 +1,4 @@
-export const PASSKEY_WAIT_COPY = "Waiting for your passkey…"
+export const PASSKEY_WAIT_COPY = "We'll use a passkey. Your device should ask you now."
 export const PASSKEY_SETTLED_COPY = "Nothing popped up? That's okay."
 
 export function passkeyWaitCopy({

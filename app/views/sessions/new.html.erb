@@ -18,8 +18,7 @@
 <% end %>
 
 <main class="page" data-controller="sign-in">
-  <p class="lede">We'll use a passkey. Your device should ask you now.</p>
-  <p class="muted auth-status" data-sign-in-target="status" aria-live="polite">Waiting for your passkey…</p>
+  <p class="lede auth-status" data-sign-in-target="status" aria-live="polite">We'll use a passkey. Your device should ask you now.</p>
 
   <% if @dev_login_path %>
     <%= link_to "Open sign-in link", @dev_login_path, class: "primary" %>
@@ -33,11 +32,12 @@
             hidden: true %>
     </div>
 
-    <div class="auth-passkey-create">
-      <%= passkey_registration_button "New on this device? Create a passkey.", session_passkey_registration_path,
+    <div class="auth-create-line">
+      New on this device?
+      <%= passkey_registration_button "Create a passkey", session_passkey_registration_path,
             options: @registration_options,
             class: "text-btn" %>
-      <p class="muted">That keeps notes already on this phone.</p>
+      That keeps notes already on this phone.
     </div>
   </div>
 

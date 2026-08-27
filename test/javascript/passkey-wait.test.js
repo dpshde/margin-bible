@@ -12,7 +12,7 @@ import {
   assert.equal(passkeyWaitCopy({ cancelled: true }), PASSKEY_SETTLED_COPY)
   assert.equal(passkeyWaitCopy({ failed: true }), PASSKEY_SETTLED_COPY)
   assert.equal(passkeyWaitCopy({ timedOut: true }), PASSKEY_SETTLED_COPY)
-  assert.equal(PASSKEY_WAIT_COPY, "Waiting for your passkey…")
+  assert.equal(PASSKEY_WAIT_COPY, "We'll use a passkey. Your device should ask you now.")
   assert.equal(PASSKEY_SETTLED_COPY, "Nothing popped up? That's okay.")
 }
 

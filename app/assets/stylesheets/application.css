@@ -990,14 +990,29 @@ a.tray-label:hover { color: var(--ink); }
 .danger-btn { color: #a33; }
 rails-passkey-registration-button,
 rails-passkey-sign-in-button { display: block; width: 100%; }
-.auth-passkey { margin-top: 0; display: flex; flex-direction: column; gap: .65rem; }
-.auth-status { margin: -.45rem 0 1.25rem; }
+.auth-passkey { margin-top: 0; }
+.auth-status { margin: 0 0 1.15rem; }
 .auth-backup { margin: 1.25rem 0 .65rem; }
-.auth-passkey-create .text-btn {
-  margin-top: 0;
-  align-self: flex-start;
+.auth-create-line {
+  margin: 0;
+  color: var(--ink-soft);
+  line-height: 1.5;
 }
-.auth-passkey-create .muted { margin: .45rem 0 0; }
+.auth-create-line rails-passkey-registration-button,
+.auth-create-line .button_to {
+  display: inline;
+  width: auto;
+}
+.auth-create-line .text-btn {
+  display: inline;
+  width: auto;
+  min-height: 0;
+  margin: 0;
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: .15em;
+}
+.auth-create-line .passkey-error { display: block; }
 .account-email { margin: 1.8rem 0 0; }
 .account-email h2 { margin: 0 0 .35rem; font-size: 1.05rem; }
 
