@@ -49,8 +49,8 @@ class Sessions::PasskeyRegistrationsControllerTest < ActionDispatch::Integration
     library = Library.last
 
     get new_session_path
-    assert_select ".auth-passkey-use[hidden] button[hidden][data-passkey='sign_in']", "Use a passkey"
-    assert_select ".auth-create-line button.text-btn[data-passkey='register']", "Create a passkey"
+    assert_select ".auth-passkey-use:not([hidden]) button.text-btn[data-passkey='sign_in']", "Sign in with a passkey"
+    assert_select ".auth-help button.text-btn[data-action='sign-in#startRegistration']", "Create a passkey"
 
     challenge = refresh_webauthn_challenge(purpose: "registration")
     raw = webauthn_client.create(challenge: challenge)
@@ -78,8 +78,8 @@ class Sessions::PasskeyRegistrationsControllerTest < ActionDispatch::Integration
     assert_select "header.topbar details.topbar-menu a.menu-item", "Sign in"
 
     get new_session_path
-    assert_select ".auth-passkey-use[hidden] button[hidden][data-passkey='sign_in']", "Use a passkey"
-    assert_select ".auth-create-line button.text-btn[data-passkey='register']", "Create a passkey"
+    assert_select ".auth-passkey-use:not([hidden]) button.text-btn[data-passkey='sign_in']", "Sign in with a passkey"
+    assert_select ".auth-help button.text-btn[data-action='sign-in#startRegistration']", "Create a passkey"
     assert_no_match(/I already have a passkey/, response.body)
     assert_no_match(/Create a new passkey/, response.body)
 

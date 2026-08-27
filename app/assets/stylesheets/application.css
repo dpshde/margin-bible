@@ -975,6 +975,7 @@ a.tray-label:hover { color: var(--ink); }
 .muted { color: var(--muted); }
 .page .primary + form { margin-top: 1.15rem; }
 .passkey-error { margin: .45rem 0 0; color: #a33; font-size: .9rem; }
+.passkey-error[hidden] { display: none !important; }
 .passkey-list { list-style: none; margin: 1.2rem 0; padding: 0; }
 .passkey-item + .passkey-item { margin-top: .55rem; }
 .passkey-link {
@@ -990,29 +991,22 @@ a.tray-label:hover { color: var(--ink); }
 .danger-btn { color: #a33; }
 rails-passkey-registration-button,
 rails-passkey-sign-in-button { display: block; width: 100%; }
-.auth-passkey { margin-top: 0; }
-.auth-status { margin: 0 0 1.15rem; }
-.auth-backup { margin: 1.25rem 0 .65rem; }
-.auth-create-line {
-  margin: 0;
-  color: var(--ink-soft);
-  line-height: 1.5;
-}
-.auth-create-line rails-passkey-registration-button,
-.auth-create-line .button_to {
-  display: inline;
-  width: auto;
-}
-.auth-create-line .text-btn {
+.auth-help { margin: .2rem 0 .85rem; line-height: 1.5; }
+.auth-help .text-btn {
   display: inline;
   width: auto;
   min-height: 0;
   margin: 0;
-  color: var(--ink);
+  color: inherit;
   text-decoration: underline;
   text-underline-offset: .15em;
 }
-.auth-create-line .passkey-error:not([hidden]) { display: block; margin-top: .45rem; }
+.auth-passkey-use { margin-top: .85rem; }
+.auth-passkey-use .text-btn {
+  width: auto;
+  justify-content: flex-start;
+  margin: 0;
+}
 .account-email { margin: 1.8rem 0 0; }
 .account-email h2 { margin: 0 0 .35rem; font-size: 1.05rem; }
 

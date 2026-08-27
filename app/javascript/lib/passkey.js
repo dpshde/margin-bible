@@ -62,6 +62,7 @@ class PasskeyButton extends HTMLElement {
   }
 
   #showError(type) {
+    this.#hideErrors()
     const el = this.querySelector(`[data-passkey-error="${type}"]`)
     if (el) el.hidden = false
   }
