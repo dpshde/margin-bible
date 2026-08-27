@@ -991,6 +991,8 @@ a.tray-label:hover { color: var(--ink); }
 rails-passkey-registration-button,
 rails-passkey-sign-in-button { display: block; width: 100%; }
 .auth-passkey { margin-top: 0; display: flex; flex-direction: column; gap: .65rem; }
+.auth-status { margin: -.45rem 0 1.25rem; }
+.auth-backup { margin: 1.25rem 0 .65rem; }
 .auth-passkey-create .text-btn {
   margin-top: 0;
   align-self: flex-start;

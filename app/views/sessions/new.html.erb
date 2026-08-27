@@ -18,7 +18,8 @@
 <% end %>
 
 <main class="page" data-controller="sign-in">
-  <p class="lede">A passkey signs you in. Notes already on this device stay put.</p>
+  <p class="lede">We'll use a passkey. Your device should ask you now.</p>
+  <p class="muted auth-status" data-sign-in-target="status" aria-live="polite">Waiting for your passkey…</p>
 
   <% if @dev_login_path %>
     <%= link_to "Open sign-in link", @dev_login_path, class: "primary" %>
@@ -33,15 +34,14 @@
     </div>
 
     <div class="auth-passkey-create">
-      <%= passkey_registration_button "Create a passkey", session_passkey_registration_path,
+      <%= passkey_registration_button "New on this device? Create a passkey.", session_passkey_registration_path,
             options: @registration_options,
             class: "text-btn" %>
-      <p class="muted">Claims the notes on this device.</p>
+      <p class="muted">That keeps notes already on this phone.</p>
     </div>
   </div>
 
-  <p class="auth-or">or</p>
-
+  <p class="muted auth-backup">Or we'll email you a one-time link.</p>
   <%= form_with url: session_path, method: :post do %>
     <label class="sr-only" for="email">Email</label>
     <input id="email" name="email" type="email" required autocomplete="username webauthn" placeholder="you@example.com">
