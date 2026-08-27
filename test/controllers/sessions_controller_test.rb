@@ -3,41 +3,67 @@
 require "test_helper"
 
 class SessionsControllerTest < ActionDispatch::IntegrationTest
-  test "sign-in page is email first with a quiet passkey path" do
+  setup do
+    @prior_sign_in_email_first = ENV["SIGN_IN_EMAIL_FIRST"]
+    ENV.delete("SIGN_IN_EMAIL_FIRST")
+  end
+
+  teardown do
+    if @prior_sign_in_email_first.nil?
+      ENV.delete("SIGN_IN_EMAIL_FIRST")
+    else
+      ENV["SIGN_IN_EMAIL_FIRST"] = @prior_sign_in_email_first
+    end
+  end
+
+  test "sign-in page offers magic link, use a passkey, and create a passkey" do
     get new_session_path
     assert_response :success
     assert_select "header.topbar a[aria-label='Notes'][href='/']"
     assert_select "h1.topbar-title", "Sign in"
-    assert_select "main.page > h1", "Get into Margin"
     assert_select "header.topbar .theme-seg", count: 0
     assert_select "header.topbar details.topbar-menu button.menu-item[data-theme-pref='system']", "System"
-    assert_select "input[name='email'][autocomplete='username webauthn'][placeholder='you@example.com'][autofocus]"
-    assert_select ".auth-help", /New here\?/
-    assert_select ".auth-help", /Already have an account\?/
-    assert_select ".auth-help button.text-btn[data-action='sign-in#startRegistration']", "Create a passkey"
-    assert_select "button.primary", "Let's go"
+    assert_select ".lede", /passkey signs you in/i
+    assert_select "input[name='email'][autocomplete='username webauthn']"
+    assert_select "button.secondary", "Email me a link"
     assert_select "rails-passkey-sign-in-button[mediation='conditional']"
     assert_select "rails-passkey-sign-in-button[options*='client-device']"
-    assert_select "rails-passkey-sign-in-button[auto-start]"
-    assert_select ".auth-passkey-use:not([hidden]) button.text-btn[data-passkey='sign_in']", "Sign in with a passkey"
-    assert_select ".auth-passkey-create[hidden][data-sign-in-target='register'] button[hidden][data-passkey='register']", "Create a passkey"
-    assert_select ".passkey-error[hidden]", count: 5
-    assert_select ".passkey-error:not([hidden])", count: 0
-    assert_select "button.primary[data-passkey]", count: 0
-    assert_select "button.secondary", count: 0
+    assert_select ".auth-passkey-use:not([hidden]) button.primary[data-passkey='sign_in']", "Use a passkey"
+    assert_select ".auth-passkey-create:not([hidden]) button.primary[data-passkey='register']", "Create a passkey"
+    assert_select "button.primary[data-passkey]", count: 2
+    assert_select "button.secondary[data-passkey]", count: 0
     assert_select "button.auth-passkey-switch", count: 0
     assert_no_match(/I already have a passkey/, response.body)
     assert_no_match(/Create a new passkey/, response.body)
-    assert_no_match(/Waiting for your passkey/, response.body)
-    assert_no_match(/Nothing popped up/, response.body)
-    assert_no_match(/Use a passkey/, response.body)
+    assert_no_match(/Get into Margin/, response.body)
+    assert_no_match(/Let's go/, response.body)
+    assert_select ".auth-passkey-create .muted", /claims the notes on this device/i
     assert_select "a", text: "Back to notes", count: 0
-    assert_select "p.auth-or", count: 0
+    assert_select "p.auth-or", "or"
     body = response.body
-    assert_operator body.index("Get into Margin"), :<, body.index("you@example.com")
-    assert_operator body.index("you@example.com"), :<, body.index("New here?")
-    assert_operator body.index("New here?"), :<, body.index("Let's go")
-    assert_operator body.index("Let's go"), :<, body.index("Sign in with a passkey")
+    assert_operator body.index("Use a passkey"), :<, body.index("Create a passkey")
+    assert_operator body.index("Use a passkey"), :<, body.index("Email me a link")
+    assert_operator body.index("Create a passkey"), :<, body.index("Email me a link")
+  end
+
+  test "signin=email serves the Fizzy email-first page" do
+    get new_session_path(signin: "email")
+    assert_email_first_sign_in
+  end
+
+  test "SIGN_IN_EMAIL_FIRST=1 serves the Fizzy email-first page" do
+    ENV["SIGN_IN_EMAIL_FIRST"] = "1"
+    get new_session_path
+    assert_email_first_sign_in
+  end
+
+  test "email-first magic link redirect keeps the query flag" do
+    post session_path, params: { email: "reader@example.com", signin: "email" }
+    assert_redirected_to new_session_path(signin: "email")
+    follow_redirect!
+    assert_select ".flash", text: "Check your email."
+    assert_select "button.primary", "Let's go"
+    assert_select "a.primary", "Open sign-in link"
   end
 
   test "magic link claims the current library" do
@@ -90,4 +116,40 @@ class SessionsControllerTest < ActionDispatch::IntegrationTest
     get read_path("jhn.1")
     assert_select "[data-reader-signed-in-value='false']"
   end
+
+  private
+    def assert_email_first_sign_in
+      assert_response :success
+      assert_select "header.topbar a[aria-label='Notes'][href='/']"
+      assert_select "h1.topbar-title", "Sign in"
+      assert_select "main.page > h1", "Get into Margin"
+      assert_select "input[name='email'][autocomplete='username webauthn'][placeholder='you@example.com'][autofocus]"
+      assert_select "input[type='hidden'][name='signin'][value='email']"
+      assert_select ".auth-help", /New here\?/
+      assert_select ".auth-help", /Already have an account\?/
+      assert_select ".auth-help button.text-btn[data-action='sign-in#startRegistration']", "Create a passkey"
+      assert_select "button.primary", "Let's go"
+      assert_select "rails-passkey-sign-in-button[mediation='conditional']"
+      assert_select "rails-passkey-sign-in-button[options*='client-device']"
+      assert_select "rails-passkey-sign-in-button[auto-start]"
+      assert_select ".auth-passkey-use:not([hidden]) button.text-btn[data-passkey='sign_in']", "Sign in with a passkey"
+      assert_select ".auth-passkey-create[hidden][data-sign-in-target='register'] button[hidden][data-passkey='register']", "Create a passkey"
+      assert_select ".passkey-error[hidden]", count: 5
+      assert_select ".passkey-error:not([hidden])", count: 0
+      assert_select "button.primary[data-passkey]", count: 0
+      assert_select "button.secondary", count: 0
+      assert_select "button.auth-passkey-switch", count: 0
+      assert_no_match(/I already have a passkey/, response.body)
+      assert_no_match(/Create a new passkey/, response.body)
+      assert_no_match(/Waiting for your passkey/, response.body)
+      assert_no_match(/Nothing popped up/, response.body)
+      assert_no_match(/Use a passkey/, response.body)
+      assert_select "a", text: "Back to notes", count: 0
+      assert_select "p.auth-or", count: 0
+      body = response.body
+      assert_operator body.index("Get into Margin"), :<, body.index("you@example.com")
+      assert_operator body.index("you@example.com"), :<, body.index("New here?")
+      assert_operator body.index("New here?"), :<, body.index("Let's go")
+      assert_operator body.index("Let's go"), :<, body.index("Sign in with a passkey")
+    end
 end
