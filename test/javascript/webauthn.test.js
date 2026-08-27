@@ -40,22 +40,25 @@ const challenge = "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8"
 
 await (async () => {
   const calls = []
-  globalThis.navigator = {
-    credentials: {
-      get: async (request) => {
-        calls.push(request)
-        const buf = new Uint8Array([ 1, 2, 3 ]).buffer
-        return {
-          id: "cred",
-          response: {
-            clientDataJSON: buf,
-            authenticatorData: buf,
-            signature: buf
+  Object.defineProperty(globalThis, "navigator", {
+    configurable: true,
+    value: {
+      credentials: {
+        get: async (request) => {
+          calls.push(request)
+          const buf = new Uint8Array([ 1, 2, 3 ]).buffer
+          return {
+            id: "cred",
+            response: {
+              clientDataJSON: buf,
+              authenticatorData: buf,
+              signature: buf
+            }
           }
         }
       }
     }
-  }
+  })
 
   await authenticate({ challenge, rpId: "localhost" })
   assert.equal(calls.length, 1)
@@ -67,4 +70,8 @@ await (async () => {
   await authenticate({ challenge, rpId: "localhost" }, { signal: controller.signal, mediation: "optional" })
   assert.equal(calls[1].signal, controller.signal)
   assert.equal(calls[1].mediation, "optional")
+
+  await authenticate({ challenge, rpId: "localhost" }, { mediation: "immediate" })
+  assert.equal(calls[2].mediation, "immediate")
+  assert.equal("signal" in calls[2], false)
 })()

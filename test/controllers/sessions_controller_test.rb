@@ -11,7 +11,7 @@ class SessionsControllerTest < ActionDispatch::IntegrationTest
     assert_select "main.page > h1", "Get into Margin"
     assert_select "header.topbar .theme-seg", count: 0
     assert_select "header.topbar details.topbar-menu button.menu-item[data-theme-pref='system']", "System"
-    assert_select "input[name='email'][autocomplete='username webauthn'][placeholder='you@example.com']"
+    assert_select "input[name='email'][autocomplete='username webauthn'][placeholder='you@example.com'][autofocus]"
     assert_select ".auth-help", /New here\?/
     assert_select ".auth-help", /Already have an account\?/
     assert_select ".auth-help button.text-btn[data-action='sign-in#startRegistration']", "Create a passkey"

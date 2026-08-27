@@ -1,4 +1,4 @@
-import { passkeyAutoStartKind, rememberPasskeyHint } from "./passkey-hint"
+import { passkeyAutoStartSteps, refocusPasskeyUsername, rememberPasskeyHint } from "./passkey-hint"
 import { register, authenticate } from "./webauthn"
 
 class PasskeyButton extends HTMLElement {
@@ -33,7 +33,7 @@ class PasskeyButton extends HTMLElement {
     this.startCeremony()
   }
 
-  startCeremony = async ({ silentCancel = false } = {}) => {
+  startCeremony = async ({ silentCancel = false, mediation } = {}) => {
     await this.abortConditionalMediation?.()
     this.button.disabled = true
     this.#hideErrors()
@@ -46,7 +46,10 @@ class PasskeyButton extends HTMLElement {
       if (!options) throw new Error("Missing passkey options")
 
       await refreshChallenge(options, this.challengeUrl, this.purpose)
-      const passkey = await this.perform(options, this.modalCeremony)
+      const passkey = await this.perform(options, {
+        ...this.modalCeremony,
+        ...(mediation ? { mediation } : {})
+      })
 
       rememberPasskeyHint()
       this.button.dispatchEvent(new CustomEvent("passkey:success", { bubbles: true }))
@@ -127,17 +130,23 @@ class PasskeySignInButton extends PasskeyButton {
   }
 
   async #autoStartSignIn() {
-    const kind = passkeyAutoStartKind({
+    const steps = passkeyAutoStartSteps({
       passkeysSupported: passkeysAvailable(),
-      hasOptions: Boolean(this.options)
+      hasOptions: Boolean(this.options),
+      immediateAvailable: await this.#immediateGetAvailable(),
+      userActivated: Boolean(navigator.userActivation?.isActive)
     })
-    if (kind !== "modal") return
 
-    const signedIn = await this.startCeremony({ silentCancel: true })
-    if (signedIn) return
+    for (const step of steps) {
+      if (step === "immediate") {
+        const signedIn = await this.startCeremony({ silentCancel: true, mediation: "immediate" })
+        if (signedIn) return
+        continue
+      }
 
-    if (await this.#conditionalMediationAvailable()) {
-      await this.#attemptConditionalMediation()
+      if (step === "conditional" && await this.#conditionalMediationAvailable()) {
+        await this.#attemptConditionalMediation()
+      }
     }
   }
 
@@ -150,13 +159,28 @@ class PasskeySignInButton extends PasskeyButton {
     this.#conditionalMediationPromise = this.#runConditionalMediation(options)
   }
 
+  #offerPasskeyAutofill() {
+    refocusPasskeyUsername(document.querySelector('input[autocomplete~="webauthn"]'))
+  }
+
+  async #immediateGetAvailable() {
+    try {
+      const capabilities = await window.PublicKeyCredential.getClientCapabilities?.()
+      return Boolean(capabilities?.immediateGet)
+    } catch {
+      return false
+    }
+  }
+
   async #runConditionalMediation(options) {
     try {
       await refreshChallenge(options, this.challengeUrl, this.purpose)
-      const passkey = await this.perform(options, {
+      const pending = this.perform(options, {
         signal: this.#conditionalMediationController.signal,
         mediation: this.mediation
       })
+      this.#offerPasskeyAutofill()
+      const passkey = await pending
 
       rememberPasskeyHint()
       this.form.dispatchEvent(new CustomEvent("passkey:success", { bubbles: true }))
