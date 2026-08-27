@@ -294,7 +294,13 @@ module Margin
         )
         hosts.last.add_child(trays) if trays.present?
       end
-      doc.to_html.html_safe
+      restore_ref_separator_spaces(doc.to_html).html_safe
+    end
+
+    # HTML4 fragment serialization drops the trailing space in "; ".
+    # Put it back only between citation units so verses are untouched.
+    def restore_ref_separator_spaces(html)
+      html.gsub(%r{(</(?:a|span)>);(<a |<span )}, '\1; \2')
     end
 
     def verse_numbers(doc)

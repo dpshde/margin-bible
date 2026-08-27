@@ -205,6 +205,8 @@ class UsjHtmlTest < ActionView::TestCase
     refs.each { |ref| assert_includes %w[a span], ref.name }
     assert_match(/Exodus 2–15; Acts 7:20–22/, doc.at_css(".pub-r").text)
     refute_includes doc.at_css(".pub-r").text, ";Acts"
+    assert_match(%r{Exodus 2–15</(?:a|span)>; <a class="pub-ref"}, html)
+    refute_match(%r{Exodus 2–15</(?:a|span)>;<}, html)
   end
 
   test "Hebrews 11 Moses line keeps a space after a bare semicolon" do
@@ -214,6 +216,7 @@ class UsjHtmlTest < ActionView::TestCase
     refs = doc.css("a.pub-ref")
     assert_equal [ "Exodus 2–15", "Acts 7:20–22" ], refs.map(&:text)
     assert_match(/Exodus 2–15; Acts 7:20–22/, doc.at_css(".pub-r").text)
+    assert_match(%r{Exodus 2–15</a>; <a class="pub-ref"}, html)
   end
 
   test "parallel ref groups follow section headings" do
