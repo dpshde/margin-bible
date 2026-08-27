@@ -53,7 +53,7 @@ module PasskeyHelper
       wrapper_options = options.fetch(:wrapper, {})
 
       component_options = options
-        .slice(:challenge_url, :mediation)
+        .slice(:challenge_url, :mediation, :auto_start)
         .reverse_merge(
           challenge_url: passkey_challenge_path,
           options: serialized_passkey_options(passkey_options)

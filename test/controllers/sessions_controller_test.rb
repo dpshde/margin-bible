@@ -18,6 +18,7 @@ class SessionsControllerTest < ActionDispatch::IntegrationTest
     assert_select "button.primary", "Let's go"
     assert_select "rails-passkey-sign-in-button[mediation='conditional']"
     assert_select "rails-passkey-sign-in-button[options*='client-device']"
+    assert_select "rails-passkey-sign-in-button[auto-start]"
     assert_select ".auth-passkey-use:not([hidden]) button.text-btn[data-passkey='sign_in']", "Sign in with a passkey"
     assert_select ".auth-passkey-create[hidden][data-sign-in-target='register'] button[hidden][data-passkey='register']", "Create a passkey"
     assert_select ".passkey-error[hidden]", count: 5

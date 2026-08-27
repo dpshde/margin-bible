@@ -21,25 +21,10 @@ import {
 }
 
 {
-  assert.equal(passkeyAutoStartKind({
-    mediation: "conditional",
-    conditionalAvailable: true
-  }), "conditional")
-  assert.equal(passkeyAutoStartKind({
-    mediation: "conditional",
-    conditionalAvailable: false
-  }), "modal")
-  assert.equal(passkeyAutoStartKind({
-    mediation: "conditional",
-    conditionalAvailable: false,
-    passkeysSupported: false
-  }), null)
-  assert.equal(passkeyAutoStartKind({
-    mediation: "conditional",
-    conditionalAvailable: false,
-    hasOptions: false
-  }), null)
-  assert.equal(passkeyAutoStartKind({ mediation: "optional", conditionalAvailable: true }), null)
+  assert.equal(passkeyAutoStartKind({}), "modal")
+  assert.equal(passkeyAutoStartKind({ passkeysSupported: true, hasOptions: true }), "modal")
+  assert.equal(passkeyAutoStartKind({ passkeysSupported: false }), null)
+  assert.equal(passkeyAutoStartKind({ hasOptions: false }), null)
 }
 
 console.log("passkey-hint: ok")

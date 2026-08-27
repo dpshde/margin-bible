@@ -3,12 +3,12 @@ import { register, authenticate } from "./webauthn"
 
 class PasskeyButton extends HTMLElement {
   connectedCallback() {
-    this.button.addEventListener("click", this.#perform)
+    this.button.addEventListener("click", this.onButtonClick)
   }
 
   disconnectedCallback() {
     this.abortConditionalMediation?.()
-    this.button.removeEventListener("click", this.#perform)
+    this.button.removeEventListener("click", this.onButtonClick)
     this.button.disabled = false
     this.#hideErrors()
   }
@@ -29,7 +29,11 @@ class PasskeyButton extends HTMLElement {
     return this.getAttribute("challenge-url")
   }
 
-  #perform = async () => {
+  onButtonClick = () => {
+    this.startCeremony()
+  }
+
+  startCeremony = async ({ silentCancel = false } = {}) => {
     await this.abortConditionalMediation?.()
     this.button.disabled = true
     this.#hideErrors()
@@ -48,9 +52,12 @@ class PasskeyButton extends HTMLElement {
       this.button.dispatchEvent(new CustomEvent("passkey:success", { bubbles: true }))
       this.fillForm(passkey)
       this.form.submit()
+      return true
     } catch (error) {
       this.button.disabled = false
+      if (silentCancel && errorType(error) === "cancelled") return false
       this.#handleError(error)
+      return false
     }
   }
 
@@ -94,7 +101,7 @@ class PasskeySignInButton extends PasskeyButton {
 
   connectedCallback() {
     super.connectedCallback()
-    if (this.mediation === "conditional") this.#autoStartSignIn()
+    if (this.mediation === "conditional" || this.hasAttribute("auto-start")) this.#autoStartSignIn()
   }
 
   get mediation() {
@@ -121,18 +128,17 @@ class PasskeySignInButton extends PasskeyButton {
 
   async #autoStartSignIn() {
     const kind = passkeyAutoStartKind({
-      mediation: this.mediation,
-      conditionalAvailable: await this.#conditionalMediationAvailable(),
       passkeysSupported: passkeysAvailable(),
       hasOptions: Boolean(this.options)
     })
+    if (kind !== "modal") return
 
-    if (kind === "conditional") {
+    const signedIn = await this.startCeremony({ silentCancel: true })
+    if (signedIn) return
+
+    if (await this.#conditionalMediationAvailable()) {
       await this.#attemptConditionalMediation()
-      return
     }
-
-    if (kind === "modal") this.button.click()
   }
 
   async #attemptConditionalMediation() {

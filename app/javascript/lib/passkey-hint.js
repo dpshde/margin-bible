@@ -23,11 +23,9 @@ export function passkeyPrimaryMode(_hasHint = hasPasskeyHint()) {
 }
 
 export function passkeyAutoStartKind({
-  mediation,
-  conditionalAvailable,
   passkeysSupported = true,
   hasOptions = true
 } = {}) {
-  if (mediation !== "conditional" || !passkeysSupported || !hasOptions) return null
-  return conditionalAvailable ? "conditional" : "modal"
+  if (!passkeysSupported || !hasOptions) return null
+  return "modal"
 }
