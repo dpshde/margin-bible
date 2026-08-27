@@ -1,4 +1,4 @@
-import { rememberPasskeyHint } from "./passkey-hint"
+import { passkeyAutoStartKind, rememberPasskeyHint } from "./passkey-hint"
 import { register, authenticate } from "./webauthn"
 
 class PasskeyButton extends HTMLElement {
@@ -93,7 +93,7 @@ class PasskeySignInButton extends PasskeyButton {
 
   connectedCallback() {
     super.connectedCallback()
-    if (this.mediation === "conditional") this.#attemptConditionalMediation()
+    if (this.mediation === "conditional") this.#autoStartSignIn()
   }
 
   get mediation() {
@@ -118,15 +118,29 @@ class PasskeySignInButton extends PasskeyButton {
     await new Promise((resolve) => setTimeout(resolve, 100))
   }
 
-  async #attemptConditionalMediation() {
-    if (await this.#conditionalMediationAvailable()) {
-      const options = this.options
+  async #autoStartSignIn() {
+    const kind = passkeyAutoStartKind({
+      mediation: this.mediation,
+      conditionalAvailable: await this.#conditionalMediationAvailable(),
+      passkeysSupported: passkeysAvailable(),
+      hasOptions: Boolean(this.options)
+    })
 
-      this.form.dispatchEvent(new CustomEvent("passkey:start", { bubbles: true }))
-
-      this.#conditionalMediationController = new AbortController()
-      this.#conditionalMediationPromise = this.#runConditionalMediation(options)
+    if (kind === "conditional") {
+      await this.#attemptConditionalMediation()
+      return
     }
+
+    if (kind === "modal") this.button.click()
+  }
+
+  async #attemptConditionalMediation() {
+    const options = this.options
+
+    this.form.dispatchEvent(new CustomEvent("passkey:start", { bubbles: true }))
+
+    this.#conditionalMediationController = new AbortController()
+    this.#conditionalMediationPromise = this.#runConditionalMediation(options)
   }
 
   async #runConditionalMediation(options) {

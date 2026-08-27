@@ -3,7 +3,7 @@
 require "test_helper"
 
 class SessionsControllerTest < ActionDispatch::IntegrationTest
-  test "sign-in page offers magic link, use a passkey, and create a passkey" do
+  test "sign-in page auto-starts passkey and offers create plus magic link" do
     get new_session_path
     assert_response :success
     assert_select "header.topbar a[aria-label='Notes'][href='/']"
@@ -15,9 +15,10 @@ class SessionsControllerTest < ActionDispatch::IntegrationTest
     assert_select "button.secondary", "Email me a link"
     assert_select "rails-passkey-sign-in-button[mediation='conditional']"
     assert_select "rails-passkey-sign-in-button[options*='client-device']"
-    assert_select ".auth-passkey-use:not([hidden]) button.primary[data-passkey='sign_in']", "Use a passkey"
-    assert_select ".auth-passkey-create:not([hidden]) button.primary[data-passkey='register']", "Create a passkey"
-    assert_select "button.primary[data-passkey]", count: 2
+    assert_select ".auth-passkey-use[hidden] button[hidden][data-passkey='sign_in']", "Use a passkey"
+    assert_select ".auth-passkey-use button.primary", count: 0
+    assert_select ".auth-passkey-create:not([hidden]) button.text-btn[data-passkey='register']", "Create a passkey"
+    assert_select "button.primary[data-passkey]", count: 0
     assert_select "button.secondary[data-passkey]", count: 0
     assert_select "button.auth-passkey-switch", count: 0
     assert_no_match(/I already have a passkey/, response.body)
@@ -26,8 +27,6 @@ class SessionsControllerTest < ActionDispatch::IntegrationTest
     assert_select "a", text: "Back to notes", count: 0
     assert_select "p.auth-or", "or"
     body = response.body
-    assert_operator body.index("Use a passkey"), :<, body.index("Create a passkey")
-    assert_operator body.index("Use a passkey"), :<, body.index("Email me a link")
     assert_operator body.index("Create a passkey"), :<, body.index("Email me a link")
   end
 

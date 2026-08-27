@@ -3,6 +3,7 @@ import { memoryStorage } from "../../app/javascript/lib/guest-pack.js"
 import {
   PASSKEY_HINT_KEY,
   hasPasskeyHint,
+  passkeyAutoStartKind,
   passkeyPrimaryMode,
   rememberPasskeyHint
 } from "../../app/javascript/lib/passkey-hint.js"
@@ -17,6 +18,28 @@ import {
   assert.equal(hasPasskeyHint(store), true)
   assert.equal(passkeyPrimaryMode(true), "use")
   assert.equal(passkeyPrimaryMode(hasPasskeyHint(store)), "use")
+}
+
+{
+  assert.equal(passkeyAutoStartKind({
+    mediation: "conditional",
+    conditionalAvailable: true
+  }), "conditional")
+  assert.equal(passkeyAutoStartKind({
+    mediation: "conditional",
+    conditionalAvailable: false
+  }), "modal")
+  assert.equal(passkeyAutoStartKind({
+    mediation: "conditional",
+    conditionalAvailable: false,
+    passkeysSupported: false
+  }), null)
+  assert.equal(passkeyAutoStartKind({
+    mediation: "conditional",
+    conditionalAvailable: false,
+    hasOptions: false
+  }), null)
+  assert.equal(passkeyAutoStartKind({ mediation: "optional", conditionalAvailable: true }), null)
 }
 
 console.log("passkey-hint: ok")

@@ -21,3 +21,13 @@ export function rememberPasskeyHint(storage = defaultStorage()) {
 export function passkeyPrimaryMode(_hasHint = hasPasskeyHint()) {
   return "use"
 }
+
+export function passkeyAutoStartKind({
+  mediation,
+  conditionalAvailable,
+  passkeysSupported = true,
+  hasOptions = true
+} = {}) {
+  if (mediation !== "conditional" || !passkeysSupported || !hasOptions) return null
+  return conditionalAvailable ? "conditional" : "modal"
+}

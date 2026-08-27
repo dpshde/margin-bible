@@ -25,17 +25,17 @@
   <% end %>
 
   <div class="auth-passkey">
-    <div class="auth-passkey-use" data-sign-in-target="use">
+    <div class="auth-passkey-use" hidden>
       <%= passkey_sign_in_button "Use a passkey", session_passkey_path,
             options: @authentication_options,
             mediation: "conditional",
-            class: "primary" %>
+            hidden: true %>
     </div>
 
-    <div class="auth-passkey-create" data-sign-in-target="create">
+    <div class="auth-passkey-create">
       <%= passkey_registration_button "Create a passkey", session_passkey_registration_path,
             options: @registration_options,
-            class: "primary" %>
+            class: "text-btn" %>
       <p class="muted">Claims the notes on this device.</p>
     </div>
   </div>
