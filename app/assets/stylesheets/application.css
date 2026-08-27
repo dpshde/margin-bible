@@ -908,8 +908,11 @@ a.tray-label:hover { color: var(--ink); }
   position: absolute; left: auto; right: 0; bottom: calc(100% + .55rem);
   transform: none;
   width: min(18.5rem, calc(100vw - 2rem));
-  max-height: none;
-  overflow: visible;
+  max-height: min(32rem, calc(100dvh - 8.5rem - env(safe-area-inset-bottom, 0px)));
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
   padding: 0;
   background: var(--paper-raised);
   border: 0; border-radius: var(--list-radius);

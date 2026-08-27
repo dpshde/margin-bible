@@ -208,6 +208,21 @@ class ReaderControllerTest < ActionDispatch::IntegrationTest
     assert mission_id
     assert_select "a.dock-head[href='##{mission_id}'][data-turbo='false']", "The Mission of John the Baptist"
     assert_select ".dock-outline-item .dock-refs a.dock-item", "Isaiah 40:1–5"
+    assert_select ".reader-dock-panel [data-pane='root']" do
+      assert_select ".dock-item.is-branch[data-action='click->dock-menu#show'][data-dock-menu-pane-param='toc']", "Contents"
+      assert_select "a.dock-head", count: 0
+      assert_select ".dock-item[data-action='click->reader#toggleQuiet']", "Focus"
+    end
+    assert_select ".reader-dock-panel [data-pane='toc'][hidden]" do
+      assert_select ".dock-item.is-back[data-action='click->dock-menu#show'][data-dock-menu-pane-param='root']", "Contents"
+      assert_select "a.dock-head[href='##{mission_id}']", "The Mission of John the Baptist"
+      assert_select ".dock-item[data-action='click->reader#toggleQuiet']", count: 0
+      assert_select ".dock-recent", count: 0
+      assert_select ".dock-theme", count: 0
+    end
+    assert_select ".reader-actions-panel [data-pane='root'] .dock-item.is-branch[data-dock-menu-pane-param='toc']", "Contents"
+    assert_select ".reader-actions-panel [data-pane='root'] a.dock-head", count: 0
+    assert_select ".reader-actions-panel [data-pane='toc'][hidden] a.dock-head", "The Mission of John the Baptist"
     refute_match(/\A\(/, isa.text.strip)
     refute_match(/\)\z/, isa.text.strip)
     replies = []
@@ -249,6 +264,10 @@ class ReaderControllerTest < ActionDispatch::IntegrationTest
     assert_select "[data-face-pref]", count: 0
     assert_select "button", text: "Deca", count: 0
     assert_select %(script[src="https://cdn.usefathom.com/script.js"][data-site="EMYGRIAR"][defer]), count: 1
+    assert_select ".reader-dock-panel [data-pane='root'] .dock-item.is-branch[data-dock-menu-pane-param='toc']", "Contents"
+    assert_select ".reader-dock-panel [data-pane='root'] a.dock-head", count: 0
+    assert_select ".reader-dock-panel [data-pane='toc'][hidden] a.dock-head"
+    assert_operator css_select(".reader-dock-panel [data-pane='toc'] a.dock-head").size, :>=, 2
   end
 
   test "Mark 5:9 attribution stays in the text column after a new p" do
@@ -475,6 +494,9 @@ class ReaderControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_select ".reader-chrome nav.trail-inline a.trail-chip[href='/jhn.3.16']", "John 3:16"
     assert_select "nav.trail-inline a.trail-chip[href='/jhn.1']", "John 1"
+    assert_select "[data-pane='root'] .dock-recent a.dock-item[href='/jhn.3.16']", "John 3:16"
+    assert_select "[data-pane='root'] .dock-recent a.dock-item[href='/jhn.1']", "John 1"
+    assert_select "[data-pane='toc'] .dock-recent", count: 0
     assert_select ".dock-recent a.dock-item[href='/jhn.3.16']", "John 3:16"
     assert_select ".dock-recent a.dock-item[href='/jhn.1']", "John 1"
     assert_select "nav.trail-inline a[href='/jhn.2']", count: 0
@@ -487,6 +509,8 @@ class ReaderControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_select "nav.trail-inline", count: 0
     assert_select ".trail-icon", count: 0
+    assert_select ".dock-recent", count: 0
+    assert_select "[data-pane='root'] .dock-item.is-branch[data-dock-menu-pane-param='toc']", "Contents"
   end
 
   test "verse outliner renders wiki without absorbing markers" do

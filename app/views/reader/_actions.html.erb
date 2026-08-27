@@ -1,29 +1,8 @@
+<% include_recent = local_assigns.fetch(:include_recent, false) %>
+<% include_refs = local_assigns.fetch(:include_refs, true) %>
+<% show_outline = include_refs && @section_outline.present? %>
+
 <div class="dock-pane" data-dock-menu-target="pane" data-pane="root">
-  <% include_recent = local_assigns.fetch(:include_recent, false) %>
-  <% include_refs = local_assigns.fetch(:include_refs, true) %>
-  <% if include_refs && @section_outline.present? %>
-    <nav class="dock-outline" aria-label="Chapter outline">
-      <% @section_outline.each do |section| %>
-        <div class="dock-outline-item<%= " is-sub" if section[:marker] == "s2" %>">
-          <a
-            class="dock-item dock-head"
-            href="#<%= section[:id] %>"
-            data-turbo="false"
-            data-action="click->reader#jumpSection"
-          ><%= section[:heading] %></a>
-          <% if section[:refs].any? %>
-            <nav class="dock-refs" aria-label="<%= section[:heading] %>">
-              <% section[:refs].each do |ref| %>
-                <% next unless ref[:passage] %>
-                <%= link_to ref[:text], xref_read_path(ref[:passage]), class: "dock-item" %>
-              <% end %>
-            </nav>
-          <% end %>
-        </div>
-      <% end %>
-    </nav>
-    <hr class="dock-sep">
-  <% end %>
   <% if include_recent && @trail.any? %>
     <nav class="dock-recent" aria-label="Recent passages">
       <% @trail.each do |passage| %>
@@ -33,6 +12,19 @@
         <% end %>
       <% end %>
     </nav>
+    <hr class="dock-sep">
+  <% end %>
+  <% if show_outline %>
+    <button
+      type="button"
+      class="dock-item is-branch"
+      data-action="click->dock-menu#show"
+      data-dock-menu-pane-param="toc"
+    >
+      <%= ph_icon("list-dashes") %>
+      <span>Contents</span>
+      <%= ph_icon("caret-right") %>
+    </button>
     <hr class="dock-sep">
   <% end %>
   <div class="dock-toggles">
@@ -61,3 +53,38 @@
     <%= render "shared/theme_seg" %>
   </div>
 </div>
+
+<% if show_outline %>
+  <div class="dock-pane" data-dock-menu-target="pane" data-pane="toc" hidden>
+    <button
+      type="button"
+      class="dock-item is-back"
+      data-action="click->dock-menu#show"
+      data-dock-menu-pane-param="root"
+    >
+      <%= ph_icon("caret-left") %>
+      <span>Contents</span>
+    </button>
+    <hr class="dock-sep">
+    <nav class="dock-outline" aria-label="Chapter outline">
+      <% @section_outline.each do |section| %>
+        <div class="dock-outline-item<%= " is-sub" if section[:marker] == "s2" %>">
+          <a
+            class="dock-item dock-head"
+            href="#<%= section[:id] %>"
+            data-turbo="false"
+            data-action="click->reader#jumpSection"
+          ><%= section[:heading] %></a>
+          <% if section[:refs].any? %>
+            <nav class="dock-refs" aria-label="<%= section[:heading] %>">
+              <% section[:refs].each do |ref| %>
+                <% next unless ref[:passage] %>
+                <%= link_to ref[:text], xref_read_path(ref[:passage]), class: "dock-item" %>
+              <% end %>
+            </nav>
+          <% end %>
+        </div>
+      <% end %>
+    </nav>
+  </div>
+<% end %>
