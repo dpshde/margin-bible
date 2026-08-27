@@ -72,6 +72,7 @@ function fakeTitle() {
   const html = chapterCellsHtml("JHN", 3, { currentBook: "JHN", currentChapter: 1 })
   assert.match(html, /href="\/jhn\.1"/)
   assert.match(html, /href="\/jhn\.3"/)
+  assert.match(html, /data-action="click->reader#pickChapter"/)
   assert.equal((html.match(/chapter-grid-cell/g) || []).length, 3)
 }
 

@@ -143,7 +143,8 @@
         <% 1.upto(Margin::Books.chapter_count(@chapter.book)) do |n| %>
           <%= link_to n, read_path(Margin::Passage.new(book: @chapter.book, chapter: n).slug),
                 class: "chapter-grid-cell#{" is-current" if n == @chapter.chapter}",
-                aria: { current: (n == @chapter.chapter ? "page" : nil) } %>
+                aria: { current: (n == @chapter.chapter ? "page" : nil) },
+                data: { action: "click->reader#pickChapter" } %>
         <% end %>
       </div>
     </div>

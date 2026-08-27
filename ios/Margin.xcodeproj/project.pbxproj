@@ -13,6 +13,7 @@
 		A10000000000000000000004 /* path-configuration.json in Resources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000004 /* path-configuration.json */; };
 		A10000000000000000000005 /* HotwireNative in Frameworks */ = {isa = PBXBuildFile; productRef = A40000000000000000000001 /* HotwireNative */; };
 		A10000000000000000000006 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000007 /* Assets.xcassets */; };
+		A10000000000000000000007 /* HapticComponent.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000008 /* HapticComponent.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -23,6 +24,7 @@
 		A20000000000000000000005 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		A20000000000000000000006 /* Margin.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Margin.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		A20000000000000000000007 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		A20000000000000000000008 /* HapticComponent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HapticComponent.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -51,6 +53,7 @@
 				A20000000000000000000001 /* AppDelegate.swift */,
 				A20000000000000000000002 /* SceneDelegate.swift */,
 				A20000000000000000000003 /* Site.swift */,
+				A20000000000000000000008 /* HapticComponent.swift */,
 				A20000000000000000000004 /* path-configuration.json */,
 				A20000000000000000000005 /* Info.plist */,
 				A20000000000000000000007 /* Assets.xcassets */,
@@ -145,6 +148,7 @@
 				A10000000000000000000001 /* AppDelegate.swift in Sources */,
 				A10000000000000000000002 /* SceneDelegate.swift in Sources */,
 				A10000000000000000000003 /* Site.swift in Sources */,
+				A10000000000000000000007 /* HapticComponent.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

@@ -28,6 +28,7 @@ class ReaderControllerTest < ActionDispatch::IntegrationTest
 
     get read_path("jhn.1")
     assert_response :success
+    assert_select "body[data-controller~=haptic]"
     assert_select ".vtext", /In the beginning was the Word/
     assert_select "h2.section-head", "The Beginning"
     assert_select %(script[src="https://cdn.usefathom.com/script.js"][data-site="EMYGRIAR"][defer]), count: 1
@@ -268,6 +269,13 @@ class ReaderControllerTest < ActionDispatch::IntegrationTest
     assert_select ".reader-dock-panel [data-pane='root'] a.dock-head", count: 0
     assert_select ".reader-dock-panel [data-pane='toc'][hidden] a.dock-head"
     assert_operator css_select(".reader-dock-panel [data-pane='toc'] a.dock-head").size, :>=, 2
+    moses = css_select(".pub-r").find { |node| node.text.include?("Exodus 2") }
+    assert moses, "expected the Moses heading refs"
+    assert_match(/Exodus 2–15; Acts 7:20–22/, moses.text)
+    refute_includes moses.text, ";Acts"
+    assert_match(%r{Exodus 2–15</(?:a|span)>; <a class="pub-ref"}, response.body)
+    assert_select ".reader-dock-panel [data-pane='toc'] .dock-item", "Acts 7:20–22"
+    refute_includes css_select(".reader-dock-panel [data-pane='toc'] .dock-item").map(&:text).join, "Exodus 2–15;Acts"
   end
 
   test "Mark 5:9 attribution stays in the text column after a new p" do
@@ -296,7 +304,7 @@ class ReaderControllerTest < ActionDispatch::IntegrationTest
       assert_select ".chapter-grid-books button.chapter-grid-cell[data-book='REV']", "REV"
       assert_select ".chapter-grid-books button.chapter-grid-cell.is-current[data-book='JHN']", "JHN"
       assert_select "[data-reader-target='chapterCells'] a.chapter-grid-cell", 21
-      assert_select "a.chapter-grid-cell.is-current[href='/jhn.1'][aria-current='page']", "1"
+      assert_select "a.chapter-grid-cell.is-current[href='/jhn.1'][aria-current='page'][data-action='click->reader#pickChapter']", "1"
       assert_select "a.chapter-grid-cell[href='/jhn.2']", "2"
       assert_select "a.chapter-grid-cell[href='/jhn.21']", "21"
       assert_select "a.chapter-grid-cell[href='/gen.1']", count: 0

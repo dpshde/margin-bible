@@ -17,7 +17,7 @@ export function chapterCellHtml(book, n, { currentBook, currentChapter } = {}) {
   const current = book === currentBook && Number(n) === Number(currentChapter)
   const attrs = current ? " is-current" : ""
   const aria = current ? ' aria-current="page"' : ""
-  return `<a href="${chapterPath(book, n)}" class="chapter-grid-cell${attrs}"${aria}>${n}</a>`
+  return `<a href="${chapterPath(book, n)}" class="chapter-grid-cell${attrs}"${aria} data-action="click->reader#pickChapter">${n}</a>`
 }
 
 export function chapterCellsHtml(book, count, current = {}) {

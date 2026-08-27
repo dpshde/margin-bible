@@ -136,19 +136,31 @@ module Margin
       end
     end
 
-    # Separators ("; ") stay breakable. A string that is itself a citation
-    # (no USJ ref child) still becomes one nowrap unit. Several citations in
-    # one string wrap only at the semicolon.
+    # Separators stay breakable. BSB often writes ";" with no following
+    # space; always emit "; " so citations do not glue together. A string
+    # that is itself a citation (no USJ ref child) still becomes one nowrap
+    # unit. Several citations in one string wrap only at the semicolon.
     def emit_ref_string(text)
       return if text.nil?
 
       if text.include?(";") && citation_string?(text)
-        text.split(/(; )/).each { |part| emit_ref_or_punct(part) }
+        parts = text.split(/;\s*/)
+        last = parts.size - 1
+        parts.each_with_index do |part, i|
+          emit_ref_or_punct(part)
+          emit_ref_separator if i < last && citation_string?(part)
+        end
       elsif citation_string?(text)
         emit_ref_or_punct(text)
+      elsif text.include?(";")
+        emit_ref_separator
       else
         @buf << h(text)
       end
+    end
+
+    def emit_ref_separator
+      @buf << "; "
     end
 
     def emit_ref_or_punct(part)
@@ -282,7 +294,13 @@ module Margin
         )
         hosts.last.add_child(trays) if trays.present?
       end
-      doc.to_html.html_safe
+      restore_ref_separator_spaces(doc.to_html).html_safe
+    end
+
+    # HTML4 fragment serialization drops the trailing space in "; ".
+    # Put it back only between citation units so verses are untouched.
+    def restore_ref_separator_spaces(html)
+      html.gsub(%r{(</(?:a|span)>);(<a |<span )}, '\1; \2')
     end
 
     def verse_numbers(doc)
