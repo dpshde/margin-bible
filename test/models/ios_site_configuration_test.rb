@@ -79,9 +79,9 @@ class IosSiteConfigurationTest < ActiveSupport::TestCase
     refute(contents["images"].any? { |image| image["idiom"] == "ipad" })
   end
 
-  test "version is 1.0 (2) without changing hosts, team, or bundle id" do
-    assert_includes pbxproj, "CURRENT_PROJECT_VERSION = 2;"
-    refute_includes pbxproj, "CURRENT_PROJECT_VERSION = 1;"
+  test "version is 1.0 (3) without changing hosts, team, or bundle id" do
+    assert_includes pbxproj, "CURRENT_PROJECT_VERSION = 3;"
+    refute_includes pbxproj, "CURRENT_PROJECT_VERSION = 2;"
     assert_includes pbxproj, "MARKETING_VERSION = 1.0;"
     assert_includes pbxproj, %(MARGIN_BASE_URL = "#{LOCAL_HOST}")
     assert_includes pbxproj, %(MARGIN_BASE_URL = "#{PRODUCTION_HOST}")
