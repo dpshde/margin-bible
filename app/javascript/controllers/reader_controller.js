@@ -42,6 +42,7 @@ import {
   notesForVerse,
   passageUrl
 } from "../lib/share-text"
+import { playHaptic } from "../lib/haptics"
 
 export default class extends Controller {
   static targets = ["tray", "chapterTray", "rangeTemplate", "title", "numsToggle", "copyButton", "quietToggle", "chapterGrid", "gridHeading", "bookList", "chapterCells"]
@@ -200,11 +201,13 @@ export default class extends Controller {
       return
     }
     if (decision.type === "range") {
+      playHaptic("selection")
       this.selection = selectionFromDrag(decision.start, decision.end)
       this.applySelection({ replaceUrl: true, focus: true })
       return
     }
     if (decision.type !== "tap" || start == null) return
+    playHaptic("nudge")
     if (this.verseEl(start)?.classList.contains("is-open")) {
       this.selection = null
     } else {
@@ -219,6 +222,7 @@ export default class extends Controller {
       event.preventDefault()
       return
     }
+    playHaptic("nudge")
     const verse = event.currentTarget.closest("[data-verse]")
     if (!verse) return
     const n = Number(verse.dataset.verse)
@@ -384,6 +388,7 @@ export default class extends Controller {
     if (!sameChapterSlug(parsed, this.chapterSlugValue)) return
     event.preventDefault()
     event.stopPropagation()
+    playHaptic("nudge")
     this.applyXref({ start: parsed.verseStart, end: parsed.verseEnd }, { replaceUrl: true })
     this.verseEl(parsed.verseStart)?.scrollIntoView({ block: "center" })
   }
@@ -440,6 +445,7 @@ export default class extends Controller {
   }
 
   toggleQuiet() {
+    playHaptic("nudge")
     this.applyQuiet(!this.element.classList.contains("is-quiet"))
   }
 
@@ -471,6 +477,7 @@ export default class extends Controller {
   }
 
   toggleChapterGrid() {
+    playHaptic("nudge")
     const open = toggleChapterGridOpen(
       this.hasChapterGridTarget ? this.chapterGridTarget : null,
       this.hasTitleTarget ? this.titleTarget : null
@@ -495,6 +502,7 @@ export default class extends Controller {
   }
 
   toggleBookPicker() {
+    playHaptic("nudge")
     if (!this.hasBookListTarget) return
     if (!this.bookListTarget.hidden) {
       this.showChapterPane(this.gridBook || this.bookValue)
@@ -504,9 +512,14 @@ export default class extends Controller {
   }
 
   pickGridBook(event) {
+    playHaptic("nudge")
     const book = event.currentTarget.dataset.book
     if (!book) return
     this.showChapterPane(book)
+  }
+
+  pickChapter() {
+    playHaptic("nudge")
   }
 
   showBookPane() {
@@ -541,6 +554,7 @@ export default class extends Controller {
   }
 
   toggleChapter() {
+    playHaptic("nudge")
     if (!this.hasChapterTrayTarget) return
     if (this.chapterTrayTarget.hidden) this.openChapter()
     else this.closeChapter()
@@ -575,6 +589,7 @@ export default class extends Controller {
   }
 
   toggleExpand() {
+    playHaptic("nudge")
     const expanding = !this.element.classList.contains("is-expanded")
     this.element.classList.toggle("is-expanded", expanding)
     this.collapsedNotes = new Set()
@@ -586,6 +601,7 @@ export default class extends Controller {
   }
 
   toggleNums() {
+    playHaptic("nudge")
     this.applyNums(!this.element.classList.contains("is-nums-hidden"))
   }
 
@@ -623,6 +639,7 @@ export default class extends Controller {
     const text = formatChapterShare({ label, chapterNote, verses, bullets: true, notesOnly: true })
     const html = formatChapterHtml({ label, chapterNote, verses, notesOnly: true })
     const ok = await writeClipboard(text, html)
+    if (ok) playHaptic("success")
     markCopied(button, ok)
   }
 
@@ -639,6 +656,7 @@ export default class extends Controller {
     const text = formatNoteShare({ label, blocks })
     const html = formatNoteHtml({ label, blocks })
     const ok = await writeClipboard(text, html)
+    if (ok) playHaptic("success")
     markCopied(button, ok)
   }
 
@@ -657,6 +675,7 @@ export default class extends Controller {
         if (error?.name === "AbortError") return
       }
     }
+    if (copied) playHaptic("success")
     markCopied(button, copied)
   }
 

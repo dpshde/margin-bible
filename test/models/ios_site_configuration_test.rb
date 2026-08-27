@@ -79,6 +79,14 @@ class IosSiteConfigurationTest < ActiveSupport::TestCase
     refute(contents["images"].any? { |image| image["idiom"] == "ipad" })
   end
 
+  test "haptic bridge component is wired without bumping the archive version" do
+    delegate = Rails.root.join("ios/Margin/AppDelegate.swift").read
+    assert_includes delegate, "HapticComponent.self"
+    assert_includes pbxproj, "HapticComponent.swift in Sources"
+    assert_includes pbxproj, "CURRENT_PROJECT_VERSION = 3;"
+    refute_includes pbxproj, "CURRENT_PROJECT_VERSION = 4;"
+  end
+
   test "version is 1.0 (3) without changing hosts, team, or bundle id" do
     assert_includes pbxproj, "CURRENT_PROJECT_VERSION = 3;"
     refute_includes pbxproj, "CURRENT_PROJECT_VERSION = 2;"

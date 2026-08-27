@@ -1,6 +1,7 @@
 import { application } from "./application"
 import ChromeController from "./chrome_controller"
 import DockMenuController from "./dock_menu_controller"
+import HapticController from "./haptic_controller"
 import InboxController from "./inbox_controller"
 import OutlinerController from "./outliner_controller"
 import ReaderController from "./reader_controller"
@@ -11,6 +12,7 @@ import FaceController from "./face_controller"
 
 application.register("chrome", ChromeController)
 application.register("dock-menu", DockMenuController)
+application.register("haptic", HapticController)
 application.register("inbox", InboxController)
 application.register("outliner", OutlinerController)
 application.register("reader", ReaderController)

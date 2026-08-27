@@ -195,6 +195,27 @@ class UsjHtmlTest < ActionView::TestCase
     refute_match(/\)\z/, doc.at_css(".pub-r").text.strip)
   end
 
+  test "a glued semicolon still becomes a spaced nowrap pair" do
+    html = render_refs("Exodus 2–15;Acts 7:20–22")
+
+    doc = Nokogiri::HTML.fragment(html)
+    refs = doc.css(".pub-ref")
+    assert_equal [ "Exodus 2–15", "Acts 7:20–22" ], refs.map(&:text)
+    assert_equal 2, refs.size
+    refs.each { |ref| assert_includes %w[a span], ref.name }
+    assert_match(/Exodus 2–15; Acts 7:20–22/, doc.at_css(".pub-r").text)
+    refute_includes doc.at_css(".pub-r").text, ";Acts"
+  end
+
+  test "Hebrews 11 Moses line keeps a space after a bare semicolon" do
+    html = render_refs("(", { "type" => "ref", "content" => [ "Exodus 2–15" ] }, ";", { "type" => "ref", "loc" => "ACT 7:20-22", "content" => [ "Acts 7:20–22" ] }, ")")
+
+    doc = Nokogiri::HTML.fragment(html)
+    refs = doc.css("a.pub-ref")
+    assert_equal [ "Exodus 2–15", "Acts 7:20–22" ], refs.map(&:text)
+    assert_match(/Exodus 2–15; Acts 7:20–22/, doc.at_css(".pub-r").text)
+  end
+
   test "parallel ref groups follow section headings" do
     groups = Margin::Usj.parallel_ref_groups(Margin::Usj.chapter_nodes("GEN", 1))
     first = groups.first
@@ -202,6 +223,16 @@ class UsjHtmlTest < ActionView::TestCase
     texts = first[:refs].map { |ref| ref[:text] }
     assert texts.any? { |text| text.include?("John 1") }
     assert first[:refs].all? { |ref| ref[:passage] }
+  end
+
+  test "parallel ref groups split a glued semicolon into two labels" do
+    groups = Margin::Usj.parallel_ref_groups([
+      { "type" => "para", "marker" => "s1", "content" => [ "The Faith of Moses" ] },
+      { "type" => "para", "marker" => "r", "content" => [ "Exodus 2–15;Acts 7:20–22" ] }
+    ])
+    texts = groups.first[:refs].map { |ref| ref[:text] }
+    assert_equal [ "Exodus 2–15", "Acts 7:20–22" ], texts
+    assert groups.first[:refs].all? { |ref| ref[:passage] }
   end
 
   test "section outline lists every heading and anchors the HTML" do

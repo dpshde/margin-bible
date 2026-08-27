@@ -1,17 +1,22 @@
 import { Controller } from "@hotwired/stimulus"
 import { loadPack } from "../lib/guest-pack"
 import { passkeyPrimaryMode } from "../lib/passkey-hint"
+import { playHaptic } from "../lib/haptics"
 
 export default class extends Controller {
   static targets = [ "use", "create", "register" ]
 
   connect() {
     this.element.addEventListener("passkey:success", this.attachPack)
+    this.element.addEventListener("passkey:error", this.onPasskeyError)
+    this.element.addEventListener("click", this.onActivate)
     this.applyMode(passkeyPrimaryMode())
   }
 
   disconnect() {
     this.element.removeEventListener("passkey:success", this.attachPack)
+    this.element.removeEventListener("passkey:error", this.onPasskeyError)
+    this.element.removeEventListener("click", this.onActivate)
   }
 
   applyMode(_mode = "use") {
@@ -22,6 +27,17 @@ export default class extends Controller {
   startRegistration() {
     if (!this.hasRegisterTarget) return
     this.registerTarget.querySelector("[data-passkey='register']")?.click()
+  }
+
+  onActivate = (event) => {
+    const target = event.target?.closest?.(".primary, [data-passkey]")
+    if (!target || !this.element.contains(target)) return
+    playHaptic("nudge")
+  }
+
+  onPasskeyError = (event) => {
+    if (event.detail?.type === "cancelled") return
+    playHaptic("error")
   }
 
   attachPack = (event) => {

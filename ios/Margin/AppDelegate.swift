@@ -13,7 +13,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             .file(local),
             .server(remote)
         ])
-        // Bridge Components stay reserved for the header menu / share sheet.
+        Hotwire.registerBridgeComponents([
+            HapticComponent.self
+        ])
         return true
     }
 }

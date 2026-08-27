@@ -2,6 +2,7 @@ import { Controller } from "@hotwired/stimulus"
 import { parseToResolverPath, tryParseAnyPassage } from "grab-bcv"
 import { jumpShortcutAction } from "../lib/jump-focus"
 import { canGo, insertTextFor, jumpState } from "../lib/jump-suggest"
+import { playHaptic } from "../lib/haptics"
 
 export default class extends Controller {
   static targets = ["input", "list"]
@@ -85,6 +86,7 @@ export default class extends Controller {
   }
 
   applyHit(hit) {
+    playHaptic("nudge")
     const next = insertTextFor(hit)
     const current = this.inputTarget.value
     if (this.sameEntry(current, next) && canGo(current)) {

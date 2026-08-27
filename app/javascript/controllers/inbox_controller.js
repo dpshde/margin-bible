@@ -10,12 +10,15 @@ import {
   shouldUseGuestPack
 } from "../lib/guest-pack"
 import { hrefForSlug, slugLabel } from "../lib/passage-span"
+import { playHaptic } from "../lib/haptics"
 
 export default class extends Controller {
   static targets = ["continue", "list"]
   static values = { signedIn: Boolean, importUrl: String }
 
   connect() {
+    this.onActivate = this.onActivate.bind(this)
+    this.element.addEventListener("click", this.onActivate)
     if (this.signedInValue) {
       this.importGuestPack()
       return
@@ -24,6 +27,16 @@ export default class extends Controller {
     const pack = loadPack()
     this.renderContinue(pack)
     if (Object.keys(pack.notes || {}).length) this.renderList(pack)
+  }
+
+  disconnect() {
+    this.element.removeEventListener("click", this.onActivate)
+  }
+
+  onActivate(event) {
+    const target = event.target?.closest?.(".inbox-card, .inbox-book-summary")
+    if (!target || !this.element.contains(target)) return
+    playHaptic("nudge")
   }
 
   async importGuestPack() {

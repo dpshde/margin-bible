@@ -1,5 +1,6 @@
 import { Controller } from "@hotwired/stimulus"
 import { applyTheme, loadTheme } from "../lib/theme"
+import { playHaptic } from "../lib/haptics"
 
 export default class extends Controller {
   connect() {
@@ -17,6 +18,7 @@ export default class extends Controller {
   }
 
   choose(event) {
+    playHaptic("nudge")
     const pref = event.currentTarget.getAttribute("data-theme-pref")
     applyTheme(pref)
     window.dispatchEvent(new Event("margin:theme"))

@@ -5,9 +5,11 @@
     "build": "esbuild app/javascript/*.* --bundle --sourcemap --format=esm --outdir=app/assets/builds --public-path=/assets"
   },
   "dependencies": {
+    "@hotwired/hotwire-native-bridge": "^1.2.2",
     "@hotwired/stimulus": "^3.2.2",
     "@hotwired/turbo-rails": "^8.0.23",
-    "grab-bcv": "^0.1.7"
+    "grab-bcv": "^0.1.7",
+    "web-haptics": "^0.0.6"
   },
   "devDependencies": {
     "esbuild": "^0.28.2"
