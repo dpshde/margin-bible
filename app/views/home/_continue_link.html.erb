@@ -1,0 +1,8 @@
+<% passage = local_assigns.fetch(:passage) %>
+<%= link_to read_path(passage.slug),
+      class: "icon-btn inbox-continue-link",
+      title: passage.label,
+      "aria-label": "Continue reading",
+      data: { inbox_target: "continue", action: "click->inbox#continueTap" } do %>
+  <%= ph_icon("book", size: 20) %>
+<% end %>

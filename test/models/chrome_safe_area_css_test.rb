@@ -38,6 +38,8 @@ class ChromeSafeAreaCssTest < ActiveSupport::TestCase
   test "inbox, sign-in, and reader share the native chrome inset instead of a one-page pad" do
     refute_match(/\.inbox-main\s*\{[^}]*padding-top:\s*\d+px/, css)
     refute_match(/\.inbox-empty\s*\{[^}]*padding-top:/, css)
+    assert_match(/\.inbox-native-continue\s*\{/, css)
+    refute_match(/html\.hotwire-native \.inbox-native-continue\s*\{[^}]*padding-top:\s*var\(--chrome-top\)/, css)
     inbox = css[/\n\.inbox-main\s*\{[^}]+\}/]
     assert inbox
     assert_match(/padding:\s*\.75rem 1\.1rem 6rem/, inbox)
