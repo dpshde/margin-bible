@@ -93,6 +93,18 @@ function blocks(text, id = "b_aa01") {
 
 {
   const store = storage()
+  upsertNote("jhn.1.1", [{ id: "b_empty", indent: 0, text: "" }], {
+    storage: store,
+    attachments: [ { kind: "xref", slug: "jhn.1.6" } ]
+  })
+  const note = loadPack(store).notes["jhn.1.1"]
+  assert.equal(note.attachments[0].slug, "jhn.1.6")
+  upsertNote("jhn.1.1", [{ id: "b_empty", indent: 0, text: "" }], { storage: store, attachments: [] })
+  assert.equal(loadPack(store).notes["jhn.1.1"], undefined)
+}
+
+{
+  const store = storage()
   const first = upsertNote("jhn.1.16", blocks("Same."), { storage: store })
   const before = store.getItem(GUEST_PACK_KEY)
   const second = upsertNote("jhn.1.16", blocks("Same."), { storage: store, now: new Date("2026-08-26T00:00:00.000Z") })
@@ -169,6 +181,20 @@ function blocks(text, id = "b_aa01") {
   setNoteBookmarked("jhn.1.1", false, store)
   const unpinned = inboxSections(loadPack(store), { now: new Date("2026-08-25T20:00:00.000Z") })
   assert.deepEqual(unpinned.map((section) => section.label), ["Today", "Tuesday · Aug 4"])
+}
+
+{
+  const store = storage()
+  const now = new Date("2026-08-25T12:00:00.000Z")
+  setNoteBookmarked("jhn.1.3", true, store, now)
+  const marked = loadPack(store).notes["jhn.1.3"]
+  assert.equal(marked.bookmarked, true)
+  assert.equal(emptyContent(marked.blocks), true)
+  const sections = inboxSections(loadPack(store), { now })
+  assert.equal(sections[0].kind, "bookmarks")
+  assert.deepEqual(sections[0].notes.map((note) => note.slug), ["jhn.1.3"])
+  setNoteBookmarked("jhn.1.3", false, store, now)
+  assert.equal(loadPack(store).notes["jhn.1.3"], undefined)
 }
 
 {

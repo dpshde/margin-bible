@@ -48,4 +48,17 @@ class PassageTest < ActiveSupport::TestCase
     refute p.covers_verse?(2)
     refute p.covers_verse?(8)
   end
+
+  test "scan finds human and OSIS refs without absorbing wiki or code" do
+    hits = Margin::Passage.scan("See John 3:16 and jhn.1.6 plus [[Romans 8:28]] and `John 1`")
+    assert_equal [ "John 3:16", "jhn.1.6" ], hits.map { |hit| hit[:text] }
+    assert_equal [ "jhn.3.16", "jhn.1.6" ], hits.map { |hit| hit[:passage].slug }
+    assert_equal 4, hits[0][:index]
+  end
+
+  test "scan keeps typed en-dash ranges and skips a bare book name" do
+    hits = Margin::Passage.scan("John 3:16–18 and John wait")
+    assert_equal [ "jhn.3.16-18" ], hits.map { |hit| hit[:passage].slug }
+    assert_equal "John 3:16–18", hits[0][:text]
+  end
 end

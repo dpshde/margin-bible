@@ -61,7 +61,10 @@ export function versePointerDecision({
   dragging
 }) {
   const changedVerse = startVerse != null && endVerse != null && endVerse !== startVerse
-  if (dragging && changedVerse) {
+  // A drag that lands on another verse is a range even if pointermove never
+  // flipped `dragging` (throttled moves, pointercancel, or the first sample
+  // on pointerup). Horizontal flicks without that drag still swipe chapters.
+  if (changedVerse && (dragging || (!isTapGesture(dx, dy) && !isHorizontalIntent(dx, dy)))) {
     return { type: "range", start: startVerse, end: endVerse }
   }
   const swipe = chapterSwipe({

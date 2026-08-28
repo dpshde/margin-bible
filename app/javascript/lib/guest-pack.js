@@ -1,5 +1,6 @@
 import { bookName } from "./book-names.js"
 import { belongsToChapter, parseSlug } from "./passage-span.js"
+import { noteIsEmpty, normalizeAttachments } from "./note-attachments.js"
 
 export const GUEST_PACK_KEY = "margin.guest"
 export const GUEST_MIRROR_KEY = "margin.guest.mirrored"
@@ -52,7 +53,7 @@ export function shouldUseGuestPack(signedIn) {
 }
 
 export function packHasImportableNotes(pack) {
-  return Object.values(pack?.notes || {}).some((note) => !emptyContent(note?.blocks))
+  return Object.values(pack?.notes || {}).some((note) => keepNote(note))
 }
 
 export function clearGuestNotes(storage = defaultStorage()) {
@@ -144,24 +145,29 @@ export function writePack(pack, storage = defaultStorage()) {
   return pack
 }
 
-export function applyNoteToPack(pack, slug, blocks, now = new Date()) {
+export function applyNoteToPack(pack, slug, blocks, now = new Date(), extras = {}) {
   const key = String(slug || "").trim()
   if (!key) return false
   const normalized = normalizeBlocks(blocks)
-  if (emptyContent(normalized)) {
-    if (!pack.notes[key]) return false
+  const existing = pack.notes[key]
+  const attachments = extras.attachments !== undefined
+    ? normalizeAttachments(extras.attachments)
+    : normalizeAttachments(existing?.attachments)
+  const bookmarked = extras.bookmarked !== undefined ? Boolean(extras.bookmarked) : existing?.bookmarked === true
+  if (noteIsEmpty(normalized, attachments) && !bookmarked) {
+    if (!existing) return false
     delete pack.notes[key]
     return true
   }
-  const existing = pack.notes[key]
-  if (existing && sameBlocks(existing.blocks, normalized)) return false
+  if (existing && sameBlocks(existing.blocks, normalized) && sameAttachments(existing.attachments, attachments) && existing.bookmarked === bookmarked) return false
   const iso = now.toISOString()
   pack.notes[key] = {
     slug: key,
     blocks: normalized,
+    attachments,
     created_at: existing?.created_at || iso,
     updated_at: iso,
-    bookmarked: existing?.bookmarked === true
+    bookmarked
   }
   return true
 }
@@ -169,19 +175,34 @@ export function applyNoteToPack(pack, slug, blocks, now = new Date()) {
 export function setNoteBookmarked(slug, bookmarked, storage = defaultStorage(), now = new Date()) {
   const key = String(slug || "").trim()
   const pack = loadPack(storage)
-  const note = pack.notes[key]
-  if (!note || emptyContent(note.blocks)) return pack
+  if (!key) return pack
   const next = Boolean(bookmarked)
-  if (note.bookmarked === next) return pack
-  note.bookmarked = next
-  note.updated_at = now.toISOString()
+  const existing = pack.notes[key]
+  if (!existing) {
+    if (!next) return pack
+    const iso = now.toISOString()
+    pack.notes[key] = {
+      slug: key,
+      blocks: normalizeBlocks([ { id: "b_empty", indent: 0, text: "", bullet: true } ]),
+      attachments: [],
+      bookmarked: true,
+      created_at: iso,
+      updated_at: iso
+    }
+    writePack(pack, storage)
+    return pack
+  }
+  if (existing.bookmarked === next) return pack
+  existing.bookmarked = next
+  existing.updated_at = now.toISOString()
+  if (!next && noteIsEmpty(existing.blocks, existing.attachments)) delete pack.notes[key]
   writePack(pack, storage)
   return pack
 }
 
-export function upsertNote(slug, blocks, { storage = defaultStorage(), now = new Date() } = {}) {
+export function upsertNote(slug, blocks, { storage = defaultStorage(), now = new Date(), attachments } = {}) {
   const pack = loadPack(storage)
-  if (applyNoteToPack(pack, slug, blocks, now)) writePack(pack, storage)
+  if (applyNoteToPack(pack, slug, blocks, now, { attachments })) writePack(pack, storage)
   return pack
 }
 
@@ -236,7 +257,7 @@ export function dayLabel(date, today) {
 
 export function inboxSections(pack, { now = new Date() } = {}) {
   const notes = Object.values(pack?.notes || {})
-    .filter((note) => !emptyContent(note.blocks))
+    .filter((note) => keepNote(note))
   const bookmarked = notes
     .filter((note) => note.bookmarked)
     .sort((left, right) => utcDate(right.updated_at || right.created_at) - utcDate(left.updated_at || left.created_at))
@@ -298,4 +319,12 @@ function dateKey(date) {
 
 function sameBlocks(left, right) {
   return JSON.stringify(normalizeBlocks(left)) === JSON.stringify(normalizeBlocks(right))
+}
+
+function sameAttachments(left, right) {
+  return JSON.stringify(normalizeAttachments(left)) === JSON.stringify(normalizeAttachments(right))
+}
+
+function keepNote(note) {
+  return Boolean(note?.bookmarked) || !noteIsEmpty(note?.blocks, note?.attachments)
 }

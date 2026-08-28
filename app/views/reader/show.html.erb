@@ -190,4 +190,34 @@
     </nav>
   </main>
   <div class="reader-veil" aria-hidden="true"></div>
+  <dialog
+    class="att-drop"
+    data-reader-target="attDrop"
+    data-action="close->reader#onAttDropClose click->reader#attDropBackdrop"
+  >
+    <form method="dialog" class="att-drop-sheet" data-action="submit->reader#attSubmit:prevent">
+      <button type="submit" class="att-drop-close" value="cancel" aria-label="Close"><%= ph_icon("x", size: 16) %></button>
+      <div
+        class="att-drop-zone"
+        data-action="dragover->reader#attDragOver dragleave->reader#attDragLeave drop->reader#attDrop paste->reader#attPaste"
+      >
+        <p class="att-drop-check" data-reader-target="attCheck" hidden><%= ph_icon("check", size: 28) %></p>
+        <p class="att-drop-title" data-reader-target="attTitle">Drop a link. Or a passage.</p>
+        <p class="att-drop-sub" data-reader-target="attSub">Paste a URL, or type John 3:16. It stays on this note as a chip — not mixed into the outline.</p>
+        <label class="sr-only" for="att-drop-input">Link or passage</label>
+        <input
+          id="att-drop-input"
+          class="att-drop-input"
+          type="text"
+          autocomplete="off"
+          spellcheck="false"
+          placeholder="https://…  or  Romans 8:28"
+          data-reader-target="attInput"
+          data-action="keydown.enter->reader#attSubmit"
+        >
+        <button type="button" class="att-drop-add" data-reader-target="attAdd" data-action="click->reader#attSubmit">Attach</button>
+      </div>
+      <p class="att-drop-status" data-reader-target="attStatus" role="status" aria-live="polite"></p>
+    </form>
+  </dialog>
 </div>

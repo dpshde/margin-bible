@@ -140,6 +140,19 @@ class HomeControllerTest < ActionDispatch::IntegrationTest
     end
   end
 
+  test "a bookmarked verse with no body still lists in Bookmarks" do
+    get root_path
+    Library.last.notes.create!(
+      slug: "jhn.1.1", osis: "JHN.1.1", kind: "verse", book: "JHN", chapter: 1,
+      verse_start: 1, blocks: [ { "id" => "b_empty", "indent" => 0, "text" => "" } ],
+      bookmarked: true
+    )
+    get root_path
+    assert_select ".inbox-day.is-bookmarks", "Bookmarks"
+    assert_select ".inbox-card.is-bookmarked[href='/jhn.1.1']"
+    assert_select ".inbox-card-empty", "Bookmarked"
+  end
+
   test "signed-in inbox dumps notes so sign-out can snapshot the guest pack" do
     user = User.create!(email: "reader@example.com")
     claim_as(user)

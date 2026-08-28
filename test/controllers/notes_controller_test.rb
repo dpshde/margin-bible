@@ -75,6 +75,87 @@ class NotesControllerTest < ActionDispatch::IntegrationTest
     assert_nil Library.last.notes.find_by(slug: "jhn.1.1")
   end
 
+  test "attachments persist without body text and are not absorbed into blocks" do
+    patch notes_path, params: {
+      slug: "jhn.1.1",
+      text: "",
+      blocks: [ { id: "b_empty", indent: 0, text: "", bullet: true } ].to_json,
+      attachments: [
+        { kind: "xref", slug: "jhn.1.6", source: "manual" },
+        { kind: "url", url: "https://example.com/note" }
+      ].to_json
+    }
+    assert_response :success
+    note = Library.last.notes.find_by!(slug: "jhn.1.1")
+    assert_equal [ "xref", "url" ], note.attachments.map { |row| row["kind"] }
+    assert_equal "jhn.1.6", note.attachments[0]["slug"]
+    assert_equal "https://example.com/note", note.attachments[1]["url"]
+    assert note.blocks.none? { |block| block["text"].to_s.strip.present? }
+
+    patch notes_path, params: {
+      slug: "jhn.1.1",
+      text: "Inline thought.",
+      blocks: [ { id: "b_body", indent: 0, text: "Inline thought." } ].to_json
+    }
+    note.reload
+    assert_equal "Inline thought.", note.blocks[0]["text"]
+    assert_equal "jhn.1.6", note.attachments[0]["slug"]
+  end
+
+  test "parsed xrefs in the body are stored as attachments" do
+    patch notes_path, params: {
+      slug: "jhn.1.1",
+      text: "Cf. John 1:6",
+      blocks: [ { id: "b_body", indent: 0, text: "Cf. John 1:6" } ].to_json
+    }
+    note = Library.last.notes.find_by!(slug: "jhn.1.1")
+    assert_equal "Cf. John 1:6", note.blocks[0]["text"]
+    assert_equal [ "jhn.1.6" ], note.attachments.map { |row| row["slug"] }
+
+    patch notes_path, params: {
+      slug: "jhn.1.1",
+      text: "See John 1:7",
+      blocks: [ { id: "b_body", indent: 0, text: "See John 1:7" } ].to_json,
+      attachments: [
+        { kind: "xref", slug: "jhn.1.6" },
+        { kind: "xref", slug: "jhn.1.7" }
+      ].to_json
+    }
+    note.reload
+    assert_equal [ "jhn.1.7" ], note.attachments.map { |row| row["slug"] }
+
+    patch notes_path, params: {
+      slug: "jhn.1.1",
+      text: "No refs.",
+      blocks: [ { id: "b_body", indent: 0, text: "No refs." } ].to_json,
+      attachments: [ { kind: "xref", slug: "rom.8.28", source: "manual" } ].to_json
+    }
+    note.reload
+    assert_equal [ "rom.8.28" ], note.attachments.map { |row| row["slug"] }
+    assert_equal "manual", note.attachments[0]["source"]
+  end
+
+  test "a verse can be bookmarked with no note body" do
+    patch notes_path, params: {
+      slug: "jhn.1.1",
+      text: "",
+      blocks: [ { id: "b_empty", indent: 0, text: "", bullet: true } ].to_json,
+      bookmarked: "1"
+    }
+    assert_response :success
+    note = Library.last.notes.find_by!(slug: "jhn.1.1")
+    assert note.bookmarked?
+    assert note.blocks.none? { |block| block["text"].to_s.strip.present? }
+
+    patch notes_path, params: {
+      slug: "jhn.1.1",
+      text: "",
+      blocks: [ { id: "b_empty", indent: 0, text: "", bullet: true } ].to_json,
+      bookmarked: "0"
+    }
+    assert_nil Library.last.notes.find_by(slug: "jhn.1.1")
+  end
+
   test "bookmarking a note does not change its body" do
     patch notes_path, params: { slug: "jhn.1.1", text: "The Logos." }
     note = Library.last.notes.find_by!(slug: "jhn.1.1")

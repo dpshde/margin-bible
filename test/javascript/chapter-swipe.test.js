@@ -62,6 +62,15 @@ import {
   assert.equal(versePointerDecision({
     dx: 8, dy: 40, elapsedMs: 180, startVerse: 3, endVerse: 3, dragging: false
   }).type, "idle")
+  assert.deepEqual(versePointerDecision({
+    dx: 4, dy: 90, elapsedMs: 240, startVerse: 3, endVerse: 7, dragging: false
+  }), { type: "range", start: 3, end: 7 })
+  assert.equal(versePointerDecision({
+    dx: 3, dy: 2, elapsedMs: 80, startVerse: 3, endVerse: 7, dragging: false
+  }).type, "tap")
+  assert.equal(versePointerDecision({
+    dx: -90, dy: 8, elapsedMs: 220, startVerse: 3, endVerse: 7, dragging: false
+  }).type, "chapter")
 }
 
 console.log("chapter-swipe: ok")

@@ -151,9 +151,20 @@ export default class extends Controller {
 
     const preview = previewText(note.blocks)
     if (!preview) {
+      const attTitles = (note.attachments || []).map((att) => att.title || att.slug || att.url).filter(Boolean)
+      if (attTitles.length) {
+        const body = document.createElement("div")
+        body.className = "inbox-preview"
+        const line = document.createElement("p")
+        line.className = "preview-line"
+        line.textContent = attTitles.join(" · ")
+        body.append(line)
+        card.append(body)
+        return card
+      }
       const empty = document.createElement("p")
       empty.className = "inbox-card-empty"
-      empty.textContent = "Empty note"
+      empty.textContent = note.bookmarked ? "Bookmarked" : "Empty note"
       card.append(empty)
       return card
     }

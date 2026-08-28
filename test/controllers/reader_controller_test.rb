@@ -364,9 +364,11 @@ class ReaderControllerTest < ActionDispatch::IntegrationTest
   test "note tray puts the route.bible icon on the label row" do
     get read_path("jhn.1")
     assert_select ".chapter-tray" do
-      assert_select ".outliner + .tray-head"
+      assert_select ".outliner + .att-board"
+      assert_select ".att-board + .tray-head"
       assert_select ".tray-head" do
         assert_select "a.tray-label[href='https://route.bible/jhn.1'][target=_blank]", /Chapter note · John 1/
+        assert_select "button.tray-attach[data-action='click->reader#openAttDrop']"
         assert_select "button.tray-copy[data-action='click->reader#copyNote'][aria-label='Copy this note']"
         assert_select "button.tray-bookmark[data-action='click->reader#toggleBookmark'][aria-pressed='false']"
         assert_select "a.tray-external[href='https://route.bible/jhn.1'][target=_blank][rel=noreferrer]"
@@ -374,6 +376,7 @@ class ReaderControllerTest < ActionDispatch::IntegrationTest
         assert_select "a[aria-label='Open on route.bible']"
         assert_select "a svg"
         assert_select "button.tray-close[data-action='click->reader#closeChapter'][aria-label='Hide chapter note']"
+        assert_select ".tray-attach + .tray-copy"
         assert_select ".tray-copy + .tray-bookmark"
         assert_select ".tray-bookmark + .tray-external"
         assert_select ".tray-external + .tray-clear"
@@ -381,6 +384,7 @@ class ReaderControllerTest < ActionDispatch::IntegrationTest
       end
     end
     assert_select ".note-tray .tray-close", count: 0
+    assert_select ".note-tray .tray-head .tray-attach + .tray-copy"
     assert_select ".note-tray .tray-head .tray-copy + .tray-bookmark"
     assert_select ".note-tray .tray-head .tray-bookmark + .tray-external"
     assert_select ".note-tray .tray-head .tray-external + .tray-clear"
@@ -547,6 +551,62 @@ class ReaderControllerTest < ActionDispatch::IntegrationTest
     assert_select "#v1 .outliner[data-slug='jhn.1.1'] .otext em", "life"
     assert_select "#v1 .outliner[data-slug='jhn.1.1'] .otext code", "logos"
     assert_select "#v1 .outliner[data-slug='jhn.1.1'] .otext", /See Word and life and logos and John/
+    assert_select "#v1 .att-chip.wiki", "John 1:6"
     assert_select "#v1 .note-preview", count: 0
+  end
+
+  test "note tray renders attachment chips for xrefs and weblinks" do
+    get read_path("jhn.1")
+    Library.last.notes.create!(
+      slug: "jhn.1.1", osis: "JHN.1.1", kind: "verse", book: "JHN", chapter: 1,
+      verse_start: 1, blocks: [ { "id" => "b_empty", "indent" => 0, "text" => "" } ],
+      attachments: [
+        { "id" => "att_xref", "kind" => "xref", "slug" => "jhn.1.6", "title" => "John 1:6", "source" => "manual" },
+        { "id" => "att_url", "kind" => "url", "url" => "https://example.com/essay", "title" => "example.com" }
+      ]
+    )
+    get read_path("jhn.1")
+    assert_select "#v1 .att-chip.wiki", "John 1:6"
+    assert_equal "/jhn.1.6?xref=1", css_select("#v1 .att-chip.wiki").first["href"]
+    assert_select "#v1 .att-chip.att-url", "example.com"
+    assert_equal "https://example.com/essay", css_select("#v1 .att-chip.att-url").first["href"]
+    assert_select "#v1 .tray-attach", 1
+    assert_select "dialog.att-drop .att-drop-title", "Drop a link. Or a passage."
+    assert_select "dialog.att-drop .att-drop-check", 1
+    assert_select "dialog.att-drop [role='status']", 1
+  end
+
+  test "verse outliner scans bare scripture refs into wiki links" do
+    get read_path("jhn.1")
+    Library.last.notes.create!(
+      slug: "jhn.1.1", osis: "JHN.1.1", kind: "verse", book: "JHN", chapter: 1,
+      verse_start: 1, blocks: [ {
+        "id" => "b_xr01",
+        "indent" => 0,
+        "text" => "Cf. John 1:6 and Romans 8:28"
+      } ]
+    )
+
+    get read_path("jhn.1")
+    assert_select "#v1 .outliner[data-slug='jhn.1.1'] a.wiki[data-wiki-raw='John 1:6']", "John 1:6"
+    assert_select "#v1 .outliner[data-slug='jhn.1.1'] a.wiki[data-wiki-raw='Romans 8:28']", "Romans 8:28"
+    assert_equal "/jhn.1.6?xref=1", css_select("#v1 .outliner[data-slug='jhn.1.1'] a.wiki").first["href"]
+    assert_equal "/rom.8.28?xref=1", css_select("#v1 .outliner[data-slug='jhn.1.1'] a.wiki").last["href"]
+  end
+
+  test "chapter outliner scans bare scripture refs into wiki links" do
+    get read_path("jhn.1")
+    Library.last.notes.create!(
+      slug: "jhn.1", osis: "JHN.1", kind: "chapter", book: "JHN", chapter: 1,
+      blocks: [ {
+        "id" => "b_xr02",
+        "indent" => 0,
+        "text" => "Opens like Genesis 1:1"
+      } ]
+    )
+
+    get read_path("jhn.1")
+    assert_select ".chapter-tray .outliner[data-slug='jhn.1'] a.wiki[data-wiki-raw='Genesis 1:1']", "Genesis 1:1"
+    assert_equal "/gen.1.1?xref=1", css_select(".chapter-tray .outliner[data-slug='jhn.1'] a.wiki").first["href"]
   end
 end

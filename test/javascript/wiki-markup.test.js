@@ -54,3 +54,42 @@ import { displayTokens, inlineMdTokens, resolveWikiTarget, wikiRaw, wikiTokens }
   assert.equal(tokens[3].type, "wiki")
   assert.equal(tokens[3].href, "/jhn.1.6?xref=1")
 }
+
+{
+  const tokens = wikiTokens("See John 3:16 and Romans 8:28 end")
+  assert.equal(tokens[0].value, "See ")
+  assert.equal(tokens[1].type, "wiki")
+  assert.equal(tokens[1].raw, "John 3:16")
+  assert.equal(tokens[1].href, "/jhn.3.16?xref=1")
+  assert.equal(tokens[1].label, "John 3:16")
+  assert.equal(tokens[2].value, " and ")
+  assert.equal(tokens[3].slug, "rom.8.28")
+  assert.equal(tokens[3].href, "/rom.8.28?xref=1")
+  assert.equal(tokens[4].value, " end")
+}
+
+{
+  const tokens = wikiTokens("See [[jhn.1.6|the Baptist]] and John 1:1")
+  assert.equal(tokens[1].raw, "[[jhn.1.6|the Baptist]]")
+  assert.equal(tokens[3].raw, "John 1:1")
+  assert.equal(tokens[3].href, "/jhn.1.1?xref=1")
+}
+
+{
+  const tokens = wikiTokens("Cf. jhn.1.6 and John 3:16–18")
+  assert.equal(tokens[1].slug, "jhn.1.6")
+  assert.equal(tokens[3].slug, "jhn.3.16-18")
+  assert.equal(tokens[3].raw, "John 3:16–18")
+}
+
+{
+  const tokens = wikiTokens("See **John** and `John 3:16` here")
+  assert.equal(tokens.some((token) => token.type === "wiki"), false)
+}
+
+{
+  const tokens = displayTokens("See John 3:16 and **Word**")
+  assert.equal(tokens[1].type, "wiki")
+  assert.equal(tokens[1].href, "/jhn.3.16?xref=1")
+  assert.deepEqual(tokens[3], { type: "strong", value: "Word" })
+}

@@ -76,7 +76,12 @@ class Note < ApplicationRecord
   end
 
   def empty_content?
-    Array(blocks).none? { |b| b["text"].to_s.strip.present? }
+    !bookmarked? && Array(blocks).none? { |b| b["text"].to_s.strip.present? } && Array(attachments).none?
+  end
+
+  def apply_attachments!(raw)
+    self.attachments = Margin::Attachment.normalize_list(raw)
+    self
   end
 
   def self.blocks_from_text(text, previous: [])

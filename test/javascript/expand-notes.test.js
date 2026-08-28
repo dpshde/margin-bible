@@ -32,7 +32,7 @@ import {
   const empty = {
     dataset: { noteSlug: "jhn.1.1" },
     hidden: false,
-    querySelector: () => ({ empty: true })
+    querySelector: (sel) => (sel === ".att-chip" || sel === ".tray-bookmark.is-on") ? null : ({ empty: true })
   }
   assert.equal(trayHasNoteContent(empty, (host) => host.empty), false)
   applyClearedNoteTray(empty)
@@ -44,8 +44,12 @@ import {
 }
 
 {
-  const full = { querySelector: () => ({ empty: false }) }
+  const full = { querySelector: (sel) => (sel === ".att-chip" || sel === ".tray-bookmark.is-on") ? null : ({ empty: false }) }
   assert.equal(trayHasNoteContent(full, (host) => host.empty), true)
+  const attached = { querySelector: (sel) => sel === ".att-chip" ? {} : null }
+  assert.equal(trayHasNoteContent(attached, (host) => host.empty), true)
+  const marked = { querySelector: (sel) => sel === ".tray-bookmark.is-on" ? {} : null }
+  assert.equal(trayHasNoteContent(marked, (host) => true), true)
   assert.equal(expandControlDisabled(true), false)
   assert.equal(expandControlDisabled(false), true)
 }

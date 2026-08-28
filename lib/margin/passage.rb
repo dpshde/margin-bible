@@ -4,6 +4,13 @@ module Margin
   # OSIS-addressed passage. Canonical slugs match grab-bcv / route.bible.
   class Passage
     SLUG = /\A([1-3]?[a-z]{2,3})\.(\d+)(?:\.(\d+)(?:-(\d+))?)?\z/i
+    # Locate refs in running text. Parse remains the source of truth; this is
+    # only a candidate finder (same idea as grab-bcv's in-text tokens).
+    XREF_CANDIDATE = /
+      [1-3]?[A-Za-z]{2,}\.\d+(?:\.\d+(?:-\d+)?)?
+      |
+      (?:[1-3]\s*)?[A-Za-z]+(?:\s+of\s+[A-Za-z]+)?\s+\d+(?::\d+(?:\s*[–—-]\s*\d+)?)?
+    /ix
 
     attr_reader :book, :chapter, :verse_start, :verse_end, :kind
 
@@ -110,6 +117,34 @@ module Margin
     def self.parse!(input)
       parse(input) or raise ArgumentError, "unresolvable passage: #{input.inspect}"
     end
+
+    def self.scan(text)
+      source = text.to_s
+      protected_ranges = protected_markup_ranges(source)
+      hits = []
+      source.scan(XREF_CANDIDATE) do
+        match = Regexp.last_match
+        start_at = match.begin(0)
+        stop_at = match.end(0)
+        next if protected_ranges.any? { |from, to| start_at >= from && stop_at <= to }
+
+        passage = parse(match[0])
+        next unless passage
+
+        hits << { index: start_at, length: match[0].length, text: match[0], passage: }
+      end
+      hits
+    end
+
+    def self.protected_markup_ranges(source)
+      ranges = []
+      source.to_s.scan(/`[^`]*`|\[\[[^\[\]]+\]\]/) do
+        match = Regexp.last_match
+        ranges << [ match.begin(0), match.end(0) ]
+      end
+      ranges
+    end
+    private_class_method :protected_markup_ranges
 
     # Official BSB USJ ref@loc, e.g. "MAT 4:18-22" / "ISA 40:3" / "JHN 1".
     def self.parse_usj_loc(loc)

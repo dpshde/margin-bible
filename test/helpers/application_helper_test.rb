@@ -59,4 +59,40 @@ class ApplicationHelperTest < ActionView::TestCase
     refute_includes html, "*life*"
     refute_includes html, "_light_"
   end
+
+  test "wiki_note_html scans bare scripture refs into wiki links" do
+    html = wiki_note_html("See John 3:16 and Romans 8:28")
+    assert_includes html, 'href="/jhn.3.16?xref=1"'
+    assert_includes html, 'href="/rom.8.28?xref=1"'
+    assert_includes html, 'class="wiki"'
+    assert_includes html, ">John 3:16</a>"
+    assert_includes html, ">Romans 8:28</a>"
+  end
+
+  test "wiki_note_html does not scan refs inside code or a bare book name" do
+    html = wiki_note_html("See **John** and `John 3:16`")
+    refute_includes html, 'class="wiki"'
+    assert_includes html, "<strong>John</strong>"
+    assert_includes html, "<code>John 3:16</code>"
+  end
+
+  test "note_attachment_chip renders xref and url chips" do
+    xref = note_attachment_chip("id" => "att_abcd", "kind" => "xref", "slug" => "jhn.1.6", "title" => "John 1:6")
+    assert_includes xref, 'href="/jhn.1.6?xref=1"'
+    assert_includes xref, 'class="att-chip wiki"'
+    assert_includes xref, 'data-att-id="att_abcd"'
+    url = note_attachment_chip("id" => "att_efgh", "kind" => "url", "url" => "https://example.com", "title" => "example.com")
+    assert_includes url, 'href="https://example.com"'
+    assert_includes url, 'target="_blank"'
+    refute_includes url, "class=\"att-chip wiki\""
+  end
+
+  test "wiki_outliner_html scans bare refs without absorbing wiki markers" do
+    html = wiki_outliner_html("See John 1:6 and [[jhn.1.1|the Word]]")
+    assert_includes html, 'href="/jhn.1.6?xref=1"'
+    assert_includes html, 'data-wiki-raw="John 1:6"'
+    refute_includes html, "[[John 1:6]]"
+    assert_includes html, 'data-wiki-raw="[[jhn.1.1|the Word]]"'
+    assert_includes html, ">the Word</a>"
+  end
 end

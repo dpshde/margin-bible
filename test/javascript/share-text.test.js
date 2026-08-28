@@ -14,6 +14,16 @@ import {
 
 {
   assert.equal(wikiToPlain("See [[jhn.1.6|John]] here"), "See John here")
+  assert.equal(wikiToPlain("See John 3:16 here"), "See John 3:16 here")
+}
+
+{
+  const html = formatNoteHtml({
+    label: "John 1:1",
+    blocks: [ { indent: 0, text: "Cf. John 1:6" } ]
+  })
+  assert.match(html, /href="https:\/\/route\.bible\/jhn\.1\.6"/)
+  assert.match(html, />Cf\. <a[^>]+>John 1:6<\/a></)
 }
 
 {

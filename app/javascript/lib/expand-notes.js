@@ -1,5 +1,7 @@
 export function trayHasNoteContent(tray, isEmpty = defaultOutlinerEmpty) {
   if (!tray) return false
+  if (tray.querySelector?.(".tray-bookmark.is-on")) return true
+  if (tray.querySelector?.(".att-chip")) return true
   const host = tray.querySelector?.(".outliner")
   if (!host) return false
   return !isEmpty(host)

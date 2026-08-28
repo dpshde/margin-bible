@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_27_010001) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_28_020000) do
   create_table "libraries", force: :cascade do |t|
     t.string "claim_token", null: false
     t.datetime "created_at", null: false
@@ -37,6 +37,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_27_010001) do
   create_table "notes", force: :cascade do |t|
     t.string "agent_color"
     t.string "agent_name"
+    t.json "attachments", default: [], null: false
     t.json "blocks", default: [], null: false
     t.string "book", null: false
     t.boolean "bookmarked", default: false, null: false

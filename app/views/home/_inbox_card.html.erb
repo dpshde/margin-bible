@@ -10,13 +10,17 @@
     <% end %>
     <%= note.passage.label %>
   </p>
-  <% if note.empty_content? %>
-    <p class="inbox-card-empty">Empty note</p>
-  <% else %>
+  <% if note.body_text.strip.present? %>
     <div class="inbox-preview">
       <% Array(note.blocks).each do |block| %>
         <p class="preview-line" style="--depth: <%= block["indent"].to_i %>"><%= wiki_note_html(block["text"], links: false) %></p>
       <% end %>
     </div>
+  <% elsif Array(note.attachments).any? %>
+    <div class="inbox-preview">
+      <p class="preview-line"><%= Array(note.attachments).map { |att| att["title"].presence || att["slug"] || att["url"] }.compact.join(" · ") %></p>
+    </div>
+  <% else %>
+    <p class="inbox-card-empty"><%= note.bookmarked? ? "Bookmarked" : "Empty note" %></p>
   <% end %>
 <% end %>

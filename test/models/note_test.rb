@@ -19,6 +19,19 @@ class NoteTest < ActiveSupport::TestCase
     }.merge(attrs))
   end
 
+  test "attachments keep a note alive without body text" do
+    blank = note(blocks: [ { "id" => "b_empty", "indent" => 0, "text" => "" } ], attachments: [])
+    assert blank.empty_content?
+
+    blank.attachments = [ { "id" => "att_abcd", "kind" => "xref", "slug" => "jhn.1.6", "title" => "John 1:6" } ]
+    refute blank.empty_content?
+
+    marked = note(blocks: [ { "id" => "b_empty", "indent" => 0, "text" => "" } ], attachments: [], bookmarked: true)
+    refute marked.empty_content?
+    marked.bookmarked = false
+    assert marked.empty_content?
+  end
+
   test "covers_verse? is exact for a verse note" do
     verse_note = note(kind: "verse", slug: "jhn.3.16", verse_start: 16, verse_end: nil)
     assert verse_note.covers_verse?(16)

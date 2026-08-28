@@ -18,6 +18,8 @@ class NotesController < ApplicationController
       verse_end: passage.verse_end
     )
     apply_note_content!(note)
+    base = params.key?(:attachments) ? params[:attachments] : note.attachments
+    note.apply_attachments!(Margin::Attachment.merge_xrefs_from_blocks(base, note.blocks))
     if params.key?(:bookmarked)
       note.bookmarked = ActiveModel::Type::Boolean.new.cast(params[:bookmarked])
     end

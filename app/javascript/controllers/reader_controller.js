@@ -1,5 +1,5 @@
 import { Controller } from "@hotwired/stimulus"
-import { rangeDragIntent, versePointerDecision } from "../lib/chapter-swipe"
+import { isHorizontalIntent, isTapGesture, rangeDragIntent, versePointerDecision } from "../lib/chapter-swipe"
 import {
   applyChapterGridOpen,
   chapterCellsHtml,
@@ -43,9 +43,17 @@ import {
   passageUrl
 } from "../lib/share-text"
 import { playHaptic } from "../lib/haptics"
+import {
+  addAttachment,
+  attachmentHref,
+  mergeParsedXrefs,
+  normalizeAttachments,
+  parseAttachmentInput,
+  removeAttachment
+} from "../lib/note-attachments.js"
 
 export default class extends Controller {
-  static targets = ["tray", "chapterTray", "rangeTemplate", "title", "numsToggle", "copyButton", "quietToggle", "chapterGrid", "gridHeading", "bookList", "chapterCells"]
+  static targets = ["tray", "chapterTray", "rangeTemplate", "title", "numsToggle", "copyButton", "quietToggle", "chapterGrid", "gridHeading", "bookList", "chapterCells", "attDrop", "attInput", "attStatus", "attTitle", "attSub", "attCheck", "attAdd"]
   static values = {
     focus: Number,
     spanStart: Number,
@@ -126,7 +134,9 @@ export default class extends Controller {
 
   pressStart(event) {
     if (event.pointerType === "mouse" && event.button !== 0) return
-    if (event.target.closest(".note-tray, .chapter-tray, .otext, a, input, textarea, .jump, .topbar, .reader-dock, .reader-chrome, .chapter-grid")) return
+    if (event.target.closest(".note-tray, .chapter-tray, .otext, input, textarea, .jump, .topbar, .reader-dock, .reader-chrome, .chapter-grid")) return
+    const link = event.target.closest("a")
+    if (link && !link.closest(".verse-press")) return
     this.pointerOrigin = { x: event.clientX, y: event.clientY, t: event.timeStamp }
     const press = event.target.closest(".verse-press")
     const verse = press?.closest("[data-verse]")
@@ -134,6 +144,7 @@ export default class extends Controller {
     if (verse) {
       this.dragStart = Number(verse.dataset.verse)
       this.dragCurrent = this.dragStart
+      if (event.pointerType === "mouse") this.element.classList.add("is-picking")
     } else {
       this.dragStart = null
       this.dragCurrent = null
@@ -162,7 +173,10 @@ export default class extends Controller {
       dx,
       dy
     })
-    if (!startRange && !this.dragging) return
+    if (!startRange && !this.dragging) {
+      if (!isTapGesture(dx, dy) && !isHorizontalIntent(dx, dy)) this.element.classList.add("is-picking")
+      return
+    }
     this.dragging = true
     this.swipeAxis = null
     this.ignoreClick = true
@@ -323,7 +337,10 @@ export default class extends Controller {
     }
     if (rangeTray) {
       rangeTray.hidden = false
-      if (focus) this.focusOutliner(rangeTray)
+      if (focus) {
+        rangeTray.scrollIntoView({ block: "nearest" })
+        this.focusOutliner(rangeTray)
+      }
       return
     }
     if (focus) this.focusFirstVisible(host)
@@ -616,7 +633,7 @@ export default class extends Controller {
 
   refreshExpand() {
     const expanding = this.element.classList.contains("is-expanded")
-    this.element.querySelectorAll(".note-tray[data-note-slug]").forEach((tray) => {
+    this.element.querySelectorAll(".note-tray[data-note-slug], .note-tray[data-range-composer]").forEach((tray) => {
       const row = tray.closest(".verse")
       const n = Number(row?.dataset.verse)
       const show = shouldShowExpandedTray({
@@ -848,7 +865,8 @@ export default class extends Controller {
     this.element.querySelectorAll(".outliner").forEach((host) => {
       const payload = this.outlinerPayload(host)
       if (!payload) return
-      if (applyNoteToPack(pack, payload.slug, payload.blocks)) changed = true
+      this.revealAddedAttachments(host, payload)
+      if (applyNoteToPack(pack, payload.slug, payload.blocks, new Date(), { attachments: payload.attachments })) changed = true
     })
     if (changed) writePack(pack)
   }
@@ -856,8 +874,9 @@ export default class extends Controller {
   saveGuest(host) {
     const payload = this.outlinerPayload(host)
     if (!payload) return
+    this.revealAddedAttachments(host, payload)
     const pack = loadPack()
-    if (applyNoteToPack(pack, payload.slug, payload.blocks)) writePack(pack)
+    if (applyNoteToPack(pack, payload.slug, payload.blocks, new Date(), { attachments: payload.attachments })) writePack(pack)
     this.markHostNote(host)
   }
 
@@ -865,10 +884,12 @@ export default class extends Controller {
     const token = document.querySelector('meta[name="csrf-token"]')?.content
     const payload = this.outlinerPayload(host)
     if (!payload) return
+    this.revealAddedAttachments(host, payload)
     const body = new URLSearchParams({
       slug: payload.slug,
       text: payload.text,
-      blocks: JSON.stringify(payload.blocks)
+      blocks: JSON.stringify(payload.blocks),
+      attachments: JSON.stringify(payload.attachments || [])
     })
     const res = await fetch(this.notesUrlValue, {
       method: "PATCH",
@@ -925,6 +946,7 @@ export default class extends Controller {
     const controller = this.outlinerController(host)
     if (!controller) return
     controller.applyBlocks([])
+    this.paintAttBoard(tray, [])
     this.syncBookmarkButton(tray, false)
     host._dirty = true
     this.saveGuest(host)
@@ -940,22 +962,25 @@ export default class extends Controller {
     const tray = button.closest(".note-tray, .chapter-tray")
     const host = tray?.querySelector(".outliner")
     const controller = this.outlinerController(host)
-    if (!controller || controller.isEmpty()) return
+    if (!controller) return
     const next = !button.classList.contains("is-on")
     this.syncBookmarkButton(tray, next)
     const payload = controller.payload()
     setNoteBookmarked(payload.slug, next)
     if (!this.guestSession) this.saveBookmark(host, next)
+    if (tray.classList.contains("note-tray")) this.syncNoteTray(tray)
   }
 
   async saveBookmark(host, bookmarked) {
     const token = document.querySelector('meta[name="csrf-token"]')?.content
     const payload = this.outlinerPayload(host)
     if (!payload) return
+    this.revealAddedAttachments(host, payload)
     const body = new URLSearchParams({
       slug: payload.slug,
       text: payload.text,
       blocks: JSON.stringify(payload.blocks),
+      attachments: JSON.stringify(payload.attachments || []),
       bookmarked: bookmarked ? "1" : "0"
     })
     await fetch(this.notesUrlValue, {
@@ -985,6 +1010,8 @@ export default class extends Controller {
       return
     }
     controller.applyBlocks(note.blocks)
+    const { list } = mergeParsedXrefs(note.attachments, note.blocks)
+    this.paintAttBoard(tray, list)
     this.syncNoteTray(tray)
   }
 
@@ -1076,10 +1103,7 @@ export default class extends Controller {
   }
 
   anyNoteText(verse) {
-    return [...verse.querySelectorAll(".outliner")].some((host) => {
-      const controller = this.outlinerController(host)
-      return controller ? !controller.isEmpty() : false
-    })
+    return [...verse.querySelectorAll(".note-tray")].some((tray) => this.trayHasContent(tray))
   }
 
   verseEl(n) {
@@ -1141,14 +1165,210 @@ export default class extends Controller {
     this.focusOutliner(tray)
   }
 
-  focusOutliner(root) {
+  focusOutliner(root, attempt = 0) {
     const host = root?.querySelector?.(".outliner") || root
-    this.outlinerController(host)?.focusLast()
-    host?.querySelector?.(".otext")?.focus()
+    if (!host) return
+    const controller = this.outlinerController(host)
+    if (!controller) {
+      if (attempt < 8) requestAnimationFrame(() => this.focusOutliner(root, attempt + 1))
+      else host.querySelector?.(".otext")?.focus()
+      return
+    }
+    controller.focusLast()
   }
 
   outlinerPayload(host) {
-    return this.outlinerController(host)?.payload()
+    const payload = this.outlinerController(host)?.payload()
+    if (!payload) return null
+    const tray = host.closest(".note-tray, .chapter-tray")
+    const { list, added, changed } = mergeParsedXrefs(this.readAttachments(tray), payload.blocks)
+    payload.attachments = list
+    payload.addedAttachments = added
+    payload.attachmentsChanged = changed
+    return payload
+  }
+
+  revealAddedAttachments(host, payload) {
+    if (!payload?.attachmentsChanged && !payload?.addedAttachments?.length) return
+    const tray = host.closest(".note-tray, .chapter-tray")
+    this.paintAttBoard(tray, payload.attachments, { freshIds: (payload.addedAttachments || []).map((row) => row.id) })
+    if (payload.addedAttachments?.length) this.flashAttachButton(tray)
+  }
+
+  openAttDrop(event) {
+    event.preventDefault()
+    event.stopPropagation()
+    this.attTray = event.currentTarget.closest(".note-tray, .chapter-tray")
+    if (!this.hasAttDropTarget || !this.attTray) return
+    this.resetAttDrop()
+    this.attDropTarget.showModal()
+    this.attInputTarget?.focus()
+  }
+
+  onAttDropClose() {
+    this.attTray = null
+    this.resetAttDrop()
+  }
+
+  attDropBackdrop(event) {
+    if (event.target === this.attDropTarget) this.attDropTarget.close()
+  }
+
+  attDragOver(event) {
+    event.preventDefault()
+    event.currentTarget.classList.add("is-over")
+  }
+
+  attDragLeave(event) {
+    if (!event.currentTarget.contains(event.relatedTarget)) event.currentTarget.classList.remove("is-over")
+  }
+
+  attDrop(event) {
+    event.preventDefault()
+    event.currentTarget.classList.remove("is-over")
+    const text = event.dataTransfer?.getData("text/uri-list") || event.dataTransfer?.getData("text/plain") || ""
+    this.attachFromInput(text)
+  }
+
+  attPaste(event) {
+    const text = event.clipboardData?.getData("text/plain") || ""
+    if (!text.trim()) return
+    event.preventDefault()
+    this.attachFromInput(text)
+  }
+
+  attSubmit(event) {
+    event.preventDefault()
+    this.attachFromInput(this.attInputTarget?.value || "")
+  }
+
+  attachFromInput(raw) {
+    const tray = this.attTray
+    if (!tray) return
+    const parsed = parseAttachmentInput(raw)
+    const incoming = parsed ? { ...parsed, source: "manual" } : raw
+    const { list, added } = addAttachment(this.readAttachments(tray), incoming)
+    if (!added) {
+      this.showAttStatus("Need a passage or an http(s) link.", { error: true })
+      return
+    }
+    this.paintAttBoard(tray, list, { freshIds: [ added.id ] })
+    if (this.hasAttInputTarget) this.attInputTarget.value = ""
+    this.persistTray(tray)
+    this.showAttSuccess(added)
+    playHaptic("nudge")
+  }
+
+  removeAttachment(event) {
+    event.preventDefault()
+    event.stopPropagation()
+    const tray = event.currentTarget.closest(".note-tray, .chapter-tray")
+    if (!tray) return
+    const next = removeAttachment(this.readAttachments(tray), event.currentTarget.dataset.attId)
+    this.paintAttBoard(tray, next)
+    this.persistTray(tray)
+  }
+
+  persistTray(tray) {
+    const host = tray?.querySelector(".outliner")
+    if (!host) return
+    host._dirty = true
+    this.saveGuest(host)
+    if (!this.guestSession) this.save(host)
+    host._dirty = false
+    this.syncNoteTray(tray)
+  }
+
+  readAttachments(tray) {
+    return normalizeAttachments([ ...tray?.querySelectorAll?.(".att-chip") || [] ].map((chip) => ({
+      id: chip.dataset.attId,
+      kind: chip.dataset.attKind,
+      slug: chip.dataset.attSlug,
+      url: chip.dataset.attUrl,
+      title: chip.dataset.attTitle || chip.textContent,
+      source: chip.dataset.attSource
+    })))
+  }
+
+  paintAttBoard(tray, list, { freshIds = [] } = {}) {
+    const board = tray?.querySelector(".att-board")
+    if (!board) return
+    const rows = normalizeAttachments(list)
+    const fresh = new Set(freshIds)
+    board.replaceChildren()
+    rows.forEach((row) => board.append(this.attachmentItem(row, { fresh: fresh.has(row.id) })))
+    board.hidden = rows.length === 0
+  }
+
+  showAttSuccess(added) {
+    const label = added?.title || (added?.kind === "xref" ? added.slug : added?.url) || "Attached"
+    const zone = this.attDropTarget?.querySelector(".att-drop-zone")
+    zone?.classList.remove("is-over")
+    zone?.classList.add("is-ok")
+    if (this.hasAttCheckTarget) this.attCheckTarget.hidden = false
+    if (this.hasAttTitleTarget) this.attTitleTarget.textContent = "Attached"
+    if (this.hasAttSubTarget) this.attSubTarget.textContent = label
+    if (this.hasAttAddTarget) this.attAddTarget.textContent = "Attached"
+    this.showAttStatus(`Attached ${label}.`)
+    this.flashAttachButton(this.attTray)
+    clearTimeout(this._attOkTimer)
+    this._attOkTimer = setTimeout(() => this.resetAttDrop({ keepStatus: true }), 1600)
+  }
+
+  showAttStatus(message, { error = false } = {}) {
+    if (!this.hasAttStatusTarget) return
+    this.attStatusTarget.textContent = message || ""
+    this.attStatusTarget.classList.toggle("is-error", Boolean(error) && Boolean(message))
+    this.attDropTarget?.querySelector(".att-drop-zone")?.classList.toggle("is-bad", Boolean(error) && Boolean(message))
+  }
+
+  resetAttDrop({ keepStatus = false } = {}) {
+    clearTimeout(this._attOkTimer)
+    const zone = this.attDropTarget?.querySelector(".att-drop-zone")
+    zone?.classList.remove("is-over", "is-ok", "is-bad")
+    if (this.hasAttCheckTarget) this.attCheckTarget.hidden = true
+    if (this.hasAttTitleTarget) this.attTitleTarget.textContent = "Drop a link. Or a passage."
+    if (this.hasAttSubTarget) this.attSubTarget.textContent = "Paste a URL, or type John 3:16. It stays on this note as a chip — not mixed into the outline."
+    if (this.hasAttAddTarget) this.attAddTarget.textContent = "Attach"
+    if (this.hasAttInputTarget) this.attInputTarget.value = ""
+    if (!keepStatus) this.showAttStatus("")
+  }
+
+  flashAttachButton(tray) {
+    const button = tray?.querySelector(".tray-attach")
+    if (!button) return
+    button.classList.add("is-ok")
+    clearTimeout(button._okTimer)
+    button._okTimer = setTimeout(() => button.classList.remove("is-ok"), 900)
+  }
+
+  attachmentItem(row, { fresh = false } = {}) {
+    const item = document.createElement("li")
+    item.className = "att-item"
+    const chip = document.createElement("a")
+    chip.className = row.kind === "xref" ? "att-chip wiki" : "att-chip att-url"
+    if (fresh) chip.classList.add("is-fresh")
+    chip.href = attachmentHref(row)
+    chip.dataset.attId = row.id
+    chip.dataset.attKind = row.kind
+    chip.dataset.attTitle = row.title
+    if (row.source) chip.dataset.attSource = row.source
+    if (row.kind === "xref") chip.dataset.attSlug = row.slug
+    else {
+      chip.dataset.attUrl = row.url
+      chip.target = "_blank"
+      chip.rel = "noreferrer"
+    }
+    chip.textContent = row.title
+    const remove = document.createElement("button")
+    remove.type = "button"
+    remove.className = "att-remove"
+    remove.dataset.action = "click->reader#removeAttachment"
+    remove.dataset.attId = row.id
+    remove.setAttribute("aria-label", "Remove attachment")
+    remove.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="12" height="12" fill="currentColor" aria-hidden="true"><path d="M205.66 194.34a8 8 0 0 1-11.32 11.32L128 139.31 61.66 205.66a8 8 0 0 1-11.32-11.32L116.69 128 50.34 61.66A8 8 0 0 1 61.66 50.34L128 116.69l66.34-66.35a8 8 0 0 1 11.32 11.32L139.31 128Z"/></svg>'
+    item.append(chip, remove)
+    return item
   }
 
   outlinerController(host) {

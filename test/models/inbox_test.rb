@@ -70,6 +70,19 @@ class InboxTest < ActiveSupport::TestCase
     assert_equal [ kept.slug ], sections.last[:notes].map(&:slug)
   end
 
+  test "a bookmarked verse with no body still appears in Bookmarks" do
+    library = Library.create!
+    marked = library.notes.create!(
+      slug: "jhn.1.1", osis: "JHN.1.1", kind: "verse", book: "JHN", chapter: 1,
+      verse_start: 1, blocks: [ { "id" => "b_empty", "indent" => 0, "text" => "" } ],
+      bookmarked: true
+    )
+
+    sections = Margin::Inbox.sections(library.notes.to_a, today: @today)
+    assert_equal :bookmarks, sections.first[:kind]
+    assert_equal [ marked.slug ], sections.first[:notes].map(&:slug)
+  end
+
   test "bookmarks collapse into books newest book first" do
     library = Library.create!
     john = library.notes.create!(

@@ -33,5 +33,5 @@ export function sameChapterSlug(parsed, chapterSlug) {
 
 export function xrefKeepTarget(node) {
   const el = node?.nodeType === 1 ? node : node?.parentElement
-  return Boolean(el?.closest?.(".verse-press, a.wiki, a.pub-ref"))
+  return Boolean(el?.closest?.(".verse-press, a.wiki, a.pub-ref, .att-chip, .att-remove"))
 }

@@ -2,6 +2,7 @@
   display_label = local_assigns[:label].presence || Margin::Passage.parse(slug)&.label
   editor_blocks = Array(note&.blocks)
   editor_blocks = [ { "id" => "b_#{SecureRandom.hex(4)}", "indent" => 0, "text" => "", "bullet" => true } ] if editor_blocks.empty?
+  editor_attachments = Margin::Attachment.merge_xrefs_from_blocks(note&.attachments, editor_blocks)
 %>
 <div
   class="outliner"
@@ -17,12 +18,26 @@
     </div>
   <% end %>
 </div>
+<ul class="att-board" <%= "hidden" if editor_attachments.blank? %>>
+  <% editor_attachments.each do |att| %>
+    <%= note_attachment_chip(att) %>
+  <% end %>
+</ul>
 <div class="tray-head">
   <% if display_label.present? %>
     <a class="tray-label" href="<%= route_bible_url(slug) %>" target="_blank" rel="noreferrer" title="Open on route.bible"><%= display_label %></a>
   <% else %>
     <p class="tray-label sr-only">Note</p>
   <% end %>
+  <button
+    type="button"
+    class="tray-attach"
+    data-action="click->reader#openAttDrop"
+    aria-label="Attach a link or passage"
+    title="Attach"
+  >
+    <%= ph_icon("paperclip", size: 14) %>
+  </button>
   <button
     type="button"
     class="tray-copy"

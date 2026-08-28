@@ -89,5 +89,9 @@ class NoteTrayCssTest < ActiveSupport::TestCase
     picking = css[/\n\.chapter\.is-picking\s*\{[^}]+\}/]
     assert picking
     assert_match(/touch-action:\s*none/, picking)
+    parent_picking = css[/\n\.is-picking \.chapter\s*\{[^}]+\}/]
+    assert parent_picking
+    assert_match(/touch-action:\s*none/, parent_picking)
+    assert_match(/user-select:\s*none/, parent_picking)
   end
 end
