@@ -1,12 +1,18 @@
 # Local reader: Rails + JS watch via Foreman.
-#   mise run dev    # http://localhost:3000
+#   mise run dev    # http://localhost:3000 and http://<lan-ip>:3000
 min_version = "2026.8.0"
 
+[tools]
+ruby = "3.4.10"
+
 [tasks.dev]
-description = "Foreman Rails + JS watch on :3000"
+description = "Foreman Rails + JS watch on :3000, bound for LAN"
 dir = "{{config_root}}"
-run = "bin/dev"
 raw = true
+env = { BINDING = "0.0.0.0" }
+# mise run appends tool bins after /usr/bin; put Ruby first so bin/dev
+# uses this toolchain's gem/foreman, not Arch's split default gems.
+run = 'PATH="$(mise where ruby)/bin:$(mise where node)/bin:$PATH" bin/dev'
 
 # --- test ---
 
