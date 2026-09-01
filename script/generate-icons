@@ -1,0 +1,196 @@
+#!/usr/bin/env python3
+"""Generate favicons and app icons from app/assets/images/open-book-icon.png."""
+
+from __future__ import annotations
+
+import io
+import struct
+import sys
+import tempfile
+from pathlib import Path
+
+from PIL import Image
+
+ROOT = Path(__file__).resolve().parents[1]
+SOURCE_PNG = ROOT / "app/assets/images/open-book-icon.png"
+SOURCE_SVG = ROOT / "app/assets/images/open-book-icon.svg"
+PUBLIC = ROOT / "public"
+IOS_ICONSET = ROOT / "ios/Margin/Assets.xcassets/AppIcon.appiconset"
+
+INK = (255, 92, 0, 255)
+DARK = (26, 24, 22)
+WEB_PADDING = 0.06
+IOS_PADDING = 0.12
+MASKABLE_SAFE = 0.80
+
+
+def punchNearBlack(image: Image.Image, threshold: int = 18) -> Image.Image:
+    """Turn near-black pixels transparent so a black-backed source can be reused."""
+    rgba = image.convert("RGBA")
+    pixels = rgba.load()
+    width, height = rgba.size
+    for y in range(height):
+        for x in range(width):
+            red, green, blue, alpha = pixels[x, y]
+            if alpha == 0:
+                continue
+            if red <= threshold and green <= threshold and blue <= threshold:
+                pixels[x, y] = (red, green, blue, 0)
+    return rgba
+
+
+def maybePunchBlack(image: Image.Image) -> Image.Image:
+    rgba = image.convert("RGBA")
+    corners = [
+        rgba.getpixel((0, 0)),
+        rgba.getpixel((rgba.width - 1, 0)),
+        rgba.getpixel((0, rgba.height - 1)),
+        rgba.getpixel((rgba.width - 1, rgba.height - 1)),
+    ]
+    if all(red <= 24 and green <= 24 and blue <= 24 and alpha > 200 for red, green, blue, alpha in corners):
+        return punchNearBlack(rgba)
+    return rgba
+
+
+def cropTight(image: Image.Image, paddingRatio: float = WEB_PADDING) -> Image.Image:
+    """Square-crop to non-transparent pixels, then add padding."""
+    rgba = image.convert("RGBA")
+    bbox = rgba.getbbox()
+    if bbox is None:
+        raise ValueError("icon source is empty")
+    left, top, right, bottom = bbox
+    width = right - left
+    height = bottom - top
+    side = max(width, height)
+    pad = max(1, round(side * paddingRatio))
+    side = side + (2 * pad)
+    centerX = (left + right) / 2
+    centerY = (top + bottom) / 2
+    newLeft = int(round(centerX - (side / 2)))
+    newTop = int(round(centerY - (side / 2)))
+    out = Image.new("RGBA", (side, side), (0, 0, 0, 0))
+    srcLeft = max(0, newLeft)
+    srcTop = max(0, newTop)
+    srcRight = min(rgba.width, newLeft + side)
+    srcBottom = min(rgba.height, newTop + side)
+    out.paste(
+        rgba.crop((srcLeft, srcTop, srcRight, srcBottom)),
+        (srcLeft - newLeft, srcTop - newTop),
+    )
+    return out
+
+
+def resizeIcon(image: Image.Image, size: int) -> Image.Image:
+    return image.resize((size, size), Image.Resampling.LANCZOS)
+
+
+def makeOpaque(image: Image.Image, background: tuple[int, int, int] = DARK) -> Image.Image:
+    rgba = image.convert("RGBA")
+    canvas = Image.new("RGB", rgba.size, background)
+    canvas.paste(rgba, mask=rgba.split()[3])
+    return canvas
+
+
+def writeIco(path: Path, images: list[Image.Image]) -> None:
+    payloads = []
+    for image in images:
+        buf = io.BytesIO()
+        image.save(buf, format="PNG")
+        payloads.append(buf.getvalue())
+    count = len(images)
+    header = struct.pack("<HHH", 0, 1, count)
+    offset = 6 + (16 * count)
+    entries = b""
+    for image, data in zip(images, payloads):
+        width = image.width if image.width < 256 else 0
+        height = image.height if image.height < 256 else 0
+        entries += struct.pack("<BBBBHHII", width, height, 0, 0, 1, 32, len(data), offset)
+        offset += len(data)
+    path.write_bytes(header + entries + b"".join(payloads))
+
+
+def makeMaskable(book: Image.Image, size: int = 512, safe: float = MASKABLE_SAFE) -> Image.Image:
+    canvas = Image.new("RGB", (size, size), DARK)
+    target = int(round(size * safe))
+    fitted = resizeIcon(book, target)
+    offset = (size - target) // 2
+    canvas.paste(fitted, (offset, offset), fitted)
+    return canvas
+
+
+def loadSource() -> Image.Image:
+    if not SOURCE_PNG.exists():
+        raise SystemExit(f"missing source PNG: {SOURCE_PNG}")
+    return maybePunchBlack(Image.open(SOURCE_PNG))
+
+
+def selfTest() -> None:
+    canvas = Image.new("RGBA", (100, 100), (0, 0, 0, 0))
+    for x in range(40, 60):
+        for y in range(40, 60):
+            canvas.putpixel((x, y), INK)
+    cropped = cropTight(canvas, paddingRatio=0.1)
+    assert cropped.size[0] == cropped.size[1], cropped.size
+    assert cropped.size[0] == 24, cropped.size
+    opaque = makeOpaque(cropped, (26, 24, 22))
+    assert opaque.mode == "RGB", opaque.mode
+    black = Image.new("RGBA", (4, 4), (0, 0, 0, 255))
+    black.putpixel((1, 1), INK)
+    punched = punchNearBlack(black)
+    assert punched.getpixel((0, 0))[3] == 0
+    assert punched.getpixel((1, 1))[3] == 255
+    icoBuf = Path(tempfile.mkstemp(suffix=".ico")[1])
+    try:
+        writeIco(icoBuf, [resizeIcon(cropped, 16), resizeIcon(cropped, 32)])
+        data = icoBuf.read_bytes()
+        assert data[:4] == b"\x00\x00\x01\x00"
+        count = struct.unpack_from("<H", data, 4)[0]
+        assert count == 2, count
+    finally:
+        icoBuf.unlink(missing_ok=True)
+    print("generate-icons self-test ok")
+
+
+def generate() -> None:
+    source = loadSource()
+    book = cropTight(source, paddingRatio=WEB_PADDING)
+
+    PUBLIC.mkdir(parents=True, exist_ok=True)
+    for leftoverSvg in (SOURCE_SVG, PUBLIC / "icon.svg"):
+        leftoverSvg.unlink(missing_ok=True)
+
+    sizes = {
+        32: PUBLIC / "favicon-32.png",
+        180: PUBLIC / "apple-touch-icon.png",
+        192: PUBLIC / "icon-192.png",
+        512: PUBLIC / "icon-512.png",
+    }
+    rasters = {}
+    for size, dest in sizes.items():
+        raster = resizeIcon(book, size)
+        rasters[size] = raster
+        if size == 180:
+            makeOpaque(raster).save(dest, format="PNG")
+        else:
+            raster.save(dest, format="PNG")
+
+    rasters[32].save(PUBLIC / "icon.png", format="PNG")
+    makeMaskable(book).save(PUBLIC / "icon-maskable.png", format="PNG")
+    writeIco(PUBLIC / "favicon.ico", [resizeIcon(book, 16), rasters[32]])
+
+    iosBook = cropTight(source, paddingRatio=IOS_PADDING)
+    iosSizes = (40, 58, 60, 80, 87, 120, 180, 1024)
+    IOS_ICONSET.mkdir(parents=True, exist_ok=True)
+    for size in iosSizes:
+        makeOpaque(resizeIcon(iosBook, size)).save(IOS_ICONSET / f"AppIcon-{size}.png", format="PNG")
+
+    print(f"read {SOURCE_PNG.relative_to(ROOT)}")
+    print("wrote public favicons and iOS AppIcon PNGs")
+
+
+if __name__ == "__main__":
+    if "--self-test" in sys.argv:
+        selfTest()
+    else:
+        selfTest()
+        generate()
