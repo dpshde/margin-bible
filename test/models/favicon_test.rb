@@ -3,15 +3,17 @@
 require "test_helper"
 
 class FaviconTest < ActiveSupport::TestCase
-  test "source outlined book is committed for regeneration" do
-    svg = Rails.root.join("app/assets/images/open-book-icon.svg").read
+  test "source is an outlined open book PNG, not a geometric capsule" do
     png = png_info(Rails.root.join("app/assets/images/open-book-icon.png"))
+    svg = Rails.root.join("app/assets/images/open-book-icon.svg").read
 
-    assert_includes svg, "#FF5C00"
-    assert_includes svg, "<rect"
-    refute_includes svg, 'fill="red"'
     assert_equal [ 1024, 1024 ], [ png[:width], png[:height] ]
     assert_equal 6, png[:color_type], "source PNG must keep a transparent background"
+    assert_includes svg, "#FF5C00"
+    assert_operator svg.scan("<path").size, :>=, 6
+    refute_includes svg, 'fill="red"'
+    refute_includes svg, 'rect x="8"'
+    refute_includes svg, 'width="84" height="72"'
   end
 
   test "public icons are the sizes the layout and PWA manifest expect" do
@@ -35,6 +37,8 @@ class FaviconTest < ActiveSupport::TestCase
     svg = Rails.root.join("public/icon.svg").read
     assert_includes svg, "#FF5C00"
     refute_includes svg, 'fill="red"'
+    refute_includes svg, 'rect x="8"'
+    refute_includes svg, "<circle"
   end
 
   test "maskable PWA icon is an opaque 512 square generated onto dark paper" do
@@ -43,6 +47,13 @@ class FaviconTest < ActiveSupport::TestCase
     assert_equal 2, info[:color_type], "maskable icon must be opaque RGB, not a white-backed web glyph"
     refute info[:has_trns]
     assert_includes Rails.root.join("script/generate-icons").read, "DARK = (26, 24, 22)"
+  end
+
+  test "generator reads the PNG source rather than inventing an SVG glyph" do
+    script = Rails.root.join("script/generate-icons").read
+    assert_includes script, "open-book-icon.png"
+    assert_includes script, "def loadSource"
+    refute_includes script, "renderSvg"
   end
 
   test "PWA manifest points at the outlined book PNGs" do

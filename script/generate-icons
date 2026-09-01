@@ -1,11 +1,10 @@
 #!/usr/bin/env python3
-"""Rasterize app/assets/images/open-book-icon.svg into favicons and app icons."""
+"""Generate favicons and app icons from app/assets/images/open-book-icon.png."""
 
 from __future__ import annotations
 
 import io
 import struct
-import subprocess
 import sys
 import tempfile
 from pathlib import Path
@@ -13,16 +12,15 @@ from pathlib import Path
 from PIL import Image
 
 ROOT = Path(__file__).resolve().parents[1]
-SOURCE_SVG = ROOT / "app/assets/images/open-book-icon.svg"
 SOURCE_PNG = ROOT / "app/assets/images/open-book-icon.png"
+SOURCE_SVG = ROOT / "app/assets/images/open-book-icon.svg"
 PUBLIC = ROOT / "public"
 IOS_ICONSET = ROOT / "ios/Margin/Assets.xcassets/AppIcon.appiconset"
 
 INK = (255, 92, 0, 255)
 DARK = (26, 24, 22)
-RENDER_SIZE = 1024
-WEB_PADDING = 0.07
-IOS_PADDING = 0.14
+WEB_PADDING = 0.06
+IOS_PADDING = 0.12
 MASKABLE_SAFE = 0.80
 
 
@@ -38,6 +36,19 @@ def punchNearBlack(image: Image.Image, threshold: int = 18) -> Image.Image:
                 continue
             if red <= threshold and green <= threshold and blue <= threshold:
                 pixels[x, y] = (red, green, blue, 0)
+    return rgba
+
+
+def maybePunchBlack(image: Image.Image) -> Image.Image:
+    rgba = image.convert("RGBA")
+    corners = [
+        rgba.getpixel((0, 0)),
+        rgba.getpixel((rgba.width - 1, 0)),
+        rgba.getpixel((0, rgba.height - 1)),
+        rgba.getpixel((rgba.width - 1, rgba.height - 1)),
+    ]
+    if all(red <= 24 and green <= 24 and blue <= 24 and alpha > 200 for red, green, blue, alpha in corners):
+        return punchNearBlack(rgba)
     return rgba
 
 
@@ -80,14 +91,6 @@ def makeOpaque(image: Image.Image, background: tuple[int, int, int] = DARK) -> I
     return canvas
 
 
-def renderSvg(svgPath: Path, size: int) -> Image.Image:
-    with tempfile.NamedTemporaryFile(suffix=".png") as tmp:
-        subprocess.check_call(
-            ["rsvg-convert", "-w", str(size), "-h", str(size), "-o", tmp.name, str(svgPath)]
-        )
-        return Image.open(tmp.name).convert("RGBA")
-
-
 def writeIco(path: Path, images: list[Image.Image]) -> None:
     payloads = []
     for image in images:
@@ -113,6 +116,12 @@ def makeMaskable(book: Image.Image, size: int = 512, safe: float = MASKABLE_SAFE
     offset = (size - target) // 2
     canvas.paste(fitted, (offset, offset), fitted)
     return canvas
+
+
+def loadSource() -> Image.Image:
+    if not SOURCE_PNG.exists():
+        raise SystemExit(f"missing source PNG: {SOURCE_PNG}")
+    return maybePunchBlack(Image.open(SOURCE_PNG))
 
 
 def selfTest() -> None:
@@ -143,17 +152,12 @@ def selfTest() -> None:
 
 
 def generate() -> None:
-    if not SOURCE_SVG.exists():
-        raise SystemExit(f"missing source SVG: {SOURCE_SVG}")
-
-    rendered = renderSvg(SOURCE_SVG, RENDER_SIZE)
-    book = cropTight(rendered, paddingRatio=WEB_PADDING)
-    sourceRaster = resizeIcon(book, 1024)
-    SOURCE_PNG.parent.mkdir(parents=True, exist_ok=True)
-    sourceRaster.save(SOURCE_PNG, format="PNG")
+    source = loadSource()
+    book = cropTight(source, paddingRatio=WEB_PADDING)
 
     PUBLIC.mkdir(parents=True, exist_ok=True)
-    PUBLIC.joinpath("icon.svg").write_text(SOURCE_SVG.read_text())
+    if SOURCE_SVG.exists():
+        PUBLIC.joinpath("icon.svg").write_text(SOURCE_SVG.read_text())
 
     sizes = {
         32: PUBLIC / "favicon-32.png",
@@ -174,13 +178,13 @@ def generate() -> None:
     makeMaskable(book).save(PUBLIC / "icon-maskable.png", format="PNG")
     writeIco(PUBLIC / "favicon.ico", [resizeIcon(book, 16), rasters[32]])
 
-    iosBook = cropTight(rendered, paddingRatio=IOS_PADDING)
+    iosBook = cropTight(source, paddingRatio=IOS_PADDING)
     iosSizes = (40, 58, 60, 80, 87, 120, 180, 1024)
     IOS_ICONSET.mkdir(parents=True, exist_ok=True)
     for size in iosSizes:
         makeOpaque(resizeIcon(iosBook, size)).save(IOS_ICONSET / f"AppIcon-{size}.png", format="PNG")
 
-    print(f"wrote {SOURCE_PNG.relative_to(ROOT)}")
+    print(f"read {SOURCE_PNG.relative_to(ROOT)}")
     print("wrote public favicons and iOS AppIcon PNGs")
 
 
