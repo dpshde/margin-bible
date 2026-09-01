@@ -21,6 +21,7 @@ class FaviconControllerTest < ActionDispatch::IntegrationTest
       /icon-192.png
       /icon-512.png
       /icon-maskable.png
+      /icon-maskable-512.png
     ].each do |path|
       get path
       assert_response :success, path

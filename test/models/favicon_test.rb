@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require "digest"
 require "test_helper"
 
 class FaviconTest < ActiveSupport::TestCase
@@ -18,7 +19,7 @@ class FaviconTest < ActiveSupport::TestCase
       "icon-192.png" => [ 192, 6 ],
       "icon-512.png" => [ 512, 6 ],
       "icon.png" => [ 32, 6 ],
-      "apple-touch-icon.png" => [ 180, 2 ]
+      "apple-touch-icon.png" => [ 180, 6 ]
     }.each do |name, (pixels, color_type)|
       info = png_info(Rails.root.join("public", name))
       assert_equal [ pixels, pixels ], [ info[:width], info[:height] ], name
@@ -31,12 +32,13 @@ class FaviconTest < ActiveSupport::TestCase
     assert_equal 2, ico[4, 2].unpack1("v")
   end
 
-  test "maskable PWA icon is an opaque 512 square generated onto dark paper" do
-    info = png_info(Rails.root.join("public/icon-maskable.png"))
-    assert_equal [ 512, 512 ], [ info[:width], info[:height] ]
-    assert_equal 2, info[:color_type], "maskable icon must be opaque RGB, not a white-backed web glyph"
-    refute info[:has_trns]
-    assert_includes Rails.root.join("script/generate-icons").read, "DARK = (26, 24, 22)"
+  test "maskable PWA icons are LANCZOS from Dylan's 32px PNG" do
+    small = png_info(Rails.root.join("public/icon-maskable.png"))
+    large = png_info(Rails.root.join("public/icon-maskable-512.png"))
+    assert_equal [ 192, 192 ], [ small[:width], small[:height] ]
+    assert_equal [ 512, 512 ], [ large[:width], large[:height] ]
+    assert_equal 6, small[:color_type]
+    assert_equal 6, large[:color_type]
   end
 
   test "generator reads the PNG source rather than inventing an SVG glyph" do
@@ -47,13 +49,17 @@ class FaviconTest < ActiveSupport::TestCase
     assert_includes script, "leftoverSvg"
   end
 
-  test "write-dylan-favicon.py embeds ICO pixels and refuses SVG drawing" do
+  test "write-dylan-favicon.py embeds Dylan's 32px PNG chunks and refuses SVG drawing" do
     script = Rails.root.join("script/write-dylan-favicon.py").read
-    assert_includes script, "ICO ="
+    assert_includes script, "CHUNKS"
+    assert_includes script, "CRCS"
+    assert_includes script, "adef9a2575a42909c6a59a4f8f833f08"
     refute_includes script, "<svg"
     refute_includes script, "ImageDraw"
-    status = system("python3", Rails.root.join("script/write-dylan-favicon.py").to_s, "--self-test")
-    assert status, "write-dylan-favicon.py --self-test failed"
+    refute_includes script, "ICO ="
+
+    digest = Digest::MD5.hexdigest(Rails.root.join("public/favicon-32.png").binread)
+    assert_equal "adef9a2575a42909c6a59a4f8f833f08", digest
   end
 
   test "PWA manifest points at the outlined book PNGs" do
@@ -62,6 +68,7 @@ class FaviconTest < ActiveSupport::TestCase
     assert_includes manifest, "/icon-192.png"
     assert_includes manifest, "/icon-512.png"
     assert_includes manifest, "/icon-maskable.png"
+    assert_includes manifest, "/icon-maskable-512.png"
     assert_includes manifest, '"purpose": "maskable"'
     refute_match(/"src": "\/icon\.png"/, manifest)
   end

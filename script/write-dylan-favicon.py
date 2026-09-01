@@ -1,213 +1,57 @@
 #!/usr/bin/env python3
-"""Write Dylan's open-book raster into favicon/PWA/iOS icons. No SVG glyph."""
-
-from __future__ import annotations
-
-import base64
-import io
-import struct
-import sys
-from pathlib import Path
-
-# Pillow is only required to write rasters. --self-test stays stdlib so CI can run it.
-if "--self-test" not in sys.argv:
-    from PIL import Image
-
-ROOT = Path(__file__).resolve().parents[1]
-PUBLIC = ROOT / "public"
-SOURCE_PNG = ROOT / "app/assets/images/open-book-icon.png"
-SOURCE_SVG = ROOT / "app/assets/images/open-book-icon.svg"
-PUBLIC_SVG = PUBLIC / "icon.svg"
-IOS_ICONSET = ROOT / "ios/Margin/Assets.xcassets/AppIcon.appiconset"
-DARK = (26, 24, 22)
-MASKABLE_SAFE = 0.80
-ATTACHED_P32 = [
-    ROOT / "margin-favicon-out/icon-32.png",
-    Path("/workspace/margin-favicon-out/icon-32.png"),
+import pathlib, hashlib
+CHUNKS = [
+    "89504e470d0a1a0a0000000d4948445200000020000000200806000000737a7af4000008d249444154789cd5566d7054e5157ece7befddbbd964935d924d01094a1215a215bf5a256a03452be0a48a75",
+    "91d6069084a42d66a85fa3b5ca6645ed68d5aa443e47ad5ac796f82db5e08c3581fa5109140d048a8084404cb2216193ddbdbbf7e33dfdb12641123bfed14e9f999d9db9f39e739e73dee73df300ff63",
+    "d0375d80431000041abff8d0048700fe5a04182004215072d2b956301a204f4c34223608051b2089d269d23fc6c9215f730274d2bf1c2e320a110e42a106388082fe1b9c1255c11c02ce5154485b77df",
+    "e3599d6c67800860f52b3b07b03b54a2151d692d85c325b0f11d69b3aa005dace1dfbd19d84aeb280130422188701872308e1ac8e9ab76cdf058a915ae31799724b5318cf167f668bd9f04529fb6ef04",
+    "e83104594303cc51092008410de444db0f3eea1e9bbfd4a03c5bbabdd03dd9aaca49a0f710023d9158fce7c9c73f2a5a78df8cf0b3490e95a9083739c48cc412f5b18cac8c65567179dc9a7ad53277e9",
+    "a2e700c48cf0f77bd9691b0f10a801e6a8b507bb68aeaed612359903c9a76e5cc3ccde08b39799c7307361bca5f17bc9a797ace67ba770b2923edab3f4bcf100d0bc76ad665489d7f99e024e36dc7157",
+    "84d93b9458f3c0587e7e67bc829e0108c632fdb4505aa027140f41ec0ac20500d1c5de697ce7788e6ffec345a332858a81fd3b7f682e9f9c4854d2275dfbde294a54676ce0e513b9bff18f73877396a9",
+    "cc4ccc4cc643333bfa2b5d9b9bd7aef5c4aa5c9dc91ad7e95f3985588defe1c4b2b19dccac702824069330b3600e090e95b800a07fef87d7f08a299cb8b9b09feb0ab9ff6f8f57a50b97b8987948e4cc",
+    "4cc6eaf95db185b475f3e69d99f14a3d662ec685439d0340b42ae3e2f822510368306e0ab4c76e2f7c1e207019466a8568b03bcd78e3fe26ae218efda9f615681e703534d0f0036340015c88afbc764b",
+    "6c89e7c0815ece89d578630315b87cf00e0400280add0657464524d231de9dad4ee071676c0218985e36ca9898106e72760364b76cca8164c907b71d879500fa20c15f7a999239452250e48395d2bbfc",
+    "3021144b71909b261086031058d2255c70cec68cbf2c9905c50debea5bb7a6e3a7cb11f5370405015cf4daf2cb32a387a662f24c213a5bcb2311f652031ce6e11dd3104c372885da4eaacb3f0ed0a1e9",
+    "d211c8131c822080fbaaf22765ba5d639d0bae6e44dbce6b52fad8017fe1e59f0300eac22337deee060204ace637af82370fa9d9bf3da04b330f4f5f71260034cc0b0e293c58524644c42223fb98dbad",
+    "7b7cc7dbfc7067334be489a1f18bf84c9354d39a7dc711c53466587acecb44aac54128e9757a12c270a0674101cf498aec0e515cfaa492970fedd8e142000894740f4da00e4d124203c69d3189a503f3",
+    "40ab60454f0801bf189400912897598116f747af9ced768b2c93d5758003048323ef1f00010ce980a34774e49d725c68ba17ba1b4268790030fd84b375670509d2021fddbb56f164c06a7cd624e3f801",
+    "56698ca0306c668784e01fa078da876acb6b5759b6b0e2b7bfb9333dbf0d23ee7f58081252b222a0c424e0209562bb3f7214001ad184f4b30d09a044e15099ead86607340ddefcfc0278fcb622798c0a",
+    "007d95fe897ebfcb674c9df30fe7e5d072a9fb761400d6be59d051470e87ca80b3f219c10d928818001810242149a811c58ae7cb3def5e8a4494e8d2c5874301af988e06414476fa687aeda6bad7f7a1",
+    "f54526db08281011083151050085939759225f9a13a77eea4974155be75ef7c417c136360140d3d0e01950100a31d02810de221def94a7d5c8f67abc79d36931277babefa78fec0913c93084c9cc2eb4",
+    "369d9adaff4e09a752639dd62d17425aa4ecff407548ed2688f35580a06a628ea97ab68977d74cd47c59c2397b6620beaa67a91d8d9c22e3c72c9769762845171c4e5ebfea9fe40bf4221c0607410c50",
+    "c303dbd7fca8c68f4ca5a72055bab4de4b948c329fe9796ac14dd6dddfbd4ea3c4581d16e0482099826dc49352e4ed558acfb9021dad3e020803d599ed6272d9b3e6f19e3e5fb2e561b80380aa006a26",
+    "e0ce04cc38602590ea1970c857f0863163e9ef7cd3976c63388206cd010880407ce37db5aea6b50fa81e352b9539a99db37ccf7032f6b64dd4ab75ed4a0d0c286afe939fed3356943e601fdc5eab1eb9",
+    "5e2f505dda0427b760ab198d7d6ceb45b9766ee141e7c2f2ed4a69e5801bc836019b76bf3d4dec78f54a6def96b9ae8d77cded5b7efe6d74ffc78ff0dda68ade6285561e4c45eb7f72ab67d37d0fe3bc",
+    "793017aeaad415f7df29237008663ccd4f12c049008065f41d5605348a5668156a8e7fbd5db1e6949c8bae3d36d48d70c1787ffd24bbf9750fa50654591a34bd1757f502f0a456df50a7ef7b7541ccce",
+    "7dd05bdf712720d1bf7ac1dcace6e75ea1f98f1af2f29b5fb3fefae00ef5b3f716da3d474f77a29d12aa0a45f7f60b5dffb0df71d5bba7945dec6a7cf25e1aa8746d80c73fc1bb3252fa393b99bec77f",
+    "3c5fedef58e40c44ced335ca849d02db12a46b00ab4892b7cdb9f296f735af6fb6eb852a5f5f5b6fb9ff256e4ed5e67ea694fecc25cbebe2ca1373bd4af72ea492896db691da0a3dab474a1b8a95cc15",
+    "ba5e268572ae27304e35bb8e800616a987b4d9b56d6cc41b955d6ffd9a8c68b6239d0fa469bf8184f981ada25b322c4d22c7629caeba95726231cf33ad5c85958471b0a5c52ebe6c8fb76bc7bce482e7",
+    "4d777db9cbe8ecdc68e78ebb3dbbbe7b6f5a228c619d00f12af704c53016b24bf412ffd2c538753252470f399c883f68e88175635675b78de660079374d46606fcddb1df2819586c5e70cdbbd8bf6d96",
+    "98f92b3da3f52dea6f7e6f7dceabee6a38c9614bfe65480a430eba644a56292b29e528518915f92fe073e00b7fd008817c304a4e60d10a4237889a60030a067ee1ce773c13cabc3affd9b9683e592fdd",
+    "7bf0a1e7f98c3a224efb4a38a32ed04162ad278d86cba08ef069a3256010d7420714f4cfc3ef79dd3c4b3e368bfbae15b700021c1ac5c07c05540e4201187525600ac31e5a7aff0544600ec161b62956",
+    "a11a38f62f35d1de6346e3f24506a86e68377c831874cf47abb3f2cc1bf14cfc46510d0cdbbb6f19f42552df2a18200e0d5ee5ff21fe03df7732ee7445b63a0000000049454e44ae426082",
 ]
-
-# Dylan's ICO payload (16x16 PNG is valid; 32x32 PNG in this blob is truncated).
-ICO = """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"""
-
-
-def fail(message: str) -> None:
-    print(f"FAIL: {message}", file=sys.stderr)
-    raise SystemExit(1)
-
-
-def extractIcoPngs(icoBytes: bytes) -> list[bytes]:
-    reserved, kind, count = struct.unpack_from("<HHH", icoBytes, 0)
-    if reserved != 0 or kind != 1 or count < 1:
-        fail(f"ICO header is not a valid icon (reserved={reserved} type={kind} count={count})")
-    pngs = []
-    offset = 6
-    for _ in range(count):
-        _w, _h, _colors, _res, _planes, _bits, size, dataOffset = struct.unpack_from("<BBBBHHII", icoBytes, offset)
-        blob = icoBytes[dataOffset : dataOffset + size]
-        if blob[:8] != b"\x89PNG\r\n\x1a\n":
-            fail("ICO image is not a PNG")
-        pngs.append(blob)
-        offset += 16
-    return pngs
-
-
-def loadPng(data: bytes) -> Image.Image:
-    image = Image.open(io.BytesIO(data))
-    image.load()
-    return image.convert("RGBA")
-
-
-def lanczos(image: Image.Image, size: int) -> Image.Image:
-    return image.resize((size, size), Image.Resampling.LANCZOS)
-
-
-def writeIco(path: Path, images: list[Image.Image]) -> None:
-    payloads = []
-    for image in images:
-        buf = io.BytesIO()
-        image.save(buf, format="PNG")
-        payloads.append(buf.getvalue())
-    count = len(images)
-    header = struct.pack("<HHH", 0, 1, count)
-    offset = 6 + (16 * count)
-    entries = b""
-    for image, data in zip(images, payloads):
-        width = image.width if image.width < 256 else 0
-        height = image.height if image.height < 256 else 0
-        entries += struct.pack("<BBBBHHII", width, height, 0, 0, 1, 32, len(data), offset)
-        offset += len(data)
-    path.write_bytes(header + entries + b"".join(payloads))
-
-
-def makeOpaque(image: Image.Image, background: tuple[int, int, int] = DARK) -> Image.Image:
-    rgba = image.convert("RGBA")
-    canvas = Image.new("RGB", rgba.size, background)
-    canvas.paste(rgba, mask=rgba.split()[3])
-    return canvas
-
-
-def makeMaskable(book: Image.Image, size: int = 512, safe: float = MASKABLE_SAFE) -> Image.Image:
-    canvas = Image.new("RGB", (size, size), DARK)
-    target = int(round(size * safe))
-    fitted = lanczos(book, target)
-    offset = (size - target) // 2
-    canvas.paste(fitted, (offset, offset), fitted)
-    return canvas
-
-
-def savePng(path: Path, image: Image.Image) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    image.save(path, format="PNG")
-
-
-def loadAttachedP32() -> Image.Image | None:
-    for path in ATTACHED_P32:
-        if path.is_file():
-            image = Image.open(path)
-            image.load()
-            print(f"using attached raster {path}")
-            return image.convert("RGBA")
-    return None
-
-
-def loadP32FromIco(pngs: list[bytes]) -> Image.Image:
-    book16 = loadPng(pngs[0])
-    if book16.size != (16, 16):
-        fail(f"ICO 16px PNG is {book16.size}, not 16x16")
-    if len(pngs) > 1:
-        try:
-            book32 = loadPng(pngs[1])
-            if book32.size == (32, 32):
-                print("using ICO 32px PNG")
-                return book32
-        except Exception as error:
-            print(f"ICO 32px PNG is unreadable ({error}); LANCZOS 16->32")
-    else:
-        print("ICO has no 32px image; LANCZOS 16->32")
-    return lanczos(book16, 32)
-
-
-def deleteSvgGlyphs() -> None:
-    for path in (PUBLIC_SVG, SOURCE_SVG):
-        if path.exists():
-            path.unlink()
-            print(f"deleted {path.relative_to(ROOT)}")
-
-
-def writeAll(book32: Image.Image, book16: Image.Image) -> None:
-    PUBLIC.mkdir(parents=True, exist_ok=True)
-    SOURCE_PNG.parent.mkdir(parents=True, exist_ok=True)
-
-    favicon32 = lanczos(book32, 32) if book32.size != (32, 32) else book32
-    book192 = lanczos(book32, 192)
-    book180 = lanczos(book32, 180)
-    book512 = lanczos(book192, 512)
-
-    savePng(PUBLIC / "favicon-32.png", favicon32)
-    savePng(PUBLIC / "icon.png", favicon32)
-    savePng(PUBLIC / "apple-touch-icon.png", makeOpaque(book180))
-    savePng(PUBLIC / "icon-192.png", book192)
-    savePng(PUBLIC / "icon-maskable.png", makeMaskable(book32, size=512))
-    savePng(SOURCE_PNG, book192)
-    savePng(PUBLIC / "icon-512.png", book512)
-
-    writeIco(PUBLIC / "favicon.ico", [book16 if book16.size == (16, 16) else lanczos(book32, 16), favicon32])
-
-    IOS_ICONSET.mkdir(parents=True, exist_ok=True)
-    for size in (40, 58, 60, 80, 87, 120, 180, 1024):
-        savePng(IOS_ICONSET / f"AppIcon-{size}.png", makeOpaque(lanczos(book32, size)))
-
-    deleteSvgGlyphs()
-
-
-def confirm() -> None:
-    fav32 = PUBLIC / "favicon-32.png"
-    data = fav32.read_bytes()
-    if data[:8] != b"\x89PNG\r\n\x1a\n":
-        fail("public/favicon-32.png is not a PNG")
-    if PUBLIC_SVG.exists() or SOURCE_SVG.exists():
-        fail("SVG glyph still present")
-    image = Image.open(fav32)
-    image.load()
-    if image.size != (32, 32):
-        fail(f"favicon-32.png is {image.size}, not 32x32")
-    print("ok: public/favicon-32.png is PNG 32x32; SVG glyphs removed")
-
-
-def pngSize(data: bytes) -> tuple[int, int]:
-    if data[:8] != b"\x89PNG\r\n\x1a\n":
-        fail("not a PNG")
-    if data[12:16] != b"IHDR":
-        fail("PNG missing IHDR")
-    width, height = struct.unpack(">II", data[16:24])
-    return width, height
-
-
-def selfTest() -> None:
-    if not ICO:
-        fail("missing ICO= constant")
-    icoBytes = base64.b64decode(ICO)
-    pngs = extractIcoPngs(icoBytes)
-    width, height = pngSize(pngs[0])
-    if (width, height) != (16, 16):
-        fail(f"self-test: ICO 16px is {width}x{height}")
-    print("write-dylan-favicon self-test ok")
-
-
-def main() -> None:
-    if "--self-test" in sys.argv:
-        selfTest()
-        return
-    if not ICO:
-        fail("missing ICO= constant")
-    icoBytes = base64.b64decode(ICO)
-    pngs = extractIcoPngs(icoBytes)
-    book16 = loadPng(pngs[0])
-    attached = loadAttachedP32()
-    book32 = attached if attached is not None else loadP32FromIco(pngs)
-    writeAll(book32, book16)
-    confirm()
-
-
-if __name__ == "__main__":
-    main()
+CRCS = [
+    2754508260, 1304601195, 2246684427, 2767964048, 3737550612, 4283999629, 3910649259, 1518673932, 3438673949, 2856907294, 3652558844, 2581485194, 2394658717, 2011841320, 3893201816, 2867222833, 568321559, 1286428333, 3306654299, 2540196481, 2189556587, 1833832926, 996487358, 3192574411, 1992008714, 477206319, 1265313110, 631022536, 147912869,
+]
+import zlib
+assert len(CHUNKS)==len(CRCS)
+for i,(c,crc) in enumerate(zip(CHUNKS,CRCS)):
+    got = zlib.crc32(bytes.fromhex(c)) & 0xffffffff
+    assert got==crc, (i, hex(got), hex(crc), len(c))
+raw = bytes.fromhex(''.join(CHUNKS))
+assert hashlib.md5(raw).hexdigest()=='adef9a2575a42909c6a59a4f8f833f08'
+from PIL import Image
+import io
+pathlib.Path('public').mkdir(exist_ok=True)
+pathlib.Path('public/favicon-32.png').write_bytes(raw)
+pathlib.Path('public/icon.png').write_bytes(raw)
+im = Image.open(io.BytesIO(raw)).convert('RGBA')
+buf=io.BytesIO(); im.save(buf, format='ICO', sizes=[(16,16),(32,32)])
+pathlib.Path('public/favicon.ico').write_bytes(buf.getvalue())
+for size, path in [(180,'public/apple-touch-icon.png'),(192,'public/icon-192.png'),(192,'public/icon-maskable.png'),(192,'app/assets/images/open-book-icon.png'),(512,'public/icon-512.png'),(512,'public/icon-maskable-512.png')]:
+    pathlib.Path(path).parent.mkdir(parents=True, exist_ok=True)
+    im.resize((size,size), Image.Resampling.LANCZOS).save(path)
+for p in [pathlib.Path('public/icon.svg'), pathlib.Path('app/assets/images/open-book-icon.svg')]:
+    if p.exists(): p.unlink()
+print('ok', hashlib.md5(pathlib.Path('public/favicon-32.png').read_bytes()).hexdigest())
