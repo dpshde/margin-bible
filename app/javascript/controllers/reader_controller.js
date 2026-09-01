@@ -1,5 +1,5 @@
 import { Controller } from "@hotwired/stimulus"
-import { isHorizontalIntent, isTapGesture, rangeDragIntent, versePointerDecision } from "../lib/chapter-swipe"
+import { isHorizontalIntent, isTapGesture, lockSwipeAxis, rangeDragIntent, versePointerDecision } from "../lib/chapter-swipe"
 import {
   applyChapterGridOpen,
   chapterCellsHtml,
@@ -162,6 +162,7 @@ export default class extends Controller {
     if (this.pointerOrigin == null) return
     const dx = event.clientX - this.pointerOrigin.x
     const dy = event.clientY - this.pointerOrigin.y
+    this.swipeAxis = lockSwipeAxis(dx, dy, this.swipeAxis)
     if (this.dragStart == null) return
     const n = this.verseAtPoint(event.clientX, event.clientY)
     const startEl = this.verseEl(this.dragStart)
@@ -171,14 +172,14 @@ export default class extends Controller {
       startVerseTop: this.dragStartTop,
       currentStartVerseTop: startEl ? this.verseBox(startEl).top : null,
       dx,
-      dy
+      dy,
+      axis: this.swipeAxis
     })
     if (!startRange && !this.dragging) {
       if (!isTapGesture(dx, dy) && !isHorizontalIntent(dx, dy)) this.element.classList.add("is-picking")
       return
     }
     this.dragging = true
-    this.swipeAxis = null
     this.ignoreClick = true
     event.preventDefault()
     const box = this.pressEl?.querySelector?.(".vtext") || this.pressEl
@@ -199,6 +200,7 @@ export default class extends Controller {
     const dx = origin ? event.clientX - origin.x : 0
     const dy = origin ? event.clientY - origin.y : 0
     const elapsedMs = origin ? event.timeStamp - origin.t : 0
+    const axis = this.swipeAxis
     this.ignoreClick = true
     this.resetDrag()
     const decision = versePointerDecision({
@@ -207,7 +209,8 @@ export default class extends Controller {
       elapsedMs,
       startVerse: start,
       endVerse: hovered,
-      dragging: wasDragging
+      dragging: wasDragging,
+      axis
     })
     if (decision.type === "chapter") {
       const url = decision.direction === "next" ? this.nextUrlValue : this.prevUrlValue
