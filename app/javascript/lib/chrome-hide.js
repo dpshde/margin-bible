@@ -47,3 +47,9 @@ export function nearRevealEdge(clientY, innerHeight, edge = "bottom", zone) {
   if (edge === "top") return nearTopEdge(clientY, zone || 72)
   return nearBottomEdge(clientY, innerHeight, zone || 96)
 }
+
+export function applyReaderChromeTuck(reader, tucked) {
+  if (!reader?.classList) return false
+  reader.classList.toggle("is-chrome-tucked", Boolean(tucked))
+  return reader.classList.contains("is-chrome-tucked")
+}

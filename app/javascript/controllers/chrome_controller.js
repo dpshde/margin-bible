@@ -1,5 +1,5 @@
 import { Controller } from "@hotwired/stimulus"
-import { chromeLocked, nearRevealEdge, nextChromeHidden } from "../lib/chrome-hide"
+import { applyReaderChromeTuck, chromeLocked, nearRevealEdge, nextChromeHidden } from "../lib/chrome-hide"
 
 export default class extends Controller {
   static values = { edge: { type: String, default: "bottom" } }
@@ -7,6 +7,7 @@ export default class extends Controller {
   connect() {
     this.hidden = false
     this.lastY = window.scrollY
+    this.reader = this.edgeValue === "bottom" ? this.element.closest(".reader") : null
     this.onScroll = this.onScroll.bind(this)
     this.onMove = this.onMove.bind(this)
     this.onFocusIn = this.show.bind(this)
@@ -23,6 +24,7 @@ export default class extends Controller {
     window.removeEventListener("mousemove", this.onMove)
     window.removeEventListener("pointerdown", this.onPointer)
     this.element.removeEventListener("focusin", this.onFocusIn)
+    applyReaderChromeTuck(this.reader, false)
   }
 
   onScroll() {
@@ -75,5 +77,6 @@ export default class extends Controller {
     const tucked = this.floats() && this.hidden
     this.element.classList.toggle("is-tucked", tucked)
     this.element.toggleAttribute("inert", tucked)
+    applyReaderChromeTuck(this.reader, tucked)
   }
 }

@@ -1,5 +1,6 @@
 import assert from "node:assert/strict"
 import {
+  applyReaderChromeTuck,
   chromeLocked,
   nearBottomEdge,
   nearRevealEdge,
@@ -59,6 +60,24 @@ import {
   assert.equal(chromeLocked({ suggestOpen: true, root, activeElement: iconBtn }), true)
   assert.equal(chromeLocked({ menuOpen: true, root, activeElement: iconBtn }), true)
   assert.equal(chromeLocked({ gridOpen: true, root, activeElement: iconBtn }), true)
+}
+
+{
+  const classList = new Set()
+  const reader = {
+    classList: {
+      toggle(name, on) {
+        if (on) classList.add(name)
+        else classList.delete(name)
+      },
+      contains(name) { return classList.has(name) }
+    }
+  }
+  assert.equal(applyReaderChromeTuck(null, true), false)
+  assert.equal(applyReaderChromeTuck(reader, true), true)
+  assert.equal(classList.has("is-chrome-tucked"), true)
+  assert.equal(applyReaderChromeTuck(reader, false), false)
+  assert.equal(classList.has("is-chrome-tucked"), false)
 }
 
 console.log("chrome-hide: ok")
