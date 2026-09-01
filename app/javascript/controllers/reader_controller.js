@@ -201,6 +201,7 @@ export default class extends Controller {
     const dy = origin ? event.clientY - origin.y : 0
     const elapsedMs = origin ? event.timeStamp - origin.t : 0
     const axis = this.swipeAxis
+    const startedOnControl = start != null
     this.ignoreClick = true
     this.resetDrag()
     const decision = versePointerDecision({
@@ -210,7 +211,8 @@ export default class extends Controller {
       startVerse: start,
       endVerse: hovered,
       dragging: wasDragging,
-      axis
+      axis,
+      startedOnControl
     })
     if (decision.type === "chapter") {
       const url = decision.direction === "next" ? this.nextUrlValue : this.prevUrlValue

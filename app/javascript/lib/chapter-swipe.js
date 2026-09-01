@@ -1,11 +1,16 @@
-// Exedra chapter swipe — labs/exedra/src/components/Reader.tsx
-// (DPS-LABS/selah-tools). Numbers copied from that file, not invented:
-//   AXIS_LOCK_SLOP = 5px, then absX > absY locks horizontal (else vertical).
-//   SWIPE_THRESHOLD = 50px distance-only commit. No velocity shortcut.
-//   Long-press / highlight slop = 15px; Margin tap slop stays 14px.
-//   Selection mode and chrome overlays cancel swipe.
-const AXIS_LOCK_SLOP = 5
-const SWIPE_THRESHOLD = 50
+// Committed chapter swipe. Origin Exedra
+// (cursor.com/codebase/dpshde/selah-tools/…/labs/exedra) is the source of
+// truth but this VM cannot read it (origin CLI unauthenticated, API 401).
+// Workspace has no Exedra pan/velocity numbers — only picker/sheet comments.
+// Fallback specified for that case:
+//   ignore pans whose |dy| > |dx| * 0.7
+//   require ~100px horizontal OR a clear flick (0.85 px/ms after 56px)
+//   cancel if the gesture started on a verse/note control
+const AXIS_LOCK_SLOP = 10
+const VERTICAL_REJECT = 0.7
+const MIN_DISTANCE = 100
+const MIN_FLICK = 56
+const MIN_VELOCITY = 0.85
 const TAP_SLOP = 14
 const SCROLL_SLOP = 10
 
@@ -18,7 +23,7 @@ export function lockSwipeAxis(dx, dy, locked = null, slop = AXIS_LOCK_SLOP) {
   const absX = Math.abs(dx)
   const absY = Math.abs(dy)
   if (absX <= slop && absY <= slop) return null
-  return absX > absY ? "horizontal" : "vertical"
+  return absY > absX * VERTICAL_REJECT ? "vertical" : "horizontal"
 }
 
 export function isHorizontalIntent(dx, dy, slop = AXIS_LOCK_SLOP) {
@@ -31,13 +36,16 @@ export function chapterSwipe({
   elapsedMs,
   rangeDragging = false,
   startedOnChrome = false,
+  startedOnControl = false,
   axis = null
 }) {
-  if (rangeDragging || startedOnChrome) return null
+  if (rangeDragging || startedOnChrome || startedOnControl) return null
   if (lockSwipeAxis(dx, dy, axis) !== "horizontal") return null
-  // elapsedMs is accepted so callers keep passing it; Exedra has no velocity commit.
-  void elapsedMs
-  if (Math.abs(dx) < SWIPE_THRESHOLD) return null
+  const absX = Math.abs(dx)
+  const velocity = absX / Math.max(Number(elapsedMs) || 0, 1)
+  const committedDrag = absX >= MIN_DISTANCE
+  const clearFlick = absX >= MIN_FLICK && velocity >= MIN_VELOCITY
+  if (!committedDrag && !clearFlick) return null
   return dx < 0 ? "next" : "prev"
 }
 
@@ -70,13 +78,16 @@ export function versePointerDecision({
   startVerse,
   endVerse,
   dragging,
-  axis = null
+  axis = null,
+  startedOnControl = false
 }) {
   const changedVerse = startVerse != null && endVerse != null && endVerse !== startVerse
   const horizontal = lockSwipeAxis(dx, dy, axis) === "horizontal"
+  const onControl = startedOnControl || startVerse != null
   // A drag that lands on another verse is a range even if pointermove never
   // flipped `dragging` (throttled moves, pointercancel, or the first sample
-  // on pointerup). Horizontal flicks without that drag still swipe chapters.
+  // on pointerup). Horizontal flicks without that drag still swipe chapters
+  // only when the press did not start on a verse/note control.
   if (changedVerse && (dragging || (!isTapGesture(dx, dy) && !horizontal))) {
     return { type: "range", start: startVerse, end: endVerse }
   }
@@ -85,6 +96,7 @@ export function versePointerDecision({
     dy,
     elapsedMs,
     rangeDragging: dragging && changedVerse,
+    startedOnControl: onControl,
     axis
   })
   if (swipe) return { type: "chapter", direction: swipe }
