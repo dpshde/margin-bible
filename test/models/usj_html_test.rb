@@ -118,7 +118,7 @@ class UsjHtmlTest < ActionView::TestCase
       Margin::Usj.chapter_nodes("GEN", 1),
       chapter: Margin::Passage.parse("gen.1"),
       notes_by_verse: {
-        5 => [ Struct.new(:slug, :blocks, :passage, :bookmarked?).new("gen.1.5", [], Margin::Passage.parse("gen.1.5"), false) ]
+        5 => [ Struct.new(:slug, :blocks, :passage, :bookmarked?, :attachments).new("gen.1.5", [], Margin::Passage.parse("gen.1.5"), false, []) ]
       },
       span_start: nil,
       span_end: nil,

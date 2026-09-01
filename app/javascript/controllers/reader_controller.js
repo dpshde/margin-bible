@@ -1,5 +1,13 @@
 import { Controller } from "@hotwired/stimulus"
-import { isHorizontalIntent, isTapGesture, rangeDragIntent, versePointerDecision } from "../lib/chapter-swipe"
+import {
+  chapterSwipeAllowed,
+  detectCoarsePointer,
+  isHorizontalIntent,
+  isTapGesture,
+  lockSwipeAxis,
+  rangeDragIntent,
+  versePointerDecision
+} from "../lib/chapter-swipe"
 import {
   applyChapterGridOpen,
   chapterCellsHtml,
@@ -83,6 +91,7 @@ export default class extends Controller {
     this.onVisibility = this.onVisibility.bind(this)
     this.dismissXref = this.dismissXref.bind(this)
     this.followXrefClick = this.followXrefClick.bind(this)
+    this.coarsePointer = detectCoarsePointer()
     document.addEventListener("turbo:before-visit", this.flushPending)
     window.addEventListener("pagehide", this.flushPending)
     document.addEventListener("visibilitychange", this.onVisibility)
@@ -137,9 +146,14 @@ export default class extends Controller {
     if (event.target.closest(".note-tray, .chapter-tray, .otext, input, textarea, .jump, .topbar, .reader-dock, .reader-chrome, .chapter-grid")) return
     const link = event.target.closest("a")
     if (link && !link.closest(".verse-press")) return
-    this.pointerOrigin = { x: event.clientX, y: event.clientY, t: event.timeStamp }
     const press = event.target.closest(".verse-press")
     const verse = press?.closest("[data-verse]")
+    const swipeOk = chapterSwipeAllowed({
+      pointerType: event.pointerType,
+      coarsePointer: this.coarsePointer
+    })
+    if (!verse && !swipeOk) return
+    this.pointerOrigin = { x: event.clientX, y: event.clientY, t: event.timeStamp }
     this.pressEl = press
     if (verse) {
       this.dragStart = Number(verse.dataset.verse)
@@ -149,6 +163,8 @@ export default class extends Controller {
       this.dragStart = null
       this.dragCurrent = null
     }
+    this.pointerKind = event.pointerType
+    this.swipeInput = swipeOk
     this.dragging = false
     this.swipeAxis = null
     this.dragStartTop = verse ? this.verseBox(verse).top : null
@@ -162,6 +178,7 @@ export default class extends Controller {
     if (this.pointerOrigin == null) return
     const dx = event.clientX - this.pointerOrigin.x
     const dy = event.clientY - this.pointerOrigin.y
+    if (this.swipeInput) this.swipeAxis = lockSwipeAxis(dx, dy, this.swipeAxis)
     if (this.dragStart == null) return
     const n = this.verseAtPoint(event.clientX, event.clientY)
     const startEl = this.verseEl(this.dragStart)
@@ -171,14 +188,15 @@ export default class extends Controller {
       startVerseTop: this.dragStartTop,
       currentStartVerseTop: startEl ? this.verseBox(startEl).top : null,
       dx,
-      dy
+      dy,
+      axis: this.swipeAxis,
+      allowChapterSwipe: this.swipeInput
     })
     if (!startRange && !this.dragging) {
       if (!isTapGesture(dx, dy) && !isHorizontalIntent(dx, dy)) this.element.classList.add("is-picking")
       return
     }
     this.dragging = true
-    this.swipeAxis = null
     this.ignoreClick = true
     event.preventDefault()
     const box = this.pressEl?.querySelector?.(".vtext") || this.pressEl
@@ -199,6 +217,10 @@ export default class extends Controller {
     const dx = origin ? event.clientX - origin.x : 0
     const dy = origin ? event.clientY - origin.y : 0
     const elapsedMs = origin ? event.timeStamp - origin.t : 0
+    const axis = this.swipeAxis
+    const startedOnControl = start != null
+    const pointerType = this.pointerKind
+    const coarsePointer = this.coarsePointer
     this.ignoreClick = true
     this.resetDrag()
     const decision = versePointerDecision({
@@ -207,7 +229,11 @@ export default class extends Controller {
       elapsedMs,
       startVerse: start,
       endVerse: hovered,
-      dragging: wasDragging
+      dragging: wasDragging,
+      axis,
+      startedOnControl,
+      pointerType,
+      coarsePointer
     })
     if (decision.type === "chapter") {
       const url = decision.direction === "next" ? this.nextUrlValue : this.prevUrlValue
@@ -1141,6 +1167,8 @@ export default class extends Controller {
     this.dragStartTop = null
     this.dragging = false
     this.swipeAxis = null
+    this.swipeInput = false
+    this.pointerKind = null
     this.pressEl = null
     this.pointerOrigin = null
     this.teardownPointer()
