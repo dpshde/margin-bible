@@ -7,8 +7,8 @@ class WellKnownControllerTest < ActionDispatch::IntegrationTest
     get "/.well-known/oauth-protected-resource"
     assert_response :success
     body = JSON.parse(response.body)
-    assert_equal "http://www.example.com/mcp", body["resource"]
-    assert_equal [ "http://www.example.com" ], body["authorization_servers"]
+    assert_equal "https://www.example.com/mcp", body["resource"]
+    assert_equal [ "https://www.example.com" ], body["authorization_servers"]
     assert_equal [ "notes:read" ], body["scopes_supported"]
   end
 
@@ -16,9 +16,9 @@ class WellKnownControllerTest < ActionDispatch::IntegrationTest
     get "/.well-known/oauth-authorization-server"
     assert_response :success
     body = JSON.parse(response.body)
-    assert_equal "http://www.example.com/oauth/authorize", body["authorization_endpoint"]
-    assert_equal "http://www.example.com/oauth/token", body["token_endpoint"]
-    assert_equal "http://www.example.com/oauth/register", body["registration_endpoint"]
+    assert_equal "https://www.example.com/oauth/authorize", body["authorization_endpoint"]
+    assert_equal "https://www.example.com/oauth/token", body["token_endpoint"]
+    assert_equal "https://www.example.com/oauth/register", body["registration_endpoint"]
     assert_equal [ "S256" ], body["code_challenge_methods_supported"]
     assert_equal [ "notes:read" ], body["scopes_supported"]
     refute_includes body["scopes_supported"], "notes:write"
