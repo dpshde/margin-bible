@@ -45,8 +45,8 @@ module Margin
 
     def allowed_hosts(request)
       hosts = [ request.host, "localhost", "127.0.0.1" ]
-      if (app_host = ENV["APP_HOST"].presence)
-        hosts << URI.parse(app_host.start_with?("http") ? app_host : "https://#{app_host}").host
+      if (origin = Margin::PublicOrigin.call(request))
+        hosts << URI.parse(origin).host
       end
       hosts.compact.uniq
     end
