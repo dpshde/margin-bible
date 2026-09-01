@@ -48,6 +48,49 @@ export function nearRevealEdge(clientY, innerHeight, edge = "bottom", zone) {
   return nearBottomEdge(clientY, innerHeight, zone || 96)
 }
 
+export function detectFineHover(queryMedia) {
+  const media = queryMedia ?? globalThis.matchMedia
+  if (typeof media !== "function") return false
+  try {
+    const hover = media.call(globalThis, "(hover: hover)")
+    const fine = media.call(globalThis, "(pointer: fine)")
+    return Boolean(hover?.matches && fine?.matches)
+  } catch {
+    return false
+  }
+}
+
+export function pointerOverPager(target) {
+  return Boolean(target?.closest?.(".pager"))
+}
+
+export function shouldProximityReveal({
+  edge = "bottom",
+  overPager = false,
+  fineHover = false,
+  pointerType = null
+} = {}) {
+  if (edge === "top") return true
+  if (overPager) return false
+  if (pointerType === "touch") return true
+  if (pointerType === "mouse" || pointerType === "pen") return false
+  if (fineHover) return false
+  return true
+}
+
+export function shouldShowChromeFromPointer({
+  clientY,
+  innerHeight,
+  edge = "bottom",
+  overPager = false,
+  fineHover = false,
+  pointerType = null,
+  zone
+} = {}) {
+  if (!nearRevealEdge(clientY, innerHeight, edge, zone)) return false
+  return shouldProximityReveal({ edge, overPager, fineHover, pointerType })
+}
+
 export function applyReaderChromeTuck(reader, tucked) {
   if (!reader?.classList) return false
   reader.classList.toggle("is-chrome-tucked", Boolean(tucked))

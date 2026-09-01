@@ -1,5 +1,12 @@
 import { Controller } from "@hotwired/stimulus"
-import { applyReaderChromeTuck, chromeLocked, nearRevealEdge, nextChromeHidden } from "../lib/chrome-hide"
+import {
+  applyReaderChromeTuck,
+  chromeLocked,
+  detectFineHover,
+  pointerOverPager,
+  shouldShowChromeFromPointer,
+  nextChromeHidden
+} from "../lib/chrome-hide"
 
 export default class extends Controller {
   static values = { edge: { type: String, default: "bottom" } }
@@ -7,6 +14,7 @@ export default class extends Controller {
   connect() {
     this.hidden = false
     this.lastY = window.scrollY
+    this.fineHover = detectFineHover()
     this.reader = this.edgeValue === "bottom" ? this.element.closest(".reader") : null
     this.onScroll = this.onScroll.bind(this)
     this.onMove = this.onMove.bind(this)
@@ -46,7 +54,14 @@ export default class extends Controller {
 
   onMove(event) {
     if (!this.floats() || this.locked()) return
-    if (nearRevealEdge(event.clientY, window.innerHeight, this.edgeValue)) this.show()
+    if (shouldShowChromeFromPointer({
+      clientY: event.clientY,
+      innerHeight: window.innerHeight,
+      edge: this.edgeValue,
+      overPager: pointerOverPager(event.target),
+      fineHover: this.fineHover,
+      pointerType: event.pointerType
+    })) this.show()
   }
 
   show() {

@@ -2,10 +2,14 @@ import assert from "node:assert/strict"
 import {
   applyReaderChromeTuck,
   chromeLocked,
+  detectFineHover,
   nearBottomEdge,
   nearRevealEdge,
   nearTopEdge,
-  nextChromeHidden
+  nextChromeHidden,
+  pointerOverPager,
+  shouldProximityReveal,
+  shouldShowChromeFromPointer
 } from "../../app/javascript/lib/chrome-hide.js"
 
 {
@@ -24,6 +28,34 @@ import {
   assert.equal(nearTopEdge(90, 72), false)
   assert.equal(nearRevealEdge(20, 1000, "top"), true)
   assert.equal(nearRevealEdge(920, 1000, "bottom"), true)
+}
+
+{
+  assert.equal(detectFineHover(() => ({ matches: true })), true)
+  assert.equal(detectFineHover((q) => ({ matches: q.includes("hover") })), false)
+  assert.equal(detectFineHover(() => { throw new Error("no mq") }), false)
+  const pager = { closest: (sel) => sel === ".pager" ? pager : null }
+  const verse = { closest: () => null }
+  assert.equal(pointerOverPager(pager), true)
+  assert.equal(pointerOverPager(verse), false)
+  assert.equal(pointerOverPager(null), false)
+
+  assert.equal(shouldProximityReveal({ edge: "top", fineHover: true }), true)
+  assert.equal(shouldProximityReveal({ edge: "bottom", fineHover: true }), false)
+  assert.equal(shouldProximityReveal({ edge: "bottom", pointerType: "mouse" }), false)
+  assert.equal(shouldProximityReveal({ edge: "bottom", pointerType: "pen" }), false)
+  assert.equal(shouldProximityReveal({ edge: "bottom", pointerType: "touch" }), true)
+  assert.equal(shouldProximityReveal({ edge: "bottom", pointerType: "touch", overPager: true }), false)
+  assert.equal(shouldProximityReveal({ edge: "bottom", overPager: true, fineHover: false }), false)
+  assert.equal(shouldProximityReveal({ edge: "bottom", fineHover: false }), true)
+
+  const bottom = { clientY: 920, innerHeight: 1000, edge: "bottom" }
+  assert.equal(shouldShowChromeFromPointer({ ...bottom, fineHover: true }), false)
+  assert.equal(shouldShowChromeFromPointer({ ...bottom, pointerType: "mouse" }), false)
+  assert.equal(shouldShowChromeFromPointer({ ...bottom, pointerType: "touch" }), true)
+  assert.equal(shouldShowChromeFromPointer({ ...bottom, pointerType: "touch", overPager: true }), false)
+  assert.equal(shouldShowChromeFromPointer({ clientY: 800, innerHeight: 1000, edge: "bottom", pointerType: "touch" }), false)
+  assert.equal(shouldShowChromeFromPointer({ clientY: 20, innerHeight: 1000, edge: "top", fineHover: true }), true)
 }
 
 {
