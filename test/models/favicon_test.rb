@@ -3,17 +3,13 @@
 require "test_helper"
 
 class FaviconTest < ActiveSupport::TestCase
-  test "source is an outlined open book PNG, not a geometric capsule" do
+  test "source is Dylan's open-book PNG, not an SVG glyph" do
     png = png_info(Rails.root.join("app/assets/images/open-book-icon.png"))
-    svg = Rails.root.join("app/assets/images/open-book-icon.svg").read
 
-    assert_equal [ 1024, 1024 ], [ png[:width], png[:height] ]
+    assert_equal [ 192, 192 ], [ png[:width], png[:height] ]
     assert_equal 6, png[:color_type], "source PNG must keep a transparent background"
-    assert_includes svg, "#FF5C00"
-    assert_operator svg.scan("<path").size, :>=, 6
-    refute_includes svg, 'fill="red"'
-    refute_includes svg, 'rect x="8"'
-    refute_includes svg, 'width="84" height="72"'
+    refute File.exist?(Rails.root.join("app/assets/images/open-book-icon.svg"))
+    refute File.exist?(Rails.root.join("public/icon.svg"))
   end
 
   test "public icons are the sizes the layout and PWA manifest expect" do
@@ -21,7 +17,7 @@ class FaviconTest < ActiveSupport::TestCase
       "favicon-32.png" => [ 32, 6 ],
       "icon-192.png" => [ 192, 6 ],
       "icon-512.png" => [ 512, 6 ],
-      "icon.png" => [ 512, 6 ],
+      "icon.png" => [ 32, 6 ],
       "apple-touch-icon.png" => [ 180, 2 ]
     }.each do |name, (pixels, color_type)|
       info = png_info(Rails.root.join("public", name))
@@ -33,12 +29,6 @@ class FaviconTest < ActiveSupport::TestCase
     ico = Rails.root.join("public/favicon.ico").binread
     assert ico.start_with?("\x00\x00\x01\x00".b)
     assert_equal 2, ico[4, 2].unpack1("v")
-
-    svg = Rails.root.join("public/icon.svg").read
-    assert_includes svg, "#FF5C00"
-    refute_includes svg, 'fill="red"'
-    refute_includes svg, 'rect x="8"'
-    refute_includes svg, "<circle"
   end
 
   test "maskable PWA icon is an opaque 512 square generated onto dark paper" do
@@ -54,6 +44,16 @@ class FaviconTest < ActiveSupport::TestCase
     assert_includes script, "open-book-icon.png"
     assert_includes script, "def loadSource"
     refute_includes script, "renderSvg"
+    assert_includes script, "leftoverSvg"
+  end
+
+  test "write-dylan-favicon.py embeds ICO pixels and refuses SVG drawing" do
+    script = Rails.root.join("script/write-dylan-favicon.py").read
+    assert_includes script, "ICO ="
+    refute_includes script, "<svg"
+    refute_includes script, "ImageDraw"
+    status = system("python3", Rails.root.join("script/write-dylan-favicon.py").to_s, "--self-test")
+    assert status, "write-dylan-favicon.py --self-test failed"
   end
 
   test "PWA manifest points at the outlined book PNGs" do

@@ -156,8 +156,8 @@ def generate() -> None:
     book = cropTight(source, paddingRatio=WEB_PADDING)
 
     PUBLIC.mkdir(parents=True, exist_ok=True)
-    if SOURCE_SVG.exists():
-        PUBLIC.joinpath("icon.svg").write_text(SOURCE_SVG.read_text())
+    for leftoverSvg in (SOURCE_SVG, PUBLIC / "icon.svg"):
+        leftoverSvg.unlink(missing_ok=True)
 
     sizes = {
         32: PUBLIC / "favicon-32.png",
@@ -174,7 +174,7 @@ def generate() -> None:
         else:
             raster.save(dest, format="PNG")
 
-    rasters[512].save(PUBLIC / "icon.png", format="PNG")
+    rasters[32].save(PUBLIC / "icon.png", format="PNG")
     makeMaskable(book).save(PUBLIC / "icon-maskable.png", format="PNG")
     writeIco(PUBLIC / "favicon.ico", [resizeIcon(book, 16), rasters[32]])
 

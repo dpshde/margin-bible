@@ -16,7 +16,6 @@ class FaviconControllerTest < ActionDispatch::IntegrationTest
   test "static favicon files are served from public/" do
     %w[
       /favicon.ico
-      /icon.svg
       /favicon-32.png
       /apple-touch-icon.png
       /icon-192.png
@@ -33,7 +32,7 @@ class FaviconControllerTest < ActionDispatch::IntegrationTest
 
   def assert_icon_links
     assert_select %(link[rel="icon"][href="/favicon.ico"])
-    assert_select %(link[rel="icon"][href="/icon.svg"][type="image/svg+xml"])
+    assert_select %(link[rel="icon"][href="/icon.svg"]), count: 0
     assert_select %(link[rel="icon"][href="/favicon-32.png"][sizes="32x32"])
     assert_select %(link[rel="apple-touch-icon"][href="/apple-touch-icon.png"])
   end
