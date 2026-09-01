@@ -26,6 +26,25 @@ class McpControllerTest < ActionDispatch::IntegrationTest
     assert_match(/oauth-protected-resource/, response.headers["WWW-Authenticate"])
   end
 
+  test "WWW-Authenticate resource_metadata uses APP_HOST not a retired Railway host" do
+    prior_app = ENV["APP_HOST"]
+    prior_railway = ENV["RAILWAY_PUBLIC_DOMAIN"]
+    ENV["APP_HOST"] = "margin-bible.up.railway.app"
+    ENV["RAILWAY_PUBLIC_DOMAIN"] = "web-production-0b88ca.up.railway.app"
+    host! "web-production-0b88ca.up.railway.app"
+
+    get mcp_path
+    assert_response :unauthorized
+    assert_equal(
+      %(Bearer realm="margin.bible", resource_metadata="https://margin-bible.up.railway.app/.well-known/oauth-protected-resource"),
+      response.headers["WWW-Authenticate"]
+    )
+  ensure
+    prior_app.nil? ? ENV.delete("APP_HOST") : ENV["APP_HOST"] = prior_app
+    prior_railway.nil? ? ENV.delete("RAILWAY_PUBLIC_DOMAIN") : ENV["RAILWAY_PUBLIC_DOMAIN"] = prior_railway
+    host! "www.example.com"
+  end
+
   test "a garbage token is denied" do
     mcp_json({ jsonrpc: "2.0", id: 1, method: "tools/list" }, token: "mb_nope")
     assert_response :unauthorized

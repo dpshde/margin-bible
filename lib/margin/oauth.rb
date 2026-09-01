@@ -15,11 +15,7 @@ module Margin
     module_function
 
     def issuer(request)
-      if (host = ENV["APP_HOST"].presence)
-        host.start_with?("http://", "https://") ? host.delete_suffix("/") : "https://#{host}"
-      else
-        request.base_url
-      end
+      Margin::PublicOrigin.call(request)
     end
 
     def mcp_resource(request)
