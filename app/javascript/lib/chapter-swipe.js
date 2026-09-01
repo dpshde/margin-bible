@@ -30,6 +30,24 @@ export function isHorizontalIntent(dx, dy, slop = AXIS_LOCK_SLOP) {
   return lockSwipeAxis(dx, dy, null, slop) === "horizontal"
 }
 
+// Mouse / trackpad / pen never chapter-swipe. A real touch pointer always
+// may; otherwise only a coarse primary pointer (no typed event) is enough.
+export function chapterSwipeAllowed({ pointerType = null, coarsePointer = false } = {}) {
+  if (pointerType === "touch") return true
+  if (pointerType == null || pointerType === "") return Boolean(coarsePointer)
+  return false
+}
+
+export function detectCoarsePointer(queryMedia) {
+  const media = queryMedia ?? globalThis.matchMedia
+  if (typeof media !== "function") return false
+  try {
+    return Boolean(media.call(globalThis, "(pointer: coarse)")?.matches)
+  } catch {
+    return false
+  }
+}
+
 export function chapterSwipe({
   dx,
   dy,
@@ -37,8 +55,11 @@ export function chapterSwipe({
   rangeDragging = false,
   startedOnChrome = false,
   startedOnControl = false,
-  axis = null
+  axis = null,
+  pointerType = null,
+  coarsePointer = false
 }) {
+  if (!chapterSwipeAllowed({ pointerType, coarsePointer })) return null
   if (rangeDragging || startedOnChrome || startedOnControl) return null
   if (lockSwipeAxis(dx, dy, axis) !== "horizontal") return null
   const absX = Math.abs(dx)
@@ -57,10 +78,11 @@ export function rangeDragIntent({
   dx,
   dy,
   axis = null,
+  allowChapterSwipe = true,
   scrollSlop = SCROLL_SLOP
 }) {
   if (startVerse == null || currentVerse == null || currentVerse === startVerse) return false
-  if (axis === "horizontal" || isHorizontalIntent(dx, dy)) return false
+  if (allowChapterSwipe && (axis === "horizontal" || isHorizontalIntent(dx, dy))) return false
   if (
     startVerseTop != null &&
     currentStartVerseTop != null &&
@@ -79,16 +101,19 @@ export function versePointerDecision({
   endVerse,
   dragging,
   axis = null,
-  startedOnControl = false
+  startedOnControl = false,
+  pointerType = null,
+  coarsePointer = false
 }) {
   const changedVerse = startVerse != null && endVerse != null && endVerse !== startVerse
+  const swipeOk = chapterSwipeAllowed({ pointerType, coarsePointer })
   const horizontal = lockSwipeAxis(dx, dy, axis) === "horizontal"
   const onControl = startedOnControl || startVerse != null
   // A drag that lands on another verse is a range even if pointermove never
   // flipped `dragging` (throttled moves, pointercancel, or the first sample
   // on pointerup). Horizontal flicks without that drag still swipe chapters
   // only when the press did not start on a verse/note control.
-  if (changedVerse && (dragging || (!isTapGesture(dx, dy) && !horizontal))) {
+  if (changedVerse && (dragging || (!isTapGesture(dx, dy) && !(horizontal && swipeOk)))) {
     return { type: "range", start: startVerse, end: endVerse }
   }
   const swipe = chapterSwipe({
@@ -97,7 +122,9 @@ export function versePointerDecision({
     elapsedMs,
     rangeDragging: dragging && changedVerse,
     startedOnControl: onControl,
-    axis
+    axis,
+    pointerType,
+    coarsePointer
   })
   if (swipe) return { type: "chapter", direction: swipe }
   if (isTapGesture(dx, dy) && startVerse != null) {

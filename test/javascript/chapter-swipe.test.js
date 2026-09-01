@@ -1,6 +1,8 @@
 import assert from "node:assert/strict"
 import {
   chapterSwipe,
+  chapterSwipeAllowed,
+  detectCoarsePointer,
   isHorizontalIntent,
   isTapGesture,
   lockSwipeAxis,
@@ -8,9 +10,28 @@ import {
   versePointerDecision
 } from "../../app/javascript/lib/chapter-swipe.js"
 
+const touch = { pointerType: "touch" }
+
 {
-  assert.equal(chapterSwipe({ dx: -110, dy: 8, elapsedMs: 280 }), "next")
-  assert.equal(chapterSwipe({ dx: 110, dy: -6, elapsedMs: 260 }), "prev")
+  assert.equal(chapterSwipeAllowed({ pointerType: "touch" }), true)
+  assert.equal(chapterSwipeAllowed({ pointerType: "mouse" }), false)
+  assert.equal(chapterSwipeAllowed({ pointerType: "mouse", coarsePointer: true }), false)
+  assert.equal(chapterSwipeAllowed({ pointerType: "pen" }), false)
+  assert.equal(chapterSwipeAllowed({ pointerType: null, coarsePointer: false }), false)
+  assert.equal(chapterSwipeAllowed({ pointerType: "", coarsePointer: true }), true)
+  assert.equal(chapterSwipeAllowed({}), false)
+  assert.equal(detectCoarsePointer(() => ({ matches: true })), true)
+  assert.equal(detectCoarsePointer(() => ({ matches: false })), false)
+  assert.equal(detectCoarsePointer(() => { throw new Error("no mq") }), false)
+}
+
+{
+  assert.equal(chapterSwipe({ dx: -110, dy: 8, elapsedMs: 280, ...touch }), "next")
+  assert.equal(chapterSwipe({ dx: 110, dy: -6, elapsedMs: 260, ...touch }), "prev")
+  assert.equal(chapterSwipe({ dx: -110, dy: 8, elapsedMs: 280, pointerType: "mouse" }), null)
+  assert.equal(chapterSwipe({ dx: -110, dy: 8, elapsedMs: 280, pointerType: "pen" }), null)
+  assert.equal(chapterSwipe({ dx: -110, dy: 8, elapsedMs: 280 }), null)
+  assert.equal(chapterSwipe({ dx: -110, dy: 8, elapsedMs: 280, coarsePointer: true }), "next")
 }
 
 {
@@ -19,9 +40,9 @@ import {
   assert.equal(chapterSwipe({ dx: 20, dy: 2, elapsedMs: 40 }), null)
   assert.equal(chapterSwipe({ dx: -90, dy: 8, elapsedMs: 220 }), null)
   assert.equal(chapterSwipe({ dx: -99, dy: 8, elapsedMs: 400 }), null)
-  assert.equal(chapterSwipe({ dx: -100, dy: 8, elapsedMs: 400 }), "next")
+  assert.equal(chapterSwipe({ dx: -100, dy: 8, elapsedMs: 400, ...touch }), "next")
   // Clear flick: 70px at 1.0 px/ms.
-  assert.equal(chapterSwipe({ dx: -70, dy: 6, elapsedMs: 70 }), "next")
+  assert.equal(chapterSwipe({ dx: -70, dy: 6, elapsedMs: 70, ...touch }), "next")
   assert.equal(chapterSwipe({ dx: -56, dy: 4, elapsedMs: 200 }), null)
   assert.equal(chapterSwipe({ dx: -110, dy: 8, elapsedMs: 280, rangeDragging: true }), null)
   assert.equal(chapterSwipe({ dx: -110, dy: 8, elapsedMs: 280, startedOnChrome: true }), null)
@@ -30,7 +51,7 @@ import {
   // |dy| > |dx| * 0.7 is a vertical pan (90 * 0.7 = 63).
   assert.equal(chapterSwipe({ dx: -90, dy: 80, elapsedMs: 180 }), null)
   assert.equal(chapterSwipe({ dx: -110, dy: 80, elapsedMs: 220 }), null)
-  assert.equal(chapterSwipe({ dx: -110, dy: 70, elapsedMs: 220 }), "next")
+  assert.equal(chapterSwipe({ dx: -110, dy: 70, elapsedMs: 220, ...touch }), "next")
 }
 
 {
@@ -44,10 +65,10 @@ import {
   assert.equal(isTapGesture(4, 3), true)
   assert.equal(isTapGesture(20, 0), false)
   assert.equal(chapterSwipe({ dx: -110, dy: 20, elapsedMs: 240, rangeDragging: true }), null)
-  assert.equal(chapterSwipe({ dx: -110, dy: 20, elapsedMs: 240 }), "next")
-  assert.equal(chapterSwipe({ dx: -110, dy: 8, elapsedMs: 240, axis: "vertical" }), null)
-  assert.equal(chapterSwipe({ dx: -40, dy: 8, elapsedMs: 80, axis: "horizontal" }), null)
-  assert.equal(chapterSwipe({ dx: -70, dy: 20, elapsedMs: 70, axis: "horizontal" }), "next")
+  assert.equal(chapterSwipe({ dx: -110, dy: 20, elapsedMs: 240, ...touch }), "next")
+  assert.equal(chapterSwipe({ dx: -110, dy: 8, elapsedMs: 240, axis: "vertical", ...touch }), null)
+  assert.equal(chapterSwipe({ dx: -40, dy: 8, elapsedMs: 80, axis: "horizontal", ...touch }), null)
+  assert.equal(chapterSwipe({ dx: -70, dy: 20, elapsedMs: 70, axis: "horizontal", ...touch }), "next")
 }
 
 {
@@ -66,6 +87,9 @@ import {
   assert.equal(rangeDragIntent({
     startVerse: 3, currentVerse: 7, startVerseTop: 120, currentStartVerseTop: 120, dx: 80, dy: 90, axis: "horizontal"
   }), false)
+  assert.equal(rangeDragIntent({
+    startVerse: 3, currentVerse: 7, startVerseTop: 120, currentStartVerseTop: 120, dx: 80, dy: 10, allowChapterSwipe: false
+  }), true)
 }
 
 {
@@ -92,14 +116,23 @@ import {
     dx: 3, dy: 2, elapsedMs: 80, startVerse: 3, endVerse: 7, dragging: false
   }).type, "tap")
   assert.deepEqual(versePointerDecision({
-    dx: -110, dy: 8, elapsedMs: 280, startVerse: null, endVerse: null, dragging: false
+    dx: -110, dy: 8, elapsedMs: 280, startVerse: null, endVerse: null, dragging: false, ...touch
   }), { type: "chapter", direction: "next" })
   assert.equal(versePointerDecision({
-    dx: -110, dy: 8, elapsedMs: 280, startVerse: null, endVerse: null, dragging: false, axis: "vertical"
+    dx: -110, dy: 8, elapsedMs: 280, startVerse: null, endVerse: null, dragging: false
   }).type, "idle")
   assert.equal(versePointerDecision({
-    dx: -110, dy: 8, elapsedMs: 280, startVerse: null, endVerse: null, dragging: false, startedOnControl: true
+    dx: -110, dy: 8, elapsedMs: 280, startVerse: null, endVerse: null, dragging: false, pointerType: "mouse"
   }).type, "idle")
+  assert.equal(versePointerDecision({
+    dx: -110, dy: 8, elapsedMs: 280, startVerse: null, endVerse: null, dragging: false, axis: "vertical", ...touch
+  }).type, "idle")
+  assert.equal(versePointerDecision({
+    dx: -110, dy: 8, elapsedMs: 280, startVerse: null, endVerse: null, dragging: false, startedOnControl: true, ...touch
+  }).type, "idle")
+  assert.deepEqual(versePointerDecision({
+    dx: -110, dy: 8, elapsedMs: 280, startVerse: 3, endVerse: 7, dragging: false, pointerType: "mouse"
+  }), { type: "range", start: 3, end: 7 })
 }
 
 console.log("chapter-swipe: ok")
