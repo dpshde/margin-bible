@@ -49,6 +49,11 @@ class ChromeSafeAreaCssTest < ActiveSupport::TestCase
     reader = css[/\n\.reader\s*\{[^}]+\}/]
     assert reader
     assert_match(/padding:\s*\.75rem 1\.1rem 6\.5rem/, reader)
+    tucked = css[/\.reader:has\(\.reader-chrome\.is-tucked\)\s*\{[^}]+\}/]
+    assert tucked
+    assert_match(/padding-bottom:\s*calc\(1\.35rem \+ env\(safe-area-inset-bottom, 0px\)\)/, tucked)
+    refute_match(/\.reader:has\(\.reader-chrome\.is-tucked\)\s*\{[^}]*6\.5rem/, css)
+    refute_match(/\.reader:has\(\.reader-chrome\.is-tucked\)\s*\{[^}]*8rem/, css)
     assert_match(/html\.hotwire-native body\s*\{[^}]*padding-top:\s*var\(--chrome-top\)/, css)
   end
 

@@ -164,6 +164,7 @@ class JumpSearchCssTest < ActiveSupport::TestCase
     assert_match(/padding:\s*0/, chrome)
     refute_match(/right:\s*5\.1rem/, css)
     assert_match(/\.reader-chrome\.is-tucked/, css)
+    assert_match(/\.reader:has\(\.reader-chrome\.is-tucked\)\s*\{[^}]*padding-bottom:\s*calc\(1\.35rem \+ env\(safe-area-inset-bottom, 0px\)\)/, css)
     assert_match(/\.reader-chrome \.suggest \{[\s\S]*bottom:\s*100%/, css)
   end
 end

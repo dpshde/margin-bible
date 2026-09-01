@@ -523,6 +523,13 @@ a.pub-ref:focus-visible {
   transform: translateY(calc(100% + 1.6rem));
   pointer-events: none; opacity: 0;
 }
+.reader:has(.reader-chrome.is-tucked) {
+  padding-bottom: calc(1.35rem + env(safe-area-inset-bottom, 0px));
+}
+.reader:has(.reader-chrome.is-tucked) + .reader-veil {
+  height: env(safe-area-inset-bottom, 0px);
+  opacity: 0;
+}
 .reader-chrome .suggest {
   top: auto; bottom: 100%;
   border-top: 1px solid var(--line);
