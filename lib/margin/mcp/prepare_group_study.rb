@@ -4,13 +4,14 @@ module Margin
   module Mcp
     class PrepareGroupStudy < MCP::Tool
       tool_name "prepare_group_study"
-      description "Small-group Bible study prep. Consider the leader's notes when drafting Kruger-shaped questions " \
-                  "(warm-up, Google map, Houston, Achilles heel). Don't treat those notes as the answer the group must recite. " \
-                  "Don't preach the landing in the question — leave a gap. " \
+      description "Small-group Bible study prep. Returns a leader run-of-show: a spoken opener in BSB diction, " \
+                  "the passage in BSB chunks, and 1–2 questions per chunk answerable from the text. " \
+                  "Each question has a private Paths block (text routes first; a clipped “your note” is one option, not the landing). " \
+                  "Do not read Paths or margin notes aloud as the group's answers. Don't preach a single landing — leave a gap. " \
+                  "Flags verses whose library notes are still cloudy or unfinished so the leader does not dodge them. " \
                   "Not for the leader's own private learning (use personal_study for that). " \
                   "If it is unclear whether they want personal study or group prep, ask before calling this tool. " \
-                  "Serves BSB verse text next to the leader's outliner notes and Kruger-shaped questions. " \
-                  "Never invent observations for verses they have not annotated. Empty question spans stay empty."
+                  "Never invent observations for verses they have not annotated."
       input_schema(
         properties: {
           osis: { type: "string", description: "Chapter or range, e.g. jhn.4 or John 4 or 1jn.4.1-21" },

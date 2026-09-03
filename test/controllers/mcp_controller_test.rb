@@ -167,12 +167,19 @@ class McpControllerTest < ActionDispatch::IntegrationTest
     assert_operator content["sections"].size, :>=, 3
     assert_operator content["sections"].size, :<=, 4
     text = mcp_result.dig("result", "content", 0, "text")
+    assert_includes text, "In the beginning was the Word"
+    assert_includes text, "Open with this"
+    assert_includes text, "Paths: (private — do not read these to the group)"
+    assert_includes text, "your note — one path, not the landing"
     assert_includes text, "Why start with the Word"
     refute_includes text, "Theirs: do not use this."
-    assert_includes text, "?mode=launcher"
-    assert_includes text, "In the beginning was the Word"
-    assert_includes text, "Warm-up"
-    assert_match(/Google map|Houston|Achilles/, text)
+    refute_includes text, "?mode=launcher"
+    refute_match(/\b(warm-?up|google map|houston|achilles)\b/i, text)
+    questions = content["sections"].flat_map { |section| section["questions"] }
+    assert questions.any? { |question| question["from"] == "text" }
+    assert questions.any? { |question|
+      Array(question["paths"]).any? { |path| path["kind"] == "note" }
+    }
   end
 
   test "personal_study is for the reader's own learning not group facilitation" do
