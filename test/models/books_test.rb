@@ -10,6 +10,19 @@ class BooksTest < ActiveSupport::TestCase
     assert_equal 1, Margin::Books.chapter_count("OBA")
   end
 
+  test "resolve_book_code accepts name, OSIS code, and unique prefix" do
+    %w[Hebrews heb HEB Heb hebrews].each do |token|
+      assert_equal "HEB", Margin::Books.resolve_book_code(token), token
+    end
+    %w[Deuteronomy deut DEU Deut deuteronomy].each do |token|
+      assert_equal "DEU", Margin::Books.resolve_book_code(token), token
+    end
+    assert_equal "HEB", Margin::Books.resolve_book_code("hebrew")
+    assert_equal "DEU", Margin::Books.resolve_book_code("deute")
+    assert_nil Margin::Books.resolve_book_code("xyzzy")
+    assert_nil Margin::Books.resolve_book_code("")
+  end
+
   test "canon splits OT and NT at Matthew" do
     assert_equal 66, Margin::Books::CODES.length
     assert_equal 39, Margin::Books.ot_codes.length
