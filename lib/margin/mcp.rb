@@ -26,7 +26,9 @@ module Margin
                       "There are two study tools. personal_study is when the reader wants to dive deeper themselves " \
                       "(learn, understand). prepare_group_study is when they are writing questions for a small group. " \
                       "If they say 'study this' without saying which, ask before calling a tool. " \
-                      "Study questions should leave a gap rather than name the point. Leader notes are considered, not recited. " \
+                      "Do not fire prepare_group_study first to one-shot a family-study sheet before 1:1 interrogation is done — that order lives in the agent skill. " \
+                      "prepare_group_study group questions should leave a gap rather than name the point; that rule is not for 1:1. " \
+                      "personal_study presses with one plain question in the reader's words. Leader notes are considered, not recited. " \
                       "prepare_group_study is a leader run-of-show (spoken opener, BSB chunks, text-answerable questions, private Paths). " \
                       "Do not read Paths or notes as the group's answers. Never invent observations or write tools. " \
                       "Empty question spans stay empty.",

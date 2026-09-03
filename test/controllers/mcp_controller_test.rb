@@ -77,6 +77,16 @@ class McpControllerTest < ActionDispatch::IntegrationTest
     assert_match(/empty question spans stay empty/i, desc)
     assert_match(/personal_study/, desc)
     assert_match(/leave a gap/i, desc)
+    assert_match(/group questions only/i, desc)
+    assert_match(/not for one-shotting a family-study sheet/i, desc)
+    personal = mcp_result.dig("result", "tools").find { |tool| tool["name"] == "personal_study" }
+    personal_desc = personal["description"]
+    refute_match(/leave a gap; don't name the point/i, personal_desc)
+    refute_match(/leave a gap/i, personal_desc)
+    assert_match(/one plain question in the reader's words/i, personal_desc)
+    assert_match(/two options from the verse/i, personal_desc)
+    assert_match(/prepare_group_study/, personal_desc)
+    assert_match(/never invent observations/i, personal_desc)
     Margin::Mcp::WRITE_TOOL_NAMES.each do |name|
       refute_includes names, name
     end
@@ -213,6 +223,10 @@ class McpControllerTest < ActionDispatch::IntegrationTest
     assert_match(/personal_study/, instructions)
     assert_match(/prepare_group_study/, instructions)
     assert_match(/ask before calling a tool/i, instructions)
+    assert_match(/group questions should leave a gap/i, instructions)
+    assert_match(/that rule is not for 1:1/i, instructions)
+    assert_match(/one plain question in the reader's words/i, instructions)
+    assert_match(/order lives in the agent skill/i, instructions)
   end
 
   test "calling a write tool name fails because it is not registered" do
