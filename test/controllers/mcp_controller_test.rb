@@ -70,6 +70,13 @@ class McpControllerTest < ActionDispatch::IntegrationTest
     assert_includes names, "personal_study"
     assert_includes names, "prepare_group_study"
     refute_includes names, "prepare_bible_study"
+    group = mcp_result.dig("result", "tools").find { |tool| tool["name"] == "prepare_group_study" }
+    desc = group["description"]
+    refute_match(/\b(kruger|warm-?up|google map|houston|achilles)\b/i, desc)
+    assert_match(/run-of-show/i, desc)
+    assert_match(/empty question spans stay empty/i, desc)
+    assert_match(/personal_study/, desc)
+    assert_match(/leave a gap/i, desc)
     Margin::Mcp::WRITE_TOOL_NAMES.each do |name|
       refute_includes names, name
     end

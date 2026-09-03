@@ -32,7 +32,8 @@ module Margin
       possible routes from the text, not a single landing. A clipped “your note” is
       one option when you have one — not the key. Do not read your margin notes
       aloud as the group's answers. If a verse is flagged, do not skip it. Do not
-      invent observations. Leave a gap in the question; do not preach the landing.
+      invent observations. Empty question spans stay empty. Leave a gap in the
+      question; do not preach the landing.
     TEXT
 
     PERSONAL_BRIEF = <<~TEXT.freeze
@@ -246,6 +247,8 @@ module Margin
 
     def draft_questions(observations, verses, start_v, end_v, cloudy)
       if group?
+        return [] if observations.empty?
+
         return text_questions(verses, cloudy)
       end
 
@@ -513,7 +516,7 @@ module Margin
         end
         lines << ""
         if section[:questions].empty?
-          lines << "- _(no verses in this span)_"
+          lines << "- _(no leader notes in this span yet)_"
         else
           lines << "Ask:"
           lines << ""

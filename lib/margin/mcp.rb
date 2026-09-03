@@ -27,9 +27,9 @@ module Margin
                       "(learn, understand). prepare_group_study is when they are writing questions for a small group. " \
                       "If they say 'study this' without saying which, ask before calling a tool. " \
                       "Study questions should leave a gap rather than name the point. Leader notes are considered, not recited. " \
-                      "prepare_group_study is a leader run-of-show with private Paths under each question — text first, " \
-                      "a clipped note as one option, not the landing. Do not read Paths to the group. " \
-                      "Study tools return BSB text alongside notes and questions. Never invent observations or write tools.",
+                      "prepare_group_study is a leader run-of-show (spoken opener, BSB chunks, text-answerable questions, private Paths). " \
+                      "Do not read Paths or notes as the group's answers. Never invent observations or write tools. " \
+                      "Empty question spans stay empty.",
         tools: [ ListNotes, GetNote, ListNotesCoveringVerse, PersonalStudy, PrepareGroupStudy ],
         server_context: { library: library },
         configuration: MCP::Configuration.new(protocol_version: HANDSHAKE_VERSION)

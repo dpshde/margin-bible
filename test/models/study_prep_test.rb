@@ -15,6 +15,8 @@ class StudyPrepTest < ActiveSupport::TestCase
     refute_includes payload[:markdown], "?mode=launcher"
     refute_includes payload[:markdown], "## Scripture, notes, and questions"
     assert payload[:opener].to_s.include?("In the beginning was the Word")
+    payload[:sections].each { |section| assert_empty section[:questions] }
+    assert_includes payload[:markdown], "no leader notes in this span yet"
     assert sizes.all? { |size| size >= 0 }
   end
 
@@ -52,11 +54,15 @@ class StudyPrepTest < ActiveSupport::TestCase
     assert_includes payload[:markdown], "your note — one path, not the landing"
     payload[:sections].each do |section|
       assert_match(%r{\Ahttps://route\.bible/jhn\.1}, section[:launcher_url])
-      assert_operator section[:questions].size, :>=, 1
-      assert_operator section[:questions].size, :<=, 2
-      section[:questions].each do |question|
-        text_paths = Array(question[:paths]).select { |path| path[:kind] == "text" }
-        assert text_paths.any?, "expected text paths before any note"
+      if section[:observations].empty?
+        assert_empty section[:questions]
+      else
+        assert_operator section[:questions].size, :>=, 1
+        assert_operator section[:questions].size, :<=, 2
+        section[:questions].each do |question|
+          text_paths = Array(question[:paths]).select { |path| path[:kind] == "text" }
+          assert text_paths.any?, "expected text paths before any note"
+        end
       end
     end
   end
@@ -68,14 +74,13 @@ class StudyPrepTest < ActiveSupport::TestCase
     empty = payload[:sections].select { |section| section[:observations].empty? }
     assert empty.any?
     empty.each do |section|
+      assert_empty section[:questions]
       section[:verses].each do |verse|
         assert_includes payload[:markdown], "#{verse[:n]}. #{verse[:text]}"
         assert verse[:observations].empty?
       end
-      section[:questions].each do |question|
-        refute Array(question[:paths]).any? { |path| path[:kind] == "note" }
-      end
     end
+    assert_includes payload[:markdown], "no leader notes in this span yet"
     assert_includes payload[:markdown], "In the beginning was the Word"
     refute_match(/\t- The Word\./, payload[:markdown])
   end
@@ -125,7 +130,10 @@ class StudyPrepTest < ActiveSupport::TestCase
     assert_includes markdown, "your note — one path, not the landing"
     refute_includes markdown, "PRIVATE_LANDING_MUST_NOT_DUMP"
     refute_match(/\b(warm-?up|google map|houston|achilles)\b/i, markdown)
-    payload[:sections].each do |section|
+    noted, empty = payload[:sections].partition { |section| section[:observations].any? }
+    assert noted.any?
+    assert empty.any?
+    noted.each do |section|
       assert_operator section[:questions].size, :>=, 1
       assert_operator section[:questions].size, :<=, 2
       section[:questions].each do |question|
@@ -133,6 +141,7 @@ class StudyPrepTest < ActiveSupport::TestCase
         assert Array(question[:paths]).any? { |path| path[:kind] == "text" }
       end
     end
+    empty.each { |section| assert_empty section[:questions] }
   end
 
   test "personal study presses the reader's notes and skips group facilitation" do
