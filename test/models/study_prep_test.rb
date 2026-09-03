@@ -18,6 +18,26 @@ class StudyPrepTest < ActiveSupport::TestCase
     payload[:sections].each { |section| assert_empty section[:questions] }
     assert_includes payload[:markdown], "no leader notes in this span yet"
     assert sizes.all? { |size| size >= 0 }
+    assert_equal "csb", payload[:lead_translation]
+    assert_equal "bsb", payload[:hosted_translation]
+    assert_includes payload[:markdown], "Family lead: CSB (until Humble Lamb BSB)"
+    assert_includes payload[:markdown], "Hosted verses below are BSB"
+    refute_includes payload[:markdown], "CSB wording of"
+  end
+
+  test "group lead translation defaults to csb and never invents CSB verse text" do
+    payload = Margin::StudyPrep.build(passage: Margin::Passage.parse("jhn.1"), notes: [])
+    assert_equal "csb", payload[:lead_translation]
+    assert_equal "bsb", payload[:hosted_translation]
+    assert_includes payload[:markdown], "In the beginning was the Word"
+    assert_includes payload[:markdown], "do not invent CSB wording"
+
+    bsb_lead = Margin::StudyPrep.build(passage: Margin::Passage.parse("jhn.1"), notes: [], translation: "bsb")
+    assert_equal "bsb", bsb_lead[:lead_translation]
+    assert_equal "bsb", bsb_lead[:hosted_translation]
+    assert_includes bsb_lead[:markdown], "Lead and hosted text: BSB."
+    refute_includes bsb_lead[:markdown], "Family lead: CSB"
+    assert_includes bsb_lead[:markdown], "In the beginning was the Word"
   end
 
   test "group run-of-show asks from the text and keeps notes off the group's script" do
@@ -150,6 +170,9 @@ class StudyPrepTest < ActiveSupport::TestCase
     payload = Margin::StudyPrep.build(passage: Margin::Passage.parse("jhn.1"), notes: library.notes, kind: :personal)
 
     assert_equal "personal", payload[:kind]
+    assert_equal "bsb", payload[:lead_translation]
+    assert_equal "bsb", payload[:hosted_translation]
+    refute_includes payload[:markdown], "Family lead: CSB"
     assert_empty payload[:warmup]
     refute_includes payload[:markdown], "Warm-up"
     refute_includes payload[:markdown], "Google map"

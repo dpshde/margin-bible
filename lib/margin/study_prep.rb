@@ -26,7 +26,7 @@ module Margin
     KRUGER_LEAK = /\b(warm-?up|google map|houston|achilles(?: heel)?)\b/i
 
     GROUP_BRIEF = <<~TEXT.freeze
-      Leader run-of-show. Say the opener out loud. Read each BSB chunk. Ask the
+      Leader run-of-show. Say the opener out loud. Read each hosted chunk. Ask the
       questions under that chunk — they are answerable from the text in front of you.
       Paths under each question are private. Do not read them to the group. They are
       possible routes from the text, not a single landing. A clipped “your note” is
@@ -44,15 +44,17 @@ module Margin
       Not trick-obvious. Not slogans. Not mainly self-improvement. Empty question spans stay empty.
     TEXT
 
-    def self.build(passage:, notes: [], extra_notes: nil, kind: :group)
-      new(passage: passage, notes: Array(notes), extra_notes: extra_notes, kind: kind).to_h
+    def self.build(passage:, notes: [], extra_notes: nil, kind: :group, translation: nil)
+      new(passage: passage, notes: Array(notes), extra_notes: extra_notes, kind: kind, translation: translation).to_h
     end
 
-    def initialize(passage:, notes:, extra_notes: nil, kind: :group)
+    def initialize(passage:, notes:, extra_notes: nil, kind: :group, translation: nil)
       @passage = passage
       @notes = notes
       @extra_notes = extra_notes.to_s.strip.presence
       @kind = kind.to_sym == :personal ? :personal : :group
+      @lead_translation = translation.to_s.downcase == "bsb" ? "bsb" : "csb"
+      @lead_translation = "bsb" if @kind == :personal
     end
 
     def to_h
@@ -70,6 +72,8 @@ module Margin
         opener: opener,
         cloudy: cloudy,
         warmup: [],
+        lead_translation: @lead_translation,
+        hosted_translation: "bsb",
         sections: grouped,
         markdown: markdown(grouped, through_line, opener, cloudy)
       }
@@ -484,7 +488,7 @@ module Margin
     end
 
     def group_markdown(grouped, opener, cloudy)
-      lines = [ "# #{@passage.label} — what you hold", "", GROUP_BRIEF.strip, "" ]
+      lines = [ "# #{@passage.label} — what you hold", "", translation_banner, "", GROUP_BRIEF.strip, "" ]
       if opener.present?
         lines << "## Open with this"
         lines << ""
@@ -533,6 +537,14 @@ module Margin
       raise "Kruger jargon leaked into the held pack" if text.match?(KRUGER_LEAK)
 
       text
+    end
+
+    def translation_banner
+      if @lead_translation == "bsb"
+        "Lead and hosted text: BSB."
+      else
+        "Family lead: CSB (until Humble Lamb BSB). Hosted verses below are BSB — do not invent CSB wording."
+      end
     end
 
     def paths_markdown(paths)

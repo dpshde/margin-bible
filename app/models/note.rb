@@ -17,19 +17,49 @@ class Note < ApplicationRecord
     rel = library.notes
     if osis.present?
       passage = Margin::Passage.parse(osis)
-      rel = passage ? rel.where(slug: passage.slug) : rel.none
+      if passage.nil?
+        rel = rel.none
+      elsif passage.verse_start.present?
+        rel = rel.where(slug: passage.slug)
+      else
+        # Chapter address (heb.12 / Hebrews 12): every note in that chapter,
+        # not only the chapter-note record. Verse and range osis stay exact.
+        rel = rel.where(book: passage.book, chapter: passage.chapter)
+      end
     end
-    if book.present?
-      code = Margin::Books.resolve_alias(book) || book.to_s.upcase
-      rel = rel.where(book: code)
+
+    book_token = book.to_s.strip.presence
+    chapter_n = chapter.present? ? chapter.to_i : nil
+    chapter_n = nil unless chapter_n&.positive?
+
+    if book_token
+      parsed = parse_book_filter(book_token)
+      if parsed
+        rel = rel.where(book: parsed[:book])
+        chapter_n ||= parsed[:chapter]
+      else
+        rel = rel.none
+      end
     end
-    rel = rel.where(chapter: chapter.to_i) if chapter.present?
+    rel = rel.where(chapter: chapter_n) if chapter_n
     notes = rel.order(:book, :chapter, :verse_start, :id)
     return notes if query.blank?
 
     needle = query.to_s.downcase
     notes.select { |note| note.body_text.downcase.include?(needle) }
   end
+
+  # John / JHN / Heb / Hebrews / "Hebrews 12" / heb.12 — do not fall through to raw upcase (DEUT ≠ DEU).
+  def self.parse_book_filter(token)
+    raw = token.to_s.strip
+    if raw.match?(/\d/)
+      passage = Margin::Passage.parse(raw) || Margin::Passage.parse(raw.sub(/(\d+)\z/, " \\1"))
+      return { book: passage.book, chapter: passage.chapter } if passage
+    end
+    code = Margin::Books.resolve_book_code(raw)
+    { book: code, chapter: nil } if code
+  end
+  private_class_method :parse_book_filter
 
   def self.covering_verse(library, input)
     passage = Margin::Passage.parse(input)

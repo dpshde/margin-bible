@@ -79,6 +79,13 @@ class McpControllerTest < ActionDispatch::IntegrationTest
     assert_match(/leave a gap/i, desc)
     assert_match(/group questions only/i, desc)
     assert_match(/not for one-shotting a family-study sheet/i, desc)
+    assert_match(/family lead may be CSB/i, desc)
+    assert_match(/hosted verse text is BSB/i, desc)
+    assert_match(/do not invent CSB wording/i, desc)
+    list_notes = mcp_result.dig("result", "tools").find { |tool| tool["name"] == "list_notes" }
+    list_desc = list_notes["description"]
+    assert_match(/Hebrews, Heb, HEB/i, list_desc)
+    assert_match(/do not retry/i, list_desc)
     personal = mcp_result.dig("result", "tools").find { |tool| tool["name"] == "personal_study" }
     personal_desc = personal["description"]
     refute_match(/leave a gap; don't name the point/i, personal_desc)
@@ -197,6 +204,53 @@ class McpControllerTest < ActionDispatch::IntegrationTest
     assert questions.any? { |question|
       Array(question["paths"]).any? { |path| path["kind"] == "note" }
     }
+    assert_equal "csb", content["lead_translation"]
+    assert_equal "bsb", content["hosted_translation"]
+    assert_includes text, "Family lead: CSB (until Humble Lamb BSB)"
+    assert_includes text, "Hosted verses below are BSB"
+  end
+
+  test "list_notes book and chapter accept Hebrews/HEB and Deut/DEU without a retry" do
+    create_note!(@library, "heb.12.1", "Mine: witnesses.")
+    create_note!(@library, "heb.12.2", "Mine: pioneer.")
+    create_note!(@library, "deu.29.1", "Mine: Moab.")
+
+    [
+      { book: "Hebrews", chapter: 12 },
+      { book: "Heb", chapter: 12 },
+      { book: "HEB", chapter: 12 },
+      { book: "heb", chapter: "12" },
+      { book: "Hebrews 12" },
+      { osis: "heb.12" },
+      { osis: "Hebrews 12" }
+    ].each do |arguments|
+      mcp_json({
+        jsonrpc: "2.0",
+        id: 21,
+        method: "tools/call",
+        params: { name: "list_notes", arguments: arguments }
+      }, token: @token)
+      assert_response :success, arguments.inspect
+      slugs = structured_notes.map { |note| note["slug"] }
+      assert_equal %w[heb.12.1 heb.12.2], slugs.sort, arguments.inspect
+    end
+
+    [
+      { book: "Deuteronomy", chapter: 29 },
+      { book: "Deut", chapter: 29 },
+      { book: "DEU", chapter: "29" },
+      { osis: "Deut 29" }
+    ].each do |arguments|
+      mcp_json({
+        jsonrpc: "2.0",
+        id: 22,
+        method: "tools/call",
+        params: { name: "list_notes", arguments: arguments }
+      }, token: @token)
+      assert_response :success, arguments.inspect
+      slugs = structured_notes.map { |note| note["slug"] }
+      assert_equal [ "deu.29.1" ], slugs, arguments.inspect
+    end
   end
 
   test "personal_study is for the reader's own learning not group facilitation" do
@@ -214,7 +268,10 @@ class McpControllerTest < ActionDispatch::IntegrationTest
     text = mcp_result.dig("result", "content", 0, "text")
     assert_includes text, "personal study"
     assert_includes text, "The Word became flesh"
+    refute_includes text, "Family lead: CSB"
     refute_includes text, "Warm-up"
+    assert_equal "bsb", content["lead_translation"]
+    assert_equal "bsb", content["hosted_translation"]
     assert_match(/Open|Trace|Check|Press/, text)
   end
 
@@ -227,6 +284,8 @@ class McpControllerTest < ActionDispatch::IntegrationTest
     assert_match(/that rule is not for 1:1/i, instructions)
     assert_match(/one plain question in the reader's words/i, instructions)
     assert_match(/order lives in the agent skill/i, instructions)
+    assert_match(/family lead may be CSB/i, instructions)
+    assert_match(/hosted verse text is BSB/i, instructions)
   end
 
   test "calling a write tool name fails because it is not registered" do

@@ -29,7 +29,8 @@ module Margin
                       "Do not fire prepare_group_study first to one-shot a family-study sheet before 1:1 interrogation is done — that order lives in the agent skill. " \
                       "prepare_group_study group questions should leave a gap rather than name the point; that rule is not for 1:1. " \
                       "personal_study presses with one plain question in the reader's words. Leader notes are considered, not recited. " \
-                      "prepare_group_study is a leader run-of-show (spoken opener, BSB chunks, text-answerable questions, private Paths). " \
+                      "prepare_group_study is a leader run-of-show (spoken opener, hosted BSB chunks, text-answerable questions, private Paths). " \
+                      "Family lead may be CSB until Humble Lamb BSB; hosted verse text is BSB — do not invent CSB wording. " \
                       "Do not read Paths or notes as the group's answers. Never invent observations or write tools. " \
                       "Empty question spans stay empty.",
         tools: [ ListNotes, GetNote, ListNotesCoveringVerse, PersonalStudy, PrepareGroupStudy ],
