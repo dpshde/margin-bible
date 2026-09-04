@@ -3,6 +3,8 @@ import {
   applyReaderChromeTuck,
   chromeLocked,
   detectFineHover,
+  documentMetrics,
+  nearDocumentBottom,
   pointerOverPager,
   shouldShowChromeFromPointer,
   nextChromeHidden
@@ -14,6 +16,7 @@ export default class extends Controller {
   connect() {
     this.hidden = false
     this.lastY = window.scrollY
+    this.ignoreScroll = false
     this.fineHover = detectFineHover()
     this.reader = this.edgeValue === "bottom" ? this.element.closest(".reader") : null
     this.onScroll = this.onScroll.bind(this)
@@ -37,19 +40,32 @@ export default class extends Controller {
 
   onScroll() {
     const scrollY = window.scrollY
+    if (this.ignoreScroll) {
+      this.ignoreScroll = false
+      this.lastY = scrollY
+      return
+    }
     if (!this.floats()) {
       this.lastY = scrollY
       return this.show()
     }
-    this.hidden = nextChromeHidden({
+    const nextHidden = nextChromeHidden({
       hidden: this.hidden,
       scrollY,
       lastY: this.lastY,
       locked: this.locked(),
+      nearBottom: this.atDocumentBottom(),
       minY: this.edgeValue === "top" ? 8 : 24
     })
     this.lastY = scrollY
+    if (nextHidden !== this.hidden) this.ignoreScroll = true
+    this.hidden = nextHidden
     this.sync()
+  }
+
+  atDocumentBottom() {
+    if (this.edgeValue !== "bottom") return false
+    return nearDocumentBottom(documentMetrics())
   }
 
   onMove(event) {
