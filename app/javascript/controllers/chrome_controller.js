@@ -41,7 +41,6 @@ export default class extends Controller {
   onScroll() {
     const scrollY = window.scrollY
     if (this.ignoreScroll) {
-      this.ignoreScroll = false
       this.lastY = scrollY
       return
     }
@@ -57,9 +56,19 @@ export default class extends Controller {
       nearBottom: this.atDocumentBottom(),
       minY: this.edgeValue === "top" ? 8 : 24
     })
-    this.lastY = scrollY
-    if (nextHidden !== this.hidden) this.ignoreScroll = true
+    const changed = nextHidden !== this.hidden
     this.hidden = nextHidden
+    if (changed) {
+      this.ignoreScroll = true
+      this.sync()
+      this.lastY = window.scrollY
+      requestAnimationFrame(() => {
+        this.lastY = window.scrollY
+        this.ignoreScroll = false
+      })
+      return
+    }
+    this.lastY = scrollY
     this.sync()
   }
 
