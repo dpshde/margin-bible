@@ -35,6 +35,31 @@ export function nextChromeHidden({
   return hidden
 }
 
+// Tucking chrome collapses --reader-bottom-pad by ~5–7rem. If that shrink
+// happens inside this zone, the browser clamps scrollY and the next event
+// looks like a scroll-up — hide/show flash. Stay larger than the collapse.
+export const DOCUMENT_BOTTOM_ZONE = 168
+
+export function nearDocumentBottom({
+  scrollY = 0,
+  scrollHeight = 0,
+  viewportHeight = 0,
+  zone = DOCUMENT_BOTTOM_ZONE
+} = {}) {
+  const maxScroll = Math.max(0, scrollHeight - viewportHeight)
+  if (maxScroll <= 0) return true
+  return maxScroll - scrollY <= zone
+}
+
+export function documentMetrics(doc = globalThis.document, win = globalThis) {
+  const scrolling = doc?.scrollingElement ?? doc?.documentElement
+  return {
+    scrollY: win?.scrollY ?? 0,
+    scrollHeight: scrolling?.scrollHeight ?? 0,
+    viewportHeight: scrolling?.clientHeight ?? win?.innerHeight ?? 0
+  }
+}
+
 export function nearBottomEdge(clientY, innerHeight, zone = 96) {
   return innerHeight - clientY <= zone
 }
