@@ -1431,3 +1431,80 @@ html.hotwire-native .section-head:has(+ .pub-r) { margin-bottom: .85em; }
 .grant-actions .secondary {
   width: 100%;
 }
+
+.leader-sheet {
+  max-width: var(--page-max);
+  margin: 0 auto;
+  padding: 1.4rem 1.1rem 3rem;
+  font-family: var(--read);
+  font-size: var(--read-size);
+  line-height: var(--read-leading);
+}
+.leader-sheet-kicker {
+  margin: 0 0 .35rem;
+  font-family: var(--sans);
+  font-size: .78rem;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.leader-sheet h1 {
+  margin: 0 0 .6rem;
+  font-family: var(--head);
+  font-size: 1.55rem;
+  line-height: 1.25;
+}
+.leader-sheet h2 {
+  margin: 1.6rem 0 .5rem;
+  font-family: var(--head);
+  font-size: 1.05rem;
+}
+.leader-sheet h3 {
+  margin: 0 0 .55rem;
+  font-family: var(--head);
+  font-size: 1rem;
+}
+.leader-sheet-note,
+.leader-sheet-brief {
+  color: var(--ink-soft);
+  font-size: .95rem;
+}
+.leader-sheet-opener {
+  font-style: italic;
+}
+.leader-sheet-chunk {
+  margin: 1.4rem 0 0;
+  padding-top: 1rem;
+  border-top: 1px solid var(--line);
+}
+.leader-sheet-verse {
+  margin: 0 0 .35rem;
+}
+.leader-sheet-verse sup {
+  font-family: var(--sans);
+  font-size: .68rem;
+  color: var(--muted);
+  margin-right: .25rem;
+}
+.leader-sheet-q {
+  margin: 1rem 0 .25rem;
+}
+.leader-sheet-paths {
+  margin: 0 0 .8rem;
+  color: var(--ink-soft);
+}
+.leader-sheet-empty {
+  color: var(--muted);
+}
+.leader-sheet-raw {
+  margin-top: 2rem;
+  font-family: var(--sans);
+  font-size: .86rem;
+}
+.leader-sheet-raw pre {
+  overflow: auto;
+  padding: .8rem;
+  background: var(--fill);
+  border: 1px solid var(--line);
+  white-space: pre-wrap;
+}

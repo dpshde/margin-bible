@@ -1,30 +1,48 @@
 # frozen_string_literal: true
 
 module Margin
-  # Groups a chapter into 3–4 sections from the human's notes.
-  # kind: :personal (learn for yourself) or :group (Kruger small-group prep).
+  # Groups a chapter into 3–4 BSB sections.
+  # kind: :personal (1:1 learn) or :group (Heb 12-shaped leader sheet).
   class StudyPrep
     TARGET_MIN = 3
     TARGET_MAX = 4
     OBVIOUS = /\b(jesus is (god|the son|lord|divine)|god is love|jesus (died|rose) for (us|our)|the gospel is)\b/i
     TENSION = /\b(warning|must|never|if |but |danger|false|afraid|hard|confus|misread|seem(s)? to mean)\b/i
+    CLOUDY_MARK = /
+      \b(
+        what\ does\ it\ mean |
+        seems?(?:\s+somewhat)? |
+        out\ of\ place |
+        not\ sure |
+        unclear |
+        unfinished |
+        study\ q |
+        todo |
+        tbd |
+        i\ don'?t\ (know|get|understand)
+      )\b
+    /ix
+    COMMAND_MARK = /\b(let us|see to it|consider|endure|pursue|throw off|fix (our|your) eyes|strengthen|make straight|do not)\b/i
+    KRUGER_LEAK = /\b(warm-?up|google map|houston|achilles(?: heel)?)\b/i
+    INTERROGATION_LEAK = /\b(interrogat|socratic|grill|cross-examin)\b/i
 
     GROUP_BRIEF = <<~TEXT.freeze
-      Small-group prep. Consider the leader's notes; do not treat them as the answer the group must recite.
-      Do not invent verse-by-verse observations. Do not preach the landing in the question — leave a gap.
-      Kruger's shapes (TGC, 2017):
-      1. Warm-up — everyone can answer before the passage; it sets a theme the notes noticed in the text.
-      2. Google map — many good routes; don't telegraph the one point.
-      3. Houston — a likely misread the notes flagged; chew on it with the rest of Scripture.
-      4. Achilles heel — the hard question about this span the notes make it unwise to dodge.
-      If a span has no notes, still serve the Scripture; leave questions empty.
+      Leader sheet. Hosted text is BSB. Three or four chunks. Ask the bold
+      questions under a noted chunk — they are answerable from the text in
+      front of you. Italic Paths under each question are private. Do not read
+      them to the group. They are possible routes from the text, not a single
+      landing. A clipped “your note” is one option when you have one — not the
+      key. Do not read your margin notes aloud as the group's answers. If a
+      verse is flagged, do not skip it. Do not invent observations. Empty
+      question spans stay empty. Leave a gap in the group question; do not
+      preach the landing.
     TEXT
 
     PERSONAL_BRIEF = <<~TEXT.freeze
       Personal study. Help the reader go deeper in the text — learn, understand, sit with it.
-      Consider their notes; don't make those notes the answer. Don't preach the landing in the question — leave a gap.
+      Consider their notes; don't make those notes the answer.
+      1:1 press: one plain question in the reader's words. If they don't know, two options from the verse.
       Do not invent verse-by-verse observations. Do not write small-group facilitation questions.
-      Press what is still cloudy, where the same thing shows up again, how they might be misreading.
       Not trick-obvious. Not slogans. Not mainly self-improvement. Empty question spans stay empty.
     TEXT
 
@@ -43,16 +61,20 @@ module Margin
       grouped = sections
       through_line = chapter_convictions
       missing = grouped.all? { |section| section[:observations].empty? } && through_line.empty? && @extra_notes.blank?
-      warmup = !missing && group? ? warmup_questions(grouped, through_line) : []
+      cloudy = grouped.flat_map { |section| section[:cloudy] }
+      opener = group? && grouped.any? ? spoken_opener(grouped) : nil
       {
         kind: @kind.to_s,
         passage: passage_meta,
         missing_observations: missing,
         brief: (group? ? GROUP_BRIEF : PERSONAL_BRIEF).strip,
         convictions: through_line,
-        warmup: warmup,
+        opener: opener,
+        cloudy: cloudy,
+        warmup: [],
+        hosted_translation: "bsb",
         sections: grouped,
-        markdown: markdown(grouped, warmup, through_line)
+        markdown: markdown(grouped, through_line, opener, cloudy)
       }
     end
 
@@ -131,21 +153,24 @@ module Margin
           observations << { verse: start_v, slug: nil, text: text }
         end
       end
+      verses = group[:verses].map { |row|
+        {
+          n: row["v"].to_i,
+          text: row["text"],
+          observations: observations.select { |obs| obs[:verse] == row["v"].to_i }.map { |obs| obs[:text] }
+        }
+      }
+      cloudy = cloudy_flags(observations)
       {
         label: start_v == end_v ? "v. #{start_v}" : "vv. #{start_v}-#{end_v}",
         start: start_v,
         end: end_v,
         heading: group[:heading],
         launcher_url: "#{RouteBible.url_for(range)}?mode=launcher",
-        verses: group[:verses].map { |row|
-          {
-            n: row["v"].to_i,
-            text: row["text"],
-            observations: observations.select { |obs| obs[:verse] == row["v"].to_i }.map { |obs| obs[:text] }
-          }
-        },
+        verses: verses,
         observations: observations,
-        questions: draft_questions(observations, start_v, end_v)
+        cloudy: cloudy,
+        questions: draft_questions(observations, verses, start_v, end_v, cloudy)
       }
     end
 
@@ -189,22 +214,48 @@ module Margin
       body.split(/\n+/).map { |line| line.sub(/\A[-*]\s*/, "").strip }.reject(&:blank?)
     end
 
-    def warmup_questions(grouped, through_line)
-      seed = through_line.find { |obs| squeeze(obs[:text]).length >= 12 } ||
-        grouped.flat_map { |section| section[:observations] }.find { |obs| squeeze(obs[:text]).length >= 12 }
-      return [] unless seed
+    def cloudy_flags(observations)
+      observations.filter_map { |obs|
+        text = squeeze(obs[:text])
+        next unless cloudy_observation?(text)
 
-      clip = clip_text(seed[:text]).sub(/\?\z/, "")
-      [{
-        kind: "warmup",
-        from_note: squeeze(seed[:text]),
-        text: "The notes flag this in the passage: “#{clip}”. Before we open the text, where have you met something like that in ordinary life — not to moralize, but so we can hear what the text is actually doing?",
-        source_verse: seed[:verse],
-        from: seed[:verse] ? "observation" : "chapter"
-      }]
+        {
+          verse: obs[:verse],
+          slug: obs[:slug],
+          hint: clip_text(text, 90)
+        }
+      }.uniq { |flag| [ flag[:verse], flag[:hint] ] }
     end
 
-    def draft_questions(observations, start_v, end_v)
+    def cloudy_observation?(text)
+      return false if text.blank?
+      return true if text.match?(CLOUDY_MARK)
+      return true if text.match?(/\?\s*\z/) && text.length <= 140
+      return true if text.length < 50 && text.match?(/\((CSB|NIV|ESV|KJV|BSB|NASB|NKJV)\)/i)
+
+      false
+    end
+
+    def spoken_opener(grouped)
+      verses = grouped.first[:verses]
+      return "" if verses.empty?
+
+      first = squeeze(verses.first[:text])
+      second = verses[1] && squeeze(verses[1][:text])
+      if second && first.length < 180
+        "#{first.sub(/\.\z/, "")}. #{second}"
+      else
+        first
+      end
+    end
+
+    def draft_questions(observations, verses, start_v, end_v, cloudy)
+      if group?
+        return [] if observations.empty?
+
+        return text_questions(verses, cloudy)
+      end
+
       label = start_v == end_v ? "v. #{start_v}" : "vv. #{start_v}–#{end_v}"
       meaty = observations.select { |obs| squeeze(obs[:text]).length >= 12 }
       return [] if meaty.empty?
@@ -225,56 +276,148 @@ module Margin
       tension_seed = meaty.find { |obs| squeeze(obs[:text]).match?(TENSION) || squeeze(obs[:text]).match?(OBVIOUS) }
       hard_seed = lifted.last || meaty.max_by { |obs| squeeze(obs[:text]).length }
 
-      if group?
-        drafts << google_map_question(map_seed, label) if map_seed
-        drafts << houston_question(tension_seed, label) if tension_seed
-        drafts << achilles_question(hard_seed, label) if hard_seed
-      else
-        drafts << open_question(map_seed, label) if map_seed
-        drafts << trace_question(map_seed, label) if map_seed
-        drafts << check_question(tension_seed || map_seed, label) if tension_seed || map_seed
-        drafts << press_question(hard_seed, label) if hard_seed
-      end
+      drafts << open_question(map_seed, label) if map_seed
+      drafts << trace_question(map_seed, label) if map_seed
+      drafts << check_question(tension_seed || map_seed, label) if tension_seed || map_seed
+      drafts << press_question(hard_seed, label) if hard_seed
 
       drafts.uniq { |question| question[:text] }.first(4)
     end
 
-    def google_map_question(obs, label)
-      clip = clip_text(obs[:text])
-      {
-        kind: "google_map",
-        from_note: squeeze(obs[:text]),
-        text: "The notes on v.#{obs[:verse]} notice “#{clip}”. What other moments in #{label} or the rest of Scripture show the same thing — more than one route is good?",
-        source_verse: obs[:verse],
-        from: obs[:slug] ? "observation" : "extra"
-      }
+    def text_questions(verses, cloudy)
+      picks = pick_question_verses(verses, cloudy)
+      picks.map { |verse|
+        {
+          kind: "ask",
+          from_note: nil,
+          text: question_from_bsb(verse),
+          source_verse: verse[:n],
+          from: "text",
+          paths: paths_for(verse, verses)
+        }
+      }.uniq { |question| question[:text] }
     end
 
-    def houston_question(obs, label)
-      clip = clip_text(obs[:text])
-      {
-        kind: "houston",
-        from_note: squeeze(obs[:text]),
-        text: "The notes on v.#{obs[:verse]} flag “#{clip}”. If someone left #{label} having inverted what the text is doing there, which other verses would you want in the room?",
-        source_verse: obs[:verse],
-        from: obs[:slug] ? "observation" : "extra"
-      }
-    end
-
-    def achilles_question(obs, label)
-      clip = clip_text(obs[:text])
-      text = if obs[:text].include?("?")
-        "The notes already ask the hard one on v.#{obs[:verse]}: #{squeeze(obs[:text])} What makes that uncomfortable to sit with in #{label}?"
-      else
-        "Given the notes on v.#{obs[:verse]} (“#{clip}”), what’s the question in #{label} a leader might hope nobody asks?"
+    def paths_for(verse, verses)
+      paths = text_paths_for(verse, verses).map { |text| { kind: "text", text: text } }
+      if (note = note_path_for(verse, verses))
+        paths << note
       end
-      {
-        kind: "achilles",
-        from_note: squeeze(obs[:text]),
-        text: text,
-        source_verse: obs[:verse],
-        from: obs[:slug] ? "observation" : "extra"
-      }
+      paths
+    end
+
+    def text_paths_for(verse, siblings)
+      text = squeeze(verse[:text])
+      paths = []
+
+      if (since = text[/\b(?:since|because)\s+([^,;]+)/i, 1])
+        paths << clip_text(squeeze(since), 80)
+      end
+
+      text.split(/,?\s*and let us\s+/i).each do |part|
+        next unless part.match?(/\blet us\b/i) || text.match?(/and let us/i)
+        clause = squeeze(part.sub(/\A.*?let us\s+/im, "")).sub(/\Alet us\s+/i, "").sub(/\.\z/, "")
+        paths << clip_text(clause, 90) if clause.length >= 8
+      end
+
+      text.scan(/\bsee to it that\s+([^.;]+)/i).each do |match|
+        paths << clip_text(squeeze(match[0]), 90)
+      end
+
+      text.scan(/\bdo not\s+([^.;]+)/i).each do |match|
+        paths << clip_text("do not #{squeeze(match[0])}", 90)
+      end
+
+      if paths.size < 2
+        squeeze(text).split(/[.;]/).each do |clause|
+          bit = strip_lead_in(clause)
+          next if bit.length < 12
+          next if paths.any? { |path| path.include?(bit[0, 24]) || bit.include?(path[0, 24]) }
+
+          paths << clip_text(bit, 90)
+        end
+      end
+
+      if paths.size < 2
+        Array(siblings).sort_by { |other| (other[:n] - verse[:n]).abs }.each do |other|
+          next if other[:n] == verse[:n]
+
+          bit = first_clause(other[:text])
+          next if bit.length < 12
+
+          paths << "v. #{other[:n]} — #{clip_text(bit, 70)}"
+          break if paths.size >= 3
+        end
+      end
+
+      paths.map { |path| squeeze(path) }.reject(&:blank?).uniq.first(4)
+    end
+
+    def note_path_for(verse, verses)
+      on_verse = Array(verses.find { |row| row[:n] == verse[:n] }&.fetch(:observations, nil))
+      pick = on_verse.find { |text| !cloudy_observation?(squeeze(text)) } || on_verse.first
+      return nil if pick.blank?
+
+      { kind: "note", text: clip_text(pick, 90) }
+    end
+
+    def pick_question_verses(verses, cloudy)
+      return [] if verses.empty?
+
+      cloudy_ns = Array(cloudy).map { |flag| flag[:verse] }
+      noted_ns = verses.select { |verse| Array(verse[:observations]).any? }.map { |verse| verse[:n] }
+      ordered = verses.sort_by { |verse| -verse_weight(verse, cloudy_ns, noted_ns) }
+      limit = verses.size == 1 ? 1 : 2
+      ordered.first(limit)
+    end
+
+    def verse_weight(verse, cloudy_ns, noted_ns)
+      text = squeeze(verse[:text])
+      score = 0
+      score += 100 if cloudy_ns.include?(verse[:n])
+      score += 40 if noted_ns.include?(verse[:n])
+      score += 20 if text.match?(/\blet us\b/i)
+      score += 20 if text.match?(/\bsee to it\b/i)
+      score += 12 if text.match?(COMMAND_MARK)
+      score += 8 if text.match?(/\b(jesus|lord|god|father|son|cross|faith|discipline|kingdom|witnesses)\b/i)
+      score -= 12 if text.length < 50
+      score -= 18 if text.match?(/\A(“|Then who|And this was)/)
+      score
+    end
+
+    def question_from_bsb(verse)
+      n = verse[:n]
+      text = squeeze(verse[:text])
+      if text.match?(/\blet us\b/i)
+        "What does verse #{n} tell us to do?"
+      elsif text.match?(/\bsee to it\b/i)
+        "What does verse #{n} tell us to see to?"
+      elsif text.match?(/\bdo not\b/i)
+        "What does verse #{n} tell us not to do?"
+      elsif text.match?(COMMAND_MARK)
+        "What does verse #{n} tell us to do, or not do?"
+      elsif text.length < 60
+        "What does verse #{n} say?"
+      elsif text.match?(/\b(instead|but now|however|yet)\b/i)
+        "What contrast does verse #{n} draw?"
+      elsif text.match?(/\b(for|because|so that|therefore)\b/i)
+        "What reason or result does verse #{n} give?"
+      else
+        clip = clip_text(first_clause(text), 70)
+        if clip.length < 20
+          "What does verse #{n} say?"
+        else
+          "According to verse #{n}, what is said about “#{clip}”?"
+        end
+      end
+    end
+
+    def first_clause(text)
+      strip_lead_in(text.split(/[,;:]/, 2).first.to_s).sub(/\.\z/, "")
+    end
+
+    def strip_lead_in(text)
+      squeeze(text).sub(/\A(therefore|furthermore|then|now|and|but|for),?\s+/i, "")
     end
 
     def open_question(obs, label)
@@ -321,9 +464,9 @@ module Margin
       }
     end
 
-    def clip_text(text)
+    def clip_text(text, limit = 110)
       clip = squeeze(text)
-      clip.length > 110 ? "#{clip[0, 107]}…" : clip
+      clip.length > limit ? "#{clip[0, limit - 3]}…" : clip
     end
 
     def squeeze(text)
@@ -331,35 +474,92 @@ module Margin
     end
 
     KIND_LABEL = {
-      "warmup" => "Warm-up",
-      "google_map" => "Google map",
-      "houston" => "Houston",
-      "achilles" => "Achilles heel",
-      "lifted" => "From your notes",
       "open" => "Open",
       "trace" => "Trace",
       "check" => "Check",
-      "press" => "Press"
+      "press" => "Press",
+      "lifted" => "From your notes"
     }.freeze
 
-    def markdown(grouped, warmup, through_line)
-      title = group? ? "#{@passage.label} group study prep" : "#{@passage.label} personal study"
-      lines = [ "# #{title}", "", (group? ? GROUP_BRIEF : PERSONAL_BRIEF).strip, "" ]
+    def markdown(grouped, through_line, opener, cloudy)
+      return personal_markdown(grouped, through_line) unless group?
+
+      group_markdown(grouped, opener, cloudy)
+    end
+
+    def group_markdown(grouped, opener, cloudy)
+      lines = [ "# #{@passage.label} — what you hold", "", "Hosted text: BSB.", "", GROUP_BRIEF.strip, "" ]
+      if opener.present?
+        lines << "## Open with this"
+        lines << ""
+        lines << "Say this out loud:"
+        lines << ""
+        lines << opener
+        lines << ""
+      end
+      unless cloudy.empty?
+        lines << "## Do not skip"
+        lines << ""
+        lines << "Your library still has unfinished notes on these verses. Open them in the reader. Do not read those notes as the group's answers."
+        lines << ""
+        cloudy.each do |flag|
+          verse = flag[:verse] ? "v. #{flag[:verse]}" : "chapter"
+          lines << "- #{verse} — still unfinished in your notes: “#{flag[:hint]}”"
+        end
+        lines << ""
+      end
+      lines << "## Read and ask"
+      lines << ""
+      grouped.each do |section|
+        heading = "### #{section[:label]}"
+        heading += " — #{section[:heading]}" if section[:heading].present?
+        lines << heading
+        lines << ""
+        section[:verses].each do |verse|
+          lines << "#{verse[:n]}. #{verse[:text]}"
+        end
+        lines << ""
+        if section[:questions].empty?
+          lines << "- _(no leader notes in this span yet)_"
+        else
+          section[:questions].each do |question|
+            lines << "**#{question[:text]}**"
+            lines << ""
+            lines << paths_markdown(question[:paths])
+            lines << ""
+          end
+        end
+        lines << ""
+      end
+      text = lines.join("\n").rstrip + "\n"
+      raise "Kruger jargon leaked into the leader sheet" if text.match?(KRUGER_LEAK)
+      raise "Interrogation leaked into the leader sheet" if text.match?(INTERROGATION_LEAK)
+
+      text
+    end
+
+    def paths_markdown(paths)
+      bits = Array(paths).map { |path|
+        if path[:kind].to_s == "note"
+          "your note — “#{path[:text]}”"
+        else
+          path[:text]
+        end
+      }
+      "_**Paths:** (private) #{bits.join(" / ")}_"
+    end
+
+    def personal_markdown(grouped, through_line)
+      title = "#{@passage.label} personal study"
+      lines = [ "# #{title}", "", PERSONAL_BRIEF.strip, "" ]
       if grouped.all? { |section| section[:observations].empty? } && through_line.empty? && @extra_notes.blank?
-        who = group? ? "leader" : "you"
-        lines << "_No notes yet. Have #{who} write observations first. Do not invent them._"
+        lines << "_No notes yet. Have you write observations first. Do not invent them._"
         lines << ""
       end
       unless through_line.empty?
-        lines << (group? ? "## Leader notes (consider these)" : "## Your notes on the chapter")
+        lines << "## Your notes on the chapter"
         lines << ""
         through_line.each { |obs| lines << "- #{squeeze(obs[:text])}" }
-        lines << ""
-      end
-      unless warmup.empty?
-        lines << "## Warm-up"
-        lines << ""
-        warmup.each { |question| lines << "- **#{KIND_LABEL[question[:kind]]}.** #{question[:text]}" }
         lines << ""
       end
       lines << "## Scripture, notes, and questions"
@@ -377,7 +577,7 @@ module Margin
         end
         lines << ""
         if section[:questions].empty?
-          lines << (group? ? "- _(no leader notes in this span yet)_" : "- _(no notes in this span yet)_")
+          lines << "- _(no notes in this span yet)_"
         else
           section[:questions].each do |question|
             label = KIND_LABEL[question[:kind]] || question[:kind]

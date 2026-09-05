@@ -7,8 +7,9 @@ module Margin
       description "Personal Bible study: help the reader go deeper in their own notes — learn and understand. " \
                   "Not for writing small-group discussion questions (use prepare_group_study for that). " \
                   "If it is unclear whether they want personal study or group prep, ask before calling this tool. " \
-                  "Serves BSB verse text next to their outliner notes, grouped into 3–4 sections, and presses: what is still cloudy, " \
-                  "where Scripture traces the same thing, how they might be misreading. Leave a gap; don't name the point. " \
+                  "Serves BSB verse text next to their outliner notes, grouped into 3–4 sections. " \
+                  "1:1 press: one plain question in the reader's words. If they don't know, two options from the verse. " \
+                  "Leave-a-gap is for group questions only, not this tool. " \
                   "Never invent observations for verses they have not annotated."
       input_schema(
         properties: {

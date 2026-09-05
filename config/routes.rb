@@ -34,6 +34,10 @@ Rails.application.routes.draw do
   post "oauth/revoke" => "oauth/revocations#create", as: :oauth_revoke
   resources :oauth_connections, only: %i[index destroy], path: "oauth/connections", controller: "oauth/connections"
 
+  get "leader-sheets/:osis" => "leader_sheets#show",
+      as: :leader_sheet,
+      constraints: { osis: /[0-9a-z][0-9a-z.-]+/i }
+
   get "*slug" => "reader#show",
       as: :read,
       format: false,

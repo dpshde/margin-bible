@@ -4,12 +4,15 @@ module Margin
   module Mcp
     class PrepareGroupStudy < MCP::Tool
       tool_name "prepare_group_study"
-      description "Small-group Bible study prep. Consider the leader's notes when drafting Kruger-shaped questions " \
-                  "(warm-up, Google map, Houston, Achilles heel). Don't treat those notes as the answer the group must recite. " \
-                  "Don't preach the landing in the question — leave a gap. " \
+      description "Small-group Bible study prep. Default output is a leader sheet in the Hebrews 12 shape: " \
+                  "3–4 BSB chunks, bold text-answerable questions (1–2 per noted section), and private italic Paths " \
+                  "(text-first; a clipped “your note” is one option, not the landing). " \
+                  "Don't treat the leader's notes as the answer the group must recite. Don't preach the landing in the question — leave a gap. " \
+                  "That leave-a-gap rule is for group questions only, not for 1:1 chat. " \
+                  "This is the initial sheet when the user is leading. Do not start with labeled facilitation jargon or a long 1:1 dig. " \
+                  "Flags verses whose library notes are still cloudy or unfinished so the leader does not dodge them. " \
                   "Not for the leader's own private learning (use personal_study for that). " \
                   "If it is unclear whether they want personal study or group prep, ask before calling this tool. " \
-                  "Serves BSB verse text next to the leader's outliner notes and Kruger-shaped questions. " \
                   "Never invent observations for verses they have not annotated. Empty question spans stay empty."
       input_schema(
         properties: {
