@@ -27,8 +27,8 @@ module Margin
                       "(learn, understand). prepare_group_study is when they are writing questions for a small group. " \
                       "If they say 'study this' without saying which, ask before calling a tool. " \
                       "prepare_group_study default is a leader sheet: 3–4 BSB chunks, bold text-answerable questions, " \
-                      "private italic Paths (text-first; a clipped note is one option). Do not start that sheet with Kruger jargon " \
-                      "or a long interrogation. Leave-a-gap is for those group questions only. " \
+                      "private italic Paths (text-first; a clipped note is one option). Do not start that sheet with labeled " \
+                      "facilitation jargon or a long 1:1 dig. Leave-a-gap is for those group questions only. " \
                       "personal_study is 1:1: one plain question in the reader's words; if they don't know, two options from the verse. " \
                       "Leader notes are considered, not recited. Study tools return BSB text alongside notes and questions. " \
                       "Never invent observations or write tools. Empty question spans stay empty.",

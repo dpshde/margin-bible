@@ -214,7 +214,7 @@ class McpControllerTest < ActionDispatch::IntegrationTest
     assert_match(/leave-a-gap is for those group questions only/i, instructions)
     assert_match(/one plain question/i, instructions)
     refute_match(/do not fire prepare_group_study first/i, instructions)
-    refute_match(/Kruger/i, instructions)
+    refute_match(/Kruger|Google map|Houston|Achilles/i, instructions)
   end
 
   test "prepare_group_study descriptor is the Heb 12 sheet not Kruger-first" do

@@ -9,7 +9,7 @@ module Margin
                   "(text-first; a clipped “your note” is one option, not the landing). " \
                   "Don't treat the leader's notes as the answer the group must recite. Don't preach the landing in the question — leave a gap. " \
                   "That leave-a-gap rule is for group questions only, not for 1:1 chat. " \
-                  "This is the initial sheet when the user is leading. Do not start with Kruger jargon or a long interrogation. " \
+                  "This is the initial sheet when the user is leading. Do not start with labeled facilitation jargon or a long 1:1 dig. " \
                   "Flags verses whose library notes are still cloudy or unfinished so the leader does not dodge them. " \
                   "Not for the leader's own private learning (use personal_study for that). " \
                   "If it is unclear whether they want personal study or group prep, ask before calling this tool. " \
