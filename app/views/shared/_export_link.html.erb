@@ -1,8 +1,4 @@
-<% appearance = local_assigns.fetch(:appearance, :icon) %>
-<% if appearance == :menu %>
-  <%= link_to "Export", export_path, class: "menu-item export-link", data: { turbo: false, action: "click->inbox#exportNotes" } %>
-<% else %>
-  <%= link_to export_path, class: "icon-btn export-link", title: "Export notes", "aria-label": "Export notes", data: { turbo: false, action: "click->inbox#exportNotes" } do %>
-    <%= ph_icon("export", size: 20) %>
-  <% end %>
+<%= link_to export_path, class: "menu-item export-link", data: { turbo: false, action: "click->inbox#exportNotes" } do %>
+  <%= ph_icon("download", size: 18) %>
+  <span>Download notes</span>
 <% end %>

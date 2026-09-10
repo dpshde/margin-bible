@@ -12,14 +12,13 @@
       </div>
       <h1 class="topbar-title">Notes</h1>
       <div class="topbar-actions">
-        <%= render "shared/export_link" %>
         <%= render "shared/header_menu", export: true %>
       </div>
     </header>
   <% else %>
     <div class="inbox-native-continue">
       <%= render "home/continue_link", passage: continue_passage %>
-      <%= render "shared/export_link" %>
+      <%= render "shared/header_menu", export: true %>
     </div>
   <% end %>
 
