@@ -4,13 +4,19 @@ module Margin
   module Mcp
     class ListNotes < MCP::Tool
       tool_name "list_notes"
-      description "List notes in the authorized library. Filter by book, chapter, exact OSIS/slug, or a text query. " \
-                  "Overlapping notes stay separate."
+      description "List notes in the authorized library. Filter by book, chapter, OSIS/slug, or a text query. " \
+                  "book accepts a name or OSIS code (Hebrews, Heb, HEB; Deuteronomy, Deut, DEU) and is case-insensitive. " \
+                  "book+chapter lists every note in that chapter — use this; do not retry with a different spelling. " \
+                  "A chapter-only osis (heb.12, Hebrews 12) lists every note in that chapter. " \
+                  "A verse or range osis is an exact slug. Overlapping notes stay separate."
       input_schema(
         properties: {
-          book: { type: "string", description: "Book name or OSIS code, e.g. John or JHN" },
-          chapter: { type: "integer", description: "Chapter number" },
-          osis: { type: "string", description: "Exact note address, e.g. jhn.3.16 or JHN.3.16-18" },
+          book: { type: "string", description: "Book name or OSIS code, e.g. John, JHN, Hebrews, HEB, Deut, DEU" },
+          chapter: {
+            description: "Chapter number. Integer or digit string (12 or \"12\").",
+            anyOf: [ { type: "integer" }, { type: "string" } ]
+          },
+          osis: { type: "string", description: "Chapter (heb.12 / Hebrews 12) lists the chapter; verse/range is exact, e.g. jhn.3.16" },
           query: { type: "string", description: "Case-insensitive substring match on note body" }
         }
       )

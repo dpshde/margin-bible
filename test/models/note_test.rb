@@ -142,4 +142,37 @@ class NoteTest < ActiveSupport::TestCase
     assert_equal 2, existing.blocks.length
     assert existing.blocks.all? { |block| block["text"].blank? }
   end
+
+  test "search_in accepts book name and OSIS code for Hebrews 12 and Deuteronomy 29" do
+    create_note!(@library, "heb.12.1", "Cloud of witnesses.")
+    create_note!(@library, "heb.12.2", "Author and perfecter.")
+    create_note!(@library, "heb.12", "Chapter hold.")
+    create_note!(@library, "deu.29.1", "Covenant in Moab.")
+    create_note!(@library, "deu.29", "Deut chapter.")
+    create_note!(@library, "jhn.3.16", "Other book.")
+
+    heb_slugs = %w[heb.12 heb.12.1 heb.12.2]
+    deu_slugs = %w[deu.29 deu.29.1]
+
+    %w[Hebrews Heb HEB heb hebrews].each do |book|
+      found = Note.search_in(@library, book: book, chapter: 12)
+      assert_equal heb_slugs, found.map(&:slug).sort, "book=#{book.inspect} chapter=12"
+    end
+
+    %w[Deuteronomy Deut DEU deu deuteronomy].each do |book|
+      found = Note.search_in(@library, book: book, chapter: 29)
+      assert_equal deu_slugs, found.map(&:slug).sort, "book=#{book.inspect} chapter=29"
+    end
+
+    assert_equal heb_slugs, Note.search_in(@library, book: "Hebrews", chapter: "12").map(&:slug).sort
+    assert_equal heb_slugs, Note.search_in(@library, book: "Hebrews 12").map(&:slug).sort
+    assert_equal heb_slugs, Note.search_in(@library, book: "heb.12").map(&:slug).sort
+    assert_equal heb_slugs, Note.search_in(@library, book: "Heb12").map(&:slug).sort
+    assert_equal heb_slugs, Note.search_in(@library, osis: "Hebrews 12").map(&:slug).sort
+    assert_equal heb_slugs, Note.search_in(@library, osis: "heb.12").map(&:slug).sort
+    assert_equal [ "heb.12.1" ], Note.search_in(@library, osis: "heb.12.1").map(&:slug)
+    assert_equal deu_slugs, Note.search_in(@library, book: "Deuteronomy 29").map(&:slug).sort
+    assert_equal deu_slugs, Note.search_in(@library, osis: "Deut 29").map(&:slug).sort
+    assert_empty Note.search_in(@library, book: "NotABook", chapter: 12)
+  end
 end

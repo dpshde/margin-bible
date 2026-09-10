@@ -20,6 +20,11 @@ class NoteAgentSignatureTest < ActiveSupport::TestCase
     listed = Note.search_in(library, book: "John", chapter: 3)
     assert_equal [ "jhn.3", "jhn.3.16", "jhn.3.16-18" ].sort, listed.map(&:slug).sort
 
+    %w[John JHN jhn].each do |book|
+      assert_equal listed.map(&:slug).sort, Note.search_in(library, book: book, chapter: 3).map(&:slug).sort
+    end
+    assert_equal listed.map(&:slug).sort, Note.search_in(library, book: "John", chapter: "3").map(&:slug).sort
+
     covering = Note.covering_verse(library, "jhn.3.16")
     assert_equal [ "jhn.3.16", "jhn.3.16-18" ].sort, covering.map(&:slug).sort
 

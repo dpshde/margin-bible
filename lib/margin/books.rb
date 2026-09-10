@@ -32,6 +32,24 @@ module Margin
       ALIASES[key] || (CODES.include?(token.to_s.upcase) ? token.to_s.upcase : nil)
     end
 
+    # Book name, OSIS code, or a unique prefix (hebrew → HEB, deute → DEU).
+    def resolve_book_code(token)
+      raw = token.to_s.strip
+      return nil if raw.blank?
+      return resolve_alias(raw) if resolve_alias(raw)
+
+      key = raw.downcase.gsub(/[^a-z0-9]/, "")
+      return nil if key.length < 3
+
+      alias_hits = ALIASES.select { |name, _code| name.start_with?(key) }.values.uniq
+      return alias_hits.first if alias_hits.one?
+
+      name_hits = NAMES.select { |_code, name|
+        name.to_s.downcase.gsub(/[^a-z0-9]/, "").start_with?(key)
+      }.keys
+      name_hits.one? ? name_hits.first : nil
+    end
+
     def next_book(code)
       i = CODES.index(code.to_s.upcase)
       CODES[i + 1] if i
