@@ -1,6 +1,13 @@
 # frozen_string_literal: true
 
 class ExportsController < ApplicationController
+  def show
+    send_data JSON.pretty_generate(Margin::LibrarySnapshot.build(current_library)),
+      filename: Margin::LibrarySnapshot.filename,
+      type: "application/json; charset=utf-8",
+      disposition: "attachment"
+  end
+
   def create
     scope = params[:scope].to_s
     include_notes = params[:notes].to_s != "0"

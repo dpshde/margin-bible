@@ -1,0 +1,4 @@
+<%= link_to export_path, class: "menu-item export-link", data: { turbo: false, action: "click->inbox#exportNotes" } do %>
+  <%= ph_icon("download", size: 18) %>
+  <span>Download notes</span>
+<% end %>

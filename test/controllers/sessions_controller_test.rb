@@ -53,6 +53,8 @@ class SessionsControllerTest < ActionDispatch::IntegrationTest
 
     follow_redirect!
     assert_select "header.topbar a.ghost.quiet", text: "Passkeys", count: 0
+    assert_select "header.topbar a.icon-btn.export-link", count: 0
+    assert_select "header.topbar details.topbar-menu a.menu-item.export-link", "Download notes"
     assert_select "header.topbar details.topbar-menu a.menu-item", "Passkeys"
     assert_select "header.topbar details.topbar-menu button.menu-item", "Sign out"
     assert_not_nil cookies[:library_id]

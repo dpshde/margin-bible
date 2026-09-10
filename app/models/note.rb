@@ -56,6 +56,26 @@ class Note < ApplicationRecord
     }
   end
 
+  def as_snapshot
+    {
+      slug: slug,
+      osis: osis,
+      kind: kind,
+      book: book,
+      chapter: chapter,
+      verse_start: verse_start,
+      verse_end: verse_end,
+      bookmarked: bookmarked?,
+      source: source,
+      agent_name: agent_name,
+      agent_color: agent_color,
+      blocks: Array(blocks),
+      attachments: Array(attachments),
+      created_at: created_at&.iso8601,
+      updated_at: updated_at&.iso8601
+    }
+  end
+
 
   def passage
     Margin::Passage.parse(slug)

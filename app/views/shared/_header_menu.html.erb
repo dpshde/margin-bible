@@ -1,4 +1,5 @@
 <% account = local_assigns.fetch(:account, true) %>
+<% export = local_assigns.fetch(:export, false) %>
 <details class="topbar-menu" data-controller="theme">
   <summary class="icon-btn" title="Menu" aria-label="Menu">
     <%= ph_icon("dots-three", size: 20) %>
@@ -7,6 +8,10 @@
     <button type="button" class="menu-item" data-theme-pref="light" data-action="click->theme#choose">Light</button>
     <button type="button" class="menu-item" data-theme-pref="system" data-action="click->theme#choose">System</button>
     <button type="button" class="menu-item" data-theme-pref="dark" data-action="click->theme#choose">Dark</button>
+    <% if export %>
+      <hr class="dock-sep">
+      <%= render "shared/export_link", appearance: :menu %>
+    <% end %>
     <% if account %>
       <hr class="dock-sep">
       <%= render "shared/account_nav", appearance: :menu %>
