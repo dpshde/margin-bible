@@ -251,7 +251,7 @@ html[data-theme="dark"] .menu-item-theme .theme-toggle-when-dark { display: inli
   html[data-theme="system"] .menu-item-theme .theme-toggle-when-dark { display: inline-flex; }
 }
 .menu-item-danger {
-  color: color-mix(in srgb, #a33 70%, var(--ink-soft));
+  color: #a33;
 }
 .menu-item-danger:hover,
 .menu-item-danger:focus,
