@@ -167,12 +167,22 @@ class McpControllerTest < ActionDispatch::IntegrationTest
     assert_operator content["sections"].size, :>=, 3
     assert_operator content["sections"].size, :<=, 4
     text = mcp_result.dig("result", "content", 0, "text")
+    assert_includes text, "In the beginning was the Word"
+    assert_includes text, "Open with this"
+    assert_includes text, "_**Paths:** (private)"
+    assert_includes text, "your note —"
     assert_includes text, "Why start with the Word"
     refute_includes text, "Theirs: do not use this."
-    assert_includes text, "?mode=launcher"
-    assert_includes text, "In the beginning was the Word"
-    assert_includes text, "Warm-up"
-    assert_match(/Google map|Houston|Achilles/, text)
+    refute_includes text, "?mode=launcher"
+    refute_includes text, "Family lead: CSB"
+    refute_match(/\b(warm-?up|google map|houston|achilles|interrogat)\b/i, text)
+    questions = content["sections"].flat_map { |section| section["questions"] }
+    assert questions.any? { |question| question["from"] == "text" }
+    assert questions.any? { |question|
+      Array(question["paths"]).any? { |path| path["kind"] == "note" }
+    }
+    assert questions.any? { |question| text.include?("**#{question["text"]}**") }
+    assert_equal "bsb", content["hosted_translation"]
   end
 
   test "personal_study is for the reader's own learning not group facilitation" do
@@ -191,6 +201,7 @@ class McpControllerTest < ActionDispatch::IntegrationTest
     assert_includes text, "personal study"
     assert_includes text, "The Word became flesh"
     refute_includes text, "Warm-up"
+    refute_includes text, "_**Paths:**"
     assert_match(/Open|Trace|Check|Press/, text)
   end
 
@@ -199,6 +210,30 @@ class McpControllerTest < ActionDispatch::IntegrationTest
     assert_match(/personal_study/, instructions)
     assert_match(/prepare_group_study/, instructions)
     assert_match(/ask before calling a tool/i, instructions)
+    assert_match(/leader sheet/i, instructions)
+    assert_match(/leave-a-gap is for those group questions only/i, instructions)
+    assert_match(/one plain question/i, instructions)
+    refute_match(/do not fire prepare_group_study first/i, instructions)
+    refute_match(/Kruger|Google map|Houston|Achilles/i, instructions)
+  end
+
+  test "prepare_group_study descriptor is the Heb 12 sheet not Kruger-first" do
+    description = Margin::Mcp::PrepareGroupStudy.description
+    assert_match(/Hebrews 12/i, description)
+    assert_match(/bold/i, description)
+    assert_match(/Paths/i, description)
+    refute_match(/Kruger/i, description)
+    refute_match(/Google map|Houston|Achilles/i, description)
+    refute_match(/before 1:1 interrogation/i, description)
+  end
+
+  test "personal_study descriptor stays 1:1 and drops leave-a-gap" do
+    description = Margin::Mcp::PersonalStudy.description
+    assert_match(/one plain question/i, description)
+    assert_match(/two options from the verse/i, description)
+    assert_match(/Leave-a-gap is for group questions only/i, description)
+    refute_match(/leave a gap; don't name the point/i, description)
+    refute_match(/Paths/i, description)
   end
 
   test "calling a write tool name fails because it is not registered" do

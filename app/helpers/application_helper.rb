@@ -65,6 +65,15 @@ module ApplicationHelper
     end
   end
 
+  def path_line(paths)
+    Array(paths).map { |path|
+      row = path.respond_to?(:[]) ? path : {}
+      kind = row[:kind] || row["kind"]
+      text = row[:text] || row["text"]
+      kind.to_s == "note" ? "your note — “#{text}”" : text
+    }.join(" / ")
+  end
+
   def wiki_outliner_html(text)
     String(text).split(/(\[\[[^\[\]]+\]\])/).map { |part|
       if (m = part.match(/\A\[\[([^\]|]+)(?:\|([^\]]+))?\]\]\z/))

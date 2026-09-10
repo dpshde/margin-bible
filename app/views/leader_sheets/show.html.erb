@@ -1,0 +1,57 @@
+<% content_for :title, "#{@payload.dig(:passage, :label)} — leader sheet" %>
+
+<article class="leader-sheet">
+  <p class="leader-sheet-kicker">Default <code>prepare_group_study</code> leader sheet · BSB</p>
+  <h1><%= @payload.dig(:passage, :label) %> — what you hold</h1>
+  <% if @using_samples %>
+    <p class="leader-sheet-note">Format preview with sample notes (not your library). MCP: <code>prepare_group_study</code> with <code>osis: "<%= @payload.dig(:passage, :slug) %>"</code>.</p>
+  <% else %>
+    <p class="leader-sheet-note">Built from this library’s notes. Overlapping notes stay separate.</p>
+  <% end %>
+
+  <p class="leader-sheet-brief"><%= @payload[:brief] %></p>
+
+  <% if @payload[:opener].present? %>
+    <h2>Open with this</h2>
+    <p>Say this out loud:</p>
+    <p class="leader-sheet-opener"><%= @payload[:opener] %></p>
+  <% end %>
+
+  <% unless Array(@payload[:cloudy]).empty? %>
+    <h2>Do not skip</h2>
+    <p>Your library still has unfinished notes on these verses. Open them in the reader. Do not read those notes as the group’s answers.</p>
+    <ul>
+      <% @payload[:cloudy].each do |flag| %>
+        <li>v. <%= flag[:verse] %> — still unfinished in your notes: “<%= flag[:hint] %>”</li>
+      <% end %>
+    </ul>
+  <% end %>
+
+  <h2>Read and ask</h2>
+
+  <% @payload[:sections].each do |section| %>
+    <section class="leader-sheet-chunk">
+      <h3>
+        <%= section[:label] %>
+        <% if section[:heading].present? %> — <%= section[:heading] %><% end %>
+      </h3>
+      <% section[:verses].each do |verse| %>
+        <p class="leader-sheet-verse"><sup><%= verse[:n] %></sup> <%= verse[:text] %></p>
+      <% end %>
+
+      <% if section[:questions].empty? %>
+        <p class="leader-sheet-empty"><em>no leader notes in this span yet</em></p>
+      <% else %>
+        <% section[:questions].each do |question| %>
+          <p class="leader-sheet-q"><strong><%= question[:text] %></strong></p>
+          <p class="leader-sheet-paths"><em><strong>Paths:</strong> (private) <%= path_line(question[:paths]) %></em></p>
+        <% end %>
+      <% end %>
+    </section>
+  <% end %>
+
+  <details class="leader-sheet-raw">
+    <summary>Raw MCP markdown</summary>
+    <pre><%= @payload[:markdown] %></pre>
+  </details>
+</article>
