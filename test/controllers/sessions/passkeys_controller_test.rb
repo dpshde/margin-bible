@@ -30,7 +30,8 @@ class Sessions::PasskeysControllerTest < ActionDispatch::IntegrationTest
 
     follow_redirect!
     assert_select "header.topbar a.ghost.quiet", text: "Passkeys", count: 0
-    assert_select "header.topbar details.topbar-menu a.menu-item", text: "Passkeys", count: 0
+    assert_select "header.topbar details.topbar-menu a.menu-item.menu-item-quiet[href='/passkeys']", "Passkeys"
+    assert_select "header.topbar details.topbar-menu a.menu-item.menu-item-quiet[href='/oauth/connections']", "Agents"
     assert_select "header.topbar details.topbar-menu button.menu-item-danger", "Sign out"
   end
 

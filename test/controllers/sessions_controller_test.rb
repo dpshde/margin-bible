@@ -55,8 +55,8 @@ class SessionsControllerTest < ActionDispatch::IntegrationTest
     assert_select "header.topbar a.ghost.quiet", text: "Passkeys", count: 0
     assert_select "header.topbar a.icon-btn.export-link", count: 0
     assert_select "header.topbar details.topbar-menu a.menu-item.export-link", "Download notes"
-    assert_select "header.topbar details.topbar-menu a.menu-item", text: "Passkeys", count: 0
-    assert_select "header.topbar details.topbar-menu a.menu-item", text: "Agents", count: 0
+    assert_select "header.topbar details.topbar-menu a.menu-item.menu-item-quiet[href='/passkeys']", "Passkeys"
+    assert_select "header.topbar details.topbar-menu a.menu-item.menu-item-quiet[href='/oauth/connections']", "Agents"
     assert_select "header.topbar details.topbar-menu button.menu-item-danger", "Sign out"
     assert_not_nil cookies[:library_id]
   end

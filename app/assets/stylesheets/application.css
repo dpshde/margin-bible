@@ -250,6 +250,15 @@ html[data-theme="dark"] .menu-item-theme .theme-toggle-when-dark { display: inli
   html[data-theme="system"] .menu-item-theme .theme-toggle-when-light { display: none; }
   html[data-theme="system"] .menu-item-theme .theme-toggle-when-dark { display: inline-flex; }
 }
+.menu-item-quiet {
+  color: var(--faint);
+  font-size: .8rem;
+}
+.menu-item-quiet:hover,
+.menu-item-quiet:focus,
+.menu-item-quiet:focus-visible {
+  color: var(--muted);
+}
 .menu-item-danger {
   color: #a33;
 }
