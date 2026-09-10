@@ -17,7 +17,8 @@ Rails.application.routes.draw do
 
   get "resolve" => "resolves#show", as: :resolve
   get "go" => "resolves#show"
-  post "export" => "exports#create", as: :export
+  get "export" => "exports#show", as: :export
+  post "export" => "exports#create"
   patch "notes" => "notes#upsert", as: :notes
 
   get ".well-known/oauth-protected-resource" => "well_known#oauth_protected_resource"

@@ -32,6 +32,8 @@ class HomeControllerTest < ActionDispatch::IntegrationTest
     assert_select "header.topbar details.topbar-menu button", text: "Deca", count: 0
     assert_select "header.topbar details.topbar-menu button", text: "Serif", count: 0
     assert_select %(script[src="https://cdn.usefathom.com/script.js"][data-site="EMYGRIAR"][defer]), count: 1
+    assert_select "header.topbar a.export-link[href='/export'][aria-label='Export notes'][data-turbo='false']"
+    assert_select "header.topbar details.topbar-menu a.menu-item.export-link", "Export"
     assert_select "header.topbar details.topbar-menu a.menu-item", "Sign in"
     assert_select "header.topbar a.ghost.quiet", text: "Sign in", count: 0
     assert_select "[data-inbox-signed-in-value='false']"
@@ -69,6 +71,7 @@ class HomeControllerTest < ActionDispatch::IntegrationTest
     assert_select "header.topbar", count: 0
     assert_select ".inbox-native-continue a.inbox-continue-link[href='/heb.11'][aria-label='Continue reading']"
     assert_select ".inbox-native-continue a.inbox-continue-link[title='Hebrews 11']"
+    assert_select ".inbox-native-continue a.export-link[href='/export'][aria-label='Export notes']"
   end
 
   test "inbox lists notes newest created_at first and keeps indent" do
@@ -163,6 +166,8 @@ class HomeControllerTest < ActionDispatch::IntegrationTest
 
     get root_path
     assert_select "[data-inbox-signed-in-value='true']"
+    assert_select "header.topbar a.export-link[href='/export']"
+    assert_select "header.topbar details.topbar-menu a.menu-item.export-link", "Export"
     assert_select "#inbox-pack-mirror", /Faith is the assurance/
     assert_select "#inbox-pack-mirror", /heb.11.1/
   end
@@ -194,6 +199,7 @@ class HomeControllerTest < ActionDispatch::IntegrationTest
     assert_select "html.hotwire-native"
     assert_select "header.topbar", count: 0
     assert_select ".inbox-native-continue a.inbox-continue-link[href='/jhn.1'][aria-label='Continue reading']"
+    assert_select ".inbox-native-continue a.export-link[href='/export'][aria-label='Export notes']"
     assert_select "main.inbox-main form.jump input#q"
     assert_select ".inbox-empty", "No notes yet. Open a passage and write under a verse — they’ll show up here newest first."
   end

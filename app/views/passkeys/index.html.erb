@@ -29,6 +29,6 @@
     <% end %>
   </section>
 
-  <p class="muted"><%= link_to "Back to notes", root_path %></p>
+  <p class="muted"><%= link_to "Export notes", export_path, data: { turbo: false } %> · <%= link_to "Back to notes", root_path %></p>
   <%= button_to "Sign out", session_path, method: :delete, class: "text-btn" %>
 </main>

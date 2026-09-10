@@ -12,6 +12,7 @@ import {
 import { applyContinueLink, playContinueHaptic } from "../lib/inbox-continue"
 import { hrefForSlug, slugLabel } from "../lib/passage-span"
 import { playHaptic } from "../lib/haptics"
+import { downloadSnapshot, guestSnapshot } from "../lib/library-snapshot"
 
 export default class extends Controller {
   static targets = ["continue", "list"]
@@ -76,6 +77,14 @@ export default class extends Controller {
 
   continueTap() {
     playContinueHaptic()
+  }
+
+  exportNotes(event) {
+    if (this.signedInValue) return
+    const pack = loadPack()
+    if (!Object.keys(pack.notes || {}).length) return
+    event.preventDefault()
+    downloadSnapshot(guestSnapshot(pack))
   }
 
   renderContinue(pack) {
