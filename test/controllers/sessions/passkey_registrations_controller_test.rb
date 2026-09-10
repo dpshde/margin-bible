@@ -20,7 +20,8 @@ class Sessions::PasskeyRegistrationsControllerTest < ActionDispatch::Integration
     assert_equal user, library.user
 
     follow_redirect!
-    assert_select "header.topbar details.topbar-menu a.menu-item", "Passkeys"
+    assert_select "header.topbar details.topbar-menu a.menu-item", text: "Passkeys", count: 0
+    assert_select "header.topbar details.topbar-menu button.menu-item-danger", "Sign out"
 
     delete session_path
     get new_session_path

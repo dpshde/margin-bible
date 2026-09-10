@@ -30,7 +30,8 @@ class Sessions::PasskeysControllerTest < ActionDispatch::IntegrationTest
 
     follow_redirect!
     assert_select "header.topbar a.ghost.quiet", text: "Passkeys", count: 0
-    assert_select "header.topbar details.topbar-menu a.menu-item", "Passkeys"
+    assert_select "header.topbar details.topbar-menu a.menu-item", text: "Passkeys", count: 0
+    assert_select "header.topbar details.topbar-menu button.menu-item-danger", "Sign out"
   end
 
   test "passkey sign-in imports guest pack notes onto the claimed library" do
