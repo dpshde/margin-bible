@@ -19,7 +19,7 @@ class ExportsControllerTest < ActionDispatch::IntegrationTest
 
       get export_path
       assert_response :success
-      assert_equal "application/json; charset=utf-8", response.media_type
+      assert_equal "application/json", response.media_type
       assert_match(/filename="margin-notes-20260910.json"/, response.headers["Content-Disposition"])
       assert_match(/attachment/, response.headers["Content-Disposition"])
       payload = JSON.parse(response.body)
