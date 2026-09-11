@@ -3,7 +3,10 @@ import {
   applyReaderChromeTuck,
   chromeLocked,
   detectFineHover,
+  DOCUMENT_BOTTOM_ZONE,
+  documentMetrics,
   nearBottomEdge,
+  nearDocumentBottom,
   nearRevealEdge,
   nearTopEdge,
   nextChromeHidden,
@@ -19,6 +22,69 @@ import {
   assert.equal(nextChromeHidden({ hidden: true, scrollY: 84, lastY: 80 }), true)
   assert.equal(nextChromeHidden({ hidden: false, scrollY: 200, lastY: 80, locked: true }), false)
   assert.equal(nextChromeHidden({ hidden: true, scrollY: 200, lastY: 80, nearBottom: true }), false)
+}
+
+{
+  assert.ok(DOCUMENT_BOTTOM_ZONE > 106)
+  assert.equal(nearDocumentBottom({
+    scrollY: 1000,
+    scrollHeight: 2000,
+    viewportHeight: 800
+  }), false)
+  assert.equal(nearDocumentBottom({
+    scrollY: 1100,
+    scrollHeight: 2000,
+    viewportHeight: 800
+  }), true)
+  assert.equal(nearDocumentBottom({
+    scrollY: 1200,
+    scrollHeight: 2000,
+    viewportHeight: 800
+  }), true)
+  assert.equal(nearDocumentBottom({
+    scrollY: 0,
+    scrollHeight: 400,
+    viewportHeight: 800
+  }), true)
+  assert.equal(nearDocumentBottom({
+    scrollY: 1000,
+    scrollHeight: 2000,
+    viewportHeight: 800,
+    zone: 80
+  }), false)
+
+  const metrics = documentMetrics({
+    scrollingElement: { scrollHeight: 1918, clientHeight: 800 }
+  }, { scrollY: 1110, innerHeight: 800 })
+  assert.equal(metrics.scrollY, 1110)
+  assert.equal(metrics.scrollHeight, 1918)
+  assert.equal(metrics.viewportHeight, 800)
+  assert.equal(nearDocumentBottom(metrics), true)
+
+  // Pad collapse (~82px) clamps scrollY. Without nearBottom that looks like
+  // a scroll-up and the bar flashes. With it, chrome stays shown.
+  assert.equal(nextChromeHidden({ hidden: false, scrollY: 1110, lastY: 1000 }), true)
+  assert.equal(nextChromeHidden({ hidden: true, scrollY: 1028, lastY: 1110 }), false)
+  assert.equal(nextChromeHidden({
+    hidden: false,
+    scrollY: 1110,
+    lastY: 1000,
+    nearBottom: nearDocumentBottom({
+      scrollY: 1110,
+      scrollHeight: 1918,
+      viewportHeight: 800
+    })
+  }), false)
+  assert.equal(nextChromeHidden({
+    hidden: true,
+    scrollY: 1028,
+    lastY: 1110,
+    nearBottom: nearDocumentBottom({
+      scrollY: 1028,
+      scrollHeight: 1918,
+      viewportHeight: 800
+    })
+  }), false)
 }
 
 {
