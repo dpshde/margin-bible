@@ -4,10 +4,17 @@
   <summary class="icon-btn" title="Menu" aria-label="Menu">
     <%= ph_icon("dots-three", size: 20) %>
   </summary>
-  <div class="menu-panel" onclick="if (event.target.closest('button, a')) this.closest('details').removeAttribute('open')">
-    <button type="button" class="menu-item" data-theme-pref="light" data-action="click->theme#choose">Light</button>
-    <button type="button" class="menu-item" data-theme-pref="system" data-action="click->theme#choose">System</button>
-    <button type="button" class="menu-item" data-theme-pref="dark" data-action="click->theme#choose">Dark</button>
+  <div class="menu-panel" onclick="if (event.target.closest('button, a') && !event.target.closest('.menu-item-theme')) this.closest('details').removeAttribute('open')">
+    <button type="button" class="menu-item menu-item-theme" data-action="click->theme#toggle" aria-label="Toggle appearance">
+      <span class="theme-toggle-face theme-toggle-when-light">
+        <%= ph_icon("sun", size: 18) %>
+        <span>Light</span>
+      </span>
+      <span class="theme-toggle-face theme-toggle-when-dark">
+        <%= ph_icon("moon", size: 18) %>
+        <span>Dark</span>
+      </span>
+    </button>
     <% if export %>
       <hr class="dock-sep">
       <%= render "shared/export_link", appearance: :menu %>

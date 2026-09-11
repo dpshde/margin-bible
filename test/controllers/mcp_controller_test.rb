@@ -67,6 +67,7 @@ class McpControllerTest < ActionDispatch::IntegrationTest
     assert_includes names, "list_notes"
     assert_includes names, "get_note"
     assert_includes names, "list_notes_covering_verse"
+    assert_includes names, "export_library"
     assert_includes names, "personal_study"
     assert_includes names, "prepare_group_study"
     refute_includes names, "prepare_bible_study"
@@ -198,7 +199,49 @@ class McpControllerTest < ActionDispatch::IntegrationTest
     instructions = Margin::Mcp.server(library: @library).instructions
     assert_match(/personal_study/, instructions)
     assert_match(/prepare_group_study/, instructions)
+    assert_match(/export_library/, instructions)
     assert_match(/ask before calling a tool/i, instructions)
+  end
+
+  test "export_library returns the same snapshot shape as GET /export for this library" do
+    travel_to Time.utc(2026, 9, 10, 15, 30, 0) do
+      @library.update!(last_read_slug: "jhn.3", read_trail: [ "jhn.1", "jhn.3" ])
+
+      mcp_json({
+        jsonrpc: "2.0",
+        id: 11,
+        method: "tools/call",
+        params: { name: "export_library", arguments: {} }
+      }, token: @token)
+      assert_response :success
+      snapshot = mcp_result.dig("result", "structuredContent")
+      assert_equal "margin.library-snapshot", snapshot["format"]
+      assert_equal 1, snapshot["version"]
+      assert_equal "jhn.3", snapshot.dig("library", "last_read_slug")
+      assert_equal [ "jhn.1", "jhn.3" ], snapshot.dig("library", "read_trail")
+      slugs = snapshot["notes"].map { |note| note["slug"] }
+      assert_equal [ "jhn.3", "jhn.3.16", "jhn.3.16-18" ].sort, slugs.sort
+      refute snapshot["notes"].any? { |note| note["blocks"].to_s.include?("Theirs") }
+      refute_includes snapshot.keys, "claim_token"
+      refute_includes JSON.pretty_generate(snapshot), @library.claim_token.to_s
+
+      expected = JSON.parse(Margin::LibrarySnapshot.build(@library.reload).to_json)
+      assert_equal expected["format"], snapshot["format"]
+      assert_equal expected["version"], snapshot["version"]
+      assert_equal expected["library"], snapshot["library"]
+      assert_equal expected["notes"], snapshot["notes"]
+
+      mcp_json({
+        jsonrpc: "2.0",
+        id: 12,
+        method: "tools/call",
+        params: { name: "export_library", arguments: {} }
+      }, token: @other_token)
+      other = mcp_result.dig("result", "structuredContent")
+      assert_equal [ "jhn.3.16" ], other["notes"].map { |note| note["slug"] }
+      assert_equal "Theirs: stay out.", other["notes"][0]["blocks"][0]["text"]
+      refute other["notes"].any? { |note| note["blocks"].to_s.include?("Mine:") }
+    end
   end
 
   test "calling a write tool name fails because it is not registered" do

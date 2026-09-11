@@ -8,7 +8,8 @@ import {
   nextTheme,
   parseTheme,
   resolveTheme,
-  saveTheme
+  saveTheme,
+  toggleLightDark
 } from "../../app/javascript/lib/theme.js"
 
 {
@@ -23,6 +24,10 @@ import {
   assert.equal(nextTheme("light"), "system")
   assert.equal(nextTheme("system"), "dark")
   assert.equal(nextTheme("dark"), "light")
+  assert.equal(toggleLightDark("light"), "dark")
+  assert.equal(toggleLightDark("dark"), "light")
+  assert.equal(toggleLightDark("system", true), "light")
+  assert.equal(toggleLightDark("system", false), "dark")
 }
 
 {

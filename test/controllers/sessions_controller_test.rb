@@ -55,8 +55,9 @@ class SessionsControllerTest < ActionDispatch::IntegrationTest
     assert_select "header.topbar a.ghost.quiet", text: "Passkeys", count: 0
     assert_select "header.topbar a.icon-btn.export-link", count: 0
     assert_select "header.topbar details.topbar-menu a.menu-item.export-link", "Download notes"
-    assert_select "header.topbar details.topbar-menu a.menu-item", "Passkeys"
-    assert_select "header.topbar details.topbar-menu button.menu-item", "Sign out"
+    assert_select "header.topbar details.topbar-menu a.menu-item.menu-item-quiet[href='/passkeys']", "Passkeys"
+    assert_select "header.topbar details.topbar-menu a.menu-item.menu-item-quiet[href='/oauth/connections']", "Agents"
+    assert_select "header.topbar details.topbar-menu button.menu-item-danger", "Sign out"
     assert_not_nil cookies[:library_id]
   end
 
@@ -70,7 +71,7 @@ class SessionsControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_select "[data-reader-signed-in-value='true']"
     get root_path
-    assert_select "header.topbar details.topbar-menu button.menu-item", "Sign out"
+    assert_select "header.topbar details.topbar-menu button.menu-item-danger", "Sign out"
   end
 
   test "sign out drops the library cookie so the next visit is a guest" do

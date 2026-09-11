@@ -1,9 +1,9 @@
 <% appearance = local_assigns.fetch(:appearance, :quiet) %>
 <% if signed_in? %>
   <% items = capture do %>
-    <%= link_to "Passkeys", passkeys_path, class: "menu-item" %>
-    <%= link_to "Agents", oauth_connections_path, class: "menu-item" %>
-    <%= button_to "Sign out", session_path, method: :delete, class: "menu-item" %>
+    <%= link_to "Passkeys", passkeys_path, class: "menu-item menu-item-quiet" %>
+    <%= link_to "Agents", oauth_connections_path, class: "menu-item menu-item-quiet" %>
+    <%= button_to "Sign out", session_path, method: :delete, class: "menu-item menu-item-danger", form_class: "menu-sign-out" %>
   <% end %>
   <% if appearance == :menu %>
     <%= items %>

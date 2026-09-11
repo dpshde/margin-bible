@@ -25,9 +25,11 @@ class HomeControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_select "h1.topbar-title", "Notes"
     assert_select "header.topbar .theme-seg", count: 0
-    assert_select "header.topbar details.topbar-menu button.menu-item[data-theme-pref='light']", "Light"
-    assert_select "header.topbar details.topbar-menu button.menu-item[data-theme-pref='system']", "System"
-    assert_select "header.topbar details.topbar-menu button.menu-item[data-theme-pref='dark']", "Dark"
+    assert_select "header.topbar details.topbar-menu button.menu-item-theme[data-action='click->theme#toggle']"
+    assert_select "header.topbar details.topbar-menu .theme-toggle-when-light", /Light/
+    assert_select "header.topbar details.topbar-menu .theme-toggle-when-dark", /Dark/
+    assert_select "header.topbar details.topbar-menu button.menu-item[data-theme-pref]", count: 0
+    assert_select "header.topbar details.topbar-menu button", text: "System", count: 0
     assert_select "header.topbar details.topbar-menu button.menu-item[data-face-pref]", count: 0
     assert_select "header.topbar details.topbar-menu button", text: "Deca", count: 0
     assert_select "header.topbar details.topbar-menu button", text: "Serif", count: 0
@@ -36,6 +38,8 @@ class HomeControllerTest < ActionDispatch::IntegrationTest
     assert_select "header.topbar a.export-link[aria-label='Export notes']", count: 0
     assert_select "header.topbar details.topbar-menu a.menu-item.export-link[href='/export'][data-turbo='false']", "Download notes"
     assert_select "header.topbar details.topbar-menu a.menu-item.export-link svg"
+    assert_select "header.topbar details.topbar-menu a.menu-item", text: "Passkeys", count: 0
+    assert_select "header.topbar details.topbar-menu a.menu-item", text: "Agents", count: 0
     assert_select "header.topbar details.topbar-menu a.menu-item", "Sign in"
     assert_select "header.topbar a.ghost.quiet", text: "Sign in", count: 0
     assert_select "[data-inbox-signed-in-value='false']"
@@ -74,6 +78,7 @@ class HomeControllerTest < ActionDispatch::IntegrationTest
     assert_select ".inbox-native-continue a.inbox-continue-link[href='/heb.11'][aria-label='Continue reading']"
     assert_select ".inbox-native-continue a.inbox-continue-link[title='Hebrews 11']"
     assert_select ".inbox-native-continue a.icon-btn.export-link", count: 0
+    assert_select ".inbox-native-continue details.topbar-menu button.menu-item-theme"
     assert_select ".inbox-native-continue details.topbar-menu a.menu-item.export-link[href='/export']", "Download notes"
   end
 
@@ -171,6 +176,9 @@ class HomeControllerTest < ActionDispatch::IntegrationTest
     assert_select "[data-inbox-signed-in-value='true']"
     assert_select "header.topbar a.icon-btn.export-link", count: 0
     assert_select "header.topbar details.topbar-menu a.menu-item.export-link", "Download notes"
+    assert_select "header.topbar details.topbar-menu a.menu-item.menu-item-quiet[href='/passkeys']", "Passkeys"
+    assert_select "header.topbar details.topbar-menu a.menu-item.menu-item-quiet[href='/oauth/connections']", "Agents"
+    assert_select "header.topbar details.topbar-menu button.menu-item-danger", "Sign out"
     assert_select "#inbox-pack-mirror", /Faith is the assurance/
     assert_select "#inbox-pack-mirror", /heb.11.1/
   end
@@ -203,6 +211,7 @@ class HomeControllerTest < ActionDispatch::IntegrationTest
     assert_select "header.topbar", count: 0
     assert_select ".inbox-native-continue a.inbox-continue-link[href='/jhn.1'][aria-label='Continue reading']"
     assert_select ".inbox-native-continue a.icon-btn.export-link", count: 0
+    assert_select ".inbox-native-continue details.topbar-menu button.menu-item-theme"
     assert_select ".inbox-native-continue details.topbar-menu a.menu-item.export-link", "Download notes"
     assert_select "main.inbox-main form.jump input#q"
     assert_select ".inbox-empty", "No notes yet. Open a passage and write under a verse — they’ll show up here newest first."

@@ -27,6 +27,10 @@ export function nextTheme(pref) {
   return THEME_PREFS[(THEME_PREFS.indexOf(current) + 1) % THEME_PREFS.length]
 }
 
+export function toggleLightDark(pref, dark = systemDark()) {
+  return resolveTheme(pref, dark) === "dark" ? "light" : "dark"
+}
+
 export function loadTheme(storage = defaultStorage()) {
   try {
     return parseTheme(storage.getItem(THEME_KEY))

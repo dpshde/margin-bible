@@ -23,12 +23,13 @@ module Margin
         version: SERVER_VERSION,
         instructions: "Read notes from the library the user authorized. " \
                       "Overlapping notes stay separate — a verse note and a range note that covers it are two records. " \
+                      "export_library returns the same read-only margin.library-snapshot v1 JSON as GET /export. " \
                       "There are two study tools. personal_study is when the reader wants to dive deeper themselves " \
                       "(learn, understand). prepare_group_study is when they are writing questions for a small group. " \
                       "If they say 'study this' without saying which, ask before calling a tool. " \
                       "Study questions should leave a gap rather than name the point. Leader notes are considered, not recited. " \
                       "Study tools return BSB text alongside notes and questions. Never invent observations or write tools.",
-        tools: [ ListNotes, GetNote, ListNotesCoveringVerse, PersonalStudy, PrepareGroupStudy ],
+        tools: [ ListNotes, GetNote, ListNotesCoveringVerse, ExportLibrary, PersonalStudy, PrepareGroupStudy ],
         server_context: { library: library },
         configuration: MCP::Configuration.new(protocol_version: HANDSHAKE_VERSION)
       )
