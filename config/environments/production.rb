@@ -56,6 +56,8 @@ Rails.application.configure do
   config.active_job.queue_adapter = :solid_queue
   config.solid_queue.connects_to = { database: { writing: :queue } }
 
+  # Prefer APP_HOST. RAILWAY_PUBLIC_DOMAIN can still name a retired generated
+  # hostname after a Railway domain rename; do not let it override APP_HOST.
   mail_host = ENV["APP_HOST"].presence || ENV["RAILWAY_PUBLIC_DOMAIN"].presence || "localhost"
   config.action_mailer.default_url_options = { host: mail_host, protocol: "https" }
 
