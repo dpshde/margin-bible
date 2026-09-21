@@ -2,8 +2,48 @@ name: CI
 
 on:
   pull_request:
+    paths:
+      - 'app/**'
+      - 'bin/**'
+      - 'config/**'
+      - 'db/**'
+      - 'lib/**'
+      - 'test/**'
+      - 'public/**'
+      - 'vendor/**'
+      - 'Gemfile'
+      - 'Gemfile.lock'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'Rakefile'
+      - 'config.ru'
+      - 'Procfile*'
+      - 'Dockerfile'
+      - '.github/workflows/ci.yml'
   push:
     branches: [ main ]
+    paths:
+      - 'app/**'
+      - 'bin/**'
+      - 'config/**'
+      - 'db/**'
+      - 'lib/**'
+      - 'test/**'
+      - 'public/**'
+      - 'vendor/**'
+      - 'Gemfile'
+      - 'Gemfile.lock'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'Rakefile'
+      - 'config.ru'
+      - 'Procfile*'
+      - 'Dockerfile'
+      - '.github/workflows/ci.yml'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   test:
