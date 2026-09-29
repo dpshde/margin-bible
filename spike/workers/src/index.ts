@@ -10,6 +10,7 @@ import {
   saveNote,
   type NoteRecord,
 } from "./library";
+import { chapterJson } from "./chapter-api";
 import { draftNote } from "./notes";
 import { parsePassage, passageLabel, passageSlug, type Passage } from "./passage";
 import { renderChapterPage, renderMissing, renderNotesIndex } from "./reader-page";
@@ -71,6 +72,9 @@ app.get("/notes", async (c) => {
   return c.html(renderNotesIndex(notes, safeBack(library?.last_read_slug || "jhn.1")));
 });
 
+app.get("/api/chapters", (c) => chapterResponse(c, c.req.query("q") ?? ""));
+app.get("/api/chapters/:slug", (c) => chapterResponse(c, c.req.param("slug")));
+
 app.get("/api/notes", async (c) => {
   const queried = await notesForQuery(c.env.DB, c.get("libraryId"), c.req.query("chapter"), c.req.query("verse"));
   if (!queried.ok) return c.json({ ok: false, error: queried.error }, 422);
@@ -89,6 +93,16 @@ app.get("/:slug", async (c) => {
   const notes = await listNotes(c.env.DB, c.get("libraryId"), { book: passage.book, chapter: passage.chapter });
   return c.html(renderChapterPage({ passage, pack, notes }), 200, { "cache-control": "private, no-store" });
 });
+
+async function chapterResponse(c: AppContext, raw: string): Promise<Response> {
+  const passage = parsePassage(raw);
+  if (!passage) return c.json({ ok: false, error: "unresolvable" }, 422);
+  const pack = await loadChapter(c.env.ASSETS, passage);
+  if (!pack) return c.json({ ok: false, error: "missing chapter" }, 404);
+  await rememberRead(c.env.DB, c.get("libraryId"), passageSlug(passage));
+  const notes = await listNotes(c.env.DB, c.get("libraryId"), { book: passage.book, chapter: passage.chapter });
+  return c.json(chapterJson(passage, pack, notes), 200, { "cache-control": "private, no-store" });
+}
 
 async function upsert(c: AppContext, formPost: boolean): Promise<Response> {
   const passage = parsePassage(c.req.param("slug"));

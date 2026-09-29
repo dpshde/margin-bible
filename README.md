@@ -58,4 +58,4 @@ Product rewrite on Rails 8.1. Scripture: Berean Standard Bible from Arweave TX `
 
 ## Labs spike
 
-[`spike/workers/`](spike/workers/) is a Cloudflare Workers + D1 sketch of the chapter reader and notes. It does not replace the Railway app, and it does not move production data. See [`spike/workers/README.md`](spike/workers/README.md).
+[`spike/workers/`](spike/workers/) is a Cloudflare Workers + D1 sketch of the chapter API and notes. The client direction for the spike is a thin SwiftUI app in [`spike/ios/`](spike/ios/) that calls that API. Hotwire Native is a dead path for the spike. This does not replace the Railway app, and it does not move production data. See [`spike/workers/README.md`](spike/workers/README.md).

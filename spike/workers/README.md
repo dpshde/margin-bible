@@ -1,8 +1,10 @@
 # Margin on Workers + D1 (labs spike)
 
-A cheap-hosting sketch of the chapter reader. Rails on Railway stays the product. This app does not migrate Postgres, does not delete Railway services, and does not change `margin.bible` DNS.
+A cheap-hosting sketch of the chapter API. Rails on Railway stays the product. This app does not migrate Postgres, does not delete Railway services, and does not change `margin.bible` DNS.
 
 Open a chapter by OSIS slug, focus a verse, and keep notes in D1. An anonymous `margin_library` cookie is the library. Claiming it with a magic link is out of scope.
+
+The client for this spike is a thin SwiftUI app in [`spike/ios/`](../ios/). It calls the JSON API below. The HTML page at `GET /<slug>` is a debug reader so the API can be checked without Xcode. Hotwire Native is a dead path: do not extend the Rails `ios/` shell for this spike, and do not delete it either.
 
 ## Run locally
 
@@ -21,16 +23,17 @@ Local dev uses wrangler: it is the dev server, and `migrate:local` targets the M
 
 ### Smoke checklist
 
-1. Open `/jhn.3.16`. The page is John 3, verse 16 is highlighted, and the pericope heading “Jesus and Nicodemus” is on verse 1. The verse text includes “For God so loved the world”.
-2. Type into the note box. Within a moment the status says Saved. Reload. The note is still there.
-3. `GET /api/notes?chapter=jhn.3` lists that note. `GET /api/notes?verse=jhn.3.16` lists notes that cover verse 16.
-4. Open `/jhn.3.16-18` and save a second note. Both rows remain. The verse note is not merged into the range note, and neither is merged into the chapter note at `/jhn.3`.
-5. Clear the textarea and wait. The note row is deleted.
-6. Jump with `John 3:16` or `jhn.3.16`. The share link points at `https://route.bible/jhn.3.16`.
-7. `/notes` lists the library. A new browser profile (no cookie) sees an empty library.
+1. `GET /api/chapters/jhn.3.16` returns John 3, focused on verse 16. Verse 1 has the heading “Jesus and Nicodemus”. Verse 16 includes “For God so loved the world”. `routeBibleUrl` is `https://route.bible/jhn.3.16`.
+2. `GET /api/chapters?q=John+3:16` resolves the same chapter document.
+3. `PUT /api/notes/jhn.3.16` with `{ "text": "loved the world" }`, then `GET /api/chapters/jhn.3.16` again. The note is on that slug. `GET /api/notes?verse=jhn.3.16` lists notes that cover verse 16.
+4. `PUT /api/notes/jhn.3.16-18` with a second body. Both rows remain. The verse note stays its own record, and neither is merged into the chapter note at `jhn.3`.
+5. `PUT` the verse slug again with blank text. That row is deleted. The range note remains.
+6. The debug page at `/jhn.3.16` shows the same chapter, highlight, and share link. It is not the client.
+7. `/notes` lists the library. A new cookie sees an empty library.
 
 ```sh
-curl -s -c /tmp/margin.ck -b /tmp/margin.ck http://localhost:8787/jhn.3.16 | grep -o "For God so loved the world"
+curl -s -c /tmp/margin.ck -b /tmp/margin.ck http://localhost:8787/api/chapters/jhn.3.16
+curl -s -c /tmp/margin.ck -b /tmp/margin.ck "http://localhost:8787/api/chapters?q=John%203:16"
 curl -s -c /tmp/margin.ck -b /tmp/margin.ck -X PUT http://localhost:8787/api/notes/jhn.3.16 \
   -H 'content-type: application/json' \
   -d '{"text":"loved the world"}'
@@ -70,13 +73,15 @@ Wrangler prints a `*.workers.dev` URL. That host is the spike. Leave `margin.bib
 
 | Piece | Spike behavior |
 |---|---|
-| Reader | `GET /jhn.3`, `/jhn.3.16`, `/jhn.3.16-18`. The page is always the chapter. A verse or range focuses those verses. |
+| Chapter API | `GET /api/chapters/<slug>` and `GET /api/chapters?q=<human or slug>`. The document is the chapter. `passage` is the focused address. |
 | Addresses | Same grab-bcv slugs as Rails (`vendor/data/books.json`). `John 3:16` parses. This is not Bible search. |
 | Scripture | Official BSB USJ, flattened with the same verse-row rules as `Margin::Usj.pack_chapter`. One JSON file per chapter in `assets/bsb/`. Public domain. |
 | Notes | One row per library + slug. Verse, range, and chapter notes stay separate. Body is outline blocks, same idea as Rails. |
 | Session | HttpOnly `margin_library` cookie. Possession of the cookie is the library. |
 | Share-out | `https://route.bible/{slug}` only. Chapter HTML is not loaded from route.bible. |
-| API | `GET /api/notes`, `GET /api/notes?chapter=jhn.3`, `GET /api/notes?verse=jhn.3.16`, `PUT /api/notes/:slug` with `{ "text" }` or `{ "blocks" }`. No path version. |
+| Notes API | `GET /api/notes`, `GET /api/notes?chapter=jhn.3`, `GET /api/notes?verse=jhn.3.16`, `PUT /api/notes/<slug>` with `{ "text" }` or `{ "blocks" }`. No path version. |
+| Debug page | `GET /<slug>` renders the same chapter in HTML so you can check the pack without the iOS app. |
+| SwiftUI | [`spike/ios/`](../ios/) calls the chapter and notes APIs. Share-out uses `routeBibleUrl`. |
 
 `POST /api/search` is not implemented. Search stays with the sibling that owns it.
 
@@ -85,7 +90,7 @@ Wrangler prints a `*.workers.dev` URL. That host is the spike. Leave `margin.bib
 Compared with the Rails app:
 
 - Magic-link claim, passkeys, OAuth, and MCP
-- Hotwire Native / the iOS shell
+- Hotwire Native and any hybrid web shell. That path is dead for the spike. The Rails `ios/` project stays untouched.
 - Attachments, bookmarks, agent signatures, read trail UI, inbox
 - Autosave of a full outliner (the spike saves a textarea as blocks)
 - Production data. D1 starts empty. Do not point this at Railway Postgres.
@@ -104,4 +109,32 @@ Scripture stays in the asset cache, not in D1, so chapter reads do not become da
 
 ## Contracts
 
-Public paths are opaque and unversioned: `/jhn.3.16`, `/api/notes/jhn.3.16`, `/notes`. Slugs match grab-bcv and route.bible. A blank note deletes the row for that slug only.
+Public paths are opaque and unversioned: `/api/chapters/jhn.3.16`, `/api/notes/jhn.3.16`, `/notes`. Slugs match grab-bcv and route.bible. A blank note deletes the row for that slug only.
+
+`GET /api/chapters/<slug>` and `GET /api/chapters?q=<query>` return:
+
+```json
+{
+  "ok": true,
+  "passage": { "slug": "jhn.3.16", "osis": "JHN.3.16", "label": "John 3:16", "kind": "verse", "book": "JHN", "chapter": 3, "verseStart": 16, "verseEnd": null },
+  "chapter": { "slug": "jhn.3", "label": "John 3", "translation": "BSB", "book": "JHN", "chapter": 3, "verses": [{ "v": 1, "text": "…", "heading": "Jesus and Nicodemus" }] },
+  "routeBibleUrl": "https://route.bible/jhn.3.16",
+  "prev": "jhn.2",
+  "next": "jhn.4",
+  "notes": []
+}
+```
+
+`notes` on that document are the chapter’s rows, including a verse note and a range note that covers it, as separate records. An unknown address is `422` `{ "ok": false, "error": "unresolvable" }`. A parsed chapter with no pack file is `404` `{ "ok": false, "error": "missing chapter" }`.
+
+## SwiftUI client
+
+`spike/ios/MarginSpike.xcodeproj` is an iOS 17 app. This Linux checkout has no Swift toolchain, so the project has not been compiled here. On a Mac:
+
+1. Run the Worker (`bun run dev` in `spike/workers`).
+2. Open the Xcode project and run MarginSpike.
+3. The Workers URL defaults to `http://127.0.0.1:8787`. Info.plist allows local networking.
+4. Open `John 3:16` or `jhn.3.16`. The app calls `GET /api/chapters`. Tap a verse to focus that slug. Save writes `PUT /api/notes/<slug>` with `{ "text" }`. The editor loads the note for that exact slug. A range note stays its own row.
+5. “Open on route.bible” uses the `routeBibleUrl` from the API.
+
+Point the URL field at the `*.workers.dev` host after `wrangler deploy` if you want the app off localhost.

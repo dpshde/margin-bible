@@ -48,7 +48,7 @@ export function page(title: string, body: string): string {
   </style>
 </head>
 <body>
-  <div class="banner"><p>Labs spike · Cloudflare Workers + D1 · not margin.bible</p></div>
+  <div class="banner"><p>Labs spike · Workers + D1 debug page · the client is SwiftUI, not this page</p></div>
   ${body}
 </body>
 </html>`;
