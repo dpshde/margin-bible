@@ -39,16 +39,25 @@ curl -s -c /tmp/margin.ck -b /tmp/margin.ck http://localhost:8787/api/notes?chap
 
 ## Preview on workers.dev
 
-This checkout does not ship a live URL. `cf` (the Cloudflare CLI) owns account and resource setup. Wrangler owns this project's config and the Worker deploy, because the spike is a `wrangler.jsonc` app.
+Run this on the machine where `cf auth login` has already succeeded. This cloud checkout is not that login: `cf auth whoami` here still says not logged in, and there is no API token to copy. Do not paste a token into the repo.
 
-`cf` is not logged in on a fresh machine until you run the normal login. Do not paste an API token into the repo.
+That machine uses Node 22 from mise. If `node -v` prints 20, activate mise before `cf` or wrangler:
 
 ```sh
-cf auth login
+eval "$(mise activate bash)"
+# or, if mise is not on PATH:
+export PATH="$HOME/.local/share/mise/installs/node/22/bin:$PATH"
+node -v
+cf auth whoami
+```
+
+`cf` creates the D1 database and applies migrations. Wrangler deploys this `wrangler.jsonc` project, which is what attaches the `DB` binding. From `spike/workers/`:
+
+```sh
 cf d1 create --name margin-spike
 ```
 
-Put the printed database id in `wrangler.jsonc` (replace the all-zero local placeholder). `cf d1` remote commands take that id, not the database name. From `spike/workers/`:
+Put the printed database id in `wrangler.jsonc` (replace the all-zero local placeholder). `cf d1` remote commands take that id, not the database name.
 
 ```sh
 cf d1 migrations apply <database-id> --dir migrations
