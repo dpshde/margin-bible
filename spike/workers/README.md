@@ -4,7 +4,7 @@ A cheap-hosting sketch of the chapter API. Rails on Railway stays the product. T
 
 Open a chapter by OSIS slug, focus a verse, and keep notes in D1. An anonymous `margin_library` cookie is the library. Claiming it with a magic link is out of scope.
 
-The client for this spike is a thin SwiftUI app in [`spike/ios/`](../ios/). It calls the JSON API below. The HTML page at `GET /<slug>` is a debug reader so the API can be checked without Xcode. Hotwire Native is a dead path: do not extend the Rails `ios/` shell for this spike, and do not delete it either.
+The browser demo is `GET /<slug>`: a verse-by-verse chapter page with an outliner. [`spike/ios/`](../ios/) is the SwiftUI client of the same API. Hotwire Native is a dead path: do not extend the Rails `ios/` shell for this spike, and do not delete it either.
 
 ## Run locally
 
@@ -28,7 +28,7 @@ Local dev uses wrangler: it is the dev server, and `migrate:local` targets the M
 3. `PUT /api/notes/jhn.3.16` with `{ "text": "loved the world" }`, then `GET /api/chapters/jhn.3.16` again. The note is on that slug. `GET /api/notes?verse=jhn.3.16` lists notes that cover verse 16.
 4. `PUT /api/notes/jhn.3.16-18` with a second body. Both rows remain. The verse note stays its own record, and neither is merged into the chapter note at `jhn.3`.
 5. `PUT` the verse slug again with blank text. That row is deleted. The range note remains.
-6. The debug page at `/jhn.3.16` shows the same chapter, highlight, and share link. It is not the client.
+6. Open `/jhn.3.16` in a browser. Tap a verse, type in the outliner, reload, and the note is still there. Shift-click or long-press, then tap another verse, for a range note. Chapter note stays on `jhn.3`.
 7. `/notes` lists the library. A new cookie sees an empty library.
 
 ```sh
@@ -80,7 +80,7 @@ Wrangler prints a `*.workers.dev` URL. That host is the spike. Leave `margin.bib
 | Session | HttpOnly `margin_library` cookie. Possession of the cookie is the library. |
 | Share-out | `https://route.bible/{slug}` only. Chapter HTML is not loaded from route.bible. |
 | Notes API | `GET /api/notes`, `GET /api/notes?chapter=jhn.3`, `GET /api/notes?verse=jhn.3.16`, `PUT /api/notes/<slug>` with `{ "text" }` or `{ "blocks" }`. No path version. |
-| Debug page | `GET /<slug>` renders the same chapter in HTML so you can check the pack without the iOS app. |
+| Browser reader | `GET /<slug>` is the verse-by-verse page. Tap a verse to edit that slug. Saves are `PUT /api/notes/<slug>` with `{ "blocks" }`. |
 | SwiftUI | [`spike/ios/`](../ios/) calls the chapter and notes APIs. Share-out uses `routeBibleUrl`. |
 
 `POST /api/search` is not implemented. Search stays with the sibling that owns it.
@@ -92,7 +92,6 @@ Compared with the Rails app:
 - Magic-link claim, passkeys, OAuth, and MCP
 - Hotwire Native and any hybrid web shell. That path is dead for the spike. The Rails `ios/` project stays untouched.
 - Attachments, bookmarks, agent signatures, read trail UI, inbox
-- The HTML page at `GET /<slug>` is a debug textarea, not the outliner. Writing verse notes is the SwiftUI app in `spike/ios/MarginSpike.xcodeproj`.
 - Production data. D1 starts empty. Do not point this at Railway Postgres.
 - DNS and the Railway services. They stay where they are.
 

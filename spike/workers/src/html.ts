@@ -15,7 +15,7 @@ export function page(title: string, body: string): string {
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='2' fill='%232c241c'/%3E%3Cpath d='M4 4.5h8M4 8h8M4 11.5h5' stroke='%23f6f1e8' stroke-width='1.4' stroke-linecap='round'/%3E%3C/svg%3E">
   <title>${escapeHtml(title)}</title>
   <style>
-    :root { color-scheme: light; --ink: #1c1915; --muted: #6b645c; --line: #e4ddd4; --paper: #faf7f2; --tray: #fff; --focus: #f3e6c8; --accent: #8a4b08; }
+    :root { color-scheme: light; --ink: #1c1917; --muted: #78716c; --line: #e4ddd4; --paper: #f6f5f2; --tray: #fff; --focus: #f3e6c8; --accent: #8a4b08; }
     * { box-sizing: border-box; }
     body { margin: 0; background: var(--paper); color: var(--ink); font: 18px/1.55 "Iowan Old Style", Palatino, "Palatino Linotype", Georgia, serif; }
     a { color: var(--accent); }
@@ -48,7 +48,7 @@ export function page(title: string, body: string): string {
   </style>
 </head>
 <body>
-  <div class="banner"><p>Labs spike · Workers + D1 debug page · the client is SwiftUI, not this page</p></div>
+  <div class="banner"><p>Labs spike · Workers + D1</p></div>
   ${body}
 </body>
 </html>`;
