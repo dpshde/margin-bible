@@ -55,3 +55,7 @@ Same slugs as grab-bcv and route.bible: `jhn.3`, `jhn.3.16`, `jhn.3.16-18`. The 
 ## License / status
 
 Product rewrite on Rails 8.1. Scripture: Berean Standard Bible from Arweave TX `B6yeNb3lk_VkiIp-fTWVh13TlM94LjLK6kC63BPXa8s` (see `vendor/scripture/bsb/NOTICE`). The chapter pack is a disposable cache — verse text is never merged into notes.
+
+## Labs spike
+
+[`spike/workers/`](spike/workers/) is a Cloudflare Workers + D1 sketch of the chapter reader and notes. It does not replace the Railway app, and it does not move production data. See [`spike/workers/README.md`](spike/workers/README.md).

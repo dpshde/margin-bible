@@ -36,3 +36,9 @@ ios/**/DerivedData/
 /_build/
 /deps/
 .env*.local
+
+# Workers spike local state
+/spike/workers/node_modules
+/spike/workers/.wrangler
+/spike/workers/.dev.vars
+/spike/workers/.cache
