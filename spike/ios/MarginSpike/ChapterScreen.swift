@@ -18,6 +18,7 @@ struct ChapterScreen: View {
     @State private var inbox: [LibraryNote] = []
     @State private var inboxOpen = false
     @State private var rangeAnchor: Int?
+    @State private var focusedBlockID: String?
     @State private var status = ""
     @State private var saves: [String: Task<Void, Never>] = [:]
 
@@ -28,13 +29,24 @@ struct ChapterScreen: View {
                 MarginTheme.paper.ignoresSafeArea()
                 VStack(spacing: 0) {
                     topBar
-                    ScrollView {
-                        chapterBody(metrics)
-                            .frame(maxWidth: 36 * MarginTheme.rem)
-                            .frame(maxWidth: .infinity)
-                            .padding(.horizontal, 1.1 * MarginTheme.rem)
-                            .padding(.top, 0.75 * MarginTheme.rem)
-                            .padding(.bottom, quiet ? 1.35 * MarginTheme.rem : 8 * MarginTheme.rem)
+                    ScrollViewReader { scroll in
+                        ScrollView {
+                            chapterBody(metrics)
+                                .frame(maxWidth: 36 * MarginTheme.rem)
+                                .frame(maxWidth: .infinity)
+                                .padding(.horizontal, 1.1 * MarginTheme.rem)
+                                .padding(.top, 0.75 * MarginTheme.rem)
+                                .padding(.bottom, focusedBlockID == nil ? (quiet ? 1.35 * MarginTheme.rem : 8 * MarginTheme.rem) : 22 * MarginTheme.rem)
+                        }
+                        .scrollDismissesKeyboard(.interactively)
+                        .onChange(of: focusedBlockID) { _, id in
+                            guard let id else { return }
+                            let slug = drafts.first { $0.value.contains { $0.id == id } }?.key
+                            guard let slug else { return }
+                            withAnimation(.easeOut(duration: 0.2)) {
+                                scroll.scrollTo(slug, anchor: .center)
+                            }
+                        }
                     }
                 }
                 if !quiet {
@@ -97,9 +109,11 @@ struct ChapterScreen: View {
                     label: "Chapter note · \(document.chapterLabel)",
                     routeBibleURL: routeURL(document.chapterSlug),
                     blocks: draftBinding(document.chapterSlug),
+                    focusedBlockID: $focusedBlockID,
                     onChange: { scheduleSave(document.chapterSlug) },
                     onClear: { clear(document.chapterSlug) }
                 )
+                .id(document.chapterSlug)
                 .padding(.leading, metrics.textLead)
                 .padding(.bottom, 1.15 * MarginTheme.rem)
             }
@@ -170,46 +184,63 @@ struct ChapterScreen: View {
 
     @ViewBuilder
     private func trays(for verse: Int, document: ChapterDocument, metrics: VerseMetrics) -> some View {
-        let covering = document.notes.filter { VerseNotes.covers($0, verse: verse) }
-        let host = trayHost(verse)
-        let selected = host && !collapsed.contains(verse)
-        VStack(alignment: .leading, spacing: 0.45 * MarginTheme.rem) {
-            ForEach(covering) { note in
-                if VerseNotes.shouldShowTray(
-                    expanding: expanded,
-                    selected: selected && host,
-                    collapsed: collapsed.contains(verse),
-                    hasContent: draftHasText(note.slug, fallback: note.blocks)
-                ) {
-                    tray(slug: note.slug, label: note.label, document: document)
+        let rows = trayRows(verse, document)
+        if !rows.isEmpty {
+            VStack(alignment: .leading, spacing: 0.45 * MarginTheme.rem) {
+                ForEach(rows) { row in
+                    tray(slug: row.slug, label: row.label)
                 }
             }
-            if selected, host, exactNote(covering, verse: verse, document: document) == nil {
-                tray(
-                    slug: verseSlug(verse, document),
-                    label: PassageSlug.parse(verseSlug(verse, document))?.label ?? document.chapterLabel,
-                    document: document
-                )
-            }
-            if let end = selection?.upperBound, let start = selection?.lowerBound, start != end, verse == end, selected {
-                let slug = rangeSlug(start, end, document)
-                if !covering.contains(where: { $0.slug == slug }) {
-                    tray(slug: slug, label: PassageSlug.parse(slug)?.label ?? document.passageLabel, document: document)
-                }
-            }
+            .padding(.leading, metrics.textLead)
+            .padding(.bottom, 0.7 * MarginTheme.rem)
         }
-        .padding(.leading, metrics.textLead)
-        .padding(.bottom, host && selected ? 0.7 * MarginTheme.rem : 0)
     }
 
-    private func tray(slug: String, label: String, document: ChapterDocument) -> some View {
+    private struct TrayRow: Identifiable {
+        var slug: String
+        var label: String
+        var id: String { slug }
+    }
+
+    private func trayRows(_ verse: Int, _ document: ChapterDocument) -> [TrayRow] {
+        let covering = document.notes.filter { VerseNotes.covers($0, verse: verse) }
+        let open = isOpen(verse) && !collapsed.contains(verse)
+        var rows: [TrayRow] = []
+        var seen = Set<String>()
+        func add(_ slug: String, _ label: String) {
+            guard seen.insert(slug).inserted else { return }
+            rows.append(TrayRow(slug: slug, label: label))
+        }
+        for note in covering {
+            let shown = VerseNotes.shouldShowTray(
+                expanding: expanded,
+                selected: open,
+                collapsed: collapsed.contains(verse),
+                hasContent: draftHasText(note.slug, fallback: note.blocks)
+            )
+            if shown { add(note.slug, note.label) }
+        }
+        if open, selection?.lowerBound == selection?.upperBound {
+            let slug = verseSlug(verse, document)
+            add(slug, PassageSlug.parse(slug)?.label ?? document.chapterLabel)
+        }
+        if open, let start = selection?.lowerBound, let end = selection?.upperBound, start != end, verse == end {
+            let slug = rangeSlug(start, end, document)
+            add(slug, PassageSlug.parse(slug)?.label ?? document.passageLabel)
+        }
+        return rows
+    }
+
+    private func tray(slug: String, label: String) -> some View {
         NoteTrayView(
             label: label,
             routeBibleURL: routeURL(slug),
             blocks: draftBinding(slug),
+            focusedBlockID: $focusedBlockID,
             onChange: { scheduleSave(slug) },
             onClear: { clear(slug) }
         )
+        .id(slug)
     }
 
     private var chrome: some View {
@@ -246,8 +277,13 @@ struct ChapterScreen: View {
         VStack(spacing: 0) {
             dockItem("Focus", system: "camera.macro", on: quiet) { quiet.toggle() }
             dockItem("Chapter note", system: "pencil", on: chapterOpen) {
-                if let slug = document?.chapterSlug { prepare(slug) }
-                chapterOpen.toggle()
+                if chapterOpen {
+                    chapterOpen = false
+                    focusedBlockID = nil
+                } else if let slug = document?.chapterSlug {
+                    focusDraft(slug)
+                    chapterOpen = true
+                }
             }
             dockItem("Expand notes", system: "arrow.up.left.and.arrow.down.right", on: expanded, enabled: hasAnyVerseNote) {
                 expanded.toggle()
@@ -432,25 +468,27 @@ struct ChapterScreen: View {
         guard let document else { return }
         if let anchor = rangeAnchor, anchor != verse {
             let span = min(anchor, verse) ... max(anchor, verse)
-            prepare(rangeSlug(span.lowerBound, span.upperBound, document))
-            selection = span
             rangeAnchor = nil
             collapsed.remove(verse)
+            selection = span
+            focusDraft(rangeSlug(span.lowerBound, span.upperBound, document))
             return
         }
         rangeAnchor = nil
-        if expanded, verseHasOpenNotes(verse) {
-            collapsed.insert(verse)
-            if selection == verse ... verse { selection = nil }
+        if selection == verse ... verse {
+            selection = nil
+            focusedBlockID = nil
+            if expanded { collapsed.insert(verse) }
             return
         }
         collapsed.remove(verse)
-        if selection == verse ... verse {
-            selection = nil
-        } else {
-            prepare(verseSlug(verse, document))
-            selection = verse ... verse
-        }
+        selection = verse ... verse
+        focusDraft(verseSlug(verse, document))
+    }
+
+    private func focusDraft(_ slug: String) {
+        prepare(slug)
+        focusedBlockID = drafts[slug]?.first?.id
     }
 
     private func prepare(_ slug: String) {
@@ -478,22 +516,8 @@ struct ChapterScreen: View {
         return selection.contains(verse)
     }
 
-    private func trayHost(_ verse: Int) -> Bool {
-        isOpen(verse)
-    }
-
     private func hasNote(_ verse: Int, _ document: ChapterDocument) -> Bool {
         document.notes.contains { VerseNotes.covers($0, verse: verse) && $0.hasText }
-    }
-
-    private func verseHasOpenNotes(_ verse: Int) -> Bool {
-        guard let document else { return false }
-        return document.notes.contains { VerseNotes.covers($0, verse: verse) && $0.hasText && !collapsed.contains(verse) }
-    }
-
-    private func exactNote(_ covering: [LibraryNote], verse: Int, document: ChapterDocument) -> LibraryNote? {
-        let slug = verseSlug(verse, document)
-        return covering.first { $0.slug == slug }
     }
 
     private func verseSlug(_ verse: Int, _ document: ChapterDocument) -> String {
@@ -537,8 +561,13 @@ struct ChapterScreen: View {
             if let start = loaded.verseStart {
                 let end = loaded.verseEnd ?? start
                 selection = start ... end
+                let slug = end == start
+                    ? verseSlug(start, loaded)
+                    : rangeSlug(start, end, loaded)
+                focusDraft(slug)
             } else {
                 selection = nil
+                focusedBlockID = nil
             }
             gridBook = loaded.book
             chapterOpen = false
@@ -566,7 +595,9 @@ struct ChapterScreen: View {
     }
 
     private func clear(_ slug: String) {
-        drafts[slug] = [NoteBlock.fresh()]
+        let block = NoteBlock.fresh()
+        drafts[slug] = [block]
+        focusedBlockID = block.id
         scheduleSave(slug)
     }
 
@@ -576,9 +607,6 @@ struct ChapterScreen: View {
             let notes = try await MarginClient(baseURL: url).save(slug: slug, blocks: blocks)
             document.notes = notes
             self.document = document
-            if OutlinerBlocks.isEmpty(blocks) {
-                drafts[slug] = [NoteBlock.fresh()]
-            }
         } catch {
             status = "Not saved"
         }

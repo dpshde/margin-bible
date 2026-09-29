@@ -15,6 +15,10 @@ export function shouldShowExpandedTray({
   return expanding;
 }
 
+export function openedVerseNeedsBlankBlock(existingCount: number): boolean {
+  return existingCount === 0;
+}
+
 export function noteCoversVerse(
   note: { kind: string; verseStart: number | null; verseEnd: number | null },
   verse: number,

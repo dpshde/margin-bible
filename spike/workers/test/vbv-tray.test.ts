@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { noteCoversVerse, shouldShowExpandedTray } from "../src/vbv";
+import { noteCoversVerse, openedVerseNeedsBlankBlock, shouldShowExpandedTray } from "../src/vbv";
 
 describe("verse-by-verse trays", () => {
   test("a selected verse shows its tray even when the note is empty", () => {
@@ -13,6 +13,11 @@ describe("verse-by-verse trays", () => {
 
   test("a collapsed verse stays shut while expand is on", () => {
     expect(shouldShowExpandedTray({ expanding: true, selected: true, collapsed: true, hasContent: true })).toBe(false);
+  });
+
+  test("an opened verse with no note still gets a blank block to type into", () => {
+    expect(openedVerseNeedsBlankBlock(0)).toBe(true);
+    expect(openedVerseNeedsBlankBlock(2)).toBe(false);
   });
 
   test("a verse note and a covering range stay separate records", () => {

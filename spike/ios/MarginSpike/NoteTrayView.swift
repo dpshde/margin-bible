@@ -5,10 +5,9 @@ struct NoteTrayView: View {
     var label: String
     var routeBibleURL: URL
     @Binding var blocks: [NoteBlock]
+    @Binding var focusedBlockID: String?
     var onChange: () -> Void
     var onClear: () -> Void
-
-    @FocusState private var focusedID: String?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -22,10 +21,8 @@ struct NoteTrayView: View {
             .background(MarginTheme.paperRaised)
             .overlay(
                 RoundedRectangle(cornerRadius: 0.65 * MarginTheme.rem)
-                    .stroke(focusedID == nil ? MarginTheme.line : MarginTheme.ink.opacity(0.28), lineWidth: 1)
+                    .stroke(focusedBlockID == nil ? MarginTheme.line : MarginTheme.ink.opacity(0.28), lineWidth: 1)
             )
-            .clipShape(RoundedRectangle(cornerRadius: 0.65 * MarginTheme.rem))
-
             HStack(alignment: .center, spacing: 0.2 * MarginTheme.rem) {
                 Link(label, destination: routeBibleURL)
                     .font(MarginTheme.sans(0.78 * MarginTheme.rem))
@@ -40,30 +37,28 @@ struct NoteTrayView: View {
             }
             .padding(.top, 0.4 * MarginTheme.rem)
         }
-        .toolbar {
-            ToolbarItemGroup(placement: .keyboard) {
-                Button("Outdent") { adjust(delta: -1) }
-                Button("Indent") { adjust(delta: 1) }
-                Button("Bullet") { toggleBullet() }
-                Button("New line") { splitFocused() }
-                Button("Merge") { mergeFocused() }
-            }
-        }
     }
 
     private func blockRow(_ block: NoteBlock) -> some View {
         let depth = CGFloat(block.indent)
+        let alone = blocks.count == 1
         return HStack(alignment: .top, spacing: 0.4 * MarginTheme.rem) {
             Circle()
-                .fill(block.bullet ? MarginTheme.faint.opacity(0.75) : Color.clear)
+                .fill(block.bullet ? MarginTheme.faint.opacity(0.75) : MarginTheme.faint.opacity(0.28))
                 .frame(width: 0.34 * MarginTheme.rem, height: 0.34 * MarginTheme.rem)
                 .padding(.top, 0.58 * MarginTheme.rem)
                 .onTapGesture { toggleBullet(id: block.id) }
-            TextField("", text: binding(for: block.id), axis: .vertical)
-                .font(MarginTheme.sans(16))
-                .foregroundStyle(MarginTheme.ink)
-                .focused($focusedID, equals: block.id)
-                .onSubmit { split(id: block.id) }
+            LineEditor(
+                text: binding(for: block.id),
+                isFocused: focusedBlockID == block.id,
+                dismissKeyboard: focusedBlockID == nil,
+                onFocus: { focusedBlockID = block.id },
+                onReturn: { split(id: block.id) },
+                onIndent: { delta in adjust(id: block.id, delta: delta) },
+                onBullet: { toggleBullet(id: block.id) },
+                onMerge: { merge(id: block.id) }
+            )
+            .frame(maxWidth: .infinity, minHeight: alone ? 4.4 * MarginTheme.rem : 28, alignment: .topLeading)
         }
         .padding(.leading, 0.55 * MarginTheme.rem + depth * 1.15 * MarginTheme.rem)
         .padding(.trailing, 0.7 * MarginTheme.rem)
@@ -91,27 +86,13 @@ struct NoteTrayView: View {
         Binding(
             get: { blocks.first { $0.id == id }?.text ?? "" },
             set: { newValue in
-                var created: String?
                 update { blocks in
                     guard let index = blocks.firstIndex(where: { $0.id == id }) else { return }
-                    if let newline = newValue.firstIndex(of: "\n") {
-                        let left = String(newValue[..<newline])
-                        let right = String(newValue[newValue.index(after: newline)...])
-                        blocks[index].text = left
-                        let next = OutlinerBlocks.split(&blocks, index: index, offset: left.count)
-                        if let createdIndex = blocks.firstIndex(where: { $0.id == next }) {
-                            blocks[createdIndex].text = right
-                        }
-                        created = next
-                        return
-                    }
+                    blocks[index].text = newValue
                     if newValue.hasPrefix(" ") {
                         _ = OutlinerBlocks.consumeLeadingSpace(&blocks, index: index)
-                        return
                     }
-                    blocks[index].text = newValue
                 }
-                if let created { focusedID = created }
                 onChange()
             }
         )
@@ -123,42 +104,35 @@ struct NoteTrayView: View {
             guard let index = blocks.firstIndex(where: { $0.id == id }) else { return }
             created = OutlinerBlocks.split(&blocks, index: index, offset: blocks[index].text.count)
         }
-        focusedID = created
+        focusedBlockID = created
         onChange()
     }
 
-    private func splitFocused() {
-        guard let id = focusedID else { return }
-        split(id: id)
-    }
-
-    private func mergeFocused() {
-        guard let id = focusedID else { return }
+    private func merge(id: String) {
         var focus = id
         update { blocks in
             guard let index = blocks.firstIndex(where: { $0.id == id }) else { return }
             focus = OutlinerBlocks.backspaceAtStart(&blocks, index: index)
         }
-        focusedID = focus
+        focusedBlockID = focus
         onChange()
     }
 
-    private func adjust(delta: Int) {
-        guard let id = focusedID else { return }
+    private func adjust(id: String, delta: Int) {
         update { blocks in
             guard let index = blocks.firstIndex(where: { $0.id == id }) else { return }
             OutlinerBlocks.indent(&blocks, index: index, delta: delta)
         }
+        focusedBlockID = id
         onChange()
     }
 
-    private func toggleBullet(id: String? = nil) {
-        let target = id ?? focusedID
-        guard let target else { return }
+    private func toggleBullet(id: String) {
         update { blocks in
-            guard let index = blocks.firstIndex(where: { $0.id == target }) else { return }
+            guard let index = blocks.firstIndex(where: { $0.id == id }) else { return }
             blocks[index].bullet.toggle()
         }
+        focusedBlockID = id
         onChange()
     }
 
@@ -169,5 +143,127 @@ struct NoteTrayView: View {
             return pad + mark + block.text
         }
         UIPasteboard.general.string = ([label] + lines).joined(separator: "\n")
+    }
+}
+
+struct LineEditor: UIViewRepresentable {
+    @Binding var text: String
+    var isFocused: Bool
+    var dismissKeyboard: Bool
+    var onFocus: () -> Void
+    var onReturn: () -> Void
+    var onIndent: (Int) -> Void
+    var onBullet: () -> Void
+    var onMerge: () -> Void
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(self)
+    }
+
+    func makeUIView(context: Context) -> FocusableTextField {
+        let field = FocusableTextField()
+        field.delegate = context.coordinator
+        field.font = UIFont(name: "Poppins-Regular", size: 16) ?? .systemFont(ofSize: 16)
+        field.textColor = UIColor(red: 28 / 255, green: 25 / 255, blue: 23 / 255, alpha: 1)
+        field.tintColor = field.textColor
+        field.backgroundColor = .clear
+        field.borderStyle = .none
+        field.autocorrectionType = .yes
+        field.autocapitalizationType = .sentences
+        field.returnKeyType = .default
+        field.addTarget(context.coordinator, action: #selector(Coordinator.changed(_:)), for: .editingChanged)
+        field.inputAccessoryView = context.coordinator.accessory
+        return field
+    }
+
+    func sizeThatFits(_ proposal: ProposedViewSize, uiView: FocusableTextField, context: Context) -> CGSize? {
+        let width = proposal.width ?? UIView.noIntrinsicMetric
+        return CGSize(width: width, height: max(28, uiView.intrinsicContentSize.height))
+    }
+
+    func updateUIView(_ field: FocusableTextField, context: Context) {
+        context.coordinator.parent = self
+        if field.text != text {
+            field.text = text
+        }
+        field.focusIfNeeded = { [weak field] in
+            guard let field else { return }
+            guard context.coordinator.parent.isFocused, !field.isFirstResponder else { return }
+            field.becomeFirstResponder()
+        }
+        if isFocused, field.window != nil, !field.isFirstResponder, !context.coordinator.focusQueued {
+            context.coordinator.focusQueued = true
+            DispatchQueue.main.async {
+                context.coordinator.focusQueued = false
+                field.focusIfNeeded?()
+            }
+        } else if dismissKeyboard, field.isFirstResponder {
+            field.resignFirstResponder()
+        }
+    }
+
+    final class Coordinator: NSObject, UITextFieldDelegate {
+        var parent: LineEditor
+        var focusQueued = false
+        let accessory: UIToolbar
+
+        init(_ parent: LineEditor) {
+            self.parent = parent
+            accessory = UIToolbar()
+            super.init()
+            accessory.sizeToFit()
+            accessory.items = [
+                item("Outdent", action: #selector(outdent)),
+                item("Indent", action: #selector(indent)),
+                item("Bullet", action: #selector(bullet)),
+                item("New line", action: #selector(newline)),
+                item("Merge", action: #selector(merge)),
+            ]
+        }
+
+        func item(_ title: String, action: Selector) -> UIBarButtonItem {
+            UIBarButtonItem(title: title, style: .plain, target: self, action: action)
+        }
+
+        @objc func changed(_ field: UITextField) {
+            parent.text = field.text ?? ""
+        }
+
+        func textFieldDidBeginEditing(_ textField: UITextField) {
+            parent.onFocus()
+        }
+
+        func textFieldShouldReturn(_ textField: UITextField) -> Bool {
+            parent.onReturn()
+            return false
+        }
+
+        func textField(_ textField: UITextField, shouldChangeCharactersIn range: NSRange, replacementString string: String) -> Bool {
+            if string.isEmpty, range.location == 0, range.length == 0 {
+                parent.onMerge()
+                return false
+            }
+            return true
+        }
+
+        @objc func outdent() { parent.onIndent(-1) }
+        @objc func indent() { parent.onIndent(1) }
+        @objc func bullet() { parent.onBullet() }
+        @objc func newline() { parent.onReturn() }
+        @objc func merge() { parent.onMerge() }
+    }
+}
+
+final class FocusableTextField: UITextField {
+    var focusIfNeeded: (() -> Void)?
+
+    override func didMoveToWindow() {
+        super.didMoveToWindow()
+        guard window != nil else { return }
+        focusIfNeeded?()
+    }
+
+    override var intrinsicContentSize: CGSize {
+        CGSize(width: UIView.noIntrinsicMetric, height: max(28, super.intrinsicContentSize.height))
     }
 }
