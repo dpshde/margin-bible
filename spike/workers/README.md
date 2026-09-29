@@ -17,7 +17,7 @@ bun test
 bun run check
 ```
 
-`wrangler` is the dev server and the deploy tool. There is no Rails process and no Postgres.
+Local dev uses wrangler: it is the dev server, and `migrate:local` targets the Miniflare D1 that `wrangler dev` reads. There is no Rails process and no Postgres. Remote account setup is below, and it uses `cf`.
 
 ### Smoke checklist
 
@@ -39,21 +39,23 @@ curl -s -c /tmp/margin.ck -b /tmp/margin.ck http://localhost:8787/api/notes?chap
 
 ## Preview on workers.dev
 
-This checkout does not ship a live URL. Deploy when you have a Cloudflare account:
+This checkout does not ship a live URL. `cf` (the Cloudflare CLI) owns account and resource setup. Wrangler owns this project's config and the Worker deploy, because the spike is a `wrangler.jsonc` app.
+
+`cf` is not logged in on a fresh machine until you run the normal login. Do not paste an API token into the repo.
 
 ```sh
-bunx wrangler login
-bunx wrangler d1 create margin-spike
+cf auth login
+cf d1 create --name margin-spike
 ```
 
-Put the printed `database_id` in `wrangler.jsonc` (replace the all-zero local placeholder). Then:
+Put the printed database id in `wrangler.jsonc` (replace the all-zero local placeholder). `cf d1` remote commands take that id, not the database name. From `spike/workers/`:
 
 ```sh
-bunx wrangler d1 migrations apply margin-spike --remote
+cf d1 migrations apply <database-id> --dir migrations
 bunx wrangler deploy
 ```
 
-Wrangler prints a `*.workers.dev` URL. That host is the spike. Leave `margin.bible` on Railway.
+Wrangler prints a `*.workers.dev` URL. That host is the spike. Leave `margin.bible` on Railway. The local `bun run migrate:local` script stays on wrangler so it hits the same Miniflare database as `bun run dev`.
 
 ## What is in
 
