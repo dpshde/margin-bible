@@ -92,7 +92,7 @@ Compared with the Rails app:
 - Magic-link claim, passkeys, OAuth, and MCP
 - Hotwire Native and any hybrid web shell. That path is dead for the spike. The Rails `ios/` project stays untouched.
 - Attachments, bookmarks, agent signatures, read trail UI, inbox
-- Autosave of a full outliner (the spike saves a textarea as blocks)
+- The HTML page at `GET /<slug>` is a debug textarea, not the outliner. Writing verse notes is the SwiftUI app in `spike/ios/MarginSpike.xcodeproj`.
 - Production data. D1 starts empty. Do not point this at Railway Postgres.
 - DNS and the Railway services. They stay where they are.
 
@@ -131,7 +131,7 @@ Public paths are opaque and unversioned: `/api/chapters/jhn.3.16`, `/api/notes/j
 
 `spike/ios/MarginSpike.xcodeproj` is an iOS 17 reader meant to match the Rails chapter page: paper, Source Serif 4 / Poppins / Lexend, verse gutter, section headings, the bottom jump bar, and the dock (focus, chapter note, expand notes, hide verse numbers).
 
-The outliner is one row per block, with the Rails indent step (`1.15rem`), bullet dot, and tray label. Return or the keyboard “New line” splits a block. A leading space indents. Verse notes and range notes stay separate trays. Expand notes opens every tray that already has text; tap a verse to open or collapse that verse. Long-press a verse, then tap another, to focus a range. Share-out is still `https://route.bible/{slug}`.
+The outliner is one row per block, with the Rails indent step (`1.15rem`), bullet dot, and tray label. Tapping a verse opens that slug, stores a blank block when the note is empty, and focuses the first empty row so typing can start immediately. Tapping the tray focuses it again. A second tap on the verse does not close the editor. Return or the keyboard “New line” splits a block. A leading space indents. Verse notes and range notes stay separate trays. The chapter note stays its own tray. Expand notes opens every tray that already has text. Long-press a verse, then tap another, to focus a range. Share-out is still `https://route.bible/{slug}`.
 
 The app talks to the Workers API that is already deployed. It tries `GET /api/chapters/<slug>` and, when that route is absent, loads `GET /bsb/<book>.<chapter>.json` plus `GET /api/notes?chapter=<slug>`. Saves are `PUT /api/notes/<slug>` with `{ "blocks" }`. Do not redeploy the Worker for this client. The Rails `ios/` Hotwire project is not part of this spike.
 

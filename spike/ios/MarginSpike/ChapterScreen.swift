@@ -39,6 +39,7 @@ struct ChapterScreen: View {
                                 .padding(.bottom, focusedBlockID == nil ? (quiet ? 1.35 * MarginTheme.rem : 8 * MarginTheme.rem) : 22 * MarginTheme.rem)
                         }
                         .scrollDismissesKeyboard(.interactively)
+                        .background(ScrollTouchFix().allowsHitTesting(false))
                         .onChange(of: focusedBlockID) { _, id in
                             guard let id else { return }
                             let slug = drafts.first { $0.value.contains { $0.id == id } }?.key
@@ -145,41 +146,40 @@ struct ChapterScreen: View {
         let open = isOpen(verse.v)
         let spanned = inSpan(verse.v)
         let noted = hasNote(verse.v, document)
-        return Button {
-            tap(verse.v)
-        } label: {
-            HStack(alignment: .top, spacing: hideNumbers ? 0 : metrics.gap) {
-                if !hideNumbers {
-                    Text("\(verse.v)")
-                        .font(MarginTheme.read(1.25 * MarginTheme.rem * 0.7))
-                        .foregroundStyle(open || spanned ? MarginTheme.inkSoft : MarginTheme.ink.opacity(0.35))
-                        .frame(width: metrics.gutter, alignment: .trailing)
-                        .padding(.top, 0.42 * MarginTheme.rem)
-                }
-                Text(verse.text)
-                    .font(MarginTheme.read(1.25 * MarginTheme.rem))
-                    .foregroundStyle(MarginTheme.ink)
-                    .multilineTextAlignment(.leading)
-                    .lineSpacing(1.25 * MarginTheme.rem * 0.45)
-                    .padding(.horizontal, spanned || open ? 0.08 * MarginTheme.rem : 0)
-                    .padding(.vertical, spanned || open ? 0.02 * MarginTheme.rem : 0)
-                    .background(spanned || open ? MarginTheme.spanWash : Color.clear)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+        return HStack(alignment: .top, spacing: hideNumbers ? 0 : metrics.gap) {
+            if !hideNumbers {
+                Text("\(verse.v)")
+                    .font(MarginTheme.read(1.25 * MarginTheme.rem * 0.7))
+                    .foregroundStyle(open || spanned ? MarginTheme.inkSoft : MarginTheme.ink.opacity(0.35))
+                    .frame(width: metrics.gutter, alignment: .trailing)
+                    .padding(.top, 0.42 * MarginTheme.rem)
             }
-            .padding(.leading, metrics.inset)
+            Text(verse.text)
+                .font(MarginTheme.read(1.25 * MarginTheme.rem))
+                .foregroundStyle(MarginTheme.ink)
+                .multilineTextAlignment(.leading)
+                .lineSpacing(1.25 * MarginTheme.rem * 0.45)
+                .padding(.horizontal, spanned || open ? 0.08 * MarginTheme.rem : 0)
+                .padding(.vertical, spanned || open ? 0.02 * MarginTheme.rem : 0)
+                .background(spanned || open ? MarginTheme.spanWash : Color.clear)
+                .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .buttonStyle(.plain)
+        .padding(.leading, metrics.inset)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .contentShape(Rectangle())
+        .simultaneousGesture(TapGesture().onEnded { tap(verse.v) })
+        .onLongPressGesture(minimumDuration: 0.35) {
+            ensureDraft(verseSlug(verse.v, document))
+            rangeAnchor = verse.v
+            collapsed.remove(verse.v)
+            selection = verse.v ... verse.v
+        }
         .overlay(alignment: .leading) {
             Rectangle()
                 .fill(open || spanned ? MarginTheme.railOpen : (noted ? MarginTheme.rail : Color.clear))
                 .frame(width: 2)
+                .allowsHitTesting(false)
         }
-        .simultaneousGesture(LongPressGesture(minimumDuration: 0.35).onEnded { _ in
-            prepare(verseSlug(verse.v, document))
-            rangeAnchor = verse.v
-            selection = verse.v ... verse.v
-            collapsed.remove(verse.v)
-        })
     }
 
     @ViewBuilder
@@ -241,6 +241,7 @@ struct ChapterScreen: View {
             onClear: { clear(slug) }
         )
         .id(slug)
+        .onAppear { ensureDraft(slug) }
     }
 
     private var chrome: some View {
@@ -466,7 +467,8 @@ struct ChapterScreen: View {
 
     private func tap(_ verse: Int) {
         guard let document else { return }
-        if let anchor = rangeAnchor, anchor != verse {
+        if let anchor = rangeAnchor {
+            if anchor == verse { return }
             let span = min(anchor, verse) ... max(anchor, verse)
             rangeAnchor = nil
             collapsed.remove(verse)
@@ -475,33 +477,30 @@ struct ChapterScreen: View {
             return
         }
         rangeAnchor = nil
-        if selection == verse ... verse {
-            selection = nil
-            focusedBlockID = nil
-            if expanded { collapsed.insert(verse) }
-            return
-        }
         collapsed.remove(verse)
         selection = verse ... verse
         focusDraft(verseSlug(verse, document))
     }
 
     private func focusDraft(_ slug: String) {
-        prepare(slug)
-        focusedBlockID = drafts[slug]?.first?.id
+        ensureDraft(slug)
+        focusedBlockID = writableBlockID(drafts[slug] ?? [])
     }
 
-    private func prepare(_ slug: String) {
-        if drafts[slug] == nil {
-            let stored = document?.notes.first { $0.slug == slug }?.blocks ?? []
-            drafts[slug] = OutlinerBlocks.seed(stored)
-        }
+    private func ensureDraft(_ slug: String) {
+        if let existing = drafts[slug], !existing.isEmpty { return }
+        let stored = document?.notes.first { $0.slug == slug }?.blocks ?? []
+        drafts[slug] = OutlinerBlocks.seed(stored)
+    }
+
+    private func writableBlockID(_ blocks: [NoteBlock]) -> String? {
+        blocks.first { $0.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }?.id ?? blocks.first?.id
     }
 
     private func materializeNotes() {
         guard let document else { return }
         for note in document.notes {
-            prepare(note.slug)
+            ensureDraft(note.slug)
         }
     }
 
@@ -538,13 +537,8 @@ struct ChapterScreen: View {
 
     private func draftBinding(_ slug: String) -> Binding<[NoteBlock]> {
         Binding(
-            get: {
-                if let existing = drafts[slug] { return existing }
-                let stored = document?.notes.first { $0.slug == slug }?.blocks ?? []
-                if !stored.isEmpty { return stored }
-                return [NoteBlock(id: "pending-\(slug)", indent: 0, text: "", bullet: true)]
-            },
-            set: { drafts[slug] = $0 }
+            get: { drafts[slug] ?? [] },
+            set: { drafts[slug] = $0.isEmpty ? OutlinerBlocks.seed([]) : $0 }
         )
     }
 

@@ -11,17 +11,23 @@ struct NoteTrayView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            VStack(alignment: .leading, spacing: 0) {
-                ForEach(blocks) { block in
-                    blockRow(block)
+            ZStack(alignment: .topLeading) {
+                RoundedRectangle(cornerRadius: 0.65 * MarginTheme.rem)
+                    .fill(MarginTheme.paperRaised)
+                    .contentShape(RoundedRectangle(cornerRadius: 0.65 * MarginTheme.rem))
+                    .onTapGesture { focusWritableBlock() }
+                VStack(alignment: .leading, spacing: 0) {
+                    ForEach(blocks) { block in
+                        blockRow(block)
+                    }
                 }
+                .padding(.vertical, 0.35 * MarginTheme.rem)
             }
-            .padding(.vertical, 0.35 * MarginTheme.rem)
             .frame(maxWidth: .infinity, minHeight: 5.5 * MarginTheme.rem, alignment: .topLeading)
-            .background(MarginTheme.paperRaised)
             .overlay(
                 RoundedRectangle(cornerRadius: 0.65 * MarginTheme.rem)
-                    .stroke(focusedBlockID == nil ? MarginTheme.line : MarginTheme.ink.opacity(0.28), lineWidth: 1)
+                    .stroke(focusedHere ? MarginTheme.ink.opacity(0.28) : MarginTheme.line, lineWidth: 1)
+                    .allowsHitTesting(false)
             )
             HStack(alignment: .center, spacing: 0.2 * MarginTheme.rem) {
                 Link(label, destination: routeBibleURL)
@@ -74,6 +80,15 @@ struct NoteTrayView: View {
         .buttonStyle(.plain)
         .foregroundStyle(MarginTheme.faint)
         .accessibilityLabel(name)
+    }
+
+    private var focusedHere: Bool {
+        guard let focusedBlockID else { return false }
+        return blocks.contains { $0.id == focusedBlockID }
+    }
+
+    private func focusWritableBlock() {
+        focusedBlockID = blocks.first { $0.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }?.id ?? blocks.first?.id
     }
 
     private func update(_ body: (inout [NoteBlock]) -> Void) {
@@ -171,14 +186,16 @@ struct LineEditor: UIViewRepresentable {
         field.autocorrectionType = .yes
         field.autocapitalizationType = .sentences
         field.returnKeyType = .default
+        field.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        field.setContentHuggingPriority(.defaultLow, for: .horizontal)
         field.addTarget(context.coordinator, action: #selector(Coordinator.changed(_:)), for: .editingChanged)
         field.inputAccessoryView = context.coordinator.accessory
         return field
     }
 
     func sizeThatFits(_ proposal: ProposedViewSize, uiView: FocusableTextField, context: Context) -> CGSize? {
-        let width = proposal.width ?? UIView.noIntrinsicMetric
-        return CGSize(width: width, height: max(28, uiView.intrinsicContentSize.height))
+        let width = proposal.width ?? 240
+        return CGSize(width: max(width, 44), height: max(28, uiView.intrinsicContentSize.height))
     }
 
     func updateUIView(_ field: FocusableTextField, context: Context) {
@@ -187,15 +204,17 @@ struct LineEditor: UIViewRepresentable {
             field.text = text
         }
         field.focusIfNeeded = { [weak field] in
-            guard let field else { return }
+            guard let field, field.window != nil else { return }
             guard context.coordinator.parent.isFocused, !field.isFirstResponder else { return }
             field.becomeFirstResponder()
         }
-        if isFocused, field.window != nil, !field.isFirstResponder, !context.coordinator.focusQueued {
-            context.coordinator.focusQueued = true
-            DispatchQueue.main.async {
-                context.coordinator.focusQueued = false
-                field.focusIfNeeded?()
+        if !isFocused {
+            context.coordinator.focusAttempts = 0
+        }
+        if isFocused, !field.isFirstResponder, context.coordinator.focusAttempts < 6 {
+            context.coordinator.focusAttempts += 1
+            DispatchQueue.main.async { [weak field] in
+                field?.focusIfNeeded?()
             }
         } else if dismissKeyboard, field.isFirstResponder {
             field.resignFirstResponder()
@@ -204,7 +223,7 @@ struct LineEditor: UIViewRepresentable {
 
     final class Coordinator: NSObject, UITextFieldDelegate {
         var parent: LineEditor
-        var focusQueued = false
+        var focusAttempts = 0
         let accessory: UIToolbar
 
         init(_ parent: LineEditor) {
@@ -251,6 +270,27 @@ struct LineEditor: UIViewRepresentable {
         @objc func bullet() { parent.onBullet() }
         @objc func newline() { parent.onReturn() }
         @objc func merge() { parent.onMerge() }
+    }
+}
+
+struct ScrollTouchFix: UIViewRepresentable {
+    func makeUIView(context: Context) -> UIView {
+        let view = UIView(frame: .zero)
+        view.isUserInteractionEnabled = false
+        view.frame.size = .zero
+        return view
+    }
+
+    func updateUIView(_ uiView: UIView, context: Context) {
+        DispatchQueue.main.async {
+            var current: UIView? = uiView
+            while let view = current {
+                if let scroll = view as? UIScrollView {
+                    scroll.delaysContentTouches = false
+                }
+                current = view.superview
+            }
+        }
     }
 }
 
