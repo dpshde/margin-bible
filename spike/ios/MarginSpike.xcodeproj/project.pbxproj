@@ -10,6 +10,15 @@
 		A10000000000000000000011 /* MarginSpikeApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000001 /* MarginSpikeApp.swift */; };
 		A10000000000000000000012 /* ChapterScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000002 /* ChapterScreen.swift */; };
 		A10000000000000000000013 /* MarginClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000003 /* MarginClient.swift */; };
+		A10000000000000000000014 /* MarginTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000005 /* MarginTheme.swift */; };
+		A10000000000000000000015 /* OutlinerBlocks.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000006 /* OutlinerBlocks.swift */; };
+		A10000000000000000000016 /* BooksCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000007 /* BooksCatalog.swift */; };
+		A10000000000000000000017 /* NoteTrayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000008 /* NoteTrayView.swift */; };
+		A10000000000000000000018 /* SourceSerif4.ttf in Resources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000000A /* SourceSerif4.ttf */; };
+		A10000000000000000000019 /* Poppins-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000000B /* Poppins-Regular.ttf */; };
+		A1000000000000000000001A /* Poppins-Medium.ttf in Resources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000000C /* Poppins-Medium.ttf */; };
+		A1000000000000000000001B /* Poppins-SemiBold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000000D /* Poppins-SemiBold.ttf */; };
+		A1000000000000000000001C /* Lexend-Medium.ttf in Resources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000000E /* Lexend-Medium.ttf */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -17,6 +26,15 @@
 		A10000000000000000000002 /* ChapterScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChapterScreen.swift; sourceTree = "<group>"; };
 		A10000000000000000000003 /* MarginClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarginClient.swift; sourceTree = "<group>"; };
 		A10000000000000000000004 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		A10000000000000000000005 /* MarginTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarginTheme.swift; sourceTree = "<group>"; };
+		A10000000000000000000006 /* OutlinerBlocks.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OutlinerBlocks.swift; sourceTree = "<group>"; };
+		A10000000000000000000007 /* BooksCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BooksCatalog.swift; sourceTree = "<group>"; };
+		A10000000000000000000008 /* NoteTrayView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteTrayView.swift; sourceTree = "<group>"; };
+		A1000000000000000000000A /* SourceSerif4.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; name = SourceSerif4.ttf; path = Fonts/SourceSerif4.ttf; sourceTree = "<group>"; };
+		A1000000000000000000000B /* Poppins-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; name = Poppins-Regular.ttf; path = Fonts/Poppins-Regular.ttf; sourceTree = "<group>"; };
+		A1000000000000000000000C /* Poppins-Medium.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; name = Poppins-Medium.ttf; path = Fonts/Poppins-Medium.ttf; sourceTree = "<group>"; };
+		A1000000000000000000000D /* Poppins-SemiBold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; name = Poppins-SemiBold.ttf; path = Fonts/Poppins-SemiBold.ttf; sourceTree = "<group>"; };
+		A1000000000000000000000E /* Lexend-Medium.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; name = Lexend-Medium.ttf; path = Fonts/Lexend-Medium.ttf; sourceTree = "<group>"; };
 		A10000000000000000000020 /* MarginSpike.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MarginSpike.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -29,6 +47,21 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXResourcesBuildPhase section */
+		A10000000000000000000032 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A10000000000000000000018 /* SourceSerif4.ttf in Resources */,
+				A10000000000000000000019 /* Poppins-Regular.ttf in Resources */,
+				A1000000000000000000001A /* Poppins-Medium.ttf in Resources */,
+				A1000000000000000000001B /* Poppins-SemiBold.ttf in Resources */,
+				A1000000000000000000001C /* Lexend-Medium.ttf in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
 
 /* Begin PBXGroup section */
 		A10000000000000000000040 = {
@@ -45,6 +78,15 @@
 				A10000000000000000000001 /* MarginSpikeApp.swift */,
 				A10000000000000000000002 /* ChapterScreen.swift */,
 				A10000000000000000000003 /* MarginClient.swift */,
+				A10000000000000000000005 /* MarginTheme.swift */,
+				A10000000000000000000006 /* OutlinerBlocks.swift */,
+				A10000000000000000000007 /* BooksCatalog.swift */,
+				A10000000000000000000008 /* NoteTrayView.swift */,
+				A1000000000000000000000A /* SourceSerif4.ttf */,
+				A1000000000000000000000B /* Poppins-Regular.ttf */,
+				A1000000000000000000000C /* Poppins-Medium.ttf */,
+				A1000000000000000000000D /* Poppins-SemiBold.ttf */,
+				A1000000000000000000000E /* Lexend-Medium.ttf */,
 				A10000000000000000000004 /* Info.plist */,
 			);
 			path = MarginSpike;
@@ -67,6 +109,7 @@
 			buildPhases = (
 				A10000000000000000000030 /* Sources */,
 				A10000000000000000000031 /* Frameworks */,
+				A10000000000000000000032 /* Resources */,
 			);
 			buildRules = (
 			);
@@ -117,6 +160,10 @@
 				A10000000000000000000011 /* MarginSpikeApp.swift in Sources */,
 				A10000000000000000000012 /* ChapterScreen.swift in Sources */,
 				A10000000000000000000013 /* MarginClient.swift in Sources */,
+				A10000000000000000000014 /* MarginTheme.swift in Sources */,
+				A10000000000000000000015 /* OutlinerBlocks.swift in Sources */,
+				A10000000000000000000016 /* BooksCatalog.swift in Sources */,
+				A10000000000000000000017 /* NoteTrayView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

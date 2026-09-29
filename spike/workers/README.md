@@ -129,12 +129,10 @@ Public paths are opaque and unversioned: `/api/chapters/jhn.3.16`, `/api/notes/j
 
 ## SwiftUI client
 
-`spike/ios/MarginSpike.xcodeproj` is an iOS 17 app. This Linux checkout has no Swift toolchain, so the project has not been compiled here. On a Mac:
+`spike/ios/MarginSpike.xcodeproj` is an iOS 17 reader meant to match the Rails chapter page: paper, Source Serif 4 / Poppins / Lexend, verse gutter, section headings, the bottom jump bar, and the dock (focus, chapter note, expand notes, hide verse numbers).
 
-1. Run the Worker (`bun run dev` in `spike/workers`).
-2. Open the Xcode project and run MarginSpike.
-3. The Workers URL defaults to `http://127.0.0.1:8787`. Info.plist allows local networking.
-4. Open `John 3:16` or `jhn.3.16`. The app calls `GET /api/chapters`. Tap a verse to focus that slug. Save writes `PUT /api/notes/<slug>` with `{ "text" }`. The editor loads the note for that exact slug. A range note stays its own row.
-5. “Open on route.bible” uses the `routeBibleUrl` from the API.
+The outliner is one row per block, with the Rails indent step (`1.15rem`), bullet dot, and tray label. Return or the keyboard “New line” splits a block. A leading space indents. Verse notes and range notes stay separate trays. Expand notes opens every tray that already has text; tap a verse to open or collapse that verse. Long-press a verse, then tap another, to focus a range. Share-out is still `https://route.bible/{slug}`.
 
-Point the URL field at the `*.workers.dev` host after `wrangler deploy` if you want the app off localhost.
+The app talks to the Workers API that is already deployed. It tries `GET /api/chapters/<slug>` and, when that route is absent, loads `GET /bsb/<book>.<chapter>.json` plus `GET /api/notes?chapter=<slug>`. Saves are `PUT /api/notes/<slug>` with `{ "blocks" }`. Do not redeploy the Worker for this client. The Rails `ios/` Hotwire project is not part of this spike.
+
+This checkout has no Xcode, so the project has not been compiled here. On a Mac, open `spike/ios/MarginSpike.xcodeproj`. The Workers URL in the dock defaults to `https://margin-bible-spike.dpshade.workers.dev`.

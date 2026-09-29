@@ -31,5 +31,13 @@
 		<key>NSAllowsLocalNetworking</key>
 		<true/>
 	</dict>
+	<key>UIAppFonts</key>
+	<array>
+		<string>SourceSerif4.ttf</string>
+		<string>Poppins-Regular.ttf</string>
+		<string>Poppins-Medium.ttf</string>
+		<string>Poppins-SemiBold.ttf</string>
+		<string>Lexend-Medium.ttf</string>
+	</array>
 </dict>
 </plist>
