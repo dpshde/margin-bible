@@ -1,0 +1,5 @@
+Berean Standard Bible (BSB)
+Public domain as of 2023-04-30 (Berean Bible Translation Committee / Bible Hub).
+Source: vendor/scripture/bsb/usj
+Each *.json file is one chapter, flattened with the same verse-row rules as Margin::Usj.pack_chapter.
+Disposable cache. Verse text is never merged into notes.

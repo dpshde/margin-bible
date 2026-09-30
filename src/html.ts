@@ -1,0 +1,945 @@
+export function escapeHtml(value: string): string {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;");
+}
+
+export function page(title: string, body: string): string {
+  return `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='2' fill='%231c1917'/%3E%3Cpath d='M4 4.5h8M4 8h8M4 11.5h5' stroke='%23f6f5f2' stroke-width='1.4' stroke-linecap='round'/%3E%3C/svg%3E">
+  <title>${escapeHtml(title)}</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --tap: 2.75rem; /* 44px at 16px root — Apple HIG / Material minimum */
+      --safe-top: env(safe-area-inset-top, 0px);
+      --safe-bottom: env(safe-area-inset-bottom, 0px);
+      --chrome-sticky: calc(2.75rem + var(--safe-top));
+      --paper: #f6f5f2;
+      --paper-raised: #ffffff;
+      --ink: #1c1917;
+      --ink-soft: #44403c;
+      --muted: #78716c;
+      --faint: #a8a29e;
+      --line: color-mix(in srgb, var(--ink) 12%, transparent);
+      --fill: color-mix(in srgb, var(--ink) 5%, transparent);
+      --sel-rail: color-mix(in srgb, var(--ink) 18%, transparent);
+      --sel-rail-open: color-mix(in srgb, var(--ink) 42%, transparent);
+      --page-max: 36em;
+      --read-size: 1.2rem;
+      --read-leading: 1.65;
+      --verse-gutter: 1.65rem;
+      --verse-gutter-gap: .55rem;
+      --verse-inset: .7rem;
+      --read: "Iowan Old Style", Palatino, "Palatino Linotype", Georgia, serif;
+      --sans: ui-sans-serif, system-ui, -apple-system, sans-serif;
+      --head: ui-sans-serif, system-ui, -apple-system, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; background: var(--paper); color: var(--ink); font-family: var(--sans); }
+    body {
+      min-height: 100dvh;
+      padding-bottom: var(--safe-bottom);
+    }
+    /* Desktop: kill macOS rubber-band overscroll. Keep default on touch so pull-to-refresh works. */
+    @media (pointer: fine) {
+      html, body { overscroll-behavior: none; }
+    }
+    button, a, .icon-btn, .expand-btn, .tray-bookmark, .tray-attach, .tray-clear, .tray-close, .att-remove, .obullet, .verse-press, .suggest button, .topbar-title-btn, .chapter-grid-cell {
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
+    }
+    a { color: inherit; }
+    button, input { font: inherit; color: inherit; }
+    .sr-only {
+      position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+      overflow: hidden; clip: rect(0,0,0,0); border: 0;
+    }
+    .topbar {
+      position: sticky; top: 0; z-index: 5;
+      display: grid; grid-template-columns: 1fr auto 1fr; align-items: center;
+      gap: .5rem;
+      padding: calc(.35rem + var(--safe-top)) .75rem .35rem;
+      min-height: calc(var(--tap) + var(--safe-top));
+      background: color-mix(in srgb, var(--paper) 92%, transparent);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--line);
+    }
+    .topbar-side { display: flex; align-items: center; gap: .25rem; }
+    .topbar-actions { display: flex; align-items: center; justify-content: flex-end; gap: 0; }
+    .topbar-title {
+      margin: 0; font-family: var(--head); font-size: 1.05rem; font-weight: 600;
+      text-align: center; letter-spacing: -.01em; min-width: 0;
+    }
+    .topbar-title-btn {
+      appearance: none; -webkit-appearance: none;
+      display: block; width: 100%; max-width: 100%;
+      min-height: var(--tap);
+      margin: 0; padding: .2rem .4rem;
+      border: 0; border-radius: .45rem;
+      background: transparent;
+      font: inherit; color: inherit; text-align: inherit;
+      cursor: pointer;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .topbar-title-btn:hover,
+    .topbar-title-btn:focus-visible,
+    .topbar-title-btn[aria-expanded="true"] { background: var(--fill); }
+    .topbar-title-btn:focus-visible {
+      outline: 2px solid color-mix(in srgb, var(--ink) 28%, transparent);
+      outline-offset: 1px;
+    }
+    .is-grid-open .topbar { z-index: 45; }
+    .icon-btn {
+      appearance: none; display: inline-flex; align-items: center; justify-content: center;
+      width: var(--tap); height: var(--tap); padding: 0; border: 0; border-radius: .55rem;
+      background: transparent; color: var(--ink-soft); cursor: pointer; text-decoration: none;
+    }
+    .icon-btn.is-on { color: var(--ink); background: var(--fill); }
+    /* Persisted note/bookmark state is carried by the filled glyph, not a selected square. */
+    [data-state-icon] { position: relative; }
+    [data-state-icon] .state-icon-filled { display: none; }
+    [data-state-icon][data-state-on="true"] .state-icon-outline { display: none; }
+    [data-state-icon][data-state-on="true"] .state-icon-filled { display: block; }
+    .icon-btn[data-state-icon].is-on,
+    .icon-btn[data-state-icon]:focus-visible,
+    .tray-bookmark[data-state-icon].is-on,
+    .tray-bookmark[data-state-icon]:focus-visible {
+      color: var(--ink); background: transparent;
+    }
+    .icon-btn[data-state-icon]:focus-visible,
+    .tray-bookmark[data-state-icon]:focus-visible {
+      outline: 2px solid color-mix(in srgb, var(--ink) 28%, transparent);
+      outline-offset: 2px;
+    }
+    .icon-btn[data-state-icon][data-state-on="true"]:hover,
+    .tray-bookmark[data-state-icon][data-state-on="true"]:hover { background: transparent; }
+    @media (hover: hover) and (pointer: fine) {
+      .icon-btn:hover { color: var(--ink); background: var(--fill); }
+    }
+    .icon-btn:focus-visible { color: var(--ink); background: var(--fill); }
+    .icon-btn:disabled { opacity: .35; cursor: default; }
+    .icon-btn svg { display: block; width: 1.1rem; height: 1.1rem; }
+    /* expand-btn also has .icon-btn — match profile/bookmark icon-only density (no bordered pill). */
+    .expand-btn .expand-label { display: none; }
+    .expand-btn.is-on {
+      color: var(--ink); background: var(--fill);
+    }
+    .expand-btn:disabled { opacity: .45; cursor: default; color: var(--ink-soft); }
+    .expand-btn:disabled:hover { color: var(--ink-soft); background: transparent; }
+    .expand-btn .expand-icon {
+      position: relative; display: block; width: 1.1rem; height: 1.1rem; flex-shrink: 0;
+    }
+    .expand-btn .expand-icon svg {
+      display: block; width: 1.1rem; height: 1.1rem;
+      transition: opacity 180ms ease, transform 180ms ease;
+    }
+    .expand-btn .expand-icon-out {
+      opacity: 1; transform: rotate(0deg) scale(1);
+    }
+    .expand-btn .expand-icon-in {
+      position: absolute; inset: 0;
+      opacity: 0; transform: rotate(-30deg) scale(.88);
+    }
+    .expand-btn.is-on .expand-icon-out {
+      opacity: 0; transform: rotate(30deg) scale(.88);
+    }
+    .expand-btn.is-on .expand-icon-in {
+      opacity: 1; transform: rotate(0deg) scale(1);
+    }
+    main.reader, .notes-main, footer.site {
+      width: min(var(--page-max), calc(100% - 2rem));
+      margin: 0 auto;
+    }
+    .jump {
+      display: block; margin: .85rem 0 .35rem;
+    }
+    .jump-field {
+      position: relative; min-width: 0;
+      display: flex; flex-direction: column;
+      border: 1px solid var(--line); border-radius: .55rem;
+      background: var(--paper-raised);
+    }
+    .jump.is-open .jump-field,
+    .jump:has(.suggest:not([hidden])) .jump-field {
+      border-color: color-mix(in srgb, var(--ink) 28%, transparent);
+    }
+    .jump-input-row {
+      position: relative; display: flex; align-items: center; min-width: 0;
+    }
+    .jump input[type="search"] {
+      flex: 1; min-width: 0; width: 100%; font: inherit; font-size: 16px;
+      padding: .5rem 2rem .5rem .7rem;
+      border: 0; border-radius: .55rem; background: transparent;
+      outline: none; box-shadow: none;
+      -webkit-appearance: none; appearance: none;
+    }
+    .jump input[type="search"]::-webkit-search-decoration,
+    .jump input[type="search"]::-webkit-search-cancel-button,
+    .jump input[type="search"]::-webkit-search-results-button,
+    .jump input[type="search"]::-webkit-search-results-decoration {
+      -webkit-appearance: none; appearance: none; display: none;
+    }
+    .jump input[type="search"]:focus,
+    .jump input[type="search"]:focus-visible {
+      outline: none; box-shadow: none;
+    }
+    .jump-clear {
+      position: absolute; right: .2rem; top: 50%; transform: translateY(-50%);
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 1.7rem; height: 1.7rem; padding: 0; margin: 0;
+      border: 0; border-radius: 999px; cursor: pointer;
+      color: var(--faint); background: transparent;
+    }
+    .jump-clear[hidden] { display: none; }
+    @media (hover: hover) and (pointer: fine) {
+      .jump-clear:hover { color: var(--ink-soft); background: var(--fill); }
+    }
+    .jump-clear:focus-visible { color: var(--ink); background: var(--fill); outline: none; }
+    .jump-clear svg { display: block; width: .9rem; height: .9rem; }
+    .suggest {
+      --list-radius: .55rem;
+      list-style: none; margin: 0; padding: 0;
+      position: absolute; left: 0; right: 0; top: 100%; z-index: 6;
+      background: var(--paper-raised);
+      border: 1px solid var(--line); border-top: 0;
+      border-radius: 0 0 var(--list-radius) var(--list-radius);
+      overflow: hidden;
+    }
+    /* Jump field owns the outer border — suggest flows attached inside, not a floating box. */
+    .jump-field .suggest {
+      position: relative; left: auto; right: auto; top: auto;
+      background: transparent;
+      border: 0; border-top: 1px solid var(--line);
+      border-radius: 0 0 var(--list-radius) var(--list-radius);
+    }
+    .suggest[hidden] { display: none; }
+    .suggest li { margin: 0; }
+    .suggest-hint {
+      padding: .4rem .8rem .5rem;
+      font-size: .78rem; line-height: 1.3;
+      color: var(--faint); pointer-events: none;
+      border-top: 1px solid var(--line);
+    }
+    .suggest li:first-child.suggest-hint { border-top: 0; }
+    .suggest button {
+      appearance: none; -webkit-appearance: none;
+      display: block; width: 100%; margin: 0; text-align: left;
+      padding: .5rem .8rem; border: 0; border-radius: 0;
+      background: transparent; cursor: pointer;
+      font-size: .92rem; color: var(--ink-soft);
+      outline: none; box-shadow: none;
+    }
+    .suggest li + li:not(.suggest-hint) button { box-shadow: inset 0 1px var(--line); }
+    .suggest button:hover,
+    .suggest button:focus,
+    .suggest button:focus-visible,
+    .suggest li[aria-selected="true"] button {
+      background: color-mix(in srgb, var(--ink) 8%, var(--paper-raised));
+      color: var(--ink);
+      outline: none; box-shadow: none;
+    }
+    .suggest li:last-child button {
+      border-radius: 0 0 var(--list-radius) var(--list-radius);
+    }
+    .section-head {
+      margin: 1.4rem 0 .55rem calc(var(--verse-gutter) + var(--verse-gutter-gap));
+      font-family: var(--head); font-size: 1.2rem; font-weight: 600; line-height: 1.25;
+    }
+    .section-head:first-child { margin-top: .35rem; }
+    .chapter { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+    .verse {
+      display: block; position: relative;
+      padding: 0 0 0 var(--verse-inset);
+      margin: .15rem 0;
+    }
+    .verse.has-note { border-left: 2px solid var(--sel-rail); }
+    .verse.is-open,
+    .verse.is-span { border-left: 0; }
+    .verse.is-open::before,
+    .verse.is-span::before {
+      content: "";
+      position: absolute;
+      left: 0; top: 0; bottom: 0; width: 2px;
+      background: var(--sel-rail-open);
+      pointer-events: none;
+    }
+    /* Rails-ish selection chrome: adjacent marked/open/span verse rows share one rail.
+       The normal .verse margin is retained at the ends of a run, but removed
+       between selected rows so the accent does not look like broken segments —
+       including when a tray sits under the first verse of a multi-verse range. */
+    .verse:is(.has-note, .is-open, .is-span):has(+ .verse:is(.has-note, .is-open, .is-span)) { margin-bottom: 0; }
+    .verse:is(.has-note, .is-open, .is-span) + .verse:is(.has-note, .is-open, .is-span) { margin-top: 0; }
+    .verse-press {
+      display: grid; grid-template-columns: var(--verse-gutter) 1fr;
+      gap: var(--verse-gutter-gap); width: 100%;
+      appearance: none; border: 0; background: transparent; text-align: left; cursor: pointer;
+      padding: .12rem 0; touch-action: manipulation;
+    }
+    .verse, .note-tray, .chapter-tray, .tray-head, .otext {
+      scroll-margin-top: calc(var(--chrome-sticky) + 0.75rem);
+      scroll-margin-bottom: calc(1.25rem + var(--safe-bottom));
+    }
+    .verse-press:focus, .verse-press:focus-visible { outline: none; }
+    .vnum {
+      font-variant-numeric: oldstyle-nums;
+      color: color-mix(in srgb, var(--ink) 35%, transparent);
+      font-size: .72em; font-weight: 500; padding-top: .42rem; text-align: right;
+    }
+    .verse.is-open .vnum, .verse.is-span .vnum, .verse.has-note .vnum { color: var(--ink-soft); }
+    .vtext {
+      font-family: var(--read); font-size: var(--read-size); line-height: var(--read-leading);
+      color: var(--ink);
+    }
+    .verse.is-open .vtext,
+    .verse.is-span .vtext {
+      background: color-mix(in srgb, var(--ink) 4%, transparent);
+      border-radius: .08em; padding: .02em .08em;
+      box-decoration-break: clone; -webkit-box-decoration-break: clone;
+    }
+    .note-tray, .chapter-tray {
+      position: relative;
+      margin-left: calc(var(--verse-gutter) + var(--verse-gutter-gap));
+      padding: .12rem 0 .28rem;
+    }
+    .chapter-note-rail {
+      margin: 0 0 .55rem;
+    }
+    .chapter-note-peek {
+      display: flex; align-items: center; justify-content: center;
+      width: 100%; min-height: 1.1rem; margin: 0 0 .35rem; padding: .42rem 0;
+      border: 0; background: transparent; cursor: pointer;
+      border-radius: .45rem;
+    }
+    .chapter-note-peek-bar {
+      display: block; width: min(100%, 12rem); height: 2px;
+      border-radius: 999px;
+      background: color-mix(in srgb, var(--ink) 7%, transparent);
+      opacity: .55;
+      transform: scaleX(1);
+      transition: background .15s ease, opacity .15s ease, transform .15s ease;
+    }
+    .chapter-note-rail[data-has-note="true"] .chapter-note-peek-bar {
+      background: color-mix(in srgb, var(--ink) 14%, transparent);
+      opacity: .85;
+      transform: scaleX(1.08);
+    }
+    @media (hover: hover) and (pointer: fine) {
+      .chapter-note-peek:hover .chapter-note-peek-bar {
+        background: color-mix(in srgb, var(--ink) 28%, transparent);
+        opacity: 1;
+        transform: scaleX(1.15);
+      }
+    }
+    .chapter-note-peek:focus-visible {
+      outline: 2px solid color-mix(in srgb, var(--ink) 28%, transparent);
+      outline-offset: 2px;
+    }
+    .chapter-note-peek:focus-visible .chapter-note-peek-bar {
+      background: color-mix(in srgb, var(--ink) 32%, transparent);
+      opacity: 1;
+    }
+    .chapter-note-rail.is-open .chapter-note-peek { display: none; }
+    .chapter-tray {
+      margin: 0 0 .35rem calc(var(--verse-inset) + var(--verse-gutter) + var(--verse-gutter-gap));
+      /* Slight air inside the chapter note tray (Dylan). */
+      padding: .28rem .25rem .42rem;
+    }
+    .chapter-tray .outliner {
+      padding: .42rem 0;
+    }
+    .note-tray[hidden], .chapter-tray[hidden] { display: none !important; }
+    .note-tray.is-tray-anim {
+      display: grid !important;
+      overflow: hidden;
+      will-change: grid-template-rows, opacity;
+    }
+    .note-tray.is-tray-anim > .note-tray-clip {
+      overflow: hidden;
+      min-height: 0;
+    }
+    /* Air after an open tray only when the next verse is outside the marked/open run.
+       Inside a multi-verse selection/covering range the left rail must stay contiguous. */
+    .verse:has(.note-tray:not([hidden])) + .verse:not(.has-note):not(.is-open):not(.is-span) { margin-top: .15rem; }
+    .verse:has(.note-tray:not([hidden])) + .verse:is(.has-note, .is-open, .is-span) { margin-top: 0; }
+    /* Back-to-back open trays (stacked under one verse or adjacent selected verses). */
+    .note-tray:not([hidden]) + .note-tray:not([hidden]) {
+      padding-top: 0;
+      margin-top: 0;
+    }
+    .verse:is(.is-open, .is-span):has(.note-tray:not([hidden])) + .verse:is(.is-open, .is-span) .note-tray:not([hidden]) {
+      padding-top: 0.02rem;
+    }
+    .verse:is(.is-open, .is-span):has(.note-tray:not([hidden])) .note-tray:not([hidden]) {
+      padding-bottom: .12rem;
+    }
+    .tray-head {
+      position: sticky;
+      bottom: 0;
+      z-index: 3;
+      display: block;
+      margin: .12rem 0 0;
+      padding: .05rem 0;
+      background: color-mix(in srgb, var(--paper) 94%, transparent);
+      backdrop-filter: blur(8px);
+    }
+    .tray-toolbar {
+      display: flex; align-items: center; gap: .35rem;
+      min-width: 0;
+    }
+    .tray-meta {
+      display: inline-flex; align-items: baseline; gap: .4rem;
+      flex: 1; min-width: 0;
+    }
+    .tray-label { margin: 0; font-size: .78rem; color: var(--faint); text-decoration: none; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    @media (hover: hover) and (pointer: fine) {
+      a.tray-label:hover { color: var(--ink); }
+    }
+    a.tray-label:focus-visible { color: var(--ink); }
+    .tray-status {
+      margin: 0; font-size: .72rem; color: var(--muted); line-height: 1.2;
+      flex-shrink: 0;
+    }
+    .tray-status:empty { display: none; }
+    .tray-clear, .tray-close {
+      display: inline-flex; align-items: center; justify-content: center;
+      flex-shrink: 0; color: var(--faint); padding: .15rem;
+      border: 0; background: transparent; cursor: pointer;
+      min-width: var(--tap); min-height: var(--tap);
+    }
+    @media (hover: hover) and (pointer: fine) {
+      .tray-clear:hover, .tray-close:hover { color: var(--ink); }
+    }
+    .tray-clear:focus-visible, .tray-close:focus-visible { color: var(--ink); background: var(--fill); border-radius: .45rem; }
+    .tray-clear svg, .tray-close svg, .tray-attach svg, .tray-bookmark svg { display: block; width: 1.05rem; height: 1.05rem; }
+    .outliner {
+      display: block; width: 100%;
+      border: 1px solid var(--line); background: var(--paper-raised);
+      border-radius: .65rem; padding: .22rem 0; min-height: 0;
+    }
+    .outliner:focus-within {
+      border-color: color-mix(in srgb, var(--ink) 28%, transparent);
+    }
+    /* Attachments: one tight chip strip under the editor (not a tall separate band). */
+    .note-tray:has(.att-board:not([hidden])),
+    .chapter-tray:has(.att-board:not([hidden])) {
+      padding: .12rem 0 .28rem;
+    }
+    .note-tray:has(.att-board:not([hidden])) .outliner,
+    .chapter-tray:has(.att-board:not([hidden])) .outliner {
+      padding: .22rem 0;
+    }
+    .note-tray:has(.att-board:not([hidden])) .att-board,
+    .chapter-tray:has(.att-board:not([hidden])) .att-board {
+      margin-top: .16rem;
+      gap: .3rem;
+    }
+    .note-tray:has(.att-board:not([hidden])) .tray-head,
+    .chapter-tray:has(.att-board:not([hidden])) .tray-head {
+      margin-top: .1rem;
+      padding: .05rem 0;
+    }
+    .oblock {
+      display: flex; align-items: flex-start; gap: .4rem;
+      padding: 0 .7rem 0 calc(.55rem + (var(--depth, 0) * 1.15rem));
+    }
+    .obullet {
+      position: relative;
+      width: 1.35rem; min-width: 1.35rem; height: 1.55em;
+      margin: 0; flex-shrink: 0; cursor: pointer;
+      background: transparent; border-radius: .4rem;
+    }
+    .obullet::after {
+      content: "";
+      position: absolute; left: 50%; top: 50%;
+      width: .34rem; height: .34rem; margin: -.17rem 0 0 -.17rem;
+      border-radius: 50%; background: transparent;
+    }
+    .oblock.is-bullet .obullet::after { background: var(--faint); opacity: .75; }
+    .oblock:not(.is-bullet):focus-within .obullet::after {
+      background: var(--faint); opacity: .35;
+    }
+    @media (hover: hover) and (pointer: fine) {
+      .oblock:not(.is-bullet):hover .obullet::after { background: var(--faint); opacity: .35; }
+    }
+    .otext {
+      flex: 1; min-width: 0; min-height: 1.55em; line-height: 1.55;
+      padding: 0; white-space: pre-wrap; word-break: break-word; caret-color: var(--ink);
+      outline: none; border: 0; font-size: 16px;
+    }
+    .pager {
+      display: flex; justify-content: space-between; gap: 1rem;
+      margin: 1.5rem 0 2rem; font-size: .95rem;
+    }
+    .pager a { text-decoration: none; color: var(--ink-soft); }
+    .pager a:hover { color: var(--ink); }
+    /* Bookmarks: icon + soft wash — distinct from THIS WEEK, not a heavy card. */
+    .bookmarks-view {
+      margin: 0 0 1rem;
+      padding: .35rem .45rem .4rem;
+      border-radius: .55rem;
+      background: var(--fill);
+    }
+    .bookmarks-view > summary {
+      display: flex; align-items: center; justify-content: space-between; gap: .5rem;
+      margin: 0 0 .15rem; padding: 0;
+      cursor: pointer; list-style: none;
+      font: 700 .7rem/1.3 var(--sans);
+      letter-spacing: .08em; text-transform: uppercase;
+      color: var(--ink-soft);
+    }
+    .bookmarks-view > summary::-webkit-details-marker { display: none; }
+    .bookmarks-summary-label { display: inline-flex; align-items: center; gap: .35rem; }
+    .bookmarks-summary-icon { display: block; width: .9rem; height: .9rem; color: var(--ink-soft); }
+    .bookmarks-view > summary::after { content: "＋"; display: inline-flex; align-items: center; justify-content: center; min-width: 1.35rem; min-height: 1.35rem; padding: .1rem .2rem; border-radius: .35rem; color: var(--faint); font-size: .9rem; font-weight: 400; }
+    .bookmarks-view[open] > summary::after { content: "－"; }
+    .bookmarks-view > summary:focus-visible { outline: 2px solid var(--sel-rail-open); outline-offset: -2px; }
+    .bookmarks-panel { padding: 0; margin: 0; border: 0; }
+    .bookmarks-panel .empty { margin: .2rem 0 0; }
+    /* Nested --fill hover + mismatch radius looked odd on soft-wash panel (e.g. 2 Cor 12:7–9). */
+    .bookmarks-panel .note-list .note-row { border-radius: .35rem; }
+    @media (hover: hover) and (pointer: fine) {
+      .bookmarks-panel .note-list .note-row:hover,
+      .bookmarks-panel .note-list .note-row:focus-visible {
+        background: var(--paper-raised);
+      }
+    }
+    .note-week { margin: 0 0 1rem; }
+    .note-week + .note-week { margin-top: .35rem; }
+    .note-week-label {
+      margin: 0 0 .15rem; padding: 0 .2rem;
+      font: 700 .7rem/1.3 var(--sans);
+      letter-spacing: .08em; text-transform: uppercase;
+      color: var(--ink-soft);
+    }
+    .note-list { list-style: none; padding: 0; margin: 0; }
+    .note-list li { border-top: 1px solid var(--line); }
+    .note-list .note-row {
+      display: block; padding: .65rem .2rem; text-decoration: none;
+      border-radius: .4rem;
+    }
+    .note-list .note-row:hover, .note-list .note-row:focus-visible { background: var(--fill); }
+    .note-list .note-row:focus-visible { outline: 2px solid var(--sel-rail-open); outline-offset: -2px; }
+    .note-row-title {
+      display: block; font-weight: 700; font-size: .95rem;
+      letter-spacing: -.015em; color: var(--ink);
+    }
+    .note-row-excerpt {
+      display: -webkit-box; margin-top: .2rem;
+      color: var(--faint); font-size: .78rem; font-weight: 400; line-height: 1.4;
+      -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;
+    }
+    /* Desktop: verse/range bookmark hover shows BSB text (not chapter bookmarks). */
+    .bookmark-verse-popup { display: none; }
+    @media (hover: hover) and (pointer: fine) {
+      @media (min-width: 641px) {
+        .bookmark-verse-popup {
+          display: block; position: fixed; z-index: 60;
+          max-width: min(22rem, calc(100vw - 1.5rem));
+          padding: .65rem .75rem;
+          border: 1px solid var(--line); border-radius: .55rem;
+          background: var(--paper-raised);
+          box-shadow: 0 10px 28px color-mix(in srgb, var(--ink) 14%, transparent);
+          font-family: var(--read); font-size: .92rem; line-height: 1.45;
+          color: var(--ink-soft);
+          pointer-events: none;
+        }
+        .bookmark-verse-popup[hidden] { display: none; }
+      }
+    }
+    .empty { color: var(--muted); font-size: .92rem; }
+    .starter-chips {
+      display: flex; flex-wrap: wrap; gap: .3rem;
+      margin: 0 0 .85rem;
+    }
+    .starter-chip {
+      display: inline-flex; align-items: center;
+      min-height: 1.7rem; padding: .1rem .55rem;
+      border-radius: 999px; text-decoration: none;
+      font-size: .72rem; font-weight: 600;
+      color: var(--ink-soft); background: var(--fill);
+      border: 1px solid var(--line);
+    }
+    .starter-chip:hover, .starter-chip:focus-visible { color: var(--ink); background: var(--paper-raised); }
+    footer.site { padding-bottom: 2rem; color: var(--muted); font: .8rem/1.4 var(--sans); }
+    .hint {
+      margin: 0 0 1rem; padding: .65rem .8rem;
+      border: 1px dashed var(--line); border-radius: .65rem;
+      color: var(--muted); font-size: .82rem; line-height: 1.45;
+      cursor: pointer;
+    }
+    .hint[hidden] { display: none !important; }
+    .auth-chip {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: var(--tap); height: var(--tap); margin: 0; padding: 0;
+      border-radius: .55rem; text-decoration: none;
+      font-size: .72rem; font-weight: 600; letter-spacing: .01em;
+      color: var(--ink-soft); background: transparent;
+    }
+    .auth-chip svg { display: block; width: 1.1rem; height: 1.1rem; }
+    @media (hover: hover) and (pointer: fine) {
+      .auth-chip:hover { color: var(--ink); background: var(--fill); }
+    }
+    .auth-chip:focus-visible { color: var(--ink); background: var(--fill); }
+    .auth-chip.is-in { color: var(--ink-soft); }
+    .menu-item {
+      appearance: none; -webkit-appearance: none;
+      min-height: var(--tap); width: 100%; padding: 0 .75rem;
+      margin: 0; border: 0; background: transparent; border-radius: 0;
+      font-family: var(--sans); font-size: .92rem; text-align: left; text-decoration: none;
+      color: var(--ink-soft); cursor: pointer;
+      display: inline-flex; align-items: center; gap: .55rem;
+      box-sizing: border-box;
+    }
+    .menu-item:hover, .menu-item:focus, .menu-item:focus-visible {
+      background: color-mix(in srgb, var(--ink) 8%, var(--paper-raised));
+      color: var(--ink); outline: none;
+    }
+    .menu-item.export-link svg { display: block; flex-shrink: 0; }
+    .auth-export {
+      display: inline-flex; align-items: center; gap: .55rem;
+      margin: 0 0 .65rem; padding: 0 .15rem;
+      min-height: var(--tap); width: auto;
+      border-radius: .45rem; text-decoration: none;
+      color: var(--ink-soft); font-size: .92rem; font-weight: 600;
+    }
+    .auth-export:hover, .auth-export:focus-visible { color: var(--ink); background: var(--fill); }
+    .auth-export svg { display: block; flex-shrink: 0; }
+    .auth-main {
+      width: min(24rem, calc(100% - 2rem));
+      margin: 1.25rem auto 2rem;
+    }
+    .auth-lead, .auth-hint, .auth-status, .auth-notice { color: var(--muted); font-size: .9rem; line-height: 1.45; }
+    .auth-error { color: #9f1239; background: #fff1f2; border: 1px solid #fecdd3; border-radius: .55rem; padding: .55rem .7rem; font-size: .88rem; }
+    .auth-notice { background: #f0fdf4; border: 1px solid #bbf7d0; color: #166534; border-radius: .55rem; padding: .55rem .7rem; }
+    .auth-form { display: grid; gap: .45rem; margin: 1rem 0; }
+    .auth-form label { font-size: .82rem; font-weight: 600; color: var(--ink-soft); }
+    .auth-form .optional { font-weight: 400; color: var(--faint); }
+    .auth-form input {
+      font: inherit; padding: .6rem .7rem;
+      border: 1px solid var(--line); border-radius: .55rem; background: var(--paper-raised);
+    }
+    .auth-form button {
+      appearance: none; border: 0; border-radius: .55rem; margin-top: .35rem;
+      padding: .65rem .85rem; background: var(--ink); color: var(--paper); cursor: pointer; font-weight: 600;
+    }
+    .auth-form button.auth-secondary { background: transparent; color: var(--ink-soft); border: 1px solid var(--line); }
+    .auth-signed {
+      display: grid; gap: .75rem;
+      margin: .35rem 0 1.25rem;
+    }
+    .auth-status-card {
+      margin: 0; padding: .7rem .8rem;
+      border: 1px solid var(--line); border-radius: .65rem;
+      background: var(--paper-raised);
+    }
+    .auth-status-card .auth-status { margin: 0 0 .65rem; color: var(--ink-soft); }
+    .auth-status-card .auth-form { margin: 0; }
+    .auth-status-card .auth-form button {
+      background: var(--ink); color: var(--paper); border: 0; width: 100%;
+    }
+    .auth-switch {
+      border: 1px solid var(--line); border-radius: .65rem;
+      background: transparent; padding: .15rem .7rem .55rem;
+    }
+    .auth-switch > summary {
+      cursor: pointer; list-style: none;
+      font-size: .82rem; font-weight: 600; color: var(--muted);
+      padding: .45rem 0;
+    }
+    .auth-switch > summary::-webkit-details-marker { display: none; }
+    .auth-switch > summary::after { content: " ▾"; font-weight: 400; color: var(--faint); }
+    .auth-switch[open] > summary::after { content: " ▴"; }
+    .auth-switch .auth-form { margin: .25rem 0 .35rem; }
+    .auth-switch .auth-hint { margin: .35rem 0 0; font-size: .78rem; }
+    .tray-actions { display: flex; align-items: center; gap: 0; flex-shrink: 0; }
+    .tray-bookmark, .tray-attach, .tray-clear, .tray-close {
+      display: inline-flex; align-items: center; justify-content: center;
+      flex-shrink: 0; color: var(--faint); padding: 0;
+      border: 0; background: transparent; cursor: pointer;
+      min-width: var(--tap); min-height: var(--tap);
+      border-radius: .45rem;
+    }
+    @media (hover: hover) and (pointer: fine) {
+      .tray-bookmark:hover, .tray-attach:hover, .tray-clear:hover, .tray-close:hover { color: var(--ink); background: var(--fill); }
+    }
+    .tray-bookmark:focus-visible, .tray-attach:focus-visible, .tray-clear:focus-visible, .tray-close:focus-visible {
+      color: var(--ink); background: var(--fill);
+    }
+    .tray-bookmark.is-on { color: var(--ink); }
+    .tray-bookmark svg, .tray-attach svg, .tray-clear svg, .tray-close svg {
+      display: block; width: 1.05rem; height: 1.05rem;
+    }
+    .tray-attach.is-ok { color: var(--ink); }
+    .att-board {
+      list-style: none; margin: .15rem 0 0; padding: 0;
+      display: flex; flex-wrap: wrap; gap: .3rem;
+      align-items: center;
+    }
+    .att-board[hidden] { display: none !important; }
+    .att-item { display: inline-flex; align-items: center; gap: .1rem; max-width: 100%; }
+    .att-chip {
+      display: inline-flex; align-items: center; min-width: 0; max-width: 16rem;
+      padding: .1rem .45rem;
+      border: 1px solid var(--line); border-radius: 999px;
+      background: var(--paper-raised); color: var(--ink-soft);
+      text-decoration: none; font-size: .7rem; font-weight: 500;
+      line-height: 1.25;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .att-chip:hover { color: var(--ink); border-color: color-mix(in srgb, var(--ink) 28%, transparent); }
+    .att-chip.is-fresh {
+      color: var(--ink); border-color: var(--ink);
+      animation: att-fresh .9s ease;
+    }
+    @keyframes att-fresh {
+      0% { transform: scale(.92); background: color-mix(in srgb, var(--ink) 12%, var(--paper-raised)); }
+      100% { transform: scale(1); background: var(--paper-raised); }
+    }
+    @media (prefers-reduced-motion: reduce) { .att-chip.is-fresh { animation: none; } }
+    .att-remove {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 1.15rem; height: 1.15rem; min-width: 1.15rem; min-height: 1.15rem; padding: 0;
+      border: 0; border-radius: 999px; background: transparent;
+      color: var(--faint); cursor: pointer;
+    }
+    @media (hover: hover) and (pointer: fine) {
+      .att-remove:hover { color: var(--ink); background: var(--fill); }
+    }
+    .att-remove:focus-visible { color: var(--ink); background: var(--fill); }
+    .att-remove svg { display: block; width: .7rem; height: .7rem; }
+    a.wiki {
+      color: var(--ink-soft); text-decoration: underline;
+      text-decoration-thickness: 1px; text-underline-offset: .15em;
+      text-decoration-color: color-mix(in srgb, var(--ink) 28%, transparent);
+    }
+    a.wiki:hover { color: var(--ink); }
+    .verse.is-xref .vtext {
+      background: color-mix(in srgb, var(--ink) 7%, transparent);
+      border-radius: .08em; padding: .02em .08em;
+      box-decoration-break: clone; -webkit-box-decoration-break: clone;
+    }
+    .verse.is-xref .vnum { color: var(--ink-soft); }
+    .verse.is-xref {
+      border-left: 2px solid color-mix(in srgb, var(--ink) 32%, transparent);
+    }
+    .att-drop {
+      width: min(36rem, calc(100vw - 1.5rem));
+      max-width: 100%; padding: 0; border: 0; background: transparent;
+    }
+    .att-drop::backdrop { background: color-mix(in srgb, var(--ink) 42%, transparent); }
+    .att-drop-sheet {
+      position: relative; margin: 0; background: var(--paper);
+      border: 1px dashed color-mix(in srgb, var(--ink) 22%, transparent);
+      border-radius: 1rem; overflow: visible;
+    }
+    .att-drop-sheet:has(.att-drop-zone.is-over),
+    .att-drop-sheet:has(.att-drop-zone.is-ok) {
+      border-color: var(--ink);
+      background-color: color-mix(in srgb, var(--ink) 5%, var(--paper));
+    }
+    .att-drop-sheet:has(.att-drop-zone.is-ok) { border-style: solid; }
+    .att-drop-sheet:has(.att-drop-zone.is-bad) {
+      border-color: color-mix(in srgb, var(--ink) 40%, transparent);
+    }
+    .att-drop-close {
+      position: absolute; top: .65rem; right: .65rem; z-index: 3;
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 2rem; height: 2rem; padding: 0;
+      border: 0; border-radius: 999px; background: transparent;
+      color: var(--muted); cursor: pointer;
+    }
+    .att-drop-close:hover { color: var(--ink); background: var(--fill); }
+    .att-drop-zone {
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: .65rem; min-height: 14rem; margin: 0; padding: 2.4rem 1.4rem 1.6rem;
+      border: 0; border-radius: 0; text-align: center;
+    }
+    .att-drop-check { margin: 0; color: var(--ink); line-height: 0; font-size: 1.5rem; }
+    .att-drop-title {
+      margin: 0; font-size: 1.25rem; font-weight: 600; letter-spacing: -.02em; color: var(--ink);
+    }
+    .att-drop-sub {
+      margin: 0; max-width: 22rem; font-size: .85rem; line-height: 1.45; color: var(--muted);
+    }
+    .att-drop-field {
+      position: relative; width: min(22rem, 100%); margin-top: .35rem; z-index: 2; text-align: left;
+      display: flex; flex-direction: column;
+      border: 1px solid transparent; border-radius: .75rem;
+      background: transparent;
+    }
+    .att-drop-input {
+      width: 100%; margin-top: 0; padding: .7rem .9rem;
+      border: 1px solid var(--line); border-radius: 999px;
+      background: var(--paper-raised); color: var(--ink); font-size: 1rem;
+    }
+    .att-drop-input:focus, .att-drop-input:focus-visible {
+      outline: none; border-color: color-mix(in srgb, var(--ink) 35%, transparent);
+    }
+    /* Suggest flows attached under the input (jump-field parity) — not absolute/clipped by dialog. */
+    .att-drop-field .suggest {
+      position: relative; left: auto; right: auto; top: auto;
+      border: 1px solid var(--line); border-top: 0;
+      border-radius: 0 0 .75rem .75rem;
+      background: var(--paper-raised);
+      z-index: 8;
+    }
+    .att-drop-field.is-open,
+    .att-drop-field:has(.suggest:not([hidden])) {
+      border-color: color-mix(in srgb, var(--ink) 35%, transparent);
+      background: var(--paper-raised);
+    }
+    .att-drop-field.is-open .att-drop-input,
+    .att-drop-field:has(.suggest:not([hidden])) .att-drop-input {
+      border-radius: .75rem .75rem 0 0;
+      border-color: transparent;
+      border-bottom: 1px solid var(--line);
+      background: transparent;
+    }
+    .att-drop-field.is-open .suggest,
+    .att-drop-field:has(.suggest:not([hidden])) .suggest {
+      border-color: transparent;
+      border-top: 1px solid var(--line);
+      background: transparent;
+    }
+    .att-drop-add {
+      appearance: none; border: 0; border-radius: 999px;
+      padding: .55rem 1.1rem; background: var(--ink); color: var(--paper);
+      font-size: .85rem; font-weight: 600; cursor: pointer;
+    }
+    .att-drop-status {
+      min-height: 1.2em; margin: 0; padding: .15rem 1.2rem 1rem;
+      font-size: .8rem; color: var(--ink-soft); text-align: center;
+    }
+    .att-drop-status.is-error { color: #9f1239; }
+
+    .chapter-grid {
+      position: fixed; inset: 0; z-index: 40;
+      display: flex; align-items: flex-start; justify-content: center;
+      padding: calc(var(--tap) + var(--safe-top) + .7rem) 1rem 2rem;
+      background: color-mix(in srgb, var(--ink) 28%, transparent);
+    }
+    .chapter-grid[hidden] { display: none; }
+    .chapter-grid-sheet {
+      width: min(28rem, 100%);
+      max-height: min(36rem, calc(100dvh - 6rem));
+      overflow: auto;
+      padding: 1rem 1rem 1.15rem;
+      background: var(--paper-raised);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      box-shadow: 0 12px 40px color-mix(in srgb, var(--ink) 12%, transparent);
+    }
+    .chapter-grid-book {
+      appearance: none; -webkit-appearance: none;
+      display: inline-flex; align-items: center; gap: .35rem;
+      width: auto; max-width: 100%; margin: 0 0 .75rem; padding: 0;
+      border: 0; background: transparent; cursor: pointer;
+      font: inherit; text-align: left;
+      font-family: var(--head);
+      font-size: .82rem; font-weight: 600;
+      letter-spacing: .06em; text-transform: uppercase;
+      color: var(--muted);
+    }
+    .chapter-grid-book::after {
+      content: "";
+      width: .38rem; height: .38rem;
+      border-right: 1.5px solid currentColor;
+      border-bottom: 1.5px solid currentColor;
+      transform: rotate(-45deg);
+      opacity: .7;
+    }
+    .chapter-grid-book[aria-expanded="true"]::after {
+      transform: rotate(45deg);
+      margin-bottom: .15rem;
+    }
+    .chapter-grid-book:focus-visible {
+      outline: 2px solid color-mix(in srgb, var(--ink) 28%, transparent);
+      outline-offset: 2px;
+    }
+    .chapter-grid-books[hidden],
+    .chapter-grid-cells[hidden] { display: none; }
+    .chapter-grid-group {
+      margin: .85rem 0 .4rem;
+      font-size: .72rem; font-weight: 600;
+      letter-spacing: .06em; text-transform: uppercase;
+      color: var(--faint);
+    }
+    .chapter-grid-group:first-child { margin-top: 0; }
+    .chapter-grid-cells {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(var(--tap), 1fr));
+      gap: .4rem;
+    }
+    .chapter-grid-cell {
+      display: flex; align-items: center; justify-content: center;
+      min-height: var(--tap); min-width: var(--tap);
+      border: 1px solid var(--line); border-radius: 8px;
+      text-decoration: none; color: var(--ink);
+      font-variant-numeric: lining-nums;
+      background: transparent; cursor: pointer; font: inherit;
+    }
+    .chapter-grid-cell.is-current {
+      background: var(--ink); color: var(--paper); border-color: var(--ink);
+    }
+
+    .auth-chip {
+      min-height: var(--tap);
+      box-sizing: border-box;
+    }
+    .suggest button { min-height: var(--tap); }
+    .note-list .note-row { min-height: var(--tap); }
+    @media (max-width: 640px) {
+      .topbar { grid-template-columns: auto 1fr auto; gap: .25rem; padding-left: .5rem; padding-right: .5rem; }
+      .topbar-title { font-size: .95rem; }
+      .expand-btn { width: var(--tap); padding: 0; justify-content: center; }
+      .reader, .verse, .chapter {
+        --verse-gutter: 1.2rem;
+        --verse-gutter-gap: .45rem;
+        --verse-inset: .3rem;
+      }
+      .note-tray, .chapter-tray {
+        margin-left: calc(var(--verse-gutter) + var(--verse-gutter-gap));
+        padding-right: 0;
+      }
+      .chapter-tray {
+        margin-left: calc(var(--verse-inset) + var(--verse-gutter) + var(--verse-gutter-gap));
+        padding: .24rem .2rem .36rem;
+      }
+      .chapter-note-peek { min-height: 1rem; padding: .3rem 0; }
+      .outliner { padding: .15rem 0; min-height: 0; }
+      .chapter-tray .outliner { padding: .32rem 0; }
+      .oblock {
+        padding-left: calc(.35rem + (var(--depth, 0) * .95rem));
+        padding-right: .45rem;
+      }
+      .hint { font-size: .78rem; }
+      .pager { margin-bottom: calc(2rem + var(--safe-bottom)); }
+      main.reader, .notes-main, footer.site {
+        width: min(var(--page-max), calc(100% - 1.1rem));
+      }
+    }
+    @media (max-width: 390px) {
+      .reader, .verse, .chapter {
+        --verse-gutter: 1.05rem;
+        --verse-gutter-gap: .35rem;
+        --verse-inset: .15rem;
+      }
+      .oblock { padding-left: calc(.25rem + (var(--depth, 0) * .85rem)); }
+      .tray-label { font-size: .72rem; }
+    }
+  </style>
+</head>
+<body data-margin-build="20260930-tray-compact-v23">
+  ${body}
+</body>
+</html>`;
+}

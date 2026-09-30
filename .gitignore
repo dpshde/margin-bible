@@ -1,0 +1,19 @@
+node_modules/
+.wrangler/
+.dev.vars
+.dev.vars.*
+.cache/
+tmp/
+.impeccable/
+*.local
+.DS_Store
+# Local-only Rails→D1 import artifacts (personal library / PII)
+scripts/import-rails-library-96.sql
+scripts/rails-library-96.snapshot.json
+# Local D1 / SQLite dumps
+*.sqlite
+*.sqlite3
+*.db
+.env
+.env.*
+!.env.example

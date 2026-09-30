@@ -1,0 +1,26 @@
+[tools]
+bun = "1.4.2"
+node = "22"
+
+[env]
+_.path = ["{{config_root}}/node_modules/.bin"]
+
+[tasks.install]
+description = "Install JS dependencies"
+run = "bun install"
+
+[tasks.check]
+description = "Typecheck (tsc --noEmit)"
+run = "bun run check"
+
+[tasks.test]
+description = "Run bun tests"
+run = "bun test"
+
+[tasks.dev]
+description = "Wrangler local dev"
+run = "bun run dev"
+
+[tasks.ci]
+description = "CI: install, typecheck, test"
+run = ["bun install", "bun run check", "bun test"]

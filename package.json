@@ -1,0 +1,21 @@
+{
+  "name": "margin-workers-prod",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build:bsb": "bun scripts/build-bsb-chapters.ts",
+    "dev": "wrangler dev",
+    "migrate:local": "wrangler d1 migrations apply margin-bible --local",
+    "test": "bun test",
+    "check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "grab-bcv": "^0.1.7",
+    "hono": "^4.9.8"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20250927.0",
+    "typescript": "^5.9.2",
+    "wrangler": "^4.40.0"
+  }
+}
