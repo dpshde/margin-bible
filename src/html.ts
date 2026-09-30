@@ -349,9 +349,10 @@ export function page(title: string, body: string): string {
     }
     .chapter-note-rail.is-open .chapter-note-peek { display: none; }
     .chapter-tray {
-      margin: 0 0 .35rem calc(var(--verse-inset) + var(--verse-gutter) + var(--verse-gutter-gap));
-      /* Slight air inside the chapter note tray (Dylan). */
-      padding: .28rem .25rem .42rem;
+      /* Chapter note follows the jump field's full main-column width. */
+      margin: 0 0 .35rem;
+      /* Keep air vertical without shrinking the shared left/right edges. */
+      padding: .28rem 0 .42rem;
     }
     .chapter-tray .outliner {
       padding: .42rem 0;
@@ -504,7 +505,7 @@ export function page(title: string, body: string): string {
     .bookmarks-view > summary:focus-visible { outline: 2px solid var(--sel-rail-open); outline-offset: -2px; }
     .bookmarks-panel { padding: 0; margin: 0; border: 0; }
     .bookmarks-panel .empty { margin: .2rem 0 0; }
-    /* Nested --fill hover + mismatch radius looked odd on soft-wash panel (e.g. 2 Cor 12:7–9). */
+    /* Keep the soft-wash bookmark container calm; rows do not grow a second frame. */
     .bookmarks-panel .note-list .note-row { border-radius: .35rem; }
     @media (hover: hover) and (pointer: fine) {
       .bookmarks-panel .note-list .note-row:hover,
@@ -512,19 +513,33 @@ export function page(title: string, body: string): string {
         background: var(--paper-raised);
       }
     }
-    .note-week { margin: 0 0 1rem; }
-    .note-week + .note-week { margin-top: .35rem; }
+    /* Light side rails make each week one frame, not a stack of cards. */
+    .note-week {
+      margin: 0 0 1rem;
+      border-left: 1px solid color-mix(in srgb, var(--ink) 15%, transparent);
+      border-right: 1px solid color-mix(in srgb, var(--ink) 15%, transparent);
+    }
+    .note-week + .note-week { margin-top: .85rem; }
+    /* Filled inverted bars make THIS WEEK / LAST WEEK / OLDER read as dividers. */
     .note-week-label {
-      margin: 0 0 .15rem; padding: 0 .2rem;
+      display: flex; align-items: center;
+      margin: 0; padding: .35rem .55rem;
+      border-radius: 0;
+      background: var(--ink); color: var(--paper);
       font: 700 .7rem/1.3 var(--sans);
       letter-spacing: .08em; text-transform: uppercase;
-      color: var(--ink-soft);
     }
     .note-list { list-style: none; padding: 0; margin: 0; }
     .note-list li { border-top: 1px solid var(--line); }
+    .note-week .note-list li:first-child { border-top: 0; }
     .note-list .note-row {
-      display: block; padding: .65rem .2rem; text-decoration: none;
+      display: block; padding: .7rem .6rem; text-decoration: none;
       border-radius: .4rem;
+    }
+    /* Week rows sit inside square rails; keep fills flush with the frame. */
+    .note-week .note-row {
+      padding-inline: .65rem;
+      border-radius: 0;
     }
     .note-list .note-row:hover, .note-list .note-row:focus-visible { background: var(--fill); }
     .note-list .note-row:focus-visible { outline: 2px solid var(--sel-rail-open); outline-offset: -2px; }
@@ -685,7 +700,10 @@ export function page(title: string, body: string): string {
       align-items: center;
     }
     .att-board[hidden] { display: none !important; }
-    .att-item { display: inline-flex; align-items: center; gap: .1rem; max-width: 100%; }
+    .att-item {
+      position: relative;
+      display: inline-flex; align-items: center; gap: 0; max-width: 100%;
+    }
     .att-chip {
       display: inline-flex; align-items: center; min-width: 0; max-width: 16rem;
       padding: .1rem .45rem;
@@ -706,15 +724,28 @@ export function page(title: string, body: string): string {
     }
     @media (prefers-reduced-motion: reduce) { .att-chip.is-fresh { animation: none; } }
     .att-remove {
+      position: absolute; right: .18rem; top: 50%; z-index: 1;
       display: inline-flex; align-items: center; justify-content: center;
       width: 1.15rem; height: 1.15rem; min-width: 1.15rem; min-height: 1.15rem; padding: 0;
-      border: 0; border-radius: 999px; background: transparent;
+      transform: translateY(-50%);
+      border: 0; border-radius: 999px;
+      /* Opaque chip fill masks the xref digits under the overlay. */
+      background: var(--paper-raised);
       color: var(--faint); cursor: pointer;
+      visibility: hidden; opacity: 0;
+      transition: opacity .12s ease, color .12s ease, background .12s ease;
     }
     @media (hover: hover) and (pointer: fine) {
-      .att-remove:hover { color: var(--ink); background: var(--fill); }
+      .att-item:hover .att-remove,
+      .att-item:focus-within .att-remove,
+      .att-remove:focus-visible { visibility: visible; opacity: 1; }
+      .att-remove:hover { color: var(--ink); background: var(--paper-raised); }
     }
-    .att-remove:focus-visible { color: var(--ink); background: var(--fill); }
+    @media (hover: none), (pointer: coarse) {
+      /* Touch still gets a tap target, but it stays quiet inside the pill. */
+      .att-remove { visibility: visible; opacity: .72; }
+    }
+    .att-remove:focus-visible { visibility: visible; opacity: 1; color: var(--ink); background: var(--paper-raised); }
     .att-remove svg { display: block; width: .7rem; height: .7rem; }
     a.wiki {
       color: var(--ink-soft); text-decoration: underline;
@@ -911,8 +942,8 @@ export function page(title: string, body: string): string {
         padding-right: 0;
       }
       .chapter-tray {
-        margin-left: calc(var(--verse-inset) + var(--verse-gutter) + var(--verse-gutter-gap));
-        padding: .24rem .2rem .36rem;
+        margin-left: 0;
+        padding: .24rem 0 .36rem;
       }
       .chapter-note-peek { min-height: 1rem; padding: .3rem 0; }
       .outliner { padding: .15rem 0; min-height: 0; }

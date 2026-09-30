@@ -363,9 +363,9 @@ function attachmentChipHtml(att: Attachment): string {
   const id = escapeHtml(att.id);
   const source = ` data-att-source="${escapeHtml(att.source === "scan" ? "scan" : "manual")}"`;
   if (att.kind === "xref") {
-    return `<li class="att-item"><a class="att-chip wiki" href="${escapeHtml(hrefForXref(att.slug))}" data-att-id="${id}" data-att-kind="xref" data-att-slug="${escapeHtml(att.slug)}" data-att-title="${title}"${source}>${title}</a><button type="button" class="att-remove" data-att-id="${id}" aria-label="Remove attachment">${iconCloseTiny()}</button></li>`;
+    return `<li class="att-item"><a class="att-chip wiki" href="${escapeHtml(hrefForXref(att.slug))}" data-att-id="${id}" data-att-kind="xref" data-att-slug="${escapeHtml(att.slug)}" data-att-title="${title}"${source}>${title}</a><button type="button" class="att-remove" data-att-id="${id}" aria-label="Remove attachment" title="Remove attachment">${iconCloseTiny()}</button></li>`;
   }
-  return `<li class="att-item"><a class="att-chip att-url" href="${escapeHtml(att.url)}" target="_blank" rel="noreferrer" data-att-id="${id}" data-att-kind="url" data-att-url="${escapeHtml(att.url)}" data-att-title="${title}"${source}>${title}</a><button type="button" class="att-remove" data-att-id="${id}" aria-label="Remove attachment">${iconCloseTiny()}</button></li>`;
+  return `<li class="att-item"><a class="att-chip att-url" href="${escapeHtml(att.url)}" target="_blank" rel="noreferrer" data-att-id="${id}" data-att-kind="url" data-att-url="${escapeHtml(att.url)}" data-att-title="${title}"${source}>${title}</a><button type="button" class="att-remove" data-att-id="${id}" aria-label="Remove attachment" title="Remove attachment">${iconCloseTiny()}</button></li>`;
 }
 
 function blankBlock(): Block {

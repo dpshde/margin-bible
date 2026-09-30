@@ -65,7 +65,7 @@ app.use("*", async (c, next) => {
   await next();
 });
 
-app.get("/health", (c) => c.json({ ok: true, app: "margin-bible", version: "2026.09.30.27" }));
+app.get("/health", (c) => c.json({ ok: true, app: "margin-bible", version: "2026.09.30.35" }));
 
 app.get("/bsb/*", (c) => c.env.ASSETS.fetch(c.req.raw));
 

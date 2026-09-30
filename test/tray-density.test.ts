@@ -76,6 +76,18 @@ describe("note tray CSS density", () => {
     expect(css).not.toContain("min-width: var(--tap); min-height: var(--tap); padding: 0;\n      border: 0; border-radius: 999px; background: transparent;\n      color: var(--faint); cursor: pointer;\n    }\n    @media (hover: hover) and (pointer: fine) {\n      .att-remove:hover");
   });
 
+  test("attachment remove control reveals inside chip", () => {
+    expect(css).toContain("position: relative;");
+    expect(css).toContain("padding: .1rem .45rem;");
+    expect(css).toContain(".att-item:hover .att-remove");
+    expect(css).toContain(".att-item:focus-within .att-remove");
+    expect(css).toContain("@media (hover: none), (pointer: coarse)");
+    expect(css).toContain(".att-remove { visibility: visible; opacity: .72; }");
+    expect(css).toContain("background: var(--paper-raised);\n      color: var(--faint); cursor: pointer;");
+    expect(css).toContain("Opaque chip fill masks the xref digits under the overlay.");
+    expect(css).not.toContain("background: color-mix(in srgb, var(--paper-raised) 88%, transparent);");
+  });
+
   test("Saved status folds into tray footer meta near the ref label", () => {
     expect(css).toContain(".tray-meta {");
     expect(css).toContain("display: inline-flex; align-items: baseline; gap: .4rem;");

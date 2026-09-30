@@ -20,6 +20,18 @@ import { jumpFormHtml } from "../src/jump-ui";
 import { renderNotesIndex } from "../src/reader-page";
 import { page } from "../src/html";
 
+describe("inbox side rails", () => {
+  const css = page("t", "<p>x</p>");
+
+  test("keeps week sections and bookmark rows lightly encapsulated", () => {
+    expect(css).toContain("border-left: 1px solid color-mix(in srgb, var(--ink) 15%, transparent);");
+    expect(css).toContain("border-right: 1px solid color-mix(in srgb, var(--ink) 15%, transparent);");
+    expect(css).toContain(".note-week {");
+    expect(css).toContain("not a stack of cards");
+    expect(css).not.toContain(".bookmarks-panel .note-list {\n      padding-inline: .45rem;");
+  });
+});
+
 describe("inbox week grouping", () => {
   test("labels this week / last week / range", () => {
     const now = new Date("2026-09-29T15:00:00"); // Tuesday
@@ -79,10 +91,17 @@ describe("bookmark card polish", () => {
     expect(css).toContain(".bookmarks-summary-icon");
     expect(css).toContain(".bookmarks-view > summary::after { content: \"＋\"; display: inline-flex; align-items: center; justify-content: center; min-width: 1.35rem; min-height: 1.35rem; padding: .1rem .2rem;");
     expect(css).toContain("color: var(--ink-soft);");
-    // Not a bordered heavy card, and not the faint THIS WEEK label twin.
+    // Week sections use inverted filled bars as clear dividers.
     expect(css).not.toContain(".bookmarks-view {\n      margin: 0 0 1rem;\n    }");
     expect(css).not.toContain("border-left: 2px solid color-mix(in srgb, var(--ink-soft) 22%, transparent)");
-    expect(css).toContain(".note-week-label {\n      margin: 0 0 .15rem; padding: 0 .2rem;\n      font: 700 .7rem/1.3 var(--sans);\n      letter-spacing: .08em; text-transform: uppercase;\n      color: var(--ink-soft);");
+    expect(css).toContain(".note-week-label {\n      display: flex; align-items: center;\n      margin: 0; padding: .35rem .55rem;");
+    expect(css).toContain("border-radius: 0;");
+    expect(css).toContain(".note-week .note-list li:first-child { border-top: 0; }");
+    expect(css).toContain("display: block; padding: .7rem .6rem; text-decoration: none;");
+    expect(css).toContain(".note-week .note-row {\n      padding-inline: .65rem;");
+    expect(css).toContain("border-radius: 0;");
+    expect(css).toContain("background: var(--ink); color: var(--paper);");
+    expect(css).toContain("text-transform: uppercase;");
     expect(css).toContain(".bookmarks-panel .note-list .note-row { border-radius: .35rem; }");
     expect(css).toContain(".bookmarks-panel .note-list .note-row:hover");
     expect(css).toContain("background: var(--paper-raised);");

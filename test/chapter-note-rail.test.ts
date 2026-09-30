@@ -15,9 +15,12 @@ describe("chapter note rail CSS", () => {
     expect(css).toContain('.chapter-note-rail.is-open .chapter-note-peek { display: none; }');
   });
 
-  test("chapter tray has slight internal padding", () => {
-    expect(css).toContain("padding: .28rem .25rem .42rem;");
+  test("chapter tray matches jump width and keeps light internal padding", () => {
+    expect(css).toContain("margin: 0 0 .35rem;\n      /* Keep air vertical without shrinking the shared left/right edges. */\n      padding: .28rem 0 .42rem;");
+    expect(css).not.toContain("margin: 0 0 .35rem calc(var(--verse-inset) + var(--verse-gutter) + var(--verse-gutter-gap));");
+    expect(css).not.toContain("margin: 0 0 .35rem calc(var(--verse-gutter) + var(--verse-gutter-gap));");
     expect(css).toContain(".chapter-tray .outliner {\n      padding: .42rem 0;");
+    expect(css).toContain(".chapter-tray {\n        margin-left: 0;\n        padding: .24rem 0 .36rem;");
   });
 
   test("hint can be hidden after interact", () => {

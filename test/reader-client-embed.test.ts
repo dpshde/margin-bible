@@ -258,6 +258,7 @@ describe("attachment xref UX", () => {
   test("dismissed xrefs are tracked so × sticks across merge/save", () => {
     const source = clientScript();
     expect(source).toContain("const dismissedXrefs = new Map()");
+    expect(source).toContain('remove.title = "Remove attachment"');
     expect(source).toContain("dismissedXrefs.get(slug)?.delete(parsed.slug)");
     expect(source).toContain("set.add(chip.dataset.attSlug)");
     expect(source).toContain("mergeParsedXrefs(readAttachments(tray), blocks, dismissedXrefs.get(slug))");
