@@ -110,6 +110,7 @@ ${notesPreload}${prefetchLinks}
     ${authChip(signedIn, `/${passageSlug(passage)}`)}
     <button type="button" class="icon-btn${chapterNote?.bookmarked ? " is-on" : ""}" id="chapter-bookmark-btn" data-state-icon="bookmark" data-state-on="${chapterNote?.bookmarked ? "true" : "false"}" aria-label="Bookmark chapter" title="Bookmark chapter" aria-pressed="${chapterNote?.bookmarked ? "true" : "false"}">${iconBookmark()}</button>
     <button type="button" class="expand-btn icon-btn" id="expand-all-btn" aria-label="Expand notes" title="Expand notes" aria-pressed="false" ${notesForRender.some((n) => n.kind !== "chapter" && (n.bookmarked || (n.attachments?.length ?? 0) > 0 || !emptyBlocks(n.blocks))) ? "" : "disabled"}>${iconExpand()}</button>
+    ${spotlightHeaderHtml()}
   </div>
 </header>
 ${chapterGridHtml(passage.book, passage.chapter)}
@@ -417,6 +418,8 @@ function phIcon(name: string, size = 18, className = "", weight: "regular" | "fi
     trash: "M216 48H176V40a24 24 0 0 0-24-24H104A24 24 0 0 0 80 40v8H40a8 8 0 0 0 0 16h8V208a16 16 0 0 0 16 16H192a16 16 0 0 0 16-16V64h8a8 8 0 0 0 0-16ZM96 40a8 8 0 0 1 8-8h48a8 8 0 0 1 8 8v8H96Zm96 168H64V64H192ZM112 104v64a8 8 0 0 1-16 0V104a8 8 0 0 1 16 0Zm48 0v64a8 8 0 0 1-16 0V104a8 8 0 0 1 16 0Z",
     x: "M205.66 194.34a8 8 0 0 1-11.32 11.32L128 139.31 61.66 205.66a8 8 0 0 1-11.32-11.32L116.69 128 50.34 61.66A8 8 0 0 1 61.66 50.34L128 116.69l66.34-66.35a8 8 0 0 1 11.32 11.32L139.31 128Z",
     paperclip: "M209.66 122.34a8 8 0 0 1 0 11.32l-82.05 82a56 56 0 0 1-79.2-79.2l83.28-83.28a40 40 0 0 1 56.56 56.56L105.37 192.63a24 24 0 1 1-33.94-33.94l83.28-83.28a8 8 0 1 1 11.32 11.32L82.75 170a8 8 0 1 0 11.31 11.32l82.88-82.88a24 24 0 0 0-33.94-33.94L59.72 148.79a40 40 0 0 0 56.56 56.56l82.05-82a8 8 0 0 1 11.32 0Z",
+    crosshair: "M232 120h-8.34A96.14 96.14 0 0 0 136 32.34V24a8 8 0 0 0-16 0v8.34A96.14 96.14 0 0 0 32.34 120H24a8 8 0 0 0 0 16h8.34A96.14 96.14 0 0 0 120 223.66V232a8 8 0 0 0 16 0v-8.34A96.14 96.14 0 0 0 223.66 136H232a8 8 0 0 0 0-16Zm-96 87.6V200a8 8 0 0 0-16 0v7.6A80.15 80.15 0 0 1 48.4 136H56a8 8 0 0 0 0-16H48.4A80.15 80.15 0 0 1 120 48.4V56a8 8 0 0 0 16 0V48.4A80.15 80.15 0 0 1 207.6 120H200a8 8 0 0 0 0 16h7.6A80.15 80.15 0 0 1 136 207.6ZM128 88a40 40 0 1 0 40 40 40 40 0 0 0-40-40Zm0 64a24 24 0 1 1 24-24 24 24 0 0 1-24 24",
+    "dots-three": "M140 128a12 12 0 1 1-12-12 12 12 0 0 1 12 12m56-12a12 12 0 1 0 12 12 12 12 0 0 0-12-12M60 116a12 12 0 1 0 12 12 12 12 0 0 0-12-12",
   };
   const iconName = weight === "fill" ? `${name}-fill` : name;
   const d = paths[iconName];
@@ -463,4 +466,13 @@ function iconPaperclip(): string {
 }
 function iconUser(): string {
   return phIcon("user", 18);
+}
+function iconCrosshair(): string {
+  return phIcon("crosshair", 18);
+}
+function iconDots(): string {
+  return phIcon("dots-three", 18);
+}
+function spotlightHeaderHtml(): string {
+  return `<button type="button" class="icon-btn spotlight-chip" id="spotlight-chip" aria-label="Turn spotlight off" title="Turn spotlight off">${iconCrosshair()}</button><div class="more-menu"><button type="button" class="icon-btn" id="more-menu-btn" aria-label="More" title="More" aria-haspopup="menu" aria-expanded="false" aria-controls="more-menu">${iconDots()}</button><div class="more-menu-pop" id="more-menu" role="menu" hidden><button type="button" class="more-menu-item" id="spotlight-toggle" role="menuitemcheckbox" aria-checked="false" aria-keyshortcuts="Control+K Meta+K">Spotlight</button></div></div>`;
 }

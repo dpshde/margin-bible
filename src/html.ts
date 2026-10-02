@@ -27,6 +27,9 @@ function themeBootScript(): string {
     if (localStorage.getItem("margin_reader_hint_v1") === "1") {
       document.documentElement.setAttribute("data-reader-hint", "off");
     }
+    if (localStorage.getItem("margin_spotlight") === "true") {
+      document.documentElement.classList.add("spotlight-on");
+    }
   } catch (err) {}
   var key = "margin_theme";
   function preferred() {
@@ -131,7 +134,7 @@ export function page(title: string, body: string): string {
       overflow: hidden; clip: rect(0,0,0,0); border: 0;
     }
     .topbar {
-      position: sticky; top: 0; z-index: 5;
+      position: sticky; top: 0; z-index: 7;
       display: grid; grid-template-columns: 1fr auto 1fr; align-items: center;
       gap: .5rem;
       padding: calc(.35rem + var(--safe-top)) .75rem .35rem;
@@ -194,6 +197,38 @@ export function page(title: string, body: string): string {
     }
     .icon-btn:focus-visible { color: var(--ink); background: var(--fill); }
     .icon-btn:disabled { opacity: .35; cursor: default; }
+    /* Spotlight is off until the reader opts in. The chip is the only passive signal. */
+    .spotlight-chip { display: none; }
+    html.spotlight-on .spotlight-chip {
+      display: inline-flex;
+      color: var(--paper);
+      background: var(--ink);
+    }
+    /* The chip replaces More while spotlight is on, so the header stays one control wide. */
+    html.spotlight-on #more-menu-btn { display: none; }
+    html.spotlight-on .spotlight-chip:hover,
+    html.spotlight-on .spotlight-chip:focus-visible {
+      color: var(--paper);
+      background: var(--ink-soft);
+    }
+    .more-menu { position: relative; }
+    .more-menu-pop {
+      position: absolute; top: calc(100% + .2rem); right: 0; z-index: 30;
+      min-width: 10.5rem; margin: 0; padding: .3rem;
+      background: var(--paper-raised);
+      border: 1px solid var(--line); border-radius: .65rem;
+      box-shadow: 0 .5rem 1.4rem color-mix(in srgb, var(--ink) 14%, transparent);
+    }
+    .more-menu-pop[hidden] { display: none; }
+    .more-menu-item {
+      display: block; width: 100%; min-height: 2.25rem;
+      margin: 0; padding: .4rem .65rem;
+      border: 0; border-radius: .45rem;
+      background: transparent; text-align: left; cursor: pointer;
+      font-size: .92rem; color: var(--ink);
+    }
+    .more-menu-item:hover,
+    .more-menu-item:focus-visible { background: var(--fill); outline: none; }
     .icon-btn svg { display: block; width: 1.1rem; height: 1.1rem; }
     .theme-toggle .theme-icon { display: inline-flex; }
     .theme-toggle .theme-icon-sun { display: none; }
@@ -232,7 +267,9 @@ export function page(title: string, body: string): string {
     }
     .jump {
       display: block; margin: .85rem 0 .35rem;
+      position: relative; z-index: 5;
     }
+    #reader-hint { position: relative; z-index: 5; }
     .jump-field {
       position: relative; min-width: 0;
       display: flex; flex-direction: column;
@@ -370,11 +407,64 @@ export function page(title: string, body: string): string {
       font-family: var(--read); font-size: var(--read-size); line-height: var(--read-leading);
       color: var(--ink);
     }
-    .verse.is-open .vtext,
-    .verse.is-span .vtext {
-      background: color-mix(in srgb, var(--ink) 4%, transparent);
-      border-radius: .08em; padding: .02em .08em;
-      box-decoration-break: clone; -webkit-box-decoration-break: clone;
+    /* Spotlight (opt-in). The dim is pure CSS: while a bullet holds the caret,
+       every other verse drops to 0.3 and the focused verse stays at 1. Blur
+       clears :has(), so the chapter returns to full opacity. Header, jump, and
+       the reader hint are not in this list. Scripture section headings dim
+       with the body; they are not chrome. */
+    html.spotlight-on:has(.otext:focus) .verse,
+    html.spotlight-on:has(.otext:focus) .section-head,
+    html.spotlight-on:has(.otext:focus) .chapter-note-rail,
+    html.spotlight-on:has(.otext:focus) .pager {
+      opacity: 0.3;
+    }
+    html.spotlight-on:has(.otext:focus) .verse:focus-within,
+    html.spotlight-on:has(.otext:focus) .chapter-note-rail:focus-within {
+      opacity: 1;
+      position: relative;
+      z-index: 5;
+    }
+    html.spotlight-on.spotlight-fade .verse,
+    html.spotlight-on.spotlight-fade .section-head,
+    html.spotlight-on.spotlight-fade .chapter-note-rail,
+    html.spotlight-on.spotlight-fade .pager {
+      transition: opacity 120ms ease;
+    }
+    @media (prefers-reduced-motion: reduce) {
+      html.spotlight-on.spotlight-fade .verse,
+      html.spotlight-on.spotlight-fade .section-head,
+      html.spotlight-on.spotlight-fade .chapter-note-rail,
+      html.spotlight-on.spotlight-fade .pager {
+        transition: none;
+      }
+    }
+    /* Screen-edge fade. A fixed paper wash over the dimmed chapter, not over
+       the focused verse (that row is lifted above this layer). Desktop fades
+       toward every edge. Mobile keeps the top clear, under the sticky header,
+       and fades downward. */
+    html.spotlight-on:has(.otext:focus)::before {
+      content: "";
+      position: fixed; z-index: 4; inset: 0;
+      pointer-events: none;
+      background: radial-gradient(
+        ellipse 58% 50% at 50% 46%,
+        transparent 34%,
+        var(--paper) 100%
+      );
+    }
+    @media (max-width: 767px) {
+      html.spotlight-on:has(.otext:focus)::before {
+        background: linear-gradient(
+          to bottom,
+          transparent 0%,
+          transparent 42%,
+          var(--paper) 100%
+        );
+      }
+    }
+    html.spotlight-on #chapter { overflow-anchor: none; }
+    @media (min-width: 768px) {
+      html.spotlight-on #chapter { padding-top: 50vh; }
     }
     .note-tray, .chapter-tray {
       position: relative;

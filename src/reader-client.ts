@@ -31,6 +31,7 @@ export function clientScript(): string {
   const pendingSaves = new Map();
   let expanding = false;
   let selectedVerse = null;
+  let breathAnimating = false;
   const openVerses = new Set();
   const collapsedNotes = new Set();
   const INBOX_KEY = "margin_inbox_v4";
@@ -1408,9 +1409,10 @@ export function clientScript(): string {
       const first = outliner.querySelector(".otext");
       first?.focus({ preventScroll: true });
     }
-    if (scroll) {
+    if (scroll && !document.documentElement.classList.contains("spotlight-on")) {
       // After open anim, scroll tray fully into view (block nearest + safe-area under tray-head).
       // Mid-anim height is clipped, so waiting avoids hard-cutting the footer near the viewport bottom.
+      // Spotlight owns this scroll itself (typewriter align), so skip it while that mode is on.
       const scrollTarget = verse.querySelector('.note-tray:not([hidden])') || verse;
       const runScroll = () => {
         snappyScrollIntoView(scrollTarget, { block: "nearest" });
@@ -1657,11 +1659,17 @@ export function clientScript(): string {
       fillEditable(textEl, readEditableText(textEl), { decorate: false });
       placeCaret(textEl, offset);
     }
-    requestAnimationFrame(() => keepEditingVisible(textEl));
+    requestAnimationFrame(() => {
+      if (document.documentElement.classList.contains("spotlight-on")) return;
+      keepEditingVisible(textEl);
+    });
   });
-  function onViewportChange() {
+  function onViewportChange(event) {
+    if (breathAnimating) return;
     const active = document.activeElement?.closest?.(".otext");
-    if (active && root.contains(active)) keepEditingVisible(active);
+    if (!active || !root.contains(active)) return;
+    if (document.documentElement.classList.contains("spotlight-on") && event.type !== "resize") return;
+    keepEditingVisible(active);
   }
   window.visualViewport?.addEventListener("resize", onViewportChange);
   window.visualViewport?.addEventListener("scroll", onViewportChange);
@@ -2451,6 +2459,247 @@ export function clientScript(): string {
   }
   bootReaderHint();
 
+  const SPOTLIGHT_KEY = "margin_spotlight";
+  const KEYBOARD_SLIDE_MS = 120;
+  const POINTER_SLIDE_MS = 200;
+  const BREATH_MS = 200;
+  let spotlightTween = 0;
+  let spotlightReturn = null;
+  function spotlightOn() {
+    return document.documentElement.classList.contains("spotlight-on");
+  }
+  function cancelSpotlightTween() {
+    if (!spotlightTween) return;
+    cancelAnimationFrame(spotlightTween);
+    spotlightTween = 0;
+  }
+  function runSpotlightTween(ms, step, done) {
+    cancelSpotlightTween();
+    if (ms <= 0 || prefersReduceMotion()) {
+      step(1);
+      if (done) done();
+      return;
+    }
+    const started = performance.now();
+    const frame = (now) => {
+      const t = Math.min(1, (now - started) / ms);
+      step(1 - (1 - t) ** 3);
+      if (t < 1) spotlightTween = requestAnimationFrame(frame);
+      else {
+        spotlightTween = 0;
+        if (done) done();
+      }
+    };
+    spotlightTween = requestAnimationFrame(frame);
+  }
+  function slideBy(delta, ms) {
+    if (Math.abs(delta) < 1) return;
+    const from = window.scrollY || window.pageYOffset || 0;
+    runSpotlightTween(ms, (t) => window.scrollTo(0, from + delta * t));
+  }
+  function isMobileSpotlight() {
+    return window.matchMedia("(max-width: 767px)").matches;
+  }
+  function stickyHeaderHeight() {
+    const header = document.querySelector(".topbar");
+    return header ? header.getBoundingClientRect().height : 0;
+  }
+  function centerScrollDelta(rowTop, rowHeight, viewTop, viewHeight, stickyHeaderPx, topAlign) {
+    if (topAlign) return rowTop - viewTop - stickyHeaderPx;
+    return rowTop + rowHeight / 2 - (viewTop + viewHeight / 2);
+  }
+  function alignScrollDelta(rowTop, rowHeight) {
+    const vv = window.visualViewport;
+    const viewTop = vv ? vv.offsetTop : 0;
+    const viewHeight = vv ? vv.height : window.innerHeight;
+    return centerScrollDelta(rowTop, rowHeight, viewTop, viewHeight, stickyHeaderHeight(), isMobileSpotlight());
+  }
+  function breathPadPx() {
+    if (isMobileSpotlight()) return 0;
+    const probe = document.createElement("div");
+    probe.style.cssText = "position:absolute;visibility:hidden;height:50vh;pointer-events:none";
+    document.body.appendChild(probe);
+    const h = probe.getBoundingClientRect().height;
+    probe.remove();
+    return Math.round(h);
+  }
+  function outlineRegion() {
+    return document.getElementById("chapter");
+  }
+  function spotlightLine(target) {
+    if (!target || !target.closest) return null;
+    const text = target.classList && target.classList.contains("otext") ? target : target.closest(".otext");
+    if (!text) return null;
+    const block = text.closest(".oblock") || text.closest(".verse") || text.closest(".chapter-note-rail");
+    if (!block) return null;
+    // Desktop centers the caret line. Mobile top-aligns the verse, so the
+    // scripture stays under the header instead of scrolling off above the note.
+    if (isMobileSpotlight()) return text.closest(".verse") || text.closest(".chapter-note-rail") || block;
+    return block;
+  }
+  function centerElement(el, ms) {
+    if (!spotlightOn() || breathAnimating || !el.isConnected) return;
+    const rect = el.getBoundingClientRect();
+    if (rect.height === 0) return;
+    slideBy(alignScrollDelta(rect.top, rect.height), ms);
+  }
+  function rememberCaret() {
+    const active = document.activeElement;
+    if (active && active.classList && active.classList.contains("otext")) spotlightReturn = active;
+  }
+  function restoreCaret() {
+    const el = spotlightReturn;
+    spotlightReturn = null;
+    if (el && el.isConnected) el.focus({ preventScroll: true });
+  }
+  function readPad(region) {
+    if (!region) return 0;
+    if (region.style.paddingTop !== "") {
+      const live = parseFloat(region.style.paddingTop);
+      if (Number.isFinite(live)) return live;
+    }
+    return parseFloat(getComputedStyle(region).paddingTop) || 0;
+  }
+  function animateBreath(padFrom, padTo, scrollDelta) {
+    const region = outlineRegion();
+    const from = window.scrollY || window.pageYOffset || 0;
+    breathAnimating = true;
+    if (region) region.style.overflowAnchor = "none";
+    runSpotlightTween(BREATH_MS, (t) => {
+      if (region) region.style.paddingTop = Math.round(padFrom + (padTo - padFrom) * t) + "px";
+      window.scrollTo(0, from + scrollDelta * t);
+    }, () => {
+      breathAnimating = false;
+      if (region) {
+        region.style.paddingTop = "";
+        region.style.overflowAnchor = "";
+      }
+    });
+  }
+  function syncSpotlightUi() {
+    const item = document.getElementById("spotlight-toggle");
+    if (item) item.setAttribute("aria-checked", spotlightOn() ? "true" : "false");
+  }
+  function hideMoreMenu() {
+    const menu = document.getElementById("more-menu");
+    const btn = document.getElementById("more-menu-btn");
+    if (menu) menu.hidden = true;
+    if (btn) btn.setAttribute("aria-expanded", "false");
+  }
+  function closeMoreMenu(restore) {
+    hideMoreMenu();
+    if (restore) restoreCaret();
+    else spotlightReturn = null;
+  }
+  function setSpotlight(next) {
+    if (spotlightOn() === next) {
+      syncSpotlightUi();
+      return;
+    }
+    try { localStorage.setItem(SPOTLIGHT_KEY, next ? "true" : "false"); } catch (err) {}
+    const region = outlineRegion();
+    if (next) {
+      let padFrom = 0;
+      if (region) {
+        padFrom = readPad(region);
+        region.style.paddingTop = padFrom + "px";
+      }
+      document.documentElement.classList.add("spotlight-on");
+      syncSpotlightUi();
+      const line = spotlightLine(document.activeElement);
+      const padTo = breathPadPx();
+      let delta = 0;
+      if (line) {
+        const rect = line.getBoundingClientRect();
+        const shift = region && region.contains(line) ? padTo - padFrom : 0;
+        delta = alignScrollDelta(rect.top + shift, rect.height);
+      }
+      animateBreath(padFrom, padTo, delta);
+      return;
+    }
+    document.documentElement.classList.remove("spotlight-on", "spotlight-fade");
+    syncSpotlightUi();
+    const line = spotlightLine(document.activeElement);
+    let flight = breathPadPx();
+    let base = 0;
+    if (region) {
+      const live = parseFloat(region.style.paddingTop);
+      if (region.style.paddingTop !== "" && Number.isFinite(live)) {
+        flight = live;
+        region.style.paddingTop = "";
+      }
+      base = parseFloat(getComputedStyle(region).paddingTop) || 0;
+      region.style.paddingTop = flight + "px";
+    }
+    const padDelta = line && region && region.contains(line) ? -(flight - base) : (line ? 0 : -(window.scrollY || 0));
+    animateBreath(flight, base, padDelta);
+  }
+  window.addEventListener("pointerdown", (event) => {
+    const target = event.target;
+    if (target && target.closest && target.closest("#more-menu, #more-menu-btn, #spotlight-chip")) rememberCaret();
+    document.documentElement.classList.add("spotlight-fade");
+  }, true);
+  window.addEventListener("keydown", (event) => {
+    document.documentElement.classList.remove("spotlight-fade");
+    if (event.key === "Escape") {
+      const menu = document.getElementById("more-menu");
+      if (menu && !menu.hidden) {
+        event.preventDefault();
+        event.stopPropagation();
+        closeMoreMenu(true);
+      }
+      return;
+    }
+    if ((event.key === "k" || event.key === "K") && (event.metaKey || event.ctrlKey) && !event.altKey && !event.shiftKey) {
+      event.preventDefault();
+      hideMoreMenu();
+      restoreCaret();
+      setSpotlight(!spotlightOn());
+    }
+  }, true);
+  window.addEventListener("focusin", (event) => {
+    if (!spotlightOn()) return;
+    const line = spotlightLine(event.target);
+    if (!line) return;
+    requestAnimationFrame(() => {
+      if (!spotlightOn() || !line.isConnected) return;
+      const sel = document.getSelection();
+      if (sel && !sel.isCollapsed && sel.anchorNode && line.contains(sel.anchorNode)) return;
+      centerElement(line, document.documentElement.classList.contains("spotlight-fade") ? POINTER_SLIDE_MS : KEYBOARD_SLIDE_MS);
+    });
+  }, true);
+  const moreBtn = document.getElementById("more-menu-btn");
+  const moreMenu = document.getElementById("more-menu");
+  const spotlightItem = document.getElementById("spotlight-toggle");
+  const spotlightChip = document.getElementById("spotlight-chip");
+  syncSpotlightUi();
+  if (moreBtn && moreMenu) {
+    moreBtn.addEventListener("click", () => {
+      if (moreMenu.hidden) {
+        moreMenu.hidden = false;
+        moreBtn.setAttribute("aria-expanded", "true");
+        return;
+      }
+      closeMoreMenu(true);
+    });
+  }
+  spotlightItem?.addEventListener("click", () => {
+    const next = !spotlightOn();
+    hideMoreMenu();
+    restoreCaret();
+    setSpotlight(next);
+  });
+  spotlightChip?.addEventListener("click", () => {
+    restoreCaret();
+    setSpotlight(false);
+  });
+  document.addEventListener("click", (event) => {
+    if (!moreMenu || moreMenu.hidden) return;
+    const target = event.target;
+    if (target && target.closest && target.closest(".more-menu")) return;
+    closeMoreMenu(false);
+  });
+
   syncChapterBookmarkBtn(Boolean(noteMap.get(chapterSlug)?.bookmarked));
   syncChapterNoteChrome();
 
@@ -2472,7 +2721,10 @@ export function clientScript(): string {
     openVerse(Number(boot), { push: false, autofocus: true, preferRange: bootPreferRange, scroll: false });
     const focus = document.querySelector(".verse.is-open") || document.querySelector('.note-tray:not([hidden])');
     // Double-rAF so layout includes the opened tray, then snappy-center.
-    requestAnimationFrame(() => requestAnimationFrame(() => snappyScrollIntoView(focus, { block: "center" })));
+    // Spotlight's focusin align owns the scroll while that mode is on.
+    if (!spotlightOn()) {
+      requestAnimationFrame(() => requestAnimationFrame(() => snappyScrollIntoView(focus, { block: "center" })));
+    }
   }
   if (new URLSearchParams(location.search).get("chapter_note") === "1") {
     setChapterNoteOpen(true, { push: false, focus: false });

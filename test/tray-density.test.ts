@@ -50,7 +50,8 @@ describe("note tray CSS density", () => {
 
   test("is-span selection rail matches is-open chrome", () => {
     expect(css).toContain(".verse.is-open,\n    .verse.is-span { border-left: 0; }");
-    expect(css).toContain(".verse.is-open .vtext,\n    .verse.is-span .vtext");
+    expect(css).toContain(".verse.is-open::before,\n    .verse.is-span::before");
+    expect(css).not.toContain("background: color-mix(in srgb, var(--ink) 4%, transparent);");
   });
 
   test("stacked open trays tighten vertical spacing", () => {
