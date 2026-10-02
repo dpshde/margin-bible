@@ -1,4 +1,4 @@
-import data from "../../../vendor/data/books.json";
+import data from "../vendor/data/books.json";
 
 export type BooksData = {
   codes: string[];

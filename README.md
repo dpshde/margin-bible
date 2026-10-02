@@ -122,11 +122,15 @@ Top-bar actions (icon-only + tooltips):
 2. **Older** — one row per chapter (verse/range notes in that chapter collapse into a single chapter link), ordered by most recent activity in the chapter.
 
 
+## MCP (Lamp / agents)
+
+Read-only Streamable HTTP MCP at `POST/GET/DELETE/OPTIONS /mcp` (JSON, handshake `2025-11-25`). Auth is `Authorization: Bearer` via Worker secrets `MCP_BEARER_TOKEN` + `MCP_LIBRARY_ID`. Cookie sessions for the human UI are unchanged. Tools: `list_notes`, `get_note`, `list_notes_covering_verse`, `export_library`, `personal_study`, `prepare_group_study`. Point Lamp's `user-margin-bible` at `https://margin-bible.dpshade.workers.dev/mcp`.
+
 ## What is out
 
 Compared with the Rails app:
 
-- Magic-link email delivery, OAuth, Cloudflare Access, and MCP.
+- Magic-link email delivery, full OAuth/DCR for MCP, Cloudflare Access.
 - Hotwire Native / the iOS shell
 - Agent signatures, read trail UI, inbox, file (CAS) attachments — spike chips are xref + http(s) URL only
 - Copy-note / tray-external chrome beyond the route.bible label link

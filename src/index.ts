@@ -40,6 +40,7 @@ import { chapterSlug, lazyChapterNotes, parsePassage, passageLabel, passageSlug,
 import { renderChapterPage, renderMissing, renderNotesIndex } from "./reader-page";
 import type { ChapterPack } from "./usj";
 import { ensureBidirectionalXrefs, syncBidirectionalXrefs } from "./xref-sync";
+import { handleMcpDelete, handleMcpGet, handleMcpOptions, handleMcpPost } from "./mcp";
 
 export type Env = {
   DB: D1Database;
@@ -47,6 +48,10 @@ export type Env = {
   AUTH_PEPPER?: string;
   WEBAUTHN_RP_ID?: string;
   WEBAUTHN_ORIGIN?: string;
+  /** Shared secret for Authorization: Bearer on /mcp (wrangler secret). */
+  MCP_BEARER_TOKEN?: string;
+  /** D1 library id bound to the MCP bearer (Dylan's notes). */
+  MCP_LIBRARY_ID?: string;
 };
 
 type Variables = {
@@ -79,7 +84,12 @@ async function loginHtml(
 }
 
 app.use("*", async (c, next) => {
-  if (c.req.path === "/health" || c.req.path.startsWith("/bsb/")) {
+  if (
+    c.req.path === "/health" ||
+    c.req.path === "/mcp" ||
+    c.req.path.startsWith("/bsb/") ||
+    c.req.path.startsWith("/vendor/")
+  ) {
     await next();
     return;
   }
@@ -106,7 +116,7 @@ app.use("*", async (c, next) => {
   }
 });
 
-app.get("/health", (c) => c.json({ ok: true, app: "margin-bible", version: "2026.10.02.14" }));
+app.get("/health", (c) => c.json({ ok: true, app: "margin-bible", version: "2026.10.02.15" }));
 
 app.get("/bsb/*", (c) => c.env.ASSETS.fetch(c.req.raw));
 
@@ -282,6 +292,12 @@ app.get("/jump", (c) => {
   if (!passage) return c.html(renderMissing("Couldn’t resolve that passage. Try John 3:16 or jhn.3.16."), 422);
   return c.redirect(`/${passageSlug(passage)}`, 302);
 });
+
+// MCP Streamable HTTP (Bearer). Registered before /:slug; skips session minting.
+app.options("/mcp", (c) => handleMcpOptions());
+app.get("/mcp", (c) => handleMcpGet(c));
+app.delete("/mcp", (c) => handleMcpDelete(c));
+app.post("/mcp", (c) => handleMcpPost(c));
 
 
 app.get("/export", async (c) => {
