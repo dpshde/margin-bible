@@ -391,20 +391,6 @@ export function page(title: string, body: string): string {
       position: relative;
       z-index: 5;
     }
-    html.spotlight-on.spotlight-fade .verse,
-    html.spotlight-on.spotlight-fade .section-head,
-    html.spotlight-on.spotlight-fade .chapter-note-rail,
-    html.spotlight-on.spotlight-fade .pager {
-      transition: opacity 120ms ease;
-    }
-    @media (prefers-reduced-motion: reduce) {
-      html.spotlight-on.spotlight-fade .verse,
-      html.spotlight-on.spotlight-fade .section-head,
-      html.spotlight-on.spotlight-fade .chapter-note-rail,
-      html.spotlight-on.spotlight-fade .pager {
-        transition: none;
-      }
-    }
     /* Screen-edge fade. A fixed paper wash over the dimmed chapter, not over
        the focused verse (that row is lifted above this layer). Desktop fades
        toward every edge. Mobile keeps the top clear, under the sticky header,

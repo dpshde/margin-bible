@@ -92,7 +92,7 @@ describe("embedded reader scripts", () => {
     expect(source).toContain('trans = "grid-template-rows " + TRAY_MS + "ms ease, opacity " + TRAY_MS + "ms ease"');
     expect(source).not.toContain('transition = "height " + TRAY_MS');
     expect(source).toContain("setNoteTray(tray, false)");
-    expect(source).toContain("setNoteTray(tray, true)");
+    expect(source).toContain("setNoteTray(tray, true, { animate: false })");
   });
 
   test("clientScript has snappy verse scroll and inbox prefetch", () => {

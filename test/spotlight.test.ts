@@ -49,12 +49,11 @@ describe("verse spotlight", () => {
   test("the reader still aligns the caret while spotlight is on", () => {
     expect(source).toContain('classList.add("spotlight-on")');
     expect(source).toContain('classList.add("spotlight-fade")');
-    expect(source).toContain("const KEYBOARD_SLIDE_MS = 120");
-    expect(source).toContain("const POINTER_SLIDE_MS = 200");
+    expect(source).toContain("function smoothScrollTo");
+    expect(source).toContain("Math.exp(-14 * dt)");
     expect(source).toContain("function centerScrollDelta");
     expect(source).toContain("if (topAlign) return rowTop - viewTop - stickyHeaderPx");
-    expect(source).toContain("const VERSE_SLIDE_MS = 280");
-    expect(source).toContain('centerElement(verse.querySelector(".verse-press") || verse, VERSE_SLIDE_MS, false)');
+    expect(source).toContain('centerElement(verse.querySelector(".verse-press") || verse, false)');
     expect(source).toContain("sel.isCollapsed");
   });
 

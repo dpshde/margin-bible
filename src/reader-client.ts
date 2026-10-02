@@ -37,7 +37,46 @@ export function clientScript(): string {
   let readerTitle = document.title;
   let inboxOpen = false;
   let inboxPrefetch = null;
-  let scrollRaf = 0;
+  let scrollGoal = null;
+  let scrollFrame = 0;
+  let scrollStamp = 0;
+  // One glide for every programmatic move: verse select, caret, rail, and tray follow.
+  // The rate is per second, so a dropped frame does not change the curve.
+  function smoothScrollTo(top) {
+    const vh = window.innerHeight || document.documentElement.clientHeight || 0;
+    const height = document.documentElement.scrollHeight || document.body.scrollHeight || 0;
+    const maxY = Math.max(0, height - vh);
+    const goal = Math.max(0, Math.min(maxY, top));
+    if (prefersReduceMotion()) {
+      if (scrollFrame) cancelAnimationFrame(scrollFrame);
+      scrollFrame = 0;
+      scrollGoal = null;
+      scrollStamp = 0;
+      window.scrollTo(0, goal);
+      return;
+    }
+    scrollGoal = goal;
+    if (scrollFrame) return;
+    scrollStamp = 0;
+    const step = (now) => {
+      if (scrollGoal == null) { scrollFrame = 0; return; }
+      const dt = scrollStamp ? Math.min(0.032, (now - scrollStamp) / 1000) : 0.016;
+      scrollStamp = now;
+      const from = window.scrollY || window.pageYOffset || 0;
+      const delta = scrollGoal - from;
+      if (Math.abs(delta) < 0.5) {
+        window.scrollTo(0, scrollGoal);
+        scrollGoal = null;
+        scrollFrame = 0;
+        scrollStamp = 0;
+        return;
+      }
+      const k = 1 - Math.exp(-14 * dt);
+      window.scrollTo(0, from + delta * k);
+      scrollFrame = requestAnimationFrame(step);
+    };
+    scrollFrame = requestAnimationFrame(step);
+  }
 
   function safeInsetBottom() {
     const raw = getComputedStyle(document.documentElement).getPropertyValue("--safe-bottom").trim();
@@ -68,23 +107,7 @@ export function clientScript(): string {
     const from = window.scrollY || window.pageYOffset || 0;
     const to = Math.max(0, Math.min(maxY, from + delta));
     if (Math.abs(to - from) < 2) return;
-    if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-      window.scrollTo(0, to);
-      return;
-    }
-    if (scrollRaf) cancelAnimationFrame(scrollRaf);
-    const t0 = performance.now();
-    const dist = to - from;
-    // Keep it snappy: cap duration for long jumps, floor for tiny ones.
-    const dur = Math.max(90, Math.min(ms, 90 + Math.abs(dist) * 0.12));
-    function frame(now) {
-      const p = Math.min(1, (now - t0) / dur);
-      const eased = 1 - Math.pow(1 - p, 3);
-      window.scrollTo(0, from + dist * eased);
-      if (p < 1) scrollRaf = requestAnimationFrame(frame);
-      else scrollRaf = 0;
-    }
-    scrollRaf = requestAnimationFrame(frame);
+    smoothScrollTo(to);
   }
 
   function inboxNoteExcerpt(n) {
@@ -1043,10 +1066,8 @@ export function clientScript(): string {
     else if (rect.bottom > floor) delta = rect.bottom - floor;
     if (rect.top - delta < topPad) delta = rect.top - topPad;
     if (Math.abs(delta) < 2) return;
-    const vh = window.innerHeight || document.documentElement.clientHeight || 0;
-    const maxY = Math.max(0, (document.documentElement.scrollHeight || document.body.scrollHeight) - vh);
     const from = window.scrollY || window.pageYOffset || 0;
-    window.scrollTo(0, Math.max(0, Math.min(maxY, from + delta)));
+    smoothScrollTo(from + delta);
   }
   function isEmpty(blocks) {
     return blocks.every((b) => !String(b.text || "").trim());
@@ -1383,11 +1404,11 @@ export function clientScript(): string {
     verse.classList.add("is-open");
     verse.querySelectorAll(".note-tray").forEach((tray) => {
       if (tray.dataset.rangeComposer === "1") {
-        setNoteTray(tray, !!preferRange);
+        setNoteTray(tray, !!preferRange, { animate: false });
       } else if (tray.dataset.verseComposer === "1") {
-        setNoteTray(tray, !preferRange);
+        setNoteTray(tray, !preferRange, { animate: false });
       } else {
-        setNoteTray(tray, true);
+        setNoteTray(tray, true, { animate: false });
       }
     });
     // If preferRange but no range tray, fall back to verse composer.
@@ -1395,7 +1416,7 @@ export function clientScript(): string {
       const rangeTray = verse.querySelector('.note-tray[data-range-composer]');
       if (!rangeTray) {
         const vc = verse.querySelector('.note-tray[data-verse-composer]');
-        if (vc) setNoteTray(vc, true);
+        if (vc) setNoteTray(vc, true, { animate: false });
       }
     }
     syncSpanChrome();
@@ -1411,8 +1432,8 @@ export function clientScript(): string {
       first?.focus({ preventScroll: true });
     }
     if (scroll && spotlight) {
-      // Already-placed verse URLs have nothing to move. A new selection eases to center.
-      centerElement(verse.querySelector(".verse-press") || verse, VERSE_SLIDE_MS, false);
+      // Already-placed verse URLs have nothing to move. A new selection glides to center.
+      centerElement(verse.querySelector(".verse-press") || verse, false);
     } else if (scroll) {
       // After open anim, scroll tray fully into view (block nearest + safe-area under tray-head).
       // Mid-anim height is clipped, so waiting avoids hard-cutting the footer near the viewport bottom.
@@ -2461,41 +2482,13 @@ export function clientScript(): string {
   }
   bootReaderHint();
 
-  const KEYBOARD_SLIDE_MS = 120;
-  const POINTER_SLIDE_MS = 200;
-  const VERSE_SLIDE_MS = 280;
   document.documentElement.classList.add("spotlight-on");
-  let spotlightTween = 0;
-  // Opening a verse sets scroll once. Later caret moves still ease.
+  // Opening a verse owns the glide. The caret follow waits until the next focus.
   let placeInstant = false;
-  function cancelSpotlightTween() {
-    if (!spotlightTween) return;
-    cancelAnimationFrame(spotlightTween);
-    spotlightTween = 0;
-  }
-  function runSpotlightTween(ms, step, done) {
-    cancelSpotlightTween();
-    if (ms <= 0 || prefersReduceMotion()) {
-      step(1);
-      if (done) done();
-      return;
-    }
-    const started = performance.now();
-    const frame = (now) => {
-      const t = Math.min(1, (now - started) / ms);
-      step(1 - (1 - t) ** 3);
-      if (t < 1) spotlightTween = requestAnimationFrame(frame);
-      else {
-        spotlightTween = 0;
-        if (done) done();
-      }
-    };
-    spotlightTween = requestAnimationFrame(frame);
-  }
-  function slideBy(delta, ms) {
+  function slideBy(delta) {
     if (Math.abs(delta) < 1) return;
     const from = window.scrollY || window.pageYOffset || 0;
-    runSpotlightTween(ms, (t) => window.scrollTo(0, from + delta * t));
+    smoothScrollTo(from + delta);
   }
   function isMobileSpotlight() {
     return window.matchMedia("(max-width: 767px)").matches;
@@ -2519,7 +2512,7 @@ export function clientScript(): string {
     if (isMobileSpotlight()) return text.closest(".verse") || text.closest(".chapter-note-rail") || block;
     return block;
   }
-  function centerElement(el, ms, topAlign) {
+  function centerElement(el, topAlign) {
     if (!el || !el.isConnected) return;
     const rect = el.getBoundingClientRect();
     if (rect.height === 0) return;
@@ -2527,7 +2520,7 @@ export function clientScript(): string {
     const viewTop = vv ? vv.offsetTop : 0;
     const viewHeight = vv ? vv.height : window.innerHeight;
     const alignTop = topAlign == null ? isMobileSpotlight() : topAlign;
-    slideBy(centerScrollDelta(rect.top, rect.height, viewTop, viewHeight, stickyHeaderHeight(), alignTop), ms);
+    slideBy(centerScrollDelta(rect.top, rect.height, viewTop, viewHeight, stickyHeaderHeight(), alignTop));
   }
   window.addEventListener("pointerdown", () => {
     document.documentElement.classList.add("spotlight-fade");
@@ -2543,7 +2536,7 @@ export function clientScript(): string {
       const sel = document.getSelection();
       if (sel && !sel.isCollapsed && sel.anchorNode && line.contains(sel.anchorNode)) return;
       if (placeInstant) { placeInstant = false; return; }
-      centerElement(line, document.documentElement.classList.contains("spotlight-fade") ? POINTER_SLIDE_MS : KEYBOARD_SLIDE_MS);
+      centerElement(line);
     });
   }, true);
 
@@ -2558,8 +2551,6 @@ export function clientScript(): string {
     let railPointerId = null;
     let railTouchActive = false;
     let railTargets = [];
-    let railFrame = 0;
-    let railTarget = null;
     let railHideTimer = 0;
     function railMaxScroll() {
       const vh = window.innerHeight || document.documentElement.clientHeight || 0;
@@ -2615,28 +2606,8 @@ export function clientScript(): string {
         dot.classList.remove("current", "wave-1", "wave-2", "wave-3");
       });
     }
-    function stopRailAnimation() {
-      if (railFrame) cancelAnimationFrame(railFrame);
-      railFrame = 0;
-      railTarget = null;
-    }
     function setRailScrollTarget(top) {
-      const maxTop = railMaxScroll();
-      railTarget = Math.max(0, Math.min(maxTop, top));
-      cancelSpotlightTween();
-      if (railFrame) return;
-      const tick = () => {
-        if (railTarget == null) { railFrame = 0; return; }
-        const delta = railTarget - railScrollY();
-        if (Math.abs(delta) < 0.5 || prefersReduceMotion()) {
-          window.scrollTo(0, railTarget);
-          railFrame = 0;
-          return;
-        }
-        window.scrollTo(0, railScrollY() + delta * 0.32);
-        railFrame = requestAnimationFrame(tick);
-      };
-      railFrame = requestAnimationFrame(tick);
+      smoothScrollTo(top);
     }
     function buildRailTargets() {
       const rows = verseRows();
@@ -2703,9 +2674,6 @@ export function clientScript(): string {
       }
       clearRailActiveVerse();
       if (railHideTimer) { window.clearTimeout(railHideTimer); railHideTimer = 0; }
-      cancelSpotlightTween();
-      if (scrollRaf) { cancelAnimationFrame(scrollRaf); scrollRaf = 0; }
-      stopRailAnimation();
       buildRailTargets();
       railActive = true;
       verseRail.classList.add("dragging", "visible");
@@ -2763,7 +2731,6 @@ export function clientScript(): string {
       else return;
       event.preventDefault();
       if (railHideTimer) { window.clearTimeout(railHideTimer); railHideTimer = 0; }
-      cancelSpotlightTween();
       buildRailTargets();
       setRailPreview(next);
       scrollRailToExact(next, rows.length <= 1 ? 0 : next / (rows.length - 1));
