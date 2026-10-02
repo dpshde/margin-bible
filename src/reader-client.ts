@@ -66,7 +66,11 @@ export function clientScript(): string {
     const slop = 10;
     const moved = Number.isFinite(dx) && Number.isFinite(dy) && (Math.abs(dx) >= slop || Math.abs(dy) >= slop);
     if (!moved) return { cancelGlide: false, releaseCaret: false };
-    return { cancelGlide: true, releaseCaret: !!(coarse && editorFocused && !targetInEditor) };
+    const vertical = Math.abs(dy) > Math.abs(dx);
+    return {
+      cancelGlide: true,
+      releaseCaret: !!(coarse && editorFocused && (!targetInEditor || vertical)),
+    };
   }
   function spotlightFocusFollow(placeInstantFlag, coarse, scrolling) {
     if (placeInstantFlag) return "consume-instant";
@@ -113,6 +117,9 @@ export function clientScript(): string {
   window.addEventListener("touchstart", (event) => {
     const t = event.touches && event.touches[0];
     touchPan = t ? { x: t.clientX, y: t.clientY } : null;
+    // Finger down ends a glide still pulling the open verse to mid-screen.
+    // A tap must still focus the note, so the caret stays until the gesture is a pan.
+    if (touchPan) cancelScrollGlide();
   }, { passive: true });
   window.addEventListener("touchend", () => { touchPan = null; }, { passive: true });
   window.addEventListener("touchcancel", () => { touchPan = null; }, { passive: true });
@@ -133,7 +140,11 @@ export function clientScript(): string {
     if (!action.cancelGlide) return;
     cancelScrollGlide();
     armUserScroll();
-    if (action.releaseCaret) editing.blur();
+    if (action.releaseCaret) {
+      // Drop the Enter-focus hold too, or its timer puts the caret back and iOS pins the verse.
+      if (focusHold && focusHold.el === editing) focusHold = null;
+      editing.blur();
+    }
   }, { passive: true });
   window.addEventListener("wheel", () => cancelScrollGlide(), { passive: true });
 
@@ -1203,6 +1214,8 @@ export function clientScript(): string {
       if (!el.isConnected) return;
       // A newer Enter or arrow move replaced this hold. Don't pull the caret back.
       if (!focusHold || focusHold.el !== el) return;
+      // A finger pan owns the page. Putting the caret back would pin the verse mid-screen.
+      if (userScrolling) return;
       const outliner = el.closest(".outliner");
       const active = document.activeElement;
       const inside = !!(active && outliner && outliner.contains(active));
@@ -1784,7 +1797,7 @@ export function clientScript(): string {
   root.addEventListener("focusin", (event) => {
     const textEl = event.target.closest(".otext");
     if (!textEl || !root.contains(textEl)) return;
-    if (focusHold && Date.now() < focusHold.until && focusHold.el.isConnected && textEl !== focusHold.el) {
+    if (!userScrolling && focusHold && Date.now() < focusHold.until && focusHold.el.isConnected && textEl !== focusHold.el) {
       const holdOutliner = focusHold.el.closest(".outliner");
       if (holdOutliner && holdOutliner.contains(textEl)) {
         focusHold.el.focus({ preventScroll: true });
