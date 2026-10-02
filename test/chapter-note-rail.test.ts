@@ -72,11 +72,26 @@ describe("chapter note first paint", () => {
     expect(html).toContain("chapter body");
     expect(html).not.toMatch(/id="chapter-tray"[^>]*\shidden/);
     expect(html).toContain('data-notes-pending="0"');
+    expect(html).toContain("history.scrollRestoration = \"manual\"");
+    expect(html).toContain("window.scrollTo(0, 0)");
   });
 
   test("a normal chapter keeps the tray closed", () => {
     const html = renderChapterPage({ passage: parsePassage("jhn.3")!, pack, notes: [] });
     expect(html).toContain('id="chapter-tray" data-slug="jhn.3" hidden');
     expect(html).not.toContain("chapter-note-rail is-open");
+    expect(html).not.toContain("window.scrollTo(0, 0)");
+  });
+
+  test("a verse page still centers the verse when the chapter note is also open", () => {
+    const html = renderChapterPage({
+      passage: parsePassage("jhn.3.16")!,
+      pack,
+      notes: [],
+      chapterNoteOpen: true,
+    });
+    expect(html).toContain('id="v16"');
+    expect(html).toContain("window.scrollTo(0, target)");
+    expect(html).not.toContain("window.scrollTo(0, 0)");
   });
 });

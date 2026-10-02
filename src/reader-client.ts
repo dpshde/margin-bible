@@ -348,7 +348,7 @@ export function clientScript(): string {
   function inboxChapterRow(ch) {
     const when = inboxNoteWhen({ updatedAt: ch.updatedAt });
     const stamp = when.getTime() ? when.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" }) : "";
-    return inboxChapterBundleRow(ch.slug, ch.label || ch.slug, { excerpt: ch.excerpt || "", stamp });
+    return inboxChapterBundleRow(ch.slug, ch.label || ch.slug, { excerpt: ch.excerpt || "", stamp, rowOpensNote: true });
   }
   function inboxWeekChapterRows(notes) {
     const order = [];
@@ -392,7 +392,8 @@ export function clientScript(): string {
       ? '<span class="note-bundle-verses">' + opts.verses + "</span>"
       : (opts.excerpt ? '<span class="note-row-excerpt">' + escapeHtml(opts.excerpt) + "</span>" : "");
     const rowClass = opts.verses ? "note-bundle" : "note-bundle note-row-chapter";
-    return '<li class="' + rowClass + '"><a class="note-bundle-open" href="/' + escapeHtml(slug) + '" tabindex="-1" aria-hidden="true"></a><a class="note-bundle-name" href="/' + escapeHtml(slug) + '?chapter_note=1"' + titleAttr + ">" + escapeHtml(title) + "</a>" + body + "</li>";
+    const openHref = opts.rowOpensNote ? ("/" + escapeHtml(slug) + "?chapter_note=1") : ("/" + escapeHtml(slug));
+    return '<li class="' + rowClass + '"><a class="note-bundle-open" href="' + openHref + '" tabindex="-1" aria-hidden="true"></a><a class="note-bundle-name" href="/' + escapeHtml(slug) + '?chapter_note=1"' + titleAttr + ">" + escapeHtml(title) + "</a>" + body + "</li>";
   }
   function inboxListHtml(notes) {
     const rows = inboxNormalize(notes);

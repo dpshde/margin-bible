@@ -272,7 +272,7 @@ describe("inbox recent weeks + older chapter bundles", () => {
     expect(html).toContain(">28</a>");
     expect(html).not.toContain(">Romans 8:28<");
     expect(html).toContain(">Older<");
-    expect(html).toContain('href="/heb.12"');
+    expect(html).toContain('href="/heb.12?chapter_note=1"');
     expect(html).toContain("Hebrews 12");
     expect(html).toContain("note-row-chapter");
     expect(html).not.toContain("Hebrews 12:1");
@@ -292,7 +292,7 @@ describe("inbox recent weeks + older chapter bundles", () => {
     const html = notesListHtml(notes, now);
     expect(html).toContain(">Older<");
     expect(html).toContain("note-row-chapter");
-    expect(html).toContain('href="/rom.6"');
+    expect(html).toContain('href="/rom.6?chapter_note=1"');
     expect(html).toContain(">Romans 6<");
     expect(html).toContain(">3 notes<");
     expect(html).not.toContain("3 notes ·");
@@ -324,8 +324,8 @@ describe("inbox recent weeks + older chapter bundles", () => {
     expect(html).toContain(">Older<");
     expect(html).toContain("Romans 6");
     expect(html).toContain("Hebrews 12");
-    expect(html).toContain('href="/rom.6"');
-    expect(html).toContain('href="/heb.12"');
+    expect(html).toContain('href="/rom.6?chapter_note=1"');
+    expect(html).toContain('href="/heb.12?chapter_note=1"');
     expect(html).not.toContain('href="/rom.6.18"');
     expect(html).not.toContain('href="/rom.6.12"');
     expect(html).not.toContain(">rom.6.18<");
@@ -375,7 +375,10 @@ describe("inbox recent weeks + older chapter bundles", () => {
     expect(older).not.toMatch(/href="\/[a-z0-9]+\.\d+\.\d+/i);
     const hrefs = [...older.matchAll(/href="\/([^"]+)"/g)].map((m) => m[1].split("?")[0]);
     expect(older).toContain('href="/rom.6?chapter_note=1"');
-    expect(older).toContain('class="note-bundle-open" href="/rom.6"');
+    expect(older).toContain('class="note-bundle-open" href="/rom.6?chapter_note=1"');
+    const rawHrefs = [...older.matchAll(/href="([^"]+)"/g)].map((m) => m[1]);
+    expect(rawHrefs.length).toBeGreaterThan(0);
+    for (const href of rawHrefs) expect(href).toContain("?chapter_note=1");
     expect(hrefs.length).toBeGreaterThan(0);
     for (const href of hrefs) {
       expect(isVerseLevelSlug(href)).toBe(false);

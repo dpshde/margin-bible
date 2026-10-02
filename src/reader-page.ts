@@ -95,7 +95,7 @@ export function renderChapterPage(input: {
   const notesPreload = notesPending
     ? `<link rel="preload" href="/api/notes?chapter=${escapeHtml(chapSlug)}" as="fetch" crossorigin="use-credentials">\n`
     : "";
-  const body = `<link rel="prefetch" href="/notes" as="document">
+  const body = `${bootChapterTopScript(chapterNoteOpen && bootOpen == null)}<link rel="prefetch" href="/notes" as="document">
 <link rel="prefetch" href="/api/notes" as="fetch" crossorigin="use-credentials">
 ${notesPreload}${prefetchLinks}
 <script type="speculationrules">{"prefetch":[{"urls":${speculateUrls},"eagerness":"eager"}]}</script>
@@ -169,6 +169,7 @@ ${chapterGridHtml(passage.book, passage.chapter)}
   </form>
 </dialog>
 </div>
+${bootChapterTopScript(chapterNoteOpen && bootOpen == null)}
 ${bootVerseScrollScript(bootOpen)}
 <script id="notes-data" type="application/json">${JSON.stringify(notesPayload).replace(/</g, "\\u003c")}</script>
 <script>
@@ -231,6 +232,17 @@ ${notesInboxScript()}
 }
 
 const VERSE_RAIL_DOTS = 28;
+
+/** A chapter opened for its note must start at the top. Soft-nav keeps the notes-list scroll, so the new document resets it. */
+function bootChapterTopScript(open: boolean): string {
+  if (!open) return "";
+  return `<script>
+(function () {
+  if (history.scrollRestoration) history.scrollRestoration = "manual";
+  window.scrollTo(0, 0);
+})();
+</script>`;
+}
 
 /** Place a verse URL before first paint. The async reader loads after this, so it must not start at the top. */
 function bootVerseScrollScript(bootVerse: number | null): string {

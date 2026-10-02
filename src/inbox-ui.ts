@@ -259,8 +259,13 @@ function verseCitation(note: InboxNote): string {
   return label.slice(colon + 1).trim();
 }
 
-/** Book + chapter opens the chapter note. The rest of the row opens the chapter. Verse cards stay on top. */
-function chapterBundleHtml(slug: string, title: string, opts: { verses?: string; excerpt?: string; stamp?: string } = {}): string {
+/** Book + chapter opens the chapter note. The rest of a recent row opens the chapter. Verse cards stay on top.
+ *  Older rows pass rowOpensNote so the whole row, including the count, opens the chapter note. */
+function chapterBundleHtml(
+  slug: string,
+  title: string,
+  opts: { verses?: string; excerpt?: string; stamp?: string; rowOpensNote?: boolean } = {},
+): string {
   const titleAttr = opts.stamp ? ` title="${escapeHtml(opts.stamp)}"` : "";
   const body = opts.verses
     ? `<span class="note-bundle-verses">${opts.verses}</span>`
@@ -268,7 +273,8 @@ function chapterBundleHtml(slug: string, title: string, opts: { verses?: string;
       ? `<span class="note-row-excerpt">${escapeHtml(opts.excerpt)}</span>`
       : "";
   const rowClass = opts.verses ? "note-bundle" : "note-bundle note-row-chapter";
-  return `<li class="${rowClass}"><a class="note-bundle-open" href="/${escapeHtml(slug)}" tabindex="-1" aria-hidden="true"></a><a class="note-bundle-name" href="/${escapeHtml(slug)}?chapter_note=1"${titleAttr}>${escapeHtml(title)}</a>${body}</li>`;
+  const openHref = opts.rowOpensNote ? `/${escapeHtml(slug)}?chapter_note=1` : `/${escapeHtml(slug)}`;
+  return `<li class="${rowClass}"><a class="note-bundle-open" href="${openHref}" tabindex="-1" aria-hidden="true"></a><a class="note-bundle-name" href="/${escapeHtml(slug)}?chapter_note=1"${titleAttr}>${escapeHtml(title)}</a>${body}</li>`;
 }
 
 /** Every verse and range is a card, even when it is the only note in the chapter. A chapter note stays a chapter row. */
@@ -311,6 +317,7 @@ function chapterRowHtml(ch: InboxChapterBundle): string {
   return chapterBundleHtml(ch.slug, ch.label || ch.slug, {
     excerpt: ch.excerpt || "",
     stamp: formatStamp({ updatedAt: ch.updatedAt }),
+    rowOpensNote: true,
   });
 }
 
@@ -488,13 +495,14 @@ export function notesInboxScript(): string {
       ? '<span class="note-bundle-verses">' + opts.verses + "</span>"
       : (opts.excerpt ? '<span class="note-row-excerpt">' + escape(opts.excerpt) + "</span>" : "");
     const rowClass = opts.verses ? "note-bundle" : "note-bundle note-row-chapter";
-    return '<li class="' + rowClass + '"><a class="note-bundle-open" href="/' + escape(slug) + '" tabindex="-1" aria-hidden="true"></a><a class="note-bundle-name" href="/' + escape(slug) + '?chapter_note=1"' + titleAttr + ">" + escape(title) + "</a>" + body + "</li>";
+    const openHref = opts.rowOpensNote ? ("/" + escape(slug) + "?chapter_note=1") : ("/" + escape(slug));
+    return '<li class="' + rowClass + '"><a class="note-bundle-open" href="' + openHref + '" tabindex="-1" aria-hidden="true"></a><a class="note-bundle-name" href="/' + escape(slug) + '?chapter_note=1"' + titleAttr + ">" + escape(title) + "</a>" + body + "</li>";
   }
 
   function chapterRow(ch) {
     const when = noteWhen({ updatedAt: ch.updatedAt });
     const stamp = when.getTime() ? when.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" }) : "";
-    return chapterBundleRow(ch.slug, ch.label || ch.slug, { excerpt: ch.excerpt || "", stamp });
+    return chapterBundleRow(ch.slug, ch.label || ch.slug, { excerpt: ch.excerpt || "", stamp, rowOpensNote: true });
   }
 
   function rowsHtml(notes) {
