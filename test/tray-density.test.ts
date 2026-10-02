@@ -18,8 +18,8 @@ describe("note tray CSS density", () => {
 
   test("outliner has no forced tall min-height void", () => {
     expect(css).toContain("border-radius: .65rem; padding: .22rem 0; min-height: 0;");
+    expect(css).toContain(".outliner { padding: .15rem 0; min-height: 0; }");
     expect(css).not.toContain("min-height: 5.5rem");
-    expect(css).not.toContain("min-height: 2.75rem");
   });
 
   test("tray-head stays a minimal footer under notes without safe-bottom void", () => {

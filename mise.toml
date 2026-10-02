@@ -1,26 +1,43 @@
 [tools]
 bun = "1.4.2"
-node = "22"
+node = "22.23.3"
+# Pin the beta. An unpinned `cf` install resolves to an unrelated 0.x package.
+"npm:cf" = "1.0.0-beta.10"
 
 [env]
 _.path = ["{{config_root}}/node_modules/.bin"]
+CF_SEND_TELEMETRY = "false"
 
 [tasks.install]
-description = "Install JS dependencies"
-run = "bun install"
+description = "Install JS dependencies from bun.lock"
+run = "mise exec -- bun install --frozen-lockfile"
 
 [tasks.check]
 description = "Typecheck (tsc --noEmit)"
-run = "bun run check"
+run = "mise exec -- bun run check"
 
 [tasks.test]
 description = "Run bun tests"
-run = "bun test"
-
-[tasks.dev]
-description = "Wrangler local dev"
-run = "bun run dev"
+run = "mise exec -- bun test"
 
 [tasks.ci]
-description = "CI: install, typecheck, test"
-run = ["bun install", "bun run check", "bun test"]
+description = "What GitHub runs before a Worker can publish"
+depends = ["install"]
+run = ["mise exec -- bun run check", "mise exec -- bun test", "mise exec -- bunx wrangler deploy --dry-run"]
+
+[tasks.deploy]
+description = "Publish the Worker with the lockfile Wrangler, then confirm /health"
+depends = ["install"]
+run = "sh scripts/deploy.sh"
+
+[tasks."cf:whoami"]
+description = "Show the Cloudflare identity cf and Wrangler will use"
+run = "sh scripts/cf-whoami.sh"
+
+[tasks."d1:local"]
+description = "Apply D1 migrations to the local Miniflare database"
+run = "mise exec -- bun run migrate:local"
+
+[tasks."d1:remote"]
+description = "Apply unapplied D1 migrations on the remote database. Not part of deploy."
+run = "sh scripts/d1-remote.sh"

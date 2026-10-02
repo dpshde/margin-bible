@@ -1,6 +1,8 @@
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
   "name": "margin-bible",
+  // Account used by `mise run deploy`. Resource tasks read the same value.
+  "account_id": "91ff2c2b757414041aeaa00896a8a43f",
   "main": "src/index.ts",
   "compatibility_date": "2026-09-01",
   "workers_dev": true,
