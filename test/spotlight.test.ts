@@ -6,6 +6,7 @@ import { renderChapterPage } from "../src/reader-page";
 import { parsePassage } from "../src/passage";
 import type { ChapterPack } from "../src/usj";
 import { clientScript } from "../src/reader-client";
+import { spotlightFocusFollow, spotlightTouchAction } from "../src/spotlight-scroll";
 
 const pack = JSON.parse(
   readFileSync(path.join(import.meta.dir, "../assets/bsb/jhn.3.json"), "utf8"),
@@ -55,6 +56,37 @@ describe("verse spotlight", () => {
     expect(source).toContain("if (topAlign) return rowTop - viewTop - stickyHeaderPx");
     expect(source).toContain('centerElement(verse.querySelector(".verse-press") || verse, false)');
     expect(source).toContain("sel.isCollapsed");
+  });
+
+  test("a finger pan cancels the glide and does not pin the open verse", () => {
+    expect(spotlightTouchAction({
+      dx: 1, dy: 2, coarse: true, editorFocused: true, targetInEditor: false,
+    })).toEqual({ cancelGlide: false, releaseCaret: false });
+    expect(spotlightTouchAction({
+      dx: 0, dy: 28, coarse: true, editorFocused: true, targetInEditor: false,
+    })).toEqual({ cancelGlide: true, releaseCaret: true });
+    expect(spotlightTouchAction({
+      dx: 0, dy: 28, coarse: true, editorFocused: true, targetInEditor: true,
+    })).toEqual({ cancelGlide: true, releaseCaret: false });
+    expect(spotlightTouchAction({
+      dx: 12, dy: 0, coarse: false, editorFocused: true, targetInEditor: false,
+    })).toEqual({ cancelGlide: true, releaseCaret: false });
+    expect(spotlightFocusFollow({ placeInstant: true, coarse: true, userScrolling: false })).toBe("consume-instant");
+    expect(spotlightFocusFollow({ placeInstant: false, coarse: true, userScrolling: false })).toBe("hold");
+    expect(spotlightFocusFollow({ placeInstant: false, coarse: false, userScrolling: true })).toBe("hold");
+    expect(spotlightFocusFollow({ placeInstant: false, coarse: false, userScrolling: false })).toBe("center");
+
+    expect(source).toContain("function cancelScrollGlide");
+    expect(source).toContain("function spotlightTouchAction");
+    expect(source).toContain("function spotlightFocusFollow");
+    expect(source).toContain("if (gen !== scrollGen || scrollGoal == null)");
+    expect(source).toContain("if (action.releaseCaret) editing.blur()");
+    expect(source).toContain('addEventListener("wheel", () => cancelScrollGlide(), { passive: true })');
+    expect(source).toContain("if (userScrolling) return");
+    const atHold = source.indexOf('if (follow === "hold") return;');
+    const atCenter = source.indexOf("centerElement(line);");
+    expect(atHold).toBeGreaterThan(0);
+    expect(atCenter).toBeGreaterThan(atHold);
   });
 
   test("a verse range marks every verse in the range and leaves the neighbors out", () => {
