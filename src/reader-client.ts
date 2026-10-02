@@ -20,6 +20,7 @@ export function clientScript(): string {
   }]));
   let notesHydrated = !notesPending;
   const notesPrefetch = new Map();
+  const chapterNotesGen = new Map();
   let attTray = null;
   let xrefSpan = null;
   /** noteSlug → Set of xref slugs dismissed with × (until manually re-attached). */
@@ -398,7 +399,7 @@ export function clientScript(): string {
           kind: "xref",
           slug: resolved.slug,
           title: String(row.title || resolved.label),
-          source: row.source === "manual" || row.source === "scan" ? row.source : undefined,
+          source: row.source === "manual" || row.source === "scan" || row.source === "backlink" ? row.source : undefined,
         };
       } else if (row.kind === "url" || row.url) {
         const url = absoluteHttpUrl(row.url || row.href || "");
@@ -623,7 +624,7 @@ export function clientScript(): string {
     const kept = current.filter((row) => row.kind !== "xref" || row.source !== "scan" || parsedSlugs.has(row.slug)).map((row) => {
       if (row.kind !== "xref" || !parsedSlugs.has(row.slug)) return row;
       const title = parsed.find((i) => i.slug === row.slug)?.title || row.title;
-      const source = row.source === "manual" ? "manual" : "scan";
+      const source = row.source === "manual" || row.source === "backlink" ? row.source : "scan";
       return { ...row, title, source };
     });
     const present = new Set(kept.filter((r) => r.kind === "xref").map((r) => r.slug));
@@ -647,7 +648,7 @@ export function clientScript(): string {
       slug: chip.dataset.attSlug,
       url: chip.dataset.attUrl,
       title: chip.dataset.attTitle || chip.textContent,
-      source: chip.dataset.attSource === "scan" ? "scan" : "manual",
+      source: chip.dataset.attSource === "scan" || chip.dataset.attSource === "backlink" ? chip.dataset.attSource : "manual",
     })));
   }
   function isBookmarked(tray) {
@@ -663,7 +664,7 @@ export function clientScript(): string {
     chip.dataset.attId = row.id;
     chip.dataset.attKind = row.kind;
     chip.dataset.attTitle = row.title;
-    chip.dataset.attSource = row.source === "scan" ? "scan" : "manual";
+    chip.dataset.attSource = row.source === "scan" || row.source === "backlink" ? row.source : "manual";
     if (row.kind === "xref") chip.dataset.attSlug = row.slug;
     else {
       chip.dataset.attUrl = row.url;
@@ -1223,7 +1224,11 @@ export function clientScript(): string {
             createdAt: savedNote?.createdAt || "",
           });
         }
-        // Keep chapter session cache + prefetch in sync so soft-nav return shows refs.
+        // Paint same-chapter mirrors from this save, and drop other chapters' caches
+        // so the next visit refetches the backlink instead of showing the old list.
+        if (Array.isArray(data.chapterNotes)) reconcileChapterNotes(data.chapterNotes);
+        dropLinkedChapterCaches(data.linkedSlugs);
+        if (!Array.isArray(data.chapterNotes)) bumpChapterNotesGen(chapterSlug);
         notesPrefetch.delete(chapterSlug);
         writeChapterNotesCache(chapterSlug, [...noteMap.values()]);
         // Refresh full list in background after edits so inbox stays complete.
@@ -2192,6 +2197,57 @@ export function clientScript(): string {
     }
     return null;
   }
+  function bumpChapterNotesGen(slug) {
+    const next = (chapterNotesGen.get(slug) || 0) + 1;
+    chapterNotesGen.set(slug, next);
+    notesPrefetch.delete(slug);
+    return next;
+  }
+  function dropChapterNotesCache(slug) {
+    if (!slug) return;
+    bumpChapterNotesGen(slug);
+    notesCache.delete(slug);
+    try {
+      const all = readChapterNotesCache();
+      if (!all[slug]) return;
+      delete all[slug];
+      sessionStorage.setItem(CHAPTER_NOTES_KEY, JSON.stringify(all));
+    } catch {}
+  }
+  function dropLinkedChapterCaches(slugs) {
+    if (!Array.isArray(slugs)) return;
+    const seen = new Set();
+    for (const slug of slugs) {
+      const key = inboxChapterSlugOf(slug);
+      if (!key || key === chapterSlug || seen.has(key)) continue;
+      seen.add(key);
+      dropChapterNotesCache(key);
+    }
+  }
+  function reconcileChapterNotes(list) {
+    bumpChapterNotesGen(chapterSlug);
+    const incoming = (list || []).map(normalizeHydrateNote).filter((n) => n.slug);
+    const keep = new Set(incoming.map((n) => n.slug));
+    for (const slug of [...noteMap.keys()]) {
+      if (keep.has(slug) || noteIsDirty(slug)) continue;
+      noteMap.delete(slug);
+      lastSaved.delete(slug);
+      const tray = slug === chapterSlug
+        ? document.querySelector("#chapter-tray")
+        : document.querySelector('.note-tray[data-slug="' + CSS.escape(slug) + '"]');
+      if (!tray) continue;
+      if (tray.dataset.covering === "1") tray.remove();
+      else {
+        paintNoteIntoTray(tray, {
+          slug,
+          blocks: [{ id: "b_empty", indent: 0, text: "", bullet: true }],
+          bookmarked: false,
+          attachments: [],
+        });
+      }
+    }
+    applyHydratedNotes(incoming);
+  }
   function normalizeHydrateNote(n) {
     const slug = String(n?.slug || "");
     const verseStart = n?.verseStart == null ? null : Number(n.verseStart);
@@ -2279,10 +2335,36 @@ export function clientScript(): string {
       attachments: note.attachments || [],
     }));
   }
+  function mergeIncomingBacklinks(note) {
+    const local = noteMap.get(note.slug);
+    if (!local) return;
+    const dismissed = dismissedXrefs.get(note.slug) || new Set();
+    const have = new Set();
+    for (const row of local.attachments || []) {
+      if (row && row.kind === "xref" && row.slug) have.add(row.slug);
+    }
+    const extra = [];
+    for (const row of note.attachments || []) {
+      if (!row || row.kind !== "xref" || row.source !== "backlink" || !row.slug) continue;
+      if (have.has(row.slug) || dismissed.has(row.slug)) continue;
+      extra.push(row);
+      have.add(row.slug);
+    }
+    if (!extra.length) return;
+    const attachments = (local.attachments || []).concat(extra);
+    noteMap.set(note.slug, { ...local, attachments });
+    const tray = note.slug === chapterSlug
+      ? document.querySelector("#chapter-tray")
+      : document.querySelector('.note-tray[data-slug="' + CSS.escape(note.slug) + '"]');
+    if (tray) paintAttBoard(tray, attachments);
+  }
   function applyHydratedNotes(list) {
     const incoming = (list || []).map(normalizeHydrateNote).filter((n) => n.slug);
     for (const note of incoming) {
-      if (noteIsDirty(note.slug) && noteMap.has(note.slug)) continue;
+      if (noteIsDirty(note.slug) && noteMap.has(note.slug)) {
+        mergeIncomingBacklinks(note);
+        continue;
+      }
       noteMap.set(note.slug, note);
       const tray = ensureNoteTray(note);
       paintNoteIntoTray(tray, note);
@@ -2299,6 +2381,7 @@ export function clientScript(): string {
   function prefetchChapterNotes(slug) {
     if (!slug) return Promise.resolve(null);
     if (notesPrefetch.has(slug)) return notesPrefetch.get(slug);
+    const gen = chapterNotesGen.get(slug) || 0;
     const req = fetch("/api/notes?chapter=" + encodeURIComponent(slug), {
       credentials: "same-origin",
       headers: { accept: "application/json" },
@@ -2306,6 +2389,7 @@ export function clientScript(): string {
     })
       .then((r) => (r.ok ? r.json() : Promise.reject()))
       .then((data) => {
+        if ((chapterNotesGen.get(slug) || 0) !== gen) return null;
         if (data?.ok && Array.isArray(data.notes)) {
           const normalized = data.notes.map(normalizeHydrateNote);
           writeChapterNotesCache(slug, normalized);

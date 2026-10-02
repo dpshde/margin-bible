@@ -5,7 +5,7 @@ import {
   type Attachment,
   wikiTokens,
 } from "./attachments";
-import { escapeHtml, page } from "./html";
+import { escapeHtml, page, themeToggleHtml } from "./html";
 import { bodyText, emptyBlocks, noteCoversVerse, type Block, type NoteDraft } from "./notes";
 import {
   chapterSlug,
@@ -30,7 +30,7 @@ export function renderMissing(message: string): string {
     `<header class="topbar">
   <div class="topbar-side"><a class="icon-btn" href="/notes" aria-label="Notes" title="Notes">${iconNotes()}</a></div>
   <h1 class="topbar-title">Margin</h1>
-  <div class="topbar-actions">${authChip(false, "/")}</div>
+  <div class="topbar-actions">${themeToggleHtml()}${authChip(false, "/")}</div>
 </header>
 <main class="reader">
   ${jumpFormHtml()}
@@ -103,6 +103,7 @@ ${prefetchLinks}
     <button type="button" class="topbar-title-btn" id="chapter-grid-title" aria-haspopup="dialog" aria-expanded="false" aria-controls="chapter-grid" title="Choose book or chapter">${escapeHtml(title)}</button>
   </h1>
   <div class="topbar-actions">
+    ${themeToggleHtml()}
     ${authChip(signedIn, `/${passageSlug(passage)}`)}
     <button type="button" class="icon-btn${chapterNote?.bookmarked ? " is-on" : ""}" id="chapter-bookmark-btn" data-state-icon="bookmark" data-state-on="${chapterNote?.bookmarked ? "true" : "false"}" aria-label="Bookmark chapter" title="Bookmark chapter" aria-pressed="${chapterNote?.bookmarked ? "true" : "false"}">${iconBookmark()}</button>
     <button type="button" class="expand-btn icon-btn" id="expand-all-btn" aria-label="Expand notes" title="Expand notes" aria-pressed="false" ${notesForRender.some((n) => n.kind !== "chapter" && (n.bookmarked || (n.attachments?.length ?? 0) > 0 || !emptyBlocks(n.blocks))) ? "" : "disabled"}>${iconExpand()}</button>
@@ -203,7 +204,7 @@ export function renderNotesIndex(
   <h1 class="topbar-title">
     <button type="button" class="topbar-title-btn" id="chapter-grid-title" aria-haspopup="dialog" aria-expanded="false" aria-controls="chapter-grid" title="Choose book or chapter">Notes</button>
   </h1>
-  <div class="topbar-actions">${authChip(signedIn, "/notes")}<a class="icon-btn" href="/${escapeHtml(backSlug)}" aria-label="Reader" title="Reader">${iconReader()}</a></div>
+  <div class="topbar-actions">${themeToggleHtml()}${authChip(signedIn, "/notes")}<a class="icon-btn" href="/${escapeHtml(backSlug)}" aria-label="Reader" title="Reader">${iconReader()}</a></div>
 </header>
 ${chapterGridHtml(gridBook, gridChapter)}
 <main class="notes-main reader">
@@ -361,7 +362,8 @@ function decorateBlockHtml(text: string): string {
 function attachmentChipHtml(att: Attachment): string {
   const title = escapeHtml(att.title);
   const id = escapeHtml(att.id);
-  const source = ` data-att-source="${escapeHtml(att.source === "scan" ? "scan" : "manual")}"`;
+  const sourceName = att.source === "scan" || att.source === "backlink" ? att.source : "manual";
+  const source = ` data-att-source="${escapeHtml(sourceName)}"`;
   if (att.kind === "xref") {
     return `<li class="att-item"><a class="att-chip wiki" href="${escapeHtml(hrefForXref(att.slug))}" data-att-id="${id}" data-att-kind="xref" data-att-slug="${escapeHtml(att.slug)}" data-att-title="${title}"${source}>${title}</a><button type="button" class="att-remove" data-att-id="${id}" aria-label="Remove attachment" title="Remove attachment">${iconCloseTiny()}</button></li>`;
   }
@@ -394,13 +396,12 @@ function authChip(signedIn: boolean, next: string): string {
   if (signedIn) {
     return `<a class="auth-chip is-in icon-btn" href="${escapeHtml(href)}" aria-label="Profile" title="Profile">${iconUser()}</a>`;
   }
-  return `<a class="auth-chip icon-btn" href="${escapeHtml(href)}" aria-label="Sign in" title="Sign in">${iconLock()}</a>`;
+  return `<a class="auth-chip icon-btn" href="${escapeHtml(href)}" aria-label="Sign in" title="Sign in">${iconUser()}</a>`;
 }
 
 function phIcon(name: string, size = 18, className = "", weight: "regular" | "fill" = "regular"): string {
   const paths: Record<string, string> = {
     user: "M230.92 212c-15.23-26.33-38.7-45.21-66.09-54.16a72 72 0 1 0-73.66 0c-27.39 8.94-50.86 27.82-66.09 54.16a8 8 0 1 0 13.85 8c18.84-32.56 52.14-52 89.07-52s70.23 19.44 89.07 52a8 8 0 1 0 13.85-8M72 96a56 56 0 1 1 56 56a56.06 56.06 0 0 1-56-56",
-    lock: "M208 80h-32V56a48 48 0 0 0-96 0v24H48a16 16 0 0 0-16 16v112a16 16 0 0 0 16 16h160a16 16 0 0 0 16-16V96a16 16 0 0 0-16-16M96 56a32 32 0 0 1 64 0v24H96Zm112 152H48V96h160zm-68-56a12 12 0 1 1-12-12a12 12 0 0 1 12 12",
     check: "M229.66 77.66l-128 128a8 8 0 0 1-11.32 0l-56-56a8 8 0 0 1 11.32-11.32L96 188.69 218.34 66.34a8 8 0 0 1 11.32 11.32",
     notebook: "M184 112a8 8 0 0 1-8 8h-64a8 8 0 0 1 0-16h64a8 8 0 0 1 8 8m-8 24h-64a8 8 0 0 0 0 16h64a8 8 0 0 0 0-16m48-88v160a16 16 0 0 1-16 16H48a16 16 0 0 1-16-16V48a16 16 0 0 1 16-16h160a16 16 0 0 1 16 16M48 208h24V48H48Zm160 0V48H88v160z",
     "arrows-out": "M216 48v48a8 8 0 0 1-16 0V67.31l-42.34 42.35a8 8 0 0 1-11.32-11.32L188.69 56H160a8 8 0 0 1 0-16h48a8 8 0 0 1 8 8M98.34 146.34L56 188.69V160a8 8 0 0 0-16 0v48a8 8 0 0 0 8 8h48a8 8 0 0 0 0-16H67.31l42.35-42.34a8 8 0 0 0-11.32-11.32M208 152a8 8 0 0 0-8 8v28.69l-42.34-42.35a8 8 0 0 0-11.32 11.32L188.69 200H160a8 8 0 0 0 0 16h48a8 8 0 0 0 8-8v-48a8 8 0 0 0-8-8M67.31 56H96a8 8 0 0 0 0-16H48a8 8 0 0 0-8 8v48a8 8 0 0 0 16 0V67.31l42.34 42.35a8 8 0 0 0 11.32-11.32Z",
@@ -459,7 +460,4 @@ function iconPaperclip(): string {
 }
 function iconUser(): string {
   return phIcon("user", 18);
-}
-function iconLock(): string {
-  return phIcon("lock", 18);
 }

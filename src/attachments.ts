@@ -12,7 +12,7 @@ export type XrefAttachment = {
   kind: "xref";
   slug: string;
   title: string;
-  source?: "manual" | "scan";
+  source?: "manual" | "scan" | "backlink";
 };
 export type UrlAttachment = {
   id: string;
@@ -120,7 +120,8 @@ export function mergeParsedXrefs(
     .map((row) => {
       if (row.kind !== "xref" || !parsedSlugs.has(row.slug)) return row;
       const title = parsed.find((item) => item.slug === row.slug)?.title || row.title;
-      const source = row.source === "manual" ? ("manual" as const) : ("scan" as const);
+      const source =
+        row.source === "manual" || row.source === "backlink" ? row.source : ("scan" as const);
       if (title === row.title && row.source === source) return row;
       return { ...row, title, source };
     });
@@ -262,7 +263,7 @@ function sanitizeId(id: unknown): string | null {
 
 function withSource(row: Attachment, source: unknown): Attachment {
   if (row.kind === "url") return { ...row, source: "manual" };
-  if (source === "manual" || source === "scan") return { ...row, source };
+  if (source === "manual" || source === "scan" || source === "backlink") return { ...row, source };
   return row;
 }
 

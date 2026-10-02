@@ -1,4 +1,4 @@
-import { escapeHtml, page } from "./html";
+import { escapeHtml, page, themeToggleHtml } from "./html";
 
 export function renderLoginPage(input: {
   error?: string;
@@ -23,7 +23,7 @@ export function renderLoginPage(input: {
     `<header class="topbar">
   <div class="topbar-side"><a class="icon-btn" href="${escapeHtml(next)}" aria-label="Back" title="Back">←</a></div>
   <h1 class="topbar-title">${input.signedIn ? "Profile" : "Sign in"}</h1>
-  <div class="topbar-actions"></div>
+  <div class="topbar-actions">${themeToggleHtml()}</div>
 </header>
 <main class="auth-main">
   ${body}

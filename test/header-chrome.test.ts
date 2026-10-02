@@ -18,8 +18,11 @@ describe("header chrome without chapter note pencil", () => {
     expect(html).toContain('id="chapter-bookmark-btn"');
     expect(html).toContain('aria-label="Bookmark chapter"');
     expect(html).toContain('id="expand-all-btn"');
-    // auth chip (profile / sign-in) still present
+    // auth chip stays the profile glyph for guests and signed-in readers
     expect(html).toContain("auth-chip");
+    expect(html).toContain('aria-label="Sign in"');
+    expect(html).toContain("M230.92 212c-15.23-26.33-38.7-45.21-66.09-54.16");
+    expect(html).not.toContain("M208 80h-32V56a48 48 0 0 0-96 0v24");
     // note-pencil path should not appear in the page (moved out of header)
     expect(html).not.toContain("m229.66 58.34l-32-32a8 8 0 0 0-11.32 0l-96 96");
     // bookmark-simple still present for chapter bookmark + tray bookmarks

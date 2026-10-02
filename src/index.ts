@@ -26,6 +26,7 @@ import { canGo, jumpState } from "./jump-suggest";
 import { parsePassage, passageLabel, passageSlug, type Passage } from "./passage";
 import { renderChapterPage, renderMissing, renderNotesIndex } from "./reader-page";
 import type { ChapterPack } from "./usj";
+import { ensureBidirectionalXrefs, syncBidirectionalXrefs } from "./xref-sync";
 
 export type Env = {
   DB: D1Database;
@@ -235,6 +236,7 @@ async function upsert(c: AppContext, formPost: boolean): Promise<Response> {
   );
   if (!draft.ok) return fail(c, formPost, 422, draft.error);
 
+  const previous = existing?.attachments ?? [];
   let deleted = false;
   let note: NoteRecord | null = null;
   if (draft.delete) {
@@ -243,6 +245,13 @@ async function upsert(c: AppContext, formPost: boolean): Promise<Response> {
   } else {
     note = await saveNote(c.env.DB, libraryId, draft.note);
   }
+  const linkedSlugs = await syncBidirectionalXrefs(
+    c.env.DB,
+    libraryId,
+    draft.note.slug,
+    previous,
+    draft.delete ? [] : draft.note.attachments,
+  );
 
   if (formPost) return c.redirect(`/${draft.note.slug}`, 303);
   const chapterNotes = await listNotes(c.env.DB, libraryId, { book: passage.book, chapter: passage.chapter });
@@ -254,6 +263,7 @@ async function upsert(c: AppContext, formPost: boolean): Promise<Response> {
     attachments: note?.attachments ?? [],
     note: note ? noteJson(note) : null,
     chapterNotes: chapterNotes.map(noteJson),
+    linkedSlugs,
     signedIn: c.get("signedIn"),
   });
 }
@@ -302,6 +312,21 @@ async function notesForQuery(
   chapter: string | undefined,
   verse: string | undefined,
 ): Promise<{ ok: true; notes: NoteRecord[] } | { ok: false; error: string }> {
+  const queried = await listNotesForQuery(db, libraryId, chapter, verse);
+  if (!queried.ok) return queried;
+  if (!queried.scoped) return { ok: true, notes: queried.notes };
+  const linked = await ensureBidirectionalXrefs(db, libraryId, queried.notes);
+  if (!linked.length) return { ok: true, notes: queried.notes };
+  const again = await listNotesForQuery(db, libraryId, chapter, verse);
+  return again.ok ? { ok: true, notes: again.notes } : again;
+}
+
+async function listNotesForQuery(
+  db: D1Database,
+  libraryId: string,
+  chapter: string | undefined,
+  verse: string | undefined,
+): Promise<{ ok: true; notes: NoteRecord[]; scoped: boolean } | { ok: false; error: string }> {
   if (verse) {
     const passage = parsePassage(verse);
     if (!passage?.verseStart) return { ok: false, error: "verse required" };
@@ -310,15 +335,15 @@ async function notesForQuery(
       chapter: passage.chapter,
       verse: passage.verseStart,
     });
-    return { ok: true, notes };
+    return { ok: true, notes, scoped: true };
   }
   if (chapter) {
     const passage = parsePassage(chapter);
     if (!passage) return { ok: false, error: "unresolvable" };
     const notes = await listNotes(db, libraryId, { book: passage.book, chapter: passage.chapter });
-    return { ok: true, notes };
+    return { ok: true, notes, scoped: true };
   }
-  return { ok: true, notes: await listNotes(db, libraryId) };
+  return { ok: true, notes: await listNotes(db, libraryId), scoped: false };
 }
 
 async function loadChapter(assets: Fetcher, passage: Passage): Promise<ChapterPack | null> {

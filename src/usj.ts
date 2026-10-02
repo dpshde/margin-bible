@@ -30,7 +30,7 @@ export type UsjDocument = {
 
 const SKIPPED_PARAS = new Set(["r", "b", "h", "mt1", "mt2", "toc1", "toc2", "toc3"]);
 
-type WalkKind = "text" | "verse" | "s1";
+type WalkKind = "text" | "verse" | "s1" | "break" | "note";
 
 function walk(nodes: UsjNode[] | UsjNode | undefined, visit: (kind: WalkKind, value: string | number) => void): void {
   const list = Array.isArray(nodes) ? nodes : nodes == null ? [] : [nodes];
@@ -52,7 +52,13 @@ function walkNode(node: UsjNode, visit: (kind: WalkKind, value: string | number)
     visit("s1", plainText(node.content));
     return;
   }
-  if (type === "note" || (type === "para" && SKIPPED_PARAS.has(marker))) return;
+  if (type === "para" && SKIPPED_PARAS.has(marker)) return;
+  if (type === "note") {
+    visit("note", "");
+    return;
+  }
+  // Poetry and lists are one paragraph per line, and the line break is not a space character.
+  if (type === "para") visit("break", "");
   walk(node.content, visit);
 }
 
@@ -82,27 +88,45 @@ function chapterMilestone(node: UsjNode, number?: number): boolean {
 export function verseRows(nodes: UsjNode[]): VerseRow[] {
   let heading: string | null = null;
   let current: VerseRow | null = null;
+  let pendingNote = false;
   const rows: VerseRow[] = [];
 
   const visit = (kind: WalkKind, value: string | number) => {
     if (kind === "s1") {
+      pendingNote = false;
       heading = String(value);
       return;
     }
     if (kind === "verse") {
+      pendingNote = false;
       current = { v: Number(value), text: "" };
       if (heading) current.heading = heading;
       heading = null;
       rows.push(current);
       return;
     }
-    if (kind === "text" && current) current.text += String(value);
+    if (kind === "break") {
+      pendingNote = false;
+      if (current) current.text += " ";
+      return;
+    }
+    if (kind === "note") {
+      pendingNote = true;
+      return;
+    }
+    if (kind === "text" && current) {
+      let chunk = String(value);
+      if (pendingNote && /^[A-Za-z]/.test(chunk) && !/\s$/.test(current.text)) chunk = ` ${chunk}`;
+      pendingNote = false;
+      current.text += chunk;
+    }
   };
 
   for (const node of nodes) walkNode(node, visit);
 
   for (const row of rows) {
-    row.text = row.text.replace(/\s+/g, " ").trim();
+    // A few BSB text nodes omit the space after punctuation ("sons:This", "LORD,which").
+    row.text = row.text.replace(/\s+/g, " ").replace(/([,;:.!?])([A-Za-z])/g, "$1 $2").trim();
     if (!row.heading) delete row.heading;
   }
   return rows.filter((row) => row.v >= 1 && row.text.length > 0);

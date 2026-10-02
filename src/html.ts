@@ -6,12 +6,65 @@ export function escapeHtml(value: string): string {
     .replaceAll('"', "&quot;");
 }
 
+const MOON_PATH =
+  "M233.54 142.23a8 8 0 0 0-8-2a88.08 88.08 0 0 1-109.8-109.8a8 8 0 0 0-10-10a104.84 104.84 0 0 0-52.91 37A104 104 0 0 0 136 224a103.1 103.1 0 0 0 62.52-20.88a104.84 104.84 0 0 0 37-52.91a8 8 0 0 0-1.98-7.98m-44.64 48.11A88 88 0 0 1 65.66 67.11a89 89 0 0 1 31.4-26A106 106 0 0 0 96 56a104.11 104.11 0 0 0 104 104a106 106 0 0 0 14.92-1.06a89 89 0 0 1-26.02 31.4";
+const SUN_PATH =
+  "M120 40V16a8 8 0 0 1 16 0v24a8 8 0 0 1-16 0m72 88a64 64 0 1 1-64-64a64.07 64.07 0 0 1 64 64m-16 0a48 48 0 1 0-48 48a48.05 48.05 0 0 0 48-48M58.34 69.66a8 8 0 0 0 11.32-11.32l-16-16a8 8 0 0 0-11.32 11.32Zm0 116.68l-16 16a8 8 0 0 0 11.32 11.32l16-16a8 8 0 0 0-11.32-11.32M192 72a8 8 0 0 0 5.66-2.34l16-16a8 8 0 0 0-11.32-11.32l-16 16A8 8 0 0 0 192 72m5.66 114.34a8 8 0 0 0-11.32 11.32l16 16a8 8 0 0 0 11.32-11.32ZM48 128a8 8 0 0 0-8-8H16a8 8 0 0 0 0 16h24a8 8 0 0 0 8-8m80 80a8 8 0 0 0-8 8v24a8 8 0 0 0 16 0v-24a8 8 0 0 0-8-8m112-88h-24a8 8 0 0 0 0 16h24a8 8 0 0 0 0-16";
+
+function themeIcon(path: string): string {
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="18" height="18" fill="currentColor" aria-hidden="true"><path d="${path}"/></svg>`;
+}
+
+/** Header control. The moon shows in light mode; the sun shows in dark mode. */
+export function themeToggleHtml(): string {
+  return `<button type="button" class="icon-btn theme-toggle" data-theme-toggle aria-pressed="false" aria-label="Switch to dark mode" title="Dark mode"><span class="theme-icon theme-icon-moon">${themeIcon(MOON_PATH)}</span><span class="theme-icon theme-icon-sun">${themeIcon(SUN_PATH)}</span></button>`;
+}
+
+function themeBootScript(): string {
+  return `<script>
+(function () {
+  var key = "margin_theme";
+  function preferred() {
+    try {
+      var saved = localStorage.getItem(key);
+      if (saved === "dark" || saved === "light") return saved;
+    } catch (err) {}
+    return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  }
+  function apply(theme) {
+    document.documentElement.setAttribute("data-theme", theme);
+    var meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.setAttribute("content", theme === "dark" ? "#1c1917" : "#f6f5f2");
+    var btn = document.querySelector("[data-theme-toggle]");
+    if (!btn) return;
+    var dark = theme === "dark";
+    btn.setAttribute("aria-pressed", dark ? "true" : "false");
+    btn.setAttribute("aria-label", dark ? "Switch to light mode" : "Switch to dark mode");
+    btn.title = dark ? "Light mode" : "Dark mode";
+  }
+  apply(preferred());
+  document.addEventListener("DOMContentLoaded", function () { apply(preferred()); });
+  document.addEventListener("click", function (event) {
+    var target = event.target;
+    if (!target || !target.closest) return;
+    var btn = target.closest("[data-theme-toggle]");
+    if (!btn) return;
+    var next = document.documentElement.getAttribute("data-theme") === "dark" ? "light" : "dark";
+    try { localStorage.setItem(key, next); } catch (err) {}
+    apply(next);
+  });
+})();
+</script>`;
+}
+
 export function page(title: string, body: string): string {
   return `<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+  <meta name="theme-color" content="#f6f5f2">
+  ${themeBootScript()}
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='2' fill='%231c1917'/%3E%3Cpath d='M4 4.5h8M4 8h8M4 11.5h5' stroke='%23f6f5f2' stroke-width='1.4' stroke-linecap='round'/%3E%3C/svg%3E">
@@ -42,6 +95,15 @@ export function page(title: string, body: string): string {
       --read: "Iowan Old Style", Palatino, "Palatino Linotype", Georgia, serif;
       --sans: ui-sans-serif, system-ui, -apple-system, sans-serif;
       --head: ui-sans-serif, system-ui, -apple-system, sans-serif;
+    }
+    html[data-theme="dark"] {
+      color-scheme: dark;
+      --paper: #1c1917;
+      --paper-raised: #292524;
+      --ink: #f5f5f4;
+      --ink-soft: #d6d3d1;
+      --muted: #a8a29e;
+      --faint: #78716c;
     }
     * { box-sizing: border-box; }
     html, body { margin: 0; background: var(--paper); color: var(--ink); font-family: var(--sans); }
@@ -128,6 +190,10 @@ export function page(title: string, body: string): string {
     .icon-btn:focus-visible { color: var(--ink); background: var(--fill); }
     .icon-btn:disabled { opacity: .35; cursor: default; }
     .icon-btn svg { display: block; width: 1.1rem; height: 1.1rem; }
+    .theme-toggle .theme-icon { display: inline-flex; }
+    .theme-toggle .theme-icon-sun { display: none; }
+    html[data-theme="dark"] .theme-toggle .theme-icon-moon { display: none; }
+    html[data-theme="dark"] .theme-toggle .theme-icon-sun { display: inline-flex; }
     /* expand-btn also has .icon-btn — match profile/bookmark icon-only density (no bordered pill). */
     .expand-btn .expand-label { display: none; }
     .expand-btn.is-on {
@@ -635,6 +701,8 @@ export function page(title: string, body: string): string {
     .auth-lead, .auth-hint, .auth-status, .auth-notice { color: var(--muted); font-size: .9rem; line-height: 1.45; }
     .auth-error { color: #9f1239; background: #fff1f2; border: 1px solid #fecdd3; border-radius: .55rem; padding: .55rem .7rem; font-size: .88rem; }
     .auth-notice { background: #f0fdf4; border: 1px solid #bbf7d0; color: #166534; border-radius: .55rem; padding: .55rem .7rem; }
+    html[data-theme="dark"] .auth-error { color: #fecdd3; background: #4c0519; border-color: #9f1239; }
+    html[data-theme="dark"] .auth-notice { color: #bbf7d0; background: #052e16; border-color: #166534; }
     .auth-form { display: grid; gap: .45rem; margin: 1rem 0; }
     .auth-form label { font-size: .82rem; font-weight: 600; color: var(--ink-soft); }
     .auth-form .optional { font-weight: 400; color: var(--faint); }
@@ -851,6 +919,7 @@ export function page(title: string, body: string): string {
       font-size: .8rem; color: var(--ink-soft); text-align: center;
     }
     .att-drop-status.is-error { color: #9f1239; }
+    html[data-theme="dark"] .att-drop-status.is-error { color: #fecdd3; }
 
     .chapter-grid {
       position: fixed; inset: 0; z-index: 40;
