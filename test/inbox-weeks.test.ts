@@ -368,9 +368,12 @@ describe("inbox recent weeks + older chapter bundles", () => {
     expect(older).not.toContain(">rom.6.18<");
     expect(older).not.toContain(">luk.16.9<");
     expect(older).not.toContain(">heb.12.29<");
-    // Last week still verse/human rows
+    // Last week: the chapter name once, the verse as a number card.
+    // The full citation stays on the card's aria-label.
     expect(html).toContain(">Luke 16<");
-    expect(html).toContain(">Luke 16:25<");
+    expect(html).toContain('class="note-bundle-verse" href="/luk.16.25" aria-label="Luke 16:25"');
+    expect(html).toContain(">25</a>");
+    expect(html).not.toContain(">Luke 16:25<");
   });
 
 

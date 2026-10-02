@@ -764,13 +764,14 @@ export function page(title: string, body: string): string {
         background: var(--paper-raised);
       }
     }
-    /* Light side rails make each week one frame, not a stack of cards. */
+    /* Light side rails make each week one frame, not a stack of cards.
+       Weeks stack flush so the rails do not break into a borderless gap. */
     .note-week {
-      margin: 0 0 1rem;
+      margin: 0;
       border-left: 1px solid color-mix(in srgb, var(--ink) 15%, transparent);
       border-right: 1px solid color-mix(in srgb, var(--ink) 15%, transparent);
     }
-    .note-week + .note-week { margin-top: .85rem; }
+    .note-week:last-child { margin-bottom: 1.5rem; }
     /* Filled inverted bars make THIS WEEK / LAST WEEK / OLDER read as dividers. */
     .note-week-label {
       display: flex; align-items: center;
@@ -785,7 +786,7 @@ export function page(title: string, body: string): string {
     .note-week .note-list li:first-child { border-top: 0; }
     .note-list .note-row {
       display: flex; align-items: baseline; gap: .5rem; min-width: 0;
-      padding: .55rem .6rem; overflow: hidden; text-decoration: none;
+      padding: .95rem .7rem; overflow: hidden; text-decoration: none;
       border-radius: .4rem;
     }
     /* Week rows sit inside square rails; keep fills flush with the frame. */
@@ -793,7 +794,37 @@ export function page(title: string, body: string): string {
       padding-inline: .65rem;
       border-radius: 0;
     }
+    .note-bundle {
+      display: flex; flex-wrap: wrap; align-items: center;
+      column-gap: .7rem; row-gap: .4rem;
+      padding: .7rem .65rem;
+    }
+    .note-bundle-name {
+      flex: none; text-decoration: none;
+      font-weight: 700; font-size: .95rem; letter-spacing: -.015em; color: var(--ink);
+    }
+    .note-bundle-verses {
+      display: flex; flex: 1 1 8rem; flex-wrap: wrap; align-items: center;
+      gap: .28rem; min-width: 0;
+    }
+    .note-bundle-verse {
+      display: inline-flex; align-items: center; justify-content: center;
+      min-width: 1.85rem; min-height: 1.7rem; padding: .12rem .42rem;
+      border: 1px solid var(--line); border-radius: .35rem;
+      background: var(--paper-raised);
+      text-decoration: none; white-space: nowrap;
+      font-weight: 600; font-size: .84rem; font-variant-numeric: tabular-nums;
+      line-height: 1.2; color: var(--ink);
+    }
     .note-list .note-row:hover, .note-list .note-row:focus-visible { background: var(--fill); }
+    .note-bundle-name:hover, .note-bundle-name:focus-visible { color: var(--ink); }
+    .note-bundle-verse:hover, .note-bundle-verse:focus-visible {
+      border-color: color-mix(in srgb, var(--ink) 28%, transparent);
+      background: var(--fill); color: var(--ink);
+    }
+    .note-bundle-name:focus-visible, .note-bundle-verse:focus-visible {
+      outline: 2px solid var(--sel-rail-open); outline-offset: 2px;
+    }
     .note-list .note-row:focus-visible { outline: 2px solid var(--sel-rail-open); outline-offset: -2px; }
     .note-row-title {
       flex: none; max-width: 100%;

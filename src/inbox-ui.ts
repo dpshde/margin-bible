@@ -251,6 +251,48 @@ function noteRowHtml(n: InboxNote): string {
   }</a></li>`;
 }
 
+/** "John 3:16" → "16". "John 3:16–18" → "16–18". Chapter-only labels return "". */
+function verseCitation(note: InboxNote): string {
+  const label = humanNoteLabel(note);
+  const colon = label.lastIndexOf(":");
+  if (colon < 0) return "";
+  return label.slice(colon + 1).trim();
+}
+
+/** Several notes in one chapter share a single row. A lone note stays a normal row. */
+function weekChapterRows(notes: InboxNote[]): string {
+  const order: string[] = [];
+  const byChapter = new Map<string, InboxNote[]>();
+  for (const note of notes) {
+    const key = chapterSlugOfNote(note.slug);
+    if (!byChapter.has(key)) {
+      byChapter.set(key, []);
+      order.push(key);
+    }
+    byChapter.get(key)!.push(note);
+  }
+  return order
+    .map((slug) => {
+      const list = byChapter.get(slug)!;
+      if (list.length === 1) return noteRowHtml(list[0]!);
+      const title = chapterTitleFromNote(list[0]!);
+      const verses = list
+        .map((note) => {
+          const place = verseCitation(note);
+          if (!place) return "";
+          const stamp = formatStamp(note);
+          const titleAttr = stamp ? ` title="${escapeHtml(stamp)}"` : "";
+          const label = humanNoteLabel(note);
+          return `<a class="note-bundle-verse" href="/${escapeHtml(note.slug)}" aria-label="${escapeHtml(label)}"${titleAttr}>${escapeHtml(place)}</a>`;
+        })
+        .filter(Boolean)
+        .join("");
+      const verseHtml = verses ? `<span class="note-bundle-verses">${verses}</span>` : "";
+      return `<li class="note-bundle"><a class="note-bundle-name" href="/${escapeHtml(slug)}">${escapeHtml(title)}</a>${verseHtml}</li>`;
+    })
+    .join("");
+}
+
 function chapterRowHtml(ch: InboxChapterBundle): string {
   const title = escapeHtml(ch.label || ch.slug);
   const excerpt = escapeHtml(ch.excerpt || "");
@@ -294,7 +336,7 @@ export function notesListHtml(notes: InboxNote[], now = new Date()): string {
   return sections
     .map((section) => {
       if (section.kind === "week") {
-        const rows = section.notes.map((n) => noteRowHtml(n)).join("");
+        const rows = weekChapterRows(section.notes);
         return `<section class="note-week"><h2 class="note-week-label">${escapeHtml(section.label)}</h2><ul class="note-list">${rows}</ul></section>`;
       }
       const rows = section.chapters.map(chapterRowHtml).join("");
@@ -386,6 +428,36 @@ export function notesInboxScript(): string {
       (excerpt ? '<span class="note-row-excerpt">' + excerpt + "</span>" : "") + "</a></li>";
   }
 
+  function weekChapterRows(notes) {
+    const order = [];
+    const byChapter = new Map();
+    for (const n of notes) {
+      const key = chapterSlugOf(n.slug);
+      if (!byChapter.has(key)) { byChapter.set(key, []); order.push(key); }
+      byChapter.get(key).push(n);
+    }
+    let html = "";
+    for (const slug of order) {
+      const list = byChapter.get(slug);
+      if (list.length === 1) { html += noteRow(list[0]); continue; }
+      let verses = "";
+      for (const n of list) {
+        const label = String(n.label || "").trim();
+        const colon = label.lastIndexOf(":");
+        if (colon < 0) continue;
+        const place = label.slice(colon + 1).trim();
+        if (!place) continue;
+        const when = noteWhen(n);
+        const stamp = when.getTime() ? when.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" }) : "";
+        const titleAttr = stamp ? ' title="' + escape(stamp) + '"' : "";
+        verses += '<a class="note-bundle-verse" href="/' + escape(n.slug) + '" aria-label="' + escape(label) + '"' + titleAttr + ">" + escape(place) + "</a>";
+      }
+      const verseHtml = verses ? '<span class="note-bundle-verses">' + verses + "</span>" : "";
+      html += '<li class="note-bundle"><a class="note-bundle-name" href="/' + escape(slug) + '">' + escape(chapterTitle(list[0])) + "</a>" + verseHtml + "</li>";
+    }
+    return html;
+  }
+
   function chapterRow(ch) {
     const title = escape(ch.label || ch.slug);
     const excerpt = escape(ch.excerpt || "");
@@ -418,7 +490,7 @@ export function notesInboxScript(): string {
     }
     for (const key of weekOrder) {
       const label = weekLabel(new Date(key), now);
-      const rows = weekGroups.get(key).map(noteRow).join("");
+      const rows = weekChapterRows(weekGroups.get(key));
       parts.push('<section class="note-week"><h2 class="note-week-label">' + escape(label) + '</h2><ul class="note-list">' + rows + "</ul></section>");
     }
     if (older.length) {
@@ -605,6 +677,7 @@ export function notesInboxScript(): string {
     if (!a || !a.href) return false;
     // note-row (recent + Older chapter rows), starter chips, chapter-grid cells, reader back icon.
     if (a.classList?.contains("note-row")) return true;
+    if (a.classList?.contains("note-bundle-name") || a.classList?.contains("note-bundle-verse")) return true;
     if (a.classList?.contains("starter-chip")) return true;
     if (a.classList?.contains("chapter-grid-cell") || a.hasAttribute("data-chapter-nav")) return true;
     if (a.classList?.contains("icon-btn") && a.getAttribute("aria-label") === "Reader") return true;
@@ -625,7 +698,7 @@ export function notesInboxScript(): string {
   });
 
   document.addEventListener("pointerenter", (event) => {
-    const a = event.target?.closest?.("a.note-row[href], a.starter-chip[href], a.chapter-grid-cell[href]");
+    const a = event.target?.closest?.("a.note-row[href], a.note-bundle-name[href], a.note-bundle-verse[href], a.starter-chip[href], a.chapter-grid-cell[href]");
     if (a?.href && chapterSlugFromHref(a.href)) prefetchChapter(a.href);
   }, true);
 

@@ -116,7 +116,7 @@ app.use("*", async (c, next) => {
   }
 });
 
-app.get("/health", (c) => c.json({ ok: true, app: "margin-bible", version: "2026.10.02.18" }));
+app.get("/health", (c) => c.json({ ok: true, app: "margin-bible", version: "2026.10.02.19" }));
 
 app.get("/bsb/*", (c) => c.env.ASSETS.fetch(c.req.raw));
 

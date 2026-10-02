@@ -352,6 +352,35 @@ export function clientScript(): string {
     const titleAttr = stamp ? ' title="' + escapeHtml(stamp) + '"' : "";
     return '<li><a class="note-row note-row-chapter" href="/' + escapeHtml(ch.slug) + '"' + titleAttr + '><span class="note-row-title">' + escapeHtml(ch.label || ch.slug) + "</span>" + excerpt + "</a></li>";
   }
+  function inboxWeekChapterRows(notes) {
+    const order = [];
+    const byChapter = new Map();
+    for (const n of notes) {
+      const key = inboxChapterSlugOf(n.slug);
+      if (!byChapter.has(key)) { byChapter.set(key, []); order.push(key); }
+      byChapter.get(key).push(n);
+    }
+    let html = "";
+    for (const slug of order) {
+      const list = byChapter.get(slug);
+      if (list.length === 1) { html += inboxNoteRow(list[0]); continue; }
+      let verses = "";
+      for (const n of list) {
+        const label = String(n.label || "").trim() || slugLabel(n.slug) || "";
+        const colon = label.lastIndexOf(":");
+        if (colon < 0) continue;
+        const place = label.slice(colon + 1).trim();
+        if (!place) continue;
+        const when = inboxNoteWhen(n);
+        const stamp = when.getTime() ? when.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" }) : "";
+        const titleAttr = stamp ? ' title="' + escapeHtml(stamp) + '"' : "";
+        verses += '<a class="note-bundle-verse" href="/' + escapeHtml(n.slug) + '" aria-label="' + escapeHtml(label) + '"' + titleAttr + ">" + escapeHtml(place) + "</a>";
+      }
+      const verseHtml = verses ? '<span class="note-bundle-verses">' + verses + "</span>" : "";
+      html += '<li class="note-bundle"><a class="note-bundle-name" href="/' + escapeHtml(slug) + '">' + escapeHtml(inboxChapterTitle(list[0])) + "</a>" + verseHtml + "</li>";
+    }
+    return html;
+  }
   function inboxListHtml(notes) {
     const rows = inboxNormalize(notes);
     if (!rows.length) {
@@ -378,7 +407,7 @@ export function clientScript(): string {
     }
     for (const key of order) {
       const label = inboxWeekLabel(new Date(key), now);
-      const list = groups.get(key).map(inboxNoteRow).join("");
+      const list = inboxWeekChapterRows(groups.get(key));
       parts.push('<section class="note-week"><h2 class="note-week-label">' + escapeHtml(label) + '</h2><ul class="note-list">' + list + "</ul></section>");
     }
     if (older.length) {
@@ -3146,7 +3175,7 @@ export function clientScript(): string {
     const slug = chapterSlugFromHref(a.href);
     if (!slug) return;
     // Soft-nav chapter hops (pager + chapter grid + inbox note-rows).
-    if (a.closest?.(".pager, .chapter-grid") || a.hasAttribute("data-chapter-nav") || a.classList?.contains("note-row")) {
+    if (a.closest?.(".pager, .chapter-grid") || a.hasAttribute("data-chapter-nav") || a.classList?.contains("note-row") || a.classList?.contains("note-bundle-name") || a.classList?.contains("note-bundle-verse")) {
       event.preventDefault();
       softNavTo(a.href, { push: true });
     }
