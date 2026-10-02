@@ -87,6 +87,9 @@ describe("embedded reader scripts", () => {
     expect(source).toContain("function spanFromNoteSlug");
     expect(source).toContain('classList.toggle("is-span"');
     expect(source).toContain("syncSpanChrome()");
+    expect(source).toContain("function syncOpenChrome");
+    expect(source).toContain("The address alone does not keep the spotlight on.");
+    expect(source).not.toContain('if (passage.includes("-"))');
   });
 
   test("clientScript animates verse note trays open/close (~100ms grid-rows)", () => {

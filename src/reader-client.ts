@@ -1587,8 +1587,20 @@ export function clientScript(): string {
     if (!Number.isFinite(start) || !Number.isFinite(end)) return null;
     return { start, end };
   }
-  /** Rails-like contiguous selection rail: mark every verse in an open range /
-   *  visible covering note so the left border runs 3–5 even when the tray sits under v3. */
+  function trayIsShown(tray) {
+    return Boolean(tray) && !tray.hidden && !tray.classList.contains("is-tray-closing");
+  }
+  function verseNoteShown(verse) {
+    return [...verse.querySelectorAll(".note-tray")].some(trayIsShown);
+  }
+  /** Spotlight is the open note. A closed note drops is-open, and the range rail follows only a visible range tray. */
+  function syncOpenChrome() {
+    document.querySelectorAll(".verse").forEach((row) => {
+      if (!verseNoteShown(row)) row.classList.remove("is-open");
+    });
+    syncSpanChrome();
+  }
+  /** Rails-like contiguous selection rail for a visible range note. The address alone does not keep the spotlight on. */
   function syncSpanChrome() {
     const covered = new Set();
     document.querySelectorAll(".note-tray:not([hidden])").forEach((tray) => {
@@ -1597,13 +1609,6 @@ export function clientScript(): string {
       if (!span || span.start === span.end) return;
       for (let v = span.start; v <= span.end; v += 1) covered.add(v);
     });
-    const passage = root.dataset.passageSlug || "";
-    if (passage.includes("-")) {
-      const span = spanFromNoteSlug(passage);
-      if (span && span.start !== span.end) {
-        for (let v = span.start; v <= span.end; v += 1) covered.add(v);
-      }
-    }
     document.querySelectorAll(".verse").forEach((row) => {
       row.classList.toggle("is-span", covered.has(Number(row.dataset.verse)));
     });
@@ -1730,13 +1735,13 @@ export function clientScript(): string {
     const already = !tray.hidden && !tray.classList.contains("is-tray-closing");
     if (already) {
       setNoteTray(tray, false);
-      const stillOpen = [...endVerse.querySelectorAll(".note-tray")].some((other) => !other.hidden && !other.classList.contains("is-tray-closing"));
-      if (!stillOpen) {
-        endVerse.classList.remove("is-open");
-        openVerses.delete(span.end);
-        if (selectedVerse === span.end) selectedVerse = openVerses.size ? [...openVerses].at(-1) : null;
+      openVerses.delete(span.end);
+      if (selectedVerse === span.end) selectedVerse = openVerses.size ? [...openVerses].at(-1) : null;
+      syncOpenChrome();
+      if (verseNoteShown(endVerse)) {
+        selectedVerse = span.end;
+        openVerses.add(span.end);
       }
-      syncSpanChrome();
       if (push) history.replaceState({}, "", "/" + (selectedVerse ? (document.querySelector('.verse[data-verse="' + selectedVerse + '"]')?.dataset.slug || chapterSlug) : chapterSlug));
       return;
     }
@@ -1772,7 +1777,7 @@ export function clientScript(): string {
     const verse = document.querySelector('.verse[data-verse="' + verseNum + '"]');
     verse?.classList.remove("is-open");
     verse?.querySelectorAll(".note-tray").forEach((tray) => { setNoteTray(tray, false); });
-    syncSpanChrome();
+    syncOpenChrome();
     if (selectedVerse === verseNum) {
       selectedVerse = openVerses.size ? [...openVerses].at(-1) : null;
       if (push) {
