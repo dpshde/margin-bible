@@ -1508,6 +1508,70 @@ export function clientScript(): string {
       verse.classList.toggle("has-note", has);
     });
     syncSpanChrome();
+    syncRangeRails();
+  }
+  function noteShowsMark(note) {
+    return Boolean(note) && (Boolean(note.bookmarked) || (note.attachments || []).length || !isEmpty(note.blocks || []));
+  }
+  function isRangeSlug(slug) {
+    const span = spanFromNoteSlug(slug);
+    return Boolean(span && span.start !== span.end);
+  }
+  function trayAnchorVerse(note) {
+    const span = spanFromNoteSlug(note?.slug);
+    if (span && span.start !== span.end) return span.end;
+    if (note?.kind === "range" && note.verseEnd != null) return note.verseEnd;
+    return note?.verseStart;
+  }
+  /** Narrowest range whose left border is on this verse. The open passage range counts even when its note is empty. */
+  function rangeSlugForVerse(verseNum) {
+    const found = [];
+    noteMap.forEach((note) => {
+      const span = spanFromNoteSlug(note.slug);
+      if (!span || span.start === span.end) return;
+      if (verseNum < span.start || verseNum > span.end) return;
+      const passageHit = (root.dataset.passageSlug || "") === note.slug;
+      if (!noteShowsMark(note) && !passageHit) return;
+      found.push({ slug: note.slug, width: span.end - span.start });
+    });
+    const passage = root.dataset.passageSlug || "";
+    const passageSpan = spanFromNoteSlug(passage);
+    if (passageSpan && passageSpan.start !== passageSpan.end && verseNum >= passageSpan.start && verseNum <= passageSpan.end) {
+      if (!found.some((row) => row.slug === passage)) found.push({ slug: passage, width: passageSpan.end - passageSpan.start });
+    }
+    found.sort((a, b) => a.width - b.width);
+    return found.length ? found[0].slug : "";
+  }
+  function syncRangeRails() {
+    document.querySelectorAll(".verse").forEach((verse) => {
+      const slug = rangeSlugForVerse(Number(verse.dataset.verse));
+      let rail = verse.querySelector(":scope > .verse-range-rail");
+      if (!slug) {
+        if (rail) rail.remove();
+        return;
+      }
+      if (!rail) {
+        rail = document.createElement("button");
+        rail.type = "button";
+        rail.className = "verse-range-rail";
+        verse.insertBefore(rail, verse.firstChild);
+      }
+      rail.dataset.rangeSlug = slug;
+      rail.setAttribute("aria-label", "Note for " + slugLabel(slug));
+    });
+  }
+  function mountRangeTray(tray, note) {
+    if (!tray || !isRangeSlug(note?.slug)) return tray;
+    const anchor = trayAnchorVerse(note);
+    const verse = anchor == null ? null : document.querySelector('.verse[data-verse="' + anchor + '"]');
+    if (!verse) return tray;
+    tray.dataset.rangeComposer = "1";
+    if (tray.parentElement !== verse) {
+      const composer = verse.querySelector(".note-tray[data-verse-composer]");
+      if (composer) composer.before(tray);
+      else verse.append(tray);
+    }
+    return tray;
   }
   function covers(note, verse) {
     if (note.verseStart == null) return false;
@@ -1645,6 +1709,59 @@ export function clientScript(): string {
       }
     }
   }
+  /** The left border of a range opens that range's one note under its last verse. */
+  function openRangeNote(slug, { push = true, scroll = true } = {}) {
+    const span = spanFromNoteSlug(slug);
+    if (!span || span.start === span.end) return;
+    const endVerse = document.querySelector('.verse[data-verse="' + span.end + '"]');
+    if (!endVerse) return;
+    const note = noteMap.get(slug) || {
+      slug,
+      kind: "range",
+      verseStart: span.start,
+      verseEnd: span.end,
+      blocks: [],
+      bookmarked: false,
+      attachments: [],
+      label: slugLabel(slug),
+    };
+    const tray = ensureNoteTray(note);
+    if (!tray) return;
+    const already = !tray.hidden && !tray.classList.contains("is-tray-closing");
+    if (already) {
+      setNoteTray(tray, false);
+      const stillOpen = [...endVerse.querySelectorAll(".note-tray")].some((other) => !other.hidden && !other.classList.contains("is-tray-closing"));
+      if (!stillOpen) {
+        endVerse.classList.remove("is-open");
+        openVerses.delete(span.end);
+        if (selectedVerse === span.end) selectedVerse = openVerses.size ? [...openVerses].at(-1) : null;
+      }
+      syncSpanChrome();
+      if (push) history.replaceState({}, "", "/" + (selectedVerse ? (document.querySelector('.verse[data-verse="' + selectedVerse + '"]')?.dataset.slug || chapterSlug) : chapterSlug));
+      return;
+    }
+    endVerse.querySelectorAll(".note-tray").forEach((other) => {
+      if (other !== tray) setNoteTray(other, false, { animate: false });
+    });
+    setNoteTray(tray, true, { animate: false });
+    selectedVerse = span.end;
+    openVerses.add(span.end);
+    collapsedNotes.delete(span.end);
+    endVerse.classList.add("is-open");
+    syncSpanChrome();
+    if (push) history.replaceState({}, "", "/" + slug);
+    const outliner = tray.querySelector(".outliner");
+    const spotlight = document.documentElement.classList.contains("spotlight-on");
+    if (scroll && spotlight && outliner) placeInstant = true;
+    if (outliner) outliner.querySelector(".otext")?.focus({ preventScroll: true });
+    if (scroll && spotlight) {
+      centerElement(endVerse.querySelector(".verse-press") || endVerse, false);
+    } else if (scroll) {
+      const runScroll = () => snappyScrollIntoView(tray, { block: "nearest" });
+      if (prefersReduceMotion()) requestAnimationFrame(runScroll);
+      else setTimeout(() => requestAnimationFrame(runScroll), TRAY_MS + 16);
+    }
+  }
   function collapseVerseNotes(verseNum, { push = true } = {}) {
     closeOneVerse(verseNum, { push, collapse: true });
   }
@@ -1691,21 +1808,32 @@ export function clientScript(): string {
   }
 
   root.addEventListener("click", (event) => {
+    const rail = event.target.closest(".verse-range-rail");
+    if (rail && root.contains(rail)) {
+      event.preventDefault();
+      dismissReaderHint();
+      const slug = rail.dataset.rangeSlug;
+      if (slug) openRangeNote(slug);
+      return;
+    }
     const press = event.target.closest(".verse-press");
     if (press && root.contains(press)) {
       event.preventDefault();
       dismissReaderHint();
       const verseNum = Number(press.dataset.verse);
       const verseEl = document.querySelector('.verse[data-verse="' + verseNum + '"]');
-      const notesOpen = verseEl && [...verseEl.querySelectorAll(".note-tray")].some((t) => !t.hidden && !t.classList.contains("is-tray-closing"));
+      const visibleTrays = verseEl ? [...verseEl.querySelectorAll(".note-tray")].filter((t) => !t.hidden && !t.classList.contains("is-tray-closing")) : [];
+      const notesOpen = visibleTrays.length > 0;
       // Rails: while expanded, tap a verse with open note trays collapses them (don't fight tap-to-close).
       if (expanding && notesOpen) {
         collapseVerseNotes(verseNum);
         return;
       }
       collapsedNotes.delete(verseNum);
+      const onlyRange = notesOpen && visibleTrays.every((t) => t.dataset.rangeComposer === "1");
       const alreadyOpen = verseEl?.classList.contains("is-open") && notesOpen;
-      if (alreadyOpen) {
+      // The range border owns the range note. Tapping the verse text still opens that verse.
+      if (alreadyOpen && !onlyRange) {
         closeOneVerse(verseNum);
         return;
       }
@@ -2553,10 +2681,10 @@ export function clientScript(): string {
       return document.querySelector("#chapter-tray");
     }
     let tray = document.querySelector('.note-tray[data-slug="' + CSS.escape(note.slug) + '"]');
-    if (tray) return tray;
-    const start = note.verseStart;
-    if (start == null) return null;
-    const verse = document.querySelector('.verse[data-verse="' + start + '"]');
+    if (tray) return mountRangeTray(tray, note);
+    const anchor = trayAnchorVerse(note);
+    if (anchor == null) return null;
+    const verse = document.querySelector('.verse[data-verse="' + anchor + '"]');
     if (!verse) return null;
     const composer = verse.querySelector('.note-tray[data-verse-composer]');
     const template = composer || verse.querySelector(".note-tray");
@@ -2570,9 +2698,13 @@ export function clientScript(): string {
     tray.dataset.slug = note.slug;
     tray.dataset.covering = "1";
     delete tray.dataset.verseComposer;
-    delete tray.dataset.rangeComposer;
     tray.removeAttribute("data-verse-composer");
-    tray.removeAttribute("data-range-composer");
+    if (isRangeSlug(note.slug)) {
+      tray.dataset.rangeComposer = "1";
+    } else {
+      delete tray.dataset.rangeComposer;
+      tray.removeAttribute("data-range-composer");
+    }
     const outliner = tray.querySelector(".outliner");
     if (outliner) outliner.dataset.slug = note.slug;
     tray.querySelectorAll("[data-clear]").forEach((el) => { el.dataset.clear = note.slug; });
@@ -2585,6 +2717,7 @@ export function clientScript(): string {
       label.textContent = note.label || slugLabel(note.slug);
       label.href = "https://route.bible/" + note.slug;
     }
+    if (isRangeSlug(note.slug)) return mountRangeTray(tray, note);
     if (composer) composer.before(tray);
     else verse.append(tray);
     return tray;
@@ -2710,6 +2843,7 @@ export function clientScript(): string {
   } else if (noteMap.size) {
     writeChapterNotesCache(chapterSlug, [...noteMap.values()]);
   }
+  syncRangeRails();
   const READER_HINT_KEY = "margin_reader_hint_v1";
   function dismissReaderHint() {
     const hint = document.querySelector("#reader-hint");

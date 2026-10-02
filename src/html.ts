@@ -346,6 +346,20 @@ export function page(title: string, body: string): string {
       background: var(--sel-rail-open);
       pointer-events: none;
     }
+    /* The range rail is the left border. The hit area stays in the gutter, short of the verse number. */
+    .verse-range-rail {
+      position: absolute;
+      z-index: 2;
+      left: 0; top: 0; bottom: 0;
+      width: calc(var(--verse-inset) + 0.85rem);
+      margin: 0; padding: 0; border: 0;
+      background: transparent;
+      cursor: pointer;
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .verse-range-rail:focus,
+    .verse-range-rail:focus-visible { outline: none; }
     /* Rails-ish selection chrome: adjacent marked/open/span verse rows share one rail.
        The normal .verse margin is retained at the ends of a run, but removed
        between selected rows so the accent does not look like broken segments —

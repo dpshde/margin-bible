@@ -292,7 +292,7 @@ function renderVerses(passage: Passage, pack: ChapterPack, notes: NoteView[]): s
         note.kind !== "chapter" &&
         note.slug !== vslug &&
         note.slug !== rangeSlug &&
-        note.verseStart === verse.v &&
+        noteTrayVerse(note) === verse.v &&
         noteCoversVerse(note, verse.v),
     );
     const marked =
@@ -301,16 +301,21 @@ function renderVerses(passage: Passage, pack: ChapterPack, notes: NoteView[]): s
     const openVerse = passage.kind === "verse" && focused;
     const openRangeEnd = passage.kind === "range" && verse.v === end;
     const open = openVerse || (passage.kind === "range" && focused);
-    // Rails is-span: contiguous selection rail across the focused range (3–5), even when the tray sits under one verse.
+    // Rails is-span: contiguous selection rail across the focused range (3–5). The range note sits under the last verse.
     const span = passage.kind === "range" && focused;
     const classes = ["verse", open ? "is-open" : "", span ? "is-span" : "", marked ? "has-note" : ""].filter(Boolean).join(" ");
     html += `<div class="${classes}" id="v${verse.v}" data-verse="${verse.v}" data-slug="${escapeHtml(vslug)}">`;
+    const railSlug = rangeRailSlug(verse.v, passage, notes);
+    if (railSlug) {
+      html += `<button type="button" class="verse-range-rail" data-range-slug="${escapeHtml(railSlug)}" aria-label="Note for ${escapeHtml(noteLabel(railSlug))}"></button>`;
+    }
     html += `<button type="button" class="verse-press" data-verse="${verse.v}" aria-label="Verse ${verse.v}">`;
     html += `<span class="vnum">${verse.v}</span><span class="vtext">${escapeHtml(verse.text)}</span>`;
     html += `</button>`;
 
     for (const note of coveringHere) {
-      html += `<div class="note-tray" data-slug="${escapeHtml(note.slug)}" data-covering="1" ${openVerse && note.verseStart === verse.v ? "" : "hidden"}>
+      const rangeTray = note.kind === "range" ? ' data-range-composer="1"' : "";
+      html += `<div class="note-tray" data-slug="${escapeHtml(note.slug)}"${rangeTray} data-covering="1" hidden>
         ${renderTrayShell({
           slug: note.slug,
           label: noteLabel(note.slug),
@@ -429,6 +434,38 @@ function blankBlock(): Block {
 function noteLabel(slug: string): string {
   const passage = parsePassage(slug);
   return passage ? passageLabel(passage) : slug;
+}
+
+/** A range note lives under its last verse. A verse note lives under that verse. */
+function noteTrayVerse(note: NoteView): number | null {
+  if (note.verseStart == null) return null;
+  if (note.kind === "range") return note.verseEnd ?? note.verseStart;
+  return note.verseStart;
+}
+
+/** Narrowest range that draws a left border on this verse. The open passage range counts even when empty. */
+function rangeRailSlug(verseNum: number, passage: Passage, notes: NoteView[]): string | null {
+  const candidates: { slug: string; width: number }[] = [];
+  if (
+    passage.kind === "range" &&
+    passage.verseStart != null &&
+    passage.verseEnd != null &&
+    verseNum >= passage.verseStart &&
+    verseNum <= passage.verseEnd
+  ) {
+    candidates.push({ slug: passageSlug(passage), width: passage.verseEnd - passage.verseStart });
+  }
+  for (const note of notes) {
+    if (note.kind !== "range" || note.verseStart == null) continue;
+    const end = note.verseEnd ?? note.verseStart;
+    if (end <= note.verseStart || verseNum < note.verseStart || verseNum > end) continue;
+    const marked = !emptyBlocks(note.blocks) || note.bookmarked || (note.attachments?.length ?? 0) > 0;
+    if (!marked && !candidates.some((row) => row.slug === note.slug)) continue;
+    if (candidates.some((row) => row.slug === note.slug)) continue;
+    candidates.push({ slug: note.slug, width: end - note.verseStart });
+  }
+  candidates.sort((a, b) => a.width - b.width);
+  return candidates[0]?.slug ?? null;
 }
 
 function pager(passage: Passage): string {

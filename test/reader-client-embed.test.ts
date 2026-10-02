@@ -71,6 +71,16 @@ describe("embedded reader scripts", () => {
     nodeCheck(jumpScript(), "jump");
   });
 
+  test("a range's left border opens one note under the last verse", () => {
+    const source = clientScript();
+    expect(source).toContain("function openRangeNote");
+    expect(source).toContain('event.target.closest(".verse-range-rail")');
+    expect(source).toContain("function mountRangeTray");
+    expect(source).toContain("The left border of a range opens that range's one note under its last verse.");
+    expect(source).toContain('if (span && span.start !== span.end) return span.end;');
+    nodeCheck(source, "range-rail");
+  });
+
   test("clientScript paints contiguous is-span chrome for open range/covering trays", () => {
     const source = clientScript();
     expect(source).toContain("function syncSpanChrome");

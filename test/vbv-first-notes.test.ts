@@ -106,5 +106,65 @@ describe("range contiguous selection rail SSR", () => {
     expect(html).toMatch(/class="[^"]*\bis-span\b[^"]*"[^>]*id="v5"/);
     expect(html).toMatch(/class="[^"]*\bis-open\b[^"]*"[^>]*id="v3"/);
     expect(html).not.toMatch(/class="[^"]*\bis-span\b[^"]*"[^>]*id="v6"/);
+    expect(html).toContain('class="verse-range-rail" data-range-slug="rom.5.3-5"');
+    expect(html.match(/class="verse-range-rail"/g)?.length).toBe(3);
+    const end = html.slice(html.indexOf('id="v5"'), html.indexOf('id="v6"'));
+    expect(end).toContain('data-slug="rom.5.3-5"');
+    expect(end).toContain('data-range-composer="1"');
+  });
+
+  test("a saved range note puts one rail on each verse and the tray under the last verse", () => {
+    const pack: ChapterPack = {
+      translation: "BSB",
+      book: "1CO",
+      chapter: 13,
+      title: "1 Corinthians 13",
+      verses: [
+        { v: 3, text: "and have not love" },
+        { v: 4, text: "Love is patient" },
+        { v: 5, text: "it is not proud" },
+        { v: 6, text: "rejoices in the truth" },
+        { v: 7, text: "always protects" },
+        { v: 8, text: "Love never fails" },
+      ],
+    };
+    const html = renderChapterPage({
+      passage: parsePassage("1co.13")!,
+      pack,
+      notesPending: false,
+      notes: [
+        {
+          slug: "1co.13.4-7",
+          kind: "range",
+          book: "1CO",
+          chapter: 13,
+          verseStart: 4,
+          verseEnd: 7,
+          blocks: [{ id: "b1", indent: 0, text: "Seeded place.", bullet: true }],
+          bookmarked: true,
+          attachments: [],
+        },
+        {
+          slug: "1co.13.4",
+          kind: "verse",
+          book: "1CO",
+          chapter: 13,
+          verseStart: 4,
+          verseEnd: null,
+          blocks: [{ id: "b2", indent: 0, text: "verse only", bullet: true }],
+          bookmarked: false,
+          attachments: [],
+        },
+      ],
+    });
+    expect(html.match(/data-range-slug="1co\.13\.4-7"/g)?.length).toBe(4);
+    expect(html).not.toMatch(/id="v3"[\s\S]{0,120}verse-range-rail/);
+    const last = html.slice(html.indexOf('id="v7"'), html.indexOf('id="v8"'));
+    expect(last).toContain('data-slug="1co.13.4-7"');
+    expect(last).toContain("data-range-composer=\"1\"");
+    expect(last).toContain("Seeded place.");
+    const first = html.slice(html.indexOf('id="v4"'), html.indexOf('id="v5"'));
+    expect(first).not.toContain('data-slug="1co.13.4-7"');
+    expect(first).toContain('data-slug="1co.13.4"');
   });
 });
