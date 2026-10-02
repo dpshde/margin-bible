@@ -1411,8 +1411,8 @@ export function clientScript(): string {
       first?.focus({ preventScroll: true });
     }
     if (scroll && spotlight) {
-      // The scripture lands in the middle. The caret follow runs later, not on this open.
-      centerElement(verse.querySelector(".verse-press") || verse, 0, false);
+      // Already-placed verse URLs have nothing to move. A new selection eases to center.
+      centerElement(verse.querySelector(".verse-press") || verse, VERSE_SLIDE_MS, false);
     } else if (scroll) {
       // After open anim, scroll tray fully into view (block nearest + safe-area under tray-head).
       // Mid-anim height is clipped, so waiting avoids hard-cutting the footer near the viewport bottom.
@@ -2463,6 +2463,7 @@ export function clientScript(): string {
 
   const KEYBOARD_SLIDE_MS = 120;
   const POINTER_SLIDE_MS = 200;
+  const VERSE_SLIDE_MS = 280;
   document.documentElement.classList.add("spotlight-on");
   let spotlightTween = 0;
   // Opening a verse sets scroll once. Later caret moves still ease.
@@ -2622,10 +2623,20 @@ export function clientScript(): string {
     function setRailScrollTarget(top) {
       const maxTop = railMaxScroll();
       railTarget = Math.max(0, Math.min(maxTop, top));
-      if (railFrame) cancelAnimationFrame(railFrame);
-      railFrame = 0;
       cancelSpotlightTween();
-      window.scrollTo(0, railTarget);
+      if (railFrame) return;
+      const tick = () => {
+        if (railTarget == null) { railFrame = 0; return; }
+        const delta = railTarget - railScrollY();
+        if (Math.abs(delta) < 0.5 || prefersReduceMotion()) {
+          window.scrollTo(0, railTarget);
+          railFrame = 0;
+          return;
+        }
+        window.scrollTo(0, railScrollY() + delta * 0.32);
+        railFrame = requestAnimationFrame(tick);
+      };
+      railFrame = requestAnimationFrame(tick);
     }
     function buildRailTargets() {
       const rows = verseRows();
@@ -2671,9 +2682,6 @@ export function clientScript(): string {
       railTouchActive = false;
       verseRail.classList.remove("dragging");
       clearRailActiveVerse();
-      const releaseTop = railTarget;
-      if (releaseTop != null && Math.abs(releaseTop - railScrollY()) >= 0.5) window.scrollTo(0, releaseTop);
-      stopRailAnimation();
       railTargets = [];
       if (railPointerId != null && verseRail.releasePointerCapture && verseRail.hasPointerCapture && verseRail.hasPointerCapture(railPointerId)) {
         verseRail.releasePointerCapture(railPointerId);

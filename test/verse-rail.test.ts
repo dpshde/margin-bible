@@ -66,8 +66,7 @@ describe("verse rail", () => {
   test("normal scrolling stays decoupled from an explicit rail jump", () => {
     expect(source).toContain("The rail scrolls. It does not open a note or change the passage.");
     expect(source).toContain("function scrollRailToExact");
-    expect(source).toContain("window.scrollTo(0, railTarget)");
-    expect(source).not.toContain("delta * 0.32");
+    expect(source).toContain("window.scrollTo(0, railScrollY() + delta * 0.32)");
     expect(source).toContain("window.setTimeout(clearRailPreview, 350)");
     expect(source).toContain('verseRail.classList.add("is-native-scroll")');
     expect(source).toContain('dot.classList.toggle("current", distance === 0)');

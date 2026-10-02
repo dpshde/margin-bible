@@ -53,12 +53,16 @@ describe("verse spotlight", () => {
     expect(source).toContain("const POINTER_SLIDE_MS = 200");
     expect(source).toContain("function centerScrollDelta");
     expect(source).toContain("if (topAlign) return rowTop - viewTop - stickyHeaderPx");
-    expect(source).toContain('centerElement(verse.querySelector(".verse-press") || verse, 0, false)');
+    expect(source).toContain("const VERSE_SLIDE_MS = 280");
+    expect(source).toContain('centerElement(verse.querySelector(".verse-press") || verse, VERSE_SLIDE_MS, false)');
     expect(source).toContain("sel.isCollapsed");
   });
 
   test("a verse range marks every verse in the range and leaves the neighbors out", () => {
     const range = renderChapterPage({ passage: parsePassage("jhn.3.16-18")!, pack, notes: [] });
+    expect(range).toContain('document.getElementById("v18")');
+    expect(range).toContain("dataset.placedScroll");
+    expect(renderChapterPage({ passage: parsePassage("jhn.3")!, pack, notes: [] })).not.toContain("dataset.placedScroll");
     expect(range).toMatch(/class="verse is-open is-span" id="v16"/);
     expect(range).toMatch(/class="verse is-open is-span" id="v17"/);
     expect(range).toMatch(/class="verse is-open is-span" id="v18"/);

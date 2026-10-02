@@ -167,6 +167,7 @@ ${chapterGridHtml(passage.book, passage.chapter)}
   </form>
 </dialog>
 </div>
+${bootVerseScrollScript(bootOpen)}
 <script id="notes-data" type="application/json">${JSON.stringify(notesPayload).replace(/</g, "\\u003c")}</script>
 <script>
 ${clientScript()}
@@ -228,6 +229,24 @@ ${notesInboxScript()}
 }
 
 const VERSE_RAIL_DOTS = 28;
+
+/** Place a verse URL before first paint. The async reader loads after this, so it must not start at the top. */
+function bootVerseScrollScript(bootVerse: number | null): string {
+  if (bootVerse == null) return "";
+  return `<script>
+(function () {
+  if (history.scrollRestoration) history.scrollRestoration = "manual";
+  var el = document.getElementById("v${bootVerse}");
+  if (!el) return;
+  var press = el.querySelector(".verse-press") || el;
+  var rect = press.getBoundingClientRect();
+  var target = (window.scrollY || 0) + rect.top + rect.height / 2 - (window.innerHeight || 0) / 2;
+  if (target < 0) target = 0;
+  window.scrollTo(0, target);
+  document.documentElement.dataset.placedScroll = String(Math.round(target));
+})();
+</script>`;
+}
 
 /** Right-edge scrubber. Hidden on short chapters, same cutoff as route.bible. */
 function renderVerseRail(passage: Passage, pack: ChapterPack): string {
