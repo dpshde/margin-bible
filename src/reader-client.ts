@@ -77,6 +77,38 @@ export function clientScript(): string {
     if (coarse || scrolling) return "hold";
     return "center";
   }
+  function spotlightKeyboardFrame(baseline, lowest, height, followed, openedAt, now) {
+    const threshold = 140;
+    const settleMs = 500;
+    const closeRise = 120;
+    if (!Number.isFinite(height) || height <= 0 || !Number.isFinite(now)) {
+      return { baseline: baseline, lowest: lowest, followed: followed, openedAt: openedAt, opening: false };
+    }
+    if (baseline == null) return { baseline: height, lowest: null, followed: false, openedAt: null, opening: false };
+    if (followed && lowest != null && height >= lowest + closeRise) {
+      return { baseline: height, lowest: null, followed: false, openedAt: null, opening: false };
+    }
+    if (height > baseline) return { baseline: height, lowest: null, followed: false, openedAt: null, opening: false };
+    if (baseline - height < threshold) {
+      return { baseline: baseline, lowest: lowest, followed: followed, openedAt: openedAt, opening: false };
+    }
+    const at = openedAt == null ? now : openedAt;
+    return {
+      baseline: baseline,
+      lowest: lowest == null ? height : Math.min(lowest, height),
+      followed: true,
+      openedAt: at,
+      opening: now - at <= settleMs,
+    };
+  }
+  function spotlightViewportFollow(spotlight, coarse, eventType, scrolling, fingerDown, keyboardOpening) {
+    if (scrolling) return "ignore";
+    if (!spotlight) return "keep";
+    if (eventType !== "resize") return "ignore";
+    if (!coarse) return "keep";
+    if (fingerDown || !keyboardOpening) return "ignore";
+    return "keep";
+  }
   // One glide for every programmatic move: verse select, caret, rail, and tray follow.
   // The rate is per second, so a dropped frame does not change the curve.
   // A finger pan or wheel cancels it. The glide must not fight the reader.
@@ -1816,11 +1848,31 @@ export function clientScript(): string {
       keepEditingVisible(textEl);
     });
   });
+  let kbBaseline = null;
+  let kbLowest = null;
+  let kbFollowed = false;
+  let kbOpenedAt = null;
   function onViewportChange(event) {
-    if (userScrolling) return;
+    const vv = window.visualViewport;
+    const height = vv ? vv.height : (window.innerHeight || 0);
+    const frame = spotlightKeyboardFrame(kbBaseline, kbLowest, height, kbFollowed, kbOpenedAt, Date.now());
+    kbBaseline = frame.baseline;
+    kbLowest = frame.lowest;
+    kbFollowed = frame.followed;
+    kbOpenedAt = frame.openedAt;
+    // The keyboard-open resize may lift the tray once. A later resize, including
+    // one fired while the finger drags with the keyboard up, must not yank the chapter.
+    const follow = spotlightViewportFollow(
+      document.documentElement.classList.contains("spotlight-on"),
+      coarsePointer(),
+      event.type,
+      userScrolling,
+      !!touchPan,
+      frame.opening,
+    );
+    if (follow === "ignore") return;
     const active = document.activeElement?.closest?.(".otext");
     if (!active || !root.contains(active)) return;
-    if (document.documentElement.classList.contains("spotlight-on") && event.type !== "resize") return;
     keepEditingVisible(active);
   }
   window.visualViewport?.addEventListener("resize", onViewportChange);

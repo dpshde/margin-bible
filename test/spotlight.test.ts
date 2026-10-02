@@ -6,7 +6,12 @@ import { renderChapterPage } from "../src/reader-page";
 import { parsePassage } from "../src/passage";
 import type { ChapterPack } from "../src/usj";
 import { clientScript } from "../src/reader-client";
-import { spotlightFocusFollow, spotlightTouchAction } from "../src/spotlight-scroll";
+import {
+  spotlightFocusFollow,
+  spotlightKeyboardFrame,
+  spotlightTouchAction,
+  spotlightViewportFollow,
+} from "../src/spotlight-scroll";
 
 const pack = JSON.parse(
   readFileSync(path.join(import.meta.dir, "../assets/bsb/jhn.3.json"), "utf8"),
@@ -100,6 +105,76 @@ describe("verse spotlight", () => {
     const atCenter = source.indexOf("centerElement(line);");
     expect(atHold).toBeGreaterThan(0);
     expect(atCenter).toBeGreaterThan(atHold);
+  });
+
+  test("a phone follows the keyboard opening once and then lets the chapter scroll", () => {
+    const settled = spotlightKeyboardFrame({
+      baseline: null, lowest: null, height: 800, followed: false, openedAt: null, now: 0,
+    });
+    expect(settled).toEqual({ baseline: 800, lowest: null, followed: false, openedAt: null, opening: false });
+
+    const chrome = spotlightKeyboardFrame({ ...settled, height: 760, now: 10 });
+    expect(chrome.opening).toBe(false);
+    expect(chrome.baseline).toBe(800);
+
+    const opening = spotlightKeyboardFrame({ ...chrome, height: 470, now: 100 });
+    expect(opening.opening).toBe(true);
+    expect(opening.followed).toBe(true);
+    expect(opening.openedAt).toBe(100);
+    expect(opening.lowest).toBe(470);
+
+    const animating = spotlightKeyboardFrame({ ...opening, height: 420, now: 280 });
+    expect(animating.opening).toBe(true);
+    expect(animating.lowest).toBe(420);
+
+    const open = spotlightKeyboardFrame({ ...animating, height: 430, now: 900 });
+    expect(open.opening).toBe(false);
+    expect(open.followed).toBe(true);
+    expect(open.baseline).toBe(800);
+
+    const closed = spotlightKeyboardFrame({ ...open, height: 760, now: 1200 });
+    expect(closed).toMatchObject({ baseline: 760, followed: false, openedAt: null, opening: false });
+
+    const again = spotlightKeyboardFrame({ ...closed, height: 450, now: 1500 });
+    expect(again.opening).toBe(true);
+
+    expect(spotlightViewportFollow({
+      spotlight: true, coarse: true, eventType: "resize",
+      userScrolling: false, fingerDown: false, keyboardOpening: true,
+    })).toBe("keep");
+    expect(spotlightViewportFollow({
+      spotlight: true, coarse: true, eventType: "resize",
+      userScrolling: false, fingerDown: false, keyboardOpening: false,
+    })).toBe("ignore");
+    expect(spotlightViewportFollow({
+      spotlight: true, coarse: true, eventType: "resize",
+      userScrolling: false, fingerDown: true, keyboardOpening: true,
+    })).toBe("ignore");
+    expect(spotlightViewportFollow({
+      spotlight: true, coarse: true, eventType: "scroll",
+      userScrolling: false, fingerDown: false, keyboardOpening: true,
+    })).toBe("ignore");
+    expect(spotlightViewportFollow({
+      spotlight: true, coarse: true, eventType: "resize",
+      userScrolling: true, fingerDown: false, keyboardOpening: true,
+    })).toBe("ignore");
+    expect(spotlightViewportFollow({
+      spotlight: true, coarse: false, eventType: "resize",
+      userScrolling: false, fingerDown: false, keyboardOpening: false,
+    })).toBe("keep");
+    expect(spotlightViewportFollow({
+      spotlight: false, coarse: true, eventType: "scroll",
+      userScrolling: false, fingerDown: false, keyboardOpening: false,
+    })).toBe("keep");
+
+    expect(source).toContain("function spotlightKeyboardFrame");
+    expect(source).toContain("function spotlightViewportFollow");
+    const viewport = source.slice(source.indexOf("function onViewportChange"), source.indexOf('addEventListener("resize", onViewportChange)'));
+    expect(viewport).toContain("spotlightKeyboardFrame");
+    expect(viewport).toContain("spotlightViewportFollow");
+    expect(viewport.indexOf('if (follow === "ignore") return;')).toBeGreaterThan(0);
+    expect(viewport.indexOf("keepEditingVisible(active)")).toBeGreaterThan(viewport.indexOf('if (follow === "ignore") return;'));
+    expect(source).toContain('centerElement(verse.querySelector(".verse-press") || verse, false)');
   });
 
   test("a verse range marks every verse in the range and leaves the neighbors out", () => {
