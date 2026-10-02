@@ -66,6 +66,40 @@ export function caretForNeighbor(direction: number, neighborTextLength: number):
   return direction < 0 ? neighborTextLength : 0;
 }
 
+/** beforeinput follows keydown for the same Enter. Suppress only that echo.
+ * A later keydown still splits — key repeat must keep working on desktop.
+ */
+export function enterInputSuppressed(suppressUntil: number, now: number): boolean {
+  return Number.isFinite(suppressUntil) && Number.isFinite(now) && now < suppressUntil;
+}
+
+/** Where to put the caret when a focused outliner is repainted.
+ * Keep the row the caret is already on. Never fall back to row 1.
+ * Returns null when that row is not in the payload — the caller keeps the DOM.
+ */
+export function repaintFocus(input: {
+  wasFocused: boolean;
+  activeId?: string | null;
+  activeIndex: number;
+  caret: number;
+  blocks: { id: string; text?: string }[];
+}): { id: string; caret: number } | null {
+  if (!input.wasFocused) return null;
+  const blocks = Array.isArray(input.blocks) ? input.blocks : [];
+  if (!blocks.length) return null;
+  const wanted = String(input.activeId || "");
+  let block = wanted ? blocks.find((row) => row.id === wanted) : undefined;
+  if (!block) {
+    const index = input.activeIndex;
+    if (Number.isInteger(index) && index >= 0 && index < blocks.length) block = blocks[index];
+  }
+  if (!block) return null;
+  const text = String(block.text || "");
+  const caret = Number(input.caret);
+  const at = Number.isFinite(caret) ? Math.max(0, Math.min(Math.trunc(caret), text.length)) : text.length;
+  return { id: block.id, caret: at };
+}
+
 export function arrowBlockNav(input: {
   key: string;
   shiftKey?: boolean;
