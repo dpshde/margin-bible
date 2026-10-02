@@ -36,7 +36,7 @@ import {
   verifyAuthentication,
   verifyRegistration,
 } from "./passkeys";
-import { parsePassage, passageLabel, passageSlug, type Passage } from "./passage";
+import { chapterSlug, lazyChapterNotes, parsePassage, passageLabel, passageSlug, type Passage } from "./passage";
 import { renderChapterPage, renderMissing, renderNotesIndex } from "./reader-page";
 import type { ChapterPack } from "./usj";
 import { ensureBidirectionalXrefs, syncBidirectionalXrefs } from "./xref-sync";
@@ -106,7 +106,7 @@ app.use("*", async (c, next) => {
   }
 });
 
-app.get("/health", (c) => c.json({ ok: true, app: "margin-bible", version: "2026.10.02.7" }));
+app.get("/health", (c) => c.json({ ok: true, app: "margin-bible", version: "2026.10.02.8" }));
 
 app.get("/bsb/*", (c) => c.env.ASSETS.fetch(c.req.raw));
 
@@ -347,12 +347,24 @@ app.get("/:slug", async (c) => {
   if (!passage) return c.html(renderMissing("Couldn’t resolve that passage."), 404);
   const libraryId = c.get("libraryId");
   const slug = passageSlug(passage);
-  // VBV-first: paint scripture ASAP. D1 notes hydrate client-side via /api/notes?chapter=.
-  const pack = await loadChapter(c.env.ASSETS, passage);
+  // Chapters paint scripture first and hydrate notes. A verse or range waits for that note.
+  const eagerNotes = !lazyChapterNotes(passage);
+  const packPromise = loadChapter(c.env.ASSETS, passage);
+  const notesPromise = eagerNotes
+    ? notesForQuery(c.env.DB, libraryId, chapterSlug(passage), undefined)
+    : Promise.resolve(null);
   c.executionCtx.waitUntil(rememberRead(c.env.DB, libraryId, slug).catch(() => {}));
+  const [pack, queried] = await Promise.all([packPromise, notesPromise]);
   if (!pack) return c.html(renderMissing(`No BSB chapter for ${passageLabel(passage)}.`), 404);
+  const notes = queried && queried.ok ? queried.notes : [];
   return c.html(
-    renderChapterPage({ passage, pack, notes: [], notesPending: true, signedIn: c.get("signedIn") }),
+    renderChapterPage({
+      passage,
+      pack,
+      notes,
+      notesPending: !eagerNotes,
+      signedIn: c.get("signedIn"),
+    }),
     200,
     { "cache-control": "private, no-store" },
   );

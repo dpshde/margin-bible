@@ -2513,8 +2513,14 @@ export function clientScript(): string {
     } else {
       Promise.resolve(htmlCache.get(href)).then((html) => seedNotesFromHtml(slug, html)).catch(() => {});
     }
-    // Notes ride a small API so soft-nav chapter HTML stays VBV-first.
-    prefetchChapterNotes(slug);
+    // Chapter HTML stays scripture-first. A verse or range already carries its notes.
+    if (!hrefIsExactNote(href)) prefetchChapterNotes(slug);
+  }
+  function hrefIsExactNote(href) {
+    try {
+      const path = new URL(href, location.origin).pathname.replace(/^\\/+/, "");
+      return /^[a-z0-9]+\\.\\d+\\.\\d+/i.test(path);
+    } catch { return false; }
   }
   function warmAdjacentChapters() {
     // Pager prev/next only — do NOT select every a[data-chapter-nav] (chapter grid
@@ -2536,8 +2542,8 @@ export function clientScript(): string {
     // Persist unsaved attach/xref/body before document.write tears the page down.
     await flushAll({ keepalive: false });
     const slug = chapterSlugFromHref(url.href);
-    // Kick notes hydrate for the destination in parallel with chapter HTML.
-    if (slug) prefetchChapterNotes(slug);
+    // Chapters hydrate notes beside the HTML. An exact verse or range does not.
+    if (slug && !hrefIsExactNote(url.href)) prefetchChapterNotes(slug);
     const htmlPromise = htmlCache.get(url.href) || fetch(url.href, { credentials: "same-origin", headers: { accept: "text/html" } }).then((r) => {
       if (!r.ok) throw new Error("nav");
       return r.text();

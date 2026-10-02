@@ -178,9 +178,10 @@ describe("embedded reader scripts", () => {
     expect(source).toContain("function prefetchChapterNotes");
     expect(source).toContain("notesPending");
     expect(source).toContain("/api/notes?chapter=");
-    // softNavTo kicks notes API in parallel with chapter HTML (VBV-first).
-    expect(source).toContain("Kick notes hydrate for the destination");
-    expect(source).toMatch(/softNavTo[\s\S]*?prefetchChapterNotes\(slug\)/);
+    // Chapter soft-nav still fetches notes. An exact verse or range does not.
+    expect(source).toContain("function hrefIsExactNote");
+    expect(source).toContain("if (slug && !hrefIsExactNote(url.href)) prefetchChapterNotes(slug)");
+    expect(source).toContain("if (!hrefIsExactNote(href)) prefetchChapterNotes(slug)");
     expect(source).toContain("function extractNotesFromHtml");
     expect(source).toContain("seedNotesFromHtml");
   });

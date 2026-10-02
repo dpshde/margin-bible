@@ -49,6 +49,11 @@ export function chapterSlug(passage: Passage): string {
   return `${passage.book.toLowerCase()}.${passage.chapter}`;
 }
 
+/** Chapter URLs paint scripture first and load notes after. A verse or range includes its notes in the first HTML. */
+export function lazyChapterNotes(passage: Passage): boolean {
+  return passage.kind === "chapter";
+}
+
 export function passageLabel(passage: Passage): string {
   const name = bookName(passage.book) ?? passage.book;
   if (passage.kind === "chapter" || passage.verseStart == null) return `${name} ${passage.chapter}`;

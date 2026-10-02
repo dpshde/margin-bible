@@ -89,10 +89,13 @@ export function renderChapterPage(input: {
   ].filter(Boolean) as string[];
   const prefetchLinks = adjacentUrls.map((href) => `<link rel="prefetch" href="${href}" as="document">`).join("\n");
   const speculateUrls = JSON.stringify(["/notes", "/api/notes", ...adjacentUrls]);
+  // Only a chapter defers notes. A verse or range already embedded them, so do not preload the chapter API.
+  const notesPreload = notesPending
+    ? `<link rel="preload" href="/api/notes?chapter=${escapeHtml(chapSlug)}" as="fetch" crossorigin="use-credentials">\n`
+    : "";
   const body = `<link rel="prefetch" href="/notes" as="document">
 <link rel="prefetch" href="/api/notes" as="fetch" crossorigin="use-credentials">
-<link rel="preload" href="/api/notes?chapter=${escapeHtml(chapSlug)}" as="fetch" crossorigin="use-credentials">
-${prefetchLinks}
+${notesPreload}${prefetchLinks}
 <script type="speculationrules">{"prefetch":[{"urls":${speculateUrls},"eagerness":"eager"}]}</script>
 <div id="reader" data-chapter-slug="${escapeHtml(chapSlug)}" data-passage-slug="${escapeHtml(passageSlug(passage))}" data-boot-verse="${bootOpen ?? ""}" data-notes-pending="${notesPending ? "1" : "0"}">
 <header class="topbar">

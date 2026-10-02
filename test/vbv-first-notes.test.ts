@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { renderChapterPage } from "../src/reader-page";
-import { parsePassage } from "../src/passage";
+import { lazyChapterNotes, parsePassage } from "../src/passage";
 import { clientScript } from "../src/reader-client";
 import type { ChapterPack } from "../src/usj";
 
@@ -13,6 +13,14 @@ const pack: ChapterPack = {
     { v: 16, text: "For God so loved the world that He gave His one and only Son, that everyone who believes in Him shall not perish but have eternal life." },
   ],
 };
+
+describe("when notes load with the page", () => {
+  test("a chapter defers notes; a verse or range does not", () => {
+    expect(lazyChapterNotes(parsePassage("jhn.3")!)).toBe(true);
+    expect(lazyChapterNotes(parsePassage("jhn.3.16")!)).toBe(false);
+    expect(lazyChapterNotes(parsePassage("rom.5.3-5")!)).toBe(false);
+  });
+});
 
 describe("VBV-first chapter notes", () => {
   test("notesPending SSR embeds empty notes-data and marks reader pending", () => {
@@ -59,6 +67,7 @@ describe("VBV-first chapter notes", () => {
     expect(html).toContain('data-notes-pending="0"');
     expect(html).toContain("has-note");
     expect(html).toContain("loved");
+    expect(html).not.toContain('href="/api/notes?chapter=jhn.3"');
   });
 
   test("clientScript hydrates notes without overwriting dirty trays", () => {
