@@ -40,26 +40,62 @@ export function clientScript(): string {
   let scrollGoal = null;
   let scrollFrame = 0;
   let scrollStamp = 0;
+  let scrollGen = 0;
+  // Set while a finger pan owns the page, including the momentum just after lift.
+  let userScrolling = false;
+  let userScrollTimer = 0;
+  function cancelScrollGlide() {
+    scrollGen += 1;
+    scrollGoal = null;
+    if (scrollFrame) cancelAnimationFrame(scrollFrame);
+    scrollFrame = 0;
+    scrollStamp = 0;
+  }
+  function armUserScroll() {
+    userScrolling = true;
+    if (userScrollTimer) clearTimeout(userScrollTimer);
+    userScrollTimer = setTimeout(() => {
+      userScrolling = false;
+      userScrollTimer = 0;
+    }, 800);
+  }
+  function coarsePointer() {
+    return window.matchMedia("(hover: none), (pointer: coarse)").matches;
+  }
+  function spotlightTouchAction(dx, dy, coarse, editorFocused, targetInEditor) {
+    const slop = 10;
+    const moved = Number.isFinite(dx) && Number.isFinite(dy) && (Math.abs(dx) >= slop || Math.abs(dy) >= slop);
+    if (!moved) return { cancelGlide: false, releaseCaret: false };
+    const vertical = Math.abs(dy) > Math.abs(dx);
+    return {
+      cancelGlide: true,
+      releaseCaret: !!(coarse && editorFocused && (!targetInEditor || vertical)),
+    };
+  }
+  function spotlightFocusFollow(placeInstantFlag, coarse, scrolling) {
+    if (placeInstantFlag) return "consume-instant";
+    if (coarse || scrolling) return "hold";
+    return "center";
+  }
   // One glide for every programmatic move: verse select, caret, rail, and tray follow.
   // The rate is per second, so a dropped frame does not change the curve.
+  // A finger pan or wheel cancels it. The glide must not fight the reader.
   function smoothScrollTo(top) {
     const vh = window.innerHeight || document.documentElement.clientHeight || 0;
     const height = document.documentElement.scrollHeight || document.body.scrollHeight || 0;
     const maxY = Math.max(0, height - vh);
     const goal = Math.max(0, Math.min(maxY, top));
     if (prefersReduceMotion()) {
-      if (scrollFrame) cancelAnimationFrame(scrollFrame);
-      scrollFrame = 0;
-      scrollGoal = null;
-      scrollStamp = 0;
+      cancelScrollGlide();
       window.scrollTo(0, goal);
       return;
     }
     scrollGoal = goal;
     if (scrollFrame) return;
     scrollStamp = 0;
+    const gen = scrollGen;
     const step = (now) => {
-      if (scrollGoal == null) { scrollFrame = 0; return; }
+      if (gen !== scrollGen || scrollGoal == null) { scrollFrame = 0; return; }
       const dt = scrollStamp ? Math.min(0.032, (now - scrollStamp) / 1000) : 0.016;
       scrollStamp = now;
       const from = window.scrollY || window.pageYOffset || 0;
@@ -77,6 +113,40 @@ export function clientScript(): string {
     };
     scrollFrame = requestAnimationFrame(step);
   }
+  let touchPan = null;
+  window.addEventListener("touchstart", (event) => {
+    const t = event.touches && event.touches[0];
+    touchPan = t ? { x: t.clientX, y: t.clientY } : null;
+    // Finger down ends a glide still pulling the open verse to mid-screen.
+    // A tap must still focus the note, so the caret stays until the gesture is a pan.
+    if (touchPan) cancelScrollGlide();
+  }, { passive: true });
+  window.addEventListener("touchend", () => { touchPan = null; }, { passive: true });
+  window.addEventListener("touchcancel", () => { touchPan = null; }, { passive: true });
+  window.addEventListener("touchmove", (event) => {
+    const t = event.touches && event.touches[0];
+    if (!t || !touchPan) return;
+    const active = document.activeElement;
+    const editing = active && active.closest ? active.closest(".otext") : null;
+    const editorFocused = !!(editing && root.contains(editing));
+    const targetInEditor = !!(editorFocused && event.target && editing.contains(event.target));
+    const action = spotlightTouchAction(
+      t.clientX - touchPan.x,
+      t.clientY - touchPan.y,
+      coarsePointer(),
+      editorFocused,
+      targetInEditor,
+    );
+    if (!action.cancelGlide) return;
+    cancelScrollGlide();
+    armUserScroll();
+    if (action.releaseCaret) {
+      // Drop the Enter-focus hold too, or its timer puts the caret back and iOS pins the verse.
+      if (focusHold && focusHold.el === editing) focusHold = null;
+      editing.blur();
+    }
+  }, { passive: true });
+  window.addEventListener("wheel", () => cancelScrollGlide(), { passive: true });
 
   function safeInsetBottom() {
     const raw = getComputedStyle(document.documentElement).getPropertyValue("--safe-bottom").trim();
@@ -1144,6 +1214,8 @@ export function clientScript(): string {
       if (!el.isConnected) return;
       // A newer Enter or arrow move replaced this hold. Don't pull the caret back.
       if (!focusHold || focusHold.el !== el) return;
+      // A finger pan owns the page. Putting the caret back would pin the verse mid-screen.
+      if (userScrolling) return;
       const outliner = el.closest(".outliner");
       const active = document.activeElement;
       const inside = !!(active && outliner && outliner.contains(active));
@@ -1725,7 +1797,7 @@ export function clientScript(): string {
   root.addEventListener("focusin", (event) => {
     const textEl = event.target.closest(".otext");
     if (!textEl || !root.contains(textEl)) return;
-    if (focusHold && Date.now() < focusHold.until && focusHold.el.isConnected && textEl !== focusHold.el) {
+    if (!userScrolling && focusHold && Date.now() < focusHold.until && focusHold.el.isConnected && textEl !== focusHold.el) {
       const holdOutliner = focusHold.el.closest(".outliner");
       if (holdOutliner && holdOutliner.contains(textEl)) {
         focusHold.el.focus({ preventScroll: true });
@@ -1745,6 +1817,7 @@ export function clientScript(): string {
     });
   });
   function onViewportChange(event) {
+    if (userScrolling) return;
     const active = document.activeElement?.closest?.(".otext");
     if (!active || !root.contains(active)) return;
     if (document.documentElement.classList.contains("spotlight-on") && event.type !== "resize") return;
@@ -2612,7 +2685,11 @@ export function clientScript(): string {
       if (!line.isConnected) return;
       const sel = document.getSelection();
       if (sel && !sel.isCollapsed && sel.anchorNode && line.contains(sel.anchorNode)) return;
-      if (placeInstant) { placeInstant = false; return; }
+      // Opening centers once from openVerse. On a phone, later focus must not
+      // pull that verse back to mid-screen while the reader scrolls.
+      const follow = spotlightFocusFollow(placeInstant, coarsePointer(), userScrolling);
+      if (follow === "consume-instant") { placeInstant = false; return; }
+      if (follow === "hold") return;
       centerElement(line);
     });
   }, true);

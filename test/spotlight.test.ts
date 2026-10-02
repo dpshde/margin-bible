@@ -6,6 +6,7 @@ import { renderChapterPage } from "../src/reader-page";
 import { parsePassage } from "../src/passage";
 import type { ChapterPack } from "../src/usj";
 import { clientScript } from "../src/reader-client";
+import { spotlightFocusFollow, spotlightTouchAction } from "../src/spotlight-scroll";
 
 const pack = JSON.parse(
   readFileSync(path.join(import.meta.dir, "../assets/bsb/jhn.3.json"), "utf8"),
@@ -46,6 +47,12 @@ describe("verse spotlight", () => {
     expect(page("t", "")).not.toContain('localStorage.getItem("margin_spotlight")');
   });
 
+  test("note text stays at 16px so iOS does not focus-zoom", () => {
+    expect(css).toContain(".otext {\n      flex: 1; min-width: 0; min-height: 1.55em; line-height: 1.55;\n      padding: 0; white-space: pre-wrap; word-break: break-word; caret-color: var(--ink);\n      outline: none; border: 0; font-size: 16px;");
+    expect(css).toContain('name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content"');
+    expect(css).not.toContain("maximum-scale");
+  });
+
   test("the reader still aligns the caret while spotlight is on", () => {
     expect(source).toContain('classList.add("spotlight-on")');
     expect(source).toContain('classList.add("spotlight-fade")');
@@ -55,6 +62,44 @@ describe("verse spotlight", () => {
     expect(source).toContain("if (topAlign) return rowTop - viewTop - stickyHeaderPx");
     expect(source).toContain('centerElement(verse.querySelector(".verse-press") || verse, false)');
     expect(source).toContain("sel.isCollapsed");
+  });
+
+  test("a finger pan cancels the glide and does not pin the open verse", () => {
+    expect(spotlightTouchAction({
+      dx: 1, dy: 2, coarse: true, editorFocused: true, targetInEditor: false,
+    })).toEqual({ cancelGlide: false, releaseCaret: false });
+    expect(spotlightTouchAction({
+      dx: 0, dy: 28, coarse: true, editorFocused: true, targetInEditor: false,
+    })).toEqual({ cancelGlide: true, releaseCaret: true });
+    expect(spotlightTouchAction({
+      dx: 0, dy: 28, coarse: true, editorFocused: true, targetInEditor: true,
+    })).toEqual({ cancelGlide: true, releaseCaret: true });
+    expect(spotlightTouchAction({
+      dx: 28, dy: 4, coarse: true, editorFocused: true, targetInEditor: true,
+    })).toEqual({ cancelGlide: true, releaseCaret: false });
+    expect(spotlightTouchAction({
+      dx: 12, dy: 0, coarse: false, editorFocused: true, targetInEditor: false,
+    })).toEqual({ cancelGlide: true, releaseCaret: false });
+    expect(spotlightFocusFollow({ placeInstant: true, coarse: true, userScrolling: false })).toBe("consume-instant");
+    expect(spotlightFocusFollow({ placeInstant: false, coarse: true, userScrolling: false })).toBe("hold");
+    expect(spotlightFocusFollow({ placeInstant: false, coarse: false, userScrolling: true })).toBe("hold");
+    expect(spotlightFocusFollow({ placeInstant: false, coarse: false, userScrolling: false })).toBe("center");
+
+    expect(source).toContain("function cancelScrollGlide");
+    expect(source).toContain("function spotlightTouchAction");
+    expect(source).toContain("function spotlightFocusFollow");
+    expect(source).toContain("if (gen !== scrollGen || scrollGoal == null)");
+    expect(source).toContain("if (touchPan) cancelScrollGlide()");
+    expect(source).toContain("if (focusHold && focusHold.el === editing) focusHold = null");
+    expect(source).toContain("editing.blur()");
+    expect(source).toContain('addEventListener("wheel", () => cancelScrollGlide(), { passive: true })');
+    const soon = source.slice(source.indexOf("function focusBlockSoon"), source.indexOf("function rangeAtOffset"));
+    expect(soon).toContain("if (userScrolling) return;");
+    expect(source).toContain("if (userScrolling) return");
+    const atHold = source.indexOf('if (follow === "hold") return;');
+    const atCenter = source.indexOf("centerElement(line);");
+    expect(atHold).toBeGreaterThan(0);
+    expect(atCenter).toBeGreaterThan(atHold);
   });
 
   test("a verse range marks every verse in the range and leaves the neighbors out", () => {
