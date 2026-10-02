@@ -31,7 +31,6 @@ export function clientScript(): string {
   const pendingSaves = new Map();
   let expanding = false;
   let selectedVerse = null;
-  let breathAnimating = false;
   const openVerses = new Set();
   const collapsedNotes = new Set();
   const INBOX_KEY = "margin_inbox_v4";
@@ -1665,7 +1664,6 @@ export function clientScript(): string {
     });
   });
   function onViewportChange(event) {
-    if (breathAnimating) return;
     const active = document.activeElement?.closest?.(".otext");
     if (!active || !root.contains(active)) return;
     if (document.documentElement.classList.contains("spotlight-on") && event.type !== "resize") return;
@@ -2459,15 +2457,10 @@ export function clientScript(): string {
   }
   bootReaderHint();
 
-  const SPOTLIGHT_KEY = "margin_spotlight";
   const KEYBOARD_SLIDE_MS = 120;
   const POINTER_SLIDE_MS = 200;
-  const BREATH_MS = 200;
+  document.documentElement.classList.add("spotlight-on");
   let spotlightTween = 0;
-  let spotlightReturn = null;
-  function spotlightOn() {
-    return document.documentElement.classList.contains("spotlight-on");
-  }
   function cancelSpotlightTween() {
     if (!spotlightTween) return;
     cancelAnimationFrame(spotlightTween);
@@ -2514,18 +2507,6 @@ export function clientScript(): string {
     const viewHeight = vv ? vv.height : window.innerHeight;
     return centerScrollDelta(rowTop, rowHeight, viewTop, viewHeight, stickyHeaderHeight(), isMobileSpotlight());
   }
-  function breathPadPx() {
-    if (isMobileSpotlight()) return 0;
-    const probe = document.createElement("div");
-    probe.style.cssText = "position:absolute;visibility:hidden;height:50vh;pointer-events:none";
-    document.body.appendChild(probe);
-    const h = probe.getBoundingClientRect().height;
-    probe.remove();
-    return Math.round(h);
-  }
-  function outlineRegion() {
-    return document.getElementById("chapter");
-  }
   function spotlightLine(target) {
     if (!target || !target.closest) return null;
     const text = target.classList && target.classList.contains("otext") ? target : target.closest(".otext");
@@ -2538,167 +2519,277 @@ export function clientScript(): string {
     return block;
   }
   function centerElement(el, ms) {
-    if (!spotlightOn() || breathAnimating || !el.isConnected) return;
+    if (!el.isConnected) return;
     const rect = el.getBoundingClientRect();
     if (rect.height === 0) return;
     slideBy(alignScrollDelta(rect.top, rect.height), ms);
   }
-  function rememberCaret() {
-    const active = document.activeElement;
-    if (active && active.classList && active.classList.contains("otext")) spotlightReturn = active;
-  }
-  function restoreCaret() {
-    const el = spotlightReturn;
-    spotlightReturn = null;
-    if (el && el.isConnected) el.focus({ preventScroll: true });
-  }
-  function readPad(region) {
-    if (!region) return 0;
-    if (region.style.paddingTop !== "") {
-      const live = parseFloat(region.style.paddingTop);
-      if (Number.isFinite(live)) return live;
-    }
-    return parseFloat(getComputedStyle(region).paddingTop) || 0;
-  }
-  function animateBreath(padFrom, padTo, scrollDelta) {
-    const region = outlineRegion();
-    const from = window.scrollY || window.pageYOffset || 0;
-    breathAnimating = true;
-    if (region) region.style.overflowAnchor = "none";
-    runSpotlightTween(BREATH_MS, (t) => {
-      if (region) region.style.paddingTop = Math.round(padFrom + (padTo - padFrom) * t) + "px";
-      window.scrollTo(0, from + scrollDelta * t);
-    }, () => {
-      breathAnimating = false;
-      if (region) {
-        region.style.paddingTop = "";
-        region.style.overflowAnchor = "";
-      }
-    });
-  }
-  function syncSpotlightUi() {
-    const item = document.getElementById("spotlight-toggle");
-    if (item) item.setAttribute("aria-checked", spotlightOn() ? "true" : "false");
-  }
-  function hideMoreMenu() {
-    const menu = document.getElementById("more-menu");
-    const btn = document.getElementById("more-menu-btn");
-    if (menu) menu.hidden = true;
-    if (btn) btn.setAttribute("aria-expanded", "false");
-  }
-  function closeMoreMenu(restore) {
-    hideMoreMenu();
-    if (restore) restoreCaret();
-    else spotlightReturn = null;
-  }
-  function setSpotlight(next) {
-    if (spotlightOn() === next) {
-      syncSpotlightUi();
-      return;
-    }
-    try { localStorage.setItem(SPOTLIGHT_KEY, next ? "true" : "false"); } catch (err) {}
-    const region = outlineRegion();
-    if (next) {
-      let padFrom = 0;
-      if (region) {
-        padFrom = readPad(region);
-        region.style.paddingTop = padFrom + "px";
-      }
-      document.documentElement.classList.add("spotlight-on");
-      syncSpotlightUi();
-      const line = spotlightLine(document.activeElement);
-      const padTo = breathPadPx();
-      let delta = 0;
-      if (line) {
-        const rect = line.getBoundingClientRect();
-        const shift = region && region.contains(line) ? padTo - padFrom : 0;
-        delta = alignScrollDelta(rect.top + shift, rect.height);
-      }
-      animateBreath(padFrom, padTo, delta);
-      return;
-    }
-    document.documentElement.classList.remove("spotlight-on", "spotlight-fade");
-    syncSpotlightUi();
-    const line = spotlightLine(document.activeElement);
-    let flight = breathPadPx();
-    let base = 0;
-    if (region) {
-      const live = parseFloat(region.style.paddingTop);
-      if (region.style.paddingTop !== "" && Number.isFinite(live)) {
-        flight = live;
-        region.style.paddingTop = "";
-      }
-      base = parseFloat(getComputedStyle(region).paddingTop) || 0;
-      region.style.paddingTop = flight + "px";
-    }
-    const padDelta = line && region && region.contains(line) ? -(flight - base) : (line ? 0 : -(window.scrollY || 0));
-    animateBreath(flight, base, padDelta);
-  }
-  window.addEventListener("pointerdown", (event) => {
-    const target = event.target;
-    if (target && target.closest && target.closest("#more-menu, #more-menu-btn, #spotlight-chip")) rememberCaret();
+  window.addEventListener("pointerdown", () => {
     document.documentElement.classList.add("spotlight-fade");
   }, true);
-  window.addEventListener("keydown", (event) => {
+  window.addEventListener("keydown", () => {
     document.documentElement.classList.remove("spotlight-fade");
-    if (event.key === "Escape") {
-      const menu = document.getElementById("more-menu");
-      if (menu && !menu.hidden) {
-        event.preventDefault();
-        event.stopPropagation();
-        closeMoreMenu(true);
-      }
-      return;
-    }
-    if ((event.key === "k" || event.key === "K") && (event.metaKey || event.ctrlKey) && !event.altKey && !event.shiftKey) {
-      event.preventDefault();
-      hideMoreMenu();
-      restoreCaret();
-      setSpotlight(!spotlightOn());
-    }
   }, true);
   window.addEventListener("focusin", (event) => {
-    if (!spotlightOn()) return;
     const line = spotlightLine(event.target);
     if (!line) return;
     requestAnimationFrame(() => {
-      if (!spotlightOn() || !line.isConnected) return;
+      if (!line.isConnected) return;
       const sel = document.getSelection();
       if (sel && !sel.isCollapsed && sel.anchorNode && line.contains(sel.anchorNode)) return;
       centerElement(line, document.documentElement.classList.contains("spotlight-fade") ? POINTER_SLIDE_MS : KEYBOARD_SLIDE_MS);
     });
   }, true);
-  const moreBtn = document.getElementById("more-menu-btn");
-  const moreMenu = document.getElementById("more-menu");
-  const spotlightItem = document.getElementById("spotlight-toggle");
-  const spotlightChip = document.getElementById("spotlight-chip");
-  syncSpotlightUi();
-  if (moreBtn && moreMenu) {
-    moreBtn.addEventListener("click", () => {
-      if (moreMenu.hidden) {
-        moreMenu.hidden = false;
-        moreBtn.setAttribute("aria-expanded", "true");
-        return;
+
+  // Verse rail. Dragging or keying it scrolls the window. The rail scrolls. It does not open a note or change the passage.
+  const verseRail = root.querySelector("[data-reader-rail]");
+  const verseRailPreview = root.querySelector("[data-reader-rail-preview]");
+  const VERSE_RAIL_DOTS = 28;
+  if (verseRail && verseRailPreview) {
+    const verseRows = () => [...document.querySelectorAll("#chapter .verse[data-verse]")];
+    let railActive = false;
+    let railIndex = -1;
+    let railPointerId = null;
+    let railTouchActive = false;
+    let railTargets = [];
+    let railFrame = 0;
+    let railTarget = null;
+    let railHideTimer = 0;
+    function railMaxScroll() {
+      const vh = window.innerHeight || document.documentElement.clientHeight || 0;
+      const height = document.documentElement.scrollHeight || document.body.scrollHeight || 0;
+      return Math.max(0, height - vh);
+    }
+    function railScrollY() {
+      return window.scrollY || window.pageYOffset || 0;
+    }
+    function railRatio(clientY) {
+      const rect = verseRail.getBoundingClientRect();
+      if (rect.height <= 0) return 0;
+      return Math.min(1, Math.max(0, (clientY - rect.top) / rect.height));
+    }
+    function railDotIndex(verseIndex, count) {
+      if (count <= 1) return 0;
+      const ratio = verseIndex / (count - 1);
+      return Math.min(VERSE_RAIL_DOTS - 1, Math.max(0, Math.round(ratio * (VERSE_RAIL_DOTS - 1))));
+    }
+    function clearRailActiveVerse() {
+      document.querySelectorAll(".reader-rail-active-verse").forEach((row) => row.classList.remove("reader-rail-active-verse"));
+    }
+    function setRailPreview(index) {
+      const rows = verseRows();
+      const row = rows[index];
+      if (!row) return;
+      const dotIndex = railDotIndex(index, rows.length);
+      railIndex = index;
+      const verseNo = row.dataset.verse || String(index + 1);
+      verseRail.setAttribute("aria-valuenow", String(index + 1));
+      verseRail.setAttribute("aria-valuetext", "Verse " + verseNo);
+      verseRail.classList.add("visible");
+      verseRail.querySelectorAll("[data-reader-rail-dot-index]").forEach((dot, i) => {
+        const distance = Math.abs(i - dotIndex);
+        dot.classList.toggle("current", distance === 0);
+        dot.classList.toggle("wave-1", distance === 1);
+        dot.classList.toggle("wave-2", distance === 2);
+        dot.classList.toggle("wave-3", distance === 3);
+      });
+      verseRailPreview.textContent = verseNo;
+      verseRailPreview.hidden = false;
+      clearRailActiveVerse();
+      row.classList.add("reader-rail-active-verse");
+    }
+    function clearRailPreview() {
+      railHideTimer = 0;
+      clearRailActiveVerse();
+      verseRailPreview.hidden = true;
+      verseRailPreview.textContent = "";
+      verseRail.classList.remove("visible");
+      railIndex = -1;
+      verseRail.querySelectorAll("[data-reader-rail-dot-index]").forEach((dot) => {
+        dot.classList.remove("current", "wave-1", "wave-2", "wave-3");
+      });
+    }
+    function stopRailAnimation() {
+      if (railFrame) cancelAnimationFrame(railFrame);
+      railFrame = 0;
+      railTarget = null;
+    }
+    function setRailScrollTarget(top) {
+      const maxTop = railMaxScroll();
+      railTarget = Math.max(0, Math.min(maxTop, top));
+      if (railFrame) return;
+      const tick = () => {
+        if (railTarget == null) { railFrame = 0; return; }
+        const delta = railTarget - railScrollY();
+        if (Math.abs(delta) < 0.5 || prefersReduceMotion()) {
+          window.scrollTo(0, railTarget);
+          railFrame = 0;
+          return;
+        }
+        window.scrollTo(0, railScrollY() + delta * 0.32);
+        railFrame = requestAnimationFrame(tick);
+      };
+      railFrame = requestAnimationFrame(tick);
+    }
+    function buildRailTargets() {
+      const rows = verseRows();
+      const maxTop = railMaxScroll();
+      if (!rows.length || maxTop <= 0) { railTargets = []; return; }
+      const y = railScrollY();
+      const vh = window.innerHeight || document.documentElement.clientHeight || 0;
+      railTargets = rows.map((row, index) => {
+        if (index === 0) return 0;
+        if (index === rows.length - 1) return maxTop;
+        const rect = row.getBoundingClientRect();
+        const center = y + rect.top + rect.height / 2;
+        return Math.max(0, Math.min(maxTop, center - vh / 2));
+      });
+    }
+    function scrollRailToExact(exactIndex, ratio) {
+      const rows = verseRows();
+      if (!rows.length) return;
+      const maxTop = railMaxScroll();
+      const denom = Math.max(1, rows.length - 1);
+      const lower = Math.max(0, Math.min(rows.length - 1, Math.floor(exactIndex)));
+      const upper = Math.max(0, Math.min(rows.length - 1, Math.ceil(exactIndex)));
+      const t = Math.max(0, Math.min(1, exactIndex - lower));
+      const lowerFallback = (lower / denom) * maxTop;
+      const upperFallback = (upper / denom) * maxTop;
+      const lowerTarget = railTargets[lower] != null ? railTargets[lower] : lowerFallback;
+      const upperTarget = railTargets[upper] != null ? railTargets[upper] : upperFallback;
+      const interpolated = lowerTarget + (upperTarget - lowerTarget) * t;
+      setRailScrollTarget(Number.isFinite(interpolated) ? interpolated : ratio * maxTop);
+    }
+    function moveRail(clientY) {
+      const rows = verseRows();
+      if (!rows.length) return;
+      const ratio = railRatio(clientY);
+      const exact = rows.length <= 1 ? 0 : ratio * (rows.length - 1);
+      const preview = rows.length <= 1 ? 0 : Math.min(rows.length - 1, Math.max(0, Math.round(exact)));
+      setRailPreview(preview);
+      scrollRailToExact(exact, ratio);
+    }
+    function endRailDrag() {
+      if (!railActive) return;
+      railActive = false;
+      railTouchActive = false;
+      verseRail.classList.remove("dragging");
+      clearRailActiveVerse();
+      const releaseTop = railTarget;
+      if (releaseTop != null && Math.abs(releaseTop - railScrollY()) >= 0.5) window.scrollTo(0, releaseTop);
+      stopRailAnimation();
+      railTargets = [];
+      if (railPointerId != null && verseRail.releasePointerCapture && verseRail.hasPointerCapture && verseRail.hasPointerCapture(railPointerId)) {
+        verseRail.releasePointerCapture(railPointerId);
       }
-      closeMoreMenu(true);
+      railPointerId = null;
+      window.removeEventListener("pointermove", onRailPointerMove);
+      window.removeEventListener("pointerup", endRailDrag);
+      window.removeEventListener("pointercancel", endRailDrag);
+      window.removeEventListener("touchmove", onRailTouchMove);
+      window.removeEventListener("touchend", endRailDrag);
+      window.removeEventListener("touchcancel", endRailDrag);
+      if (railHideTimer) window.clearTimeout(railHideTimer);
+      railHideTimer = window.setTimeout(clearRailPreview, 350);
+    }
+    function startRailDrag(clientY, pointerId) {
+      if (window.getSelection) {
+        const sel = window.getSelection();
+        if (sel && sel.removeAllRanges) sel.removeAllRanges();
+      }
+      clearRailActiveVerse();
+      if (railHideTimer) { window.clearTimeout(railHideTimer); railHideTimer = 0; }
+      cancelSpotlightTween();
+      if (scrollRaf) { cancelAnimationFrame(scrollRaf); scrollRaf = 0; }
+      stopRailAnimation();
+      buildRailTargets();
+      railActive = true;
+      verseRail.classList.add("dragging", "visible");
+      railPointerId = pointerId == null || !Number.isFinite(pointerId) ? null : pointerId;
+      if (railPointerId != null && verseRail.setPointerCapture) {
+        try { verseRail.setPointerCapture(railPointerId); } catch { /* Some WebViews reject touch pointers. */ }
+      }
+      moveRail(clientY);
+    }
+    function onRailPointerMove(event) {
+      if (!railActive || event.pointerId !== railPointerId) return;
+      event.preventDefault();
+      moveRail(event.clientY);
+    }
+    function onRailPointerDown(event) {
+      if (event.button !== 0 || !event.isPrimary) return;
+      event.preventDefault();
+      window.addEventListener("pointermove", onRailPointerMove, { passive: false });
+      window.addEventListener("pointerup", endRailDrag, { once: true });
+      window.addEventListener("pointercancel", endRailDrag, { once: true });
+      startRailDrag(event.clientY, event.pointerId);
+    }
+    function onRailTouchMove(event) {
+      if (!railActive || !railTouchActive) return;
+      const touch = event.touches && event.touches[0];
+      if (!touch) return;
+      event.preventDefault();
+      moveRail(touch.clientY);
+    }
+    function onRailTouchStart(event) {
+      if (railActive || window.PointerEvent) return;
+      const touch = event.touches && event.touches[0];
+      if (!touch) return;
+      event.preventDefault();
+      railTouchActive = true;
+      window.addEventListener("touchmove", onRailTouchMove, { passive: false });
+      window.addEventListener("touchend", endRailDrag, { once: true });
+      window.addEventListener("touchcancel", endRailDrag, { once: true });
+      startRailDrag(touch.clientY, null);
+    }
+    function onRailKeyDown(event) {
+      const rows = verseRows();
+      if (!rows.length) return;
+      let current = railIndex;
+      if (current < 0) {
+        const open = document.querySelector("#chapter .verse.is-open");
+        current = open ? rows.indexOf(open) : 0;
+        if (current < 0) current = 0;
+      }
+      let next = current;
+      if (event.key === "ArrowDown" || event.key === "PageDown") next = Math.min(rows.length - 1, current + 1);
+      else if (event.key === "ArrowUp" || event.key === "PageUp") next = Math.max(0, current - 1);
+      else if (event.key === "Home") next = 0;
+      else if (event.key === "End") next = rows.length - 1;
+      else return;
+      event.preventDefault();
+      if (railHideTimer) { window.clearTimeout(railHideTimer); railHideTimer = 0; }
+      cancelSpotlightTween();
+      buildRailTargets();
+      setRailPreview(next);
+      scrollRailToExact(next, rows.length <= 1 ? 0 : next / (rows.length - 1));
+      railHideTimer = window.setTimeout(clearRailPreview, 350);
+    }
+    function armNativeScroll() {
+      if (railActive) return;
+      verseRail.classList.add("is-native-scroll");
+      const clearNative = () => verseRail.classList.remove("is-native-scroll");
+      window.addEventListener("touchend", clearNative, { once: true });
+      window.addEventListener("touchcancel", clearNative, { once: true });
+    }
+    const chapterEl = document.querySelector("#chapter");
+    if (chapterEl) {
+      chapterEl.addEventListener("touchstart", (event) => {
+        if (verseRail.contains(event.target)) return;
+        armNativeScroll();
+      }, { passive: true });
+    }
+    document.addEventListener("selectionchange", () => {
+      if (railActive) return;
+      const sel = document.getSelection();
+      const node = sel && sel.anchorNode;
+      const inChapter = Boolean(chapterEl && node && chapterEl.contains(node));
+      verseRail.classList.toggle("is-selection-hidden", Boolean(sel && !sel.isCollapsed && inChapter));
     });
+    verseRail.addEventListener("pointerdown", onRailPointerDown);
+    verseRail.addEventListener("touchstart", onRailTouchStart, { passive: false });
+    verseRail.addEventListener("keydown", onRailKeyDown);
   }
-  spotlightItem?.addEventListener("click", () => {
-    const next = !spotlightOn();
-    hideMoreMenu();
-    restoreCaret();
-    setSpotlight(next);
-  });
-  spotlightChip?.addEventListener("click", () => {
-    restoreCaret();
-    setSpotlight(false);
-  });
-  document.addEventListener("click", (event) => {
-    if (!moreMenu || moreMenu.hidden) return;
-    const target = event.target;
-    if (target && target.closest && target.closest(".more-menu")) return;
-    closeMoreMenu(false);
-  });
 
   syncChapterBookmarkBtn(Boolean(noteMap.get(chapterSlug)?.bookmarked));
   syncChapterNoteChrome();

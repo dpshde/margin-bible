@@ -21,42 +21,47 @@ describe("verse spotlight", () => {
     expect(css).toContain(".verse.is-open::before,\n    .verse.is-span::before");
   });
 
-  test("dim is pure CSS on the focused bullet, and chrome stays out of it", () => {
-    expect(css).toContain("html.spotlight-on:has(.otext:focus) .verse");
+  test("a selection dims the rest of the chapter, and a range stays fully readable", () => {
+    expect(css).toContain("html.spotlight-on:has(.verse:is(.is-open, .is-span)) .verse");
     expect(css).toContain("opacity: 0.3;");
-    expect(css).toContain("html.spotlight-on:has(.otext:focus) .verse:focus-within");
+    expect(css).toContain("html.spotlight-on:has(.verse:is(.is-open, .is-span)) .verse:is(.is-open, .is-span)");
+    expect(css).toContain(".section-head:has(+ .verse:is(.is-open, .is-span))");
     expect(css).toContain("opacity: 1;");
-    expect(css).toContain("html.spotlight-on:has(.otext:focus)::before");
+    expect(css).toContain("html.spotlight-on:has(.verse:is(.is-open, .is-span))::before");
     expect(css).toContain("radial-gradient(");
-    expect(css).toContain("html.spotlight-on #chapter { padding-top: 50vh; }");
-    expect(css).toContain("html.spotlight-on #more-menu-btn { display: none; }");
-    expect(css).not.toContain("html.spotlight-on:has(.otext:focus) .topbar");
-    expect(css).not.toContain("html.spotlight-on:has(.otext:focus) .jump");
+    expect(css).not.toContain("padding-top: 50vh");
+    expect(css).not.toContain("html.spotlight-on:has(.verse:is(.is-open, .is-span)) .topbar");
+    expect(css).not.toContain("html.spotlight-on:has(.verse:is(.is-open, .is-span)) .jump");
+    expect(css).not.toContain(".otext:focus");
   });
 
-  test("header offers More, a focus chip, and the shortcut", () => {
-    expect(html).toContain('id="more-menu-btn"');
-    expect(html).toContain('id="spotlight-chip"');
-    expect(html).toContain('id="spotlight-toggle"');
-    expect(html).toContain('aria-keyshortcuts="Control+K Meta+K"');
-    expect(html).toContain("M232 120h-8.34A96.14");
-    expect(html).toContain("M140 128a12 12 0 1 1-12-12");
-    const expandIdx = html.indexOf('id="expand-all-btn"');
-    expect(html.indexOf('id="spotlight-chip"')).toBeGreaterThan(expandIdx);
+  test("there is no spotlight toggle", () => {
+    expect(html).not.toContain('id="more-menu-btn"');
+    expect(html).not.toContain('id="spotlight-chip"');
+    expect(html).not.toContain('id="spotlight-toggle"');
+    expect(html).not.toContain("aria-keyshortcuts");
+    expect(source).not.toContain("margin_spotlight");
+    expect(source).not.toContain('event.key === "k" || event.key === "K"');
+    expect(page("t", "")).toContain('classList.add("spotlight-on")');
+    expect(page("t", "")).not.toContain('localStorage.getItem("margin_spotlight")');
   });
 
-  test("client toggles two classes and persists the mode per browser", () => {
-    expect(source).toContain('const SPOTLIGHT_KEY = "margin_spotlight"');
-    expect(source).toContain('localStorage.setItem(SPOTLIGHT_KEY, next ? "true" : "false")');
-    expect(page("t", "")).toContain('localStorage.getItem("margin_spotlight") === "true"');
+  test("the reader still aligns the caret while spotlight is on", () => {
     expect(source).toContain('classList.add("spotlight-on")');
     expect(source).toContain('classList.add("spotlight-fade")');
     expect(source).toContain("const KEYBOARD_SLIDE_MS = 120");
     expect(source).toContain("const POINTER_SLIDE_MS = 200");
-    expect(source).toContain("const BREATH_MS = 200");
     expect(source).toContain("function centerScrollDelta");
     expect(source).toContain("if (topAlign) return rowTop - viewTop - stickyHeaderPx");
     expect(source).toContain("sel.isCollapsed");
-    expect(source).toContain('event.key === "k" || event.key === "K"');
+  });
+
+  test("a verse range marks every verse in the range and leaves the neighbors out", () => {
+    const range = renderChapterPage({ passage: parsePassage("jhn.3.16-18")!, pack, notes: [] });
+    expect(range).toMatch(/class="verse is-open is-span" id="v16"/);
+    expect(range).toMatch(/class="verse is-open is-span" id="v17"/);
+    expect(range).toMatch(/class="verse is-open is-span" id="v18"/);
+    expect(range).not.toMatch(/class="[^"]*is-span[^"]*" id="v15"/);
+    expect(range).not.toMatch(/class="[^"]*is-open[^"]*" id="v19"/);
   });
 });

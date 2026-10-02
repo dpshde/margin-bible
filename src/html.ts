@@ -27,9 +27,7 @@ function themeBootScript(): string {
     if (localStorage.getItem("margin_reader_hint_v1") === "1") {
       document.documentElement.setAttribute("data-reader-hint", "off");
     }
-    if (localStorage.getItem("margin_spotlight") === "true") {
-      document.documentElement.classList.add("spotlight-on");
-    }
+    document.documentElement.classList.add("spotlight-on");
   } catch (err) {}
   var key = "margin_theme";
   function preferred() {
@@ -197,38 +195,6 @@ export function page(title: string, body: string): string {
     }
     .icon-btn:focus-visible { color: var(--ink); background: var(--fill); }
     .icon-btn:disabled { opacity: .35; cursor: default; }
-    /* Spotlight is off until the reader opts in. The chip is the only passive signal. */
-    .spotlight-chip { display: none; }
-    html.spotlight-on .spotlight-chip {
-      display: inline-flex;
-      color: var(--paper);
-      background: var(--ink);
-    }
-    /* The chip replaces More while spotlight is on, so the header stays one control wide. */
-    html.spotlight-on #more-menu-btn { display: none; }
-    html.spotlight-on .spotlight-chip:hover,
-    html.spotlight-on .spotlight-chip:focus-visible {
-      color: var(--paper);
-      background: var(--ink-soft);
-    }
-    .more-menu { position: relative; }
-    .more-menu-pop {
-      position: absolute; top: calc(100% + .2rem); right: 0; z-index: 30;
-      min-width: 10.5rem; margin: 0; padding: .3rem;
-      background: var(--paper-raised);
-      border: 1px solid var(--line); border-radius: .65rem;
-      box-shadow: 0 .5rem 1.4rem color-mix(in srgb, var(--ink) 14%, transparent);
-    }
-    .more-menu-pop[hidden] { display: none; }
-    .more-menu-item {
-      display: block; width: 100%; min-height: 2.25rem;
-      margin: 0; padding: .4rem .65rem;
-      border: 0; border-radius: .45rem;
-      background: transparent; text-align: left; cursor: pointer;
-      font-size: .92rem; color: var(--ink);
-    }
-    .more-menu-item:hover,
-    .more-menu-item:focus-visible { background: var(--fill); outline: none; }
     .icon-btn svg { display: block; width: 1.1rem; height: 1.1rem; }
     .theme-toggle .theme-icon { display: inline-flex; }
     .theme-toggle .theme-icon-sun { display: none; }
@@ -407,19 +373,20 @@ export function page(title: string, body: string): string {
       font-family: var(--read); font-size: var(--read-size); line-height: var(--read-leading);
       color: var(--ink);
     }
-    /* Spotlight (opt-in). The dim is pure CSS: while a bullet holds the caret,
-       every other verse drops to 0.3 and the focused verse stays at 1. Blur
-       clears :has(), so the chapter returns to full opacity. Header, jump, and
-       the reader hint are not in this list. Scripture section headings dim
-       with the body; they are not chrome. */
-    html.spotlight-on:has(.otext:focus) .verse,
-    html.spotlight-on:has(.otext:focus) .section-head,
-    html.spotlight-on:has(.otext:focus) .chapter-note-rail,
-    html.spotlight-on:has(.otext:focus) .pager {
+    /* Spotlight is always on. A selected verse, or every verse in a selected
+       range, stays fully readable. Everything else in the chapter drops to 0.3.
+       Header, jump, and the reader hint are not in this list. A section heading
+       stays up only when it introduces a verse inside the selection. */
+    html.spotlight-on:has(.verse:is(.is-open, .is-span)) .verse,
+    html.spotlight-on:has(.verse:is(.is-open, .is-span)) .section-head,
+    html.spotlight-on:has(.verse:is(.is-open, .is-span)) .chapter-note-rail,
+    html.spotlight-on:has(.verse:is(.is-open, .is-span)) .pager {
       opacity: 0.3;
     }
-    html.spotlight-on:has(.otext:focus) .verse:focus-within,
-    html.spotlight-on:has(.otext:focus) .chapter-note-rail:focus-within {
+    html.spotlight-on:has(.verse:is(.is-open, .is-span)) .verse:is(.is-open, .is-span),
+    html.spotlight-on:has(.verse:is(.is-open, .is-span)) .verse.reader-rail-active-verse,
+    html.spotlight-on:has(.verse:is(.is-open, .is-span)) .section-head:has(+ .verse:is(.is-open, .is-span)),
+    html.spotlight-on:has(.verse:is(.is-open, .is-span)) .chapter-note-rail:focus-within {
       opacity: 1;
       position: relative;
       z-index: 5;
@@ -442,7 +409,7 @@ export function page(title: string, body: string): string {
        the focused verse (that row is lifted above this layer). Desktop fades
        toward every edge. Mobile keeps the top clear, under the sticky header,
        and fades downward. */
-    html.spotlight-on:has(.otext:focus)::before {
+    html.spotlight-on:has(.verse:is(.is-open, .is-span))::before {
       content: "";
       position: fixed; z-index: 4; inset: 0;
       pointer-events: none;
@@ -453,7 +420,7 @@ export function page(title: string, body: string): string {
       );
     }
     @media (max-width: 767px) {
-      html.spotlight-on:has(.otext:focus)::before {
+      html.spotlight-on:has(.verse:is(.is-open, .is-span))::before {
         background: linear-gradient(
           to bottom,
           transparent 0%,
@@ -463,9 +430,130 @@ export function page(title: string, body: string): string {
       }
     }
     html.spotlight-on #chapter { overflow-anchor: none; }
-    @media (min-width: 768px) {
-      html.spotlight-on #chapter { padding-top: 50vh; }
+    /* Verse rail: a fixed right-edge scrubber. It sits above the spotlight wash
+       (z-index 4) and the lifted verse (z-index 5), and under the sticky header
+       (z-index 7) and the chapter grid (z-index 40). Idle ticks stay quiet.
+       Dragging grows a wave around the current tick and shows the verse number. */
+    .reader-verse-rail {
+      position: fixed;
+      top: calc(var(--chrome-sticky) + 6px);
+      right: env(safe-area-inset-right, 0px);
+      bottom: calc(18px + var(--safe-bottom));
+      z-index: 6;
+      width: 32px;
+      padding-left: 18px;
+      border-radius: 6px 0 0 6px;
+      background: transparent;
+      opacity: 0.56;
+      cursor: ns-resize;
+      touch-action: none;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-touch-callout: none;
+      transition: width 0.16s ease, padding-left 0.16s ease, opacity 0.16s ease, background-color 0.16s ease;
     }
+    .reader-verse-rail.visible,
+    .reader-verse-rail:hover,
+    .reader-verse-rail:focus-visible {
+      width: 36px;
+      padding-left: 12px;
+      opacity: 1;
+      outline: none;
+    }
+    .reader-verse-rail.dragging {
+      width: 38px;
+      padding-left: 8px;
+      opacity: 1;
+      background: transparent;
+      outline: none;
+    }
+    .reader-verse-rail.is-native-scroll { pointer-events: none; }
+    .reader-verse-rail.is-selection-hidden { opacity: 0; pointer-events: none; }
+    .reader-verse-rail-checkpoints {
+      position: absolute;
+      inset: 20px -1px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      align-items: flex-end;
+      pointer-events: none;
+    }
+    .reader-verse-rail-dot {
+      width: 15px;
+      height: 2px;
+      flex: 0 0 2px;
+      border-radius: 999px;
+      background: color-mix(in srgb, var(--ink) 45%, transparent);
+      opacity: 0.42;
+      transition: width 0.12s ease, background-color 0.12s ease, opacity 0.12s ease, box-shadow 0.12s ease;
+    }
+    .reader-verse-rail:hover .reader-verse-rail-dot,
+    .reader-verse-rail:focus-visible .reader-verse-rail-dot,
+    .reader-verse-rail.visible .reader-verse-rail-dot,
+    .reader-verse-rail.dragging .reader-verse-rail-dot { opacity: 0.48; }
+    .reader-verse-rail.dragging .reader-verse-rail-dot {
+      background: color-mix(in srgb, var(--ink) 36%, transparent);
+      opacity: 0.82;
+    }
+    .reader-verse-rail-dot.current,
+    .reader-verse-rail.dragging .reader-verse-rail-dot.current {
+      width: 42px;
+      background: var(--ink);
+      opacity: 1;
+      box-shadow: 0 0 10px color-mix(in srgb, var(--ink) 28%, transparent);
+    }
+    .reader-verse-rail-dot.wave-3,
+    .reader-verse-rail.dragging .reader-verse-rail-dot.wave-3 {
+      width: 16px;
+      background: color-mix(in srgb, var(--ink) 56%, transparent);
+      opacity: 0.54;
+    }
+    .reader-verse-rail-dot.wave-2,
+    .reader-verse-rail.dragging .reader-verse-rail-dot.wave-2 {
+      width: 17px;
+      background: color-mix(in srgb, var(--ink) 64%, transparent);
+      opacity: 0.62;
+    }
+    .reader-verse-rail-dot.wave-1,
+    .reader-verse-rail.dragging .reader-verse-rail-dot.wave-1 {
+      width: 21px;
+      background: color-mix(in srgb, var(--ink) 74%, transparent);
+      opacity: 0.74;
+    }
+    .verse.reader-rail-active-verse .vtext {
+      font-weight: 450;
+      text-shadow: 0.028em 0 0 currentColor, -0.028em 0 0 currentColor;
+    }
+    .reader-verse-modal {
+      position: fixed;
+      left: 50%;
+      top: 50%;
+      z-index: 30;
+      min-width: 96px;
+      height: 96px;
+      padding: 0 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transform: translate(-50%, -50%);
+      border: 1px solid color-mix(in srgb, var(--ink) 16%, transparent);
+      border-radius: 18px;
+      background: color-mix(in srgb, var(--paper) 96%, transparent);
+      color: var(--ink);
+      font-family: var(--sans);
+      font-size: 30px;
+      font-weight: 700;
+      line-height: 1;
+      letter-spacing: 0;
+      text-align: center;
+      box-shadow: 0 10px 30px color-mix(in srgb, var(--ink) 22%, transparent);
+      backdrop-filter: blur(2px);
+      -webkit-backdrop-filter: blur(2px);
+      pointer-events: none;
+    }
+    .reader-verse-modal[hidden] { display: none; }
+    #reader:has(.reader-verse-rail) .chapter,
+    #reader:has(.reader-verse-rail) .pager { padding-right: 1.15rem; }
     .note-tray, .chapter-tray {
       position: relative;
       margin-left: calc(var(--verse-gutter) + var(--verse-gutter-gap));
