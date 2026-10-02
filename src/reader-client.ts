@@ -71,7 +71,7 @@ export function clientScript(): string {
         scrollStamp = 0;
         return;
       }
-      const k = 1 - Math.exp(-14 * dt);
+      const k = 1 - Math.exp(-32 * dt);
       window.scrollTo(0, from + delta * k);
       scrollFrame = requestAnimationFrame(step);
     };

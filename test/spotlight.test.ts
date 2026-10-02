@@ -50,7 +50,7 @@ describe("verse spotlight", () => {
     expect(source).toContain('classList.add("spotlight-on")');
     expect(source).toContain('classList.add("spotlight-fade")');
     expect(source).toContain("function smoothScrollTo");
-    expect(source).toContain("Math.exp(-14 * dt)");
+    expect(source).toContain("Math.exp(-32 * dt)");
     expect(source).toContain("function centerScrollDelta");
     expect(source).toContain("if (topAlign) return rowTop - viewTop - stickyHeaderPx");
     expect(source).toContain('centerElement(verse.querySelector(".verse-press") || verse, false)');
