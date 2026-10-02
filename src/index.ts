@@ -116,7 +116,7 @@ app.use("*", async (c, next) => {
   }
 });
 
-app.get("/health", (c) => c.json({ ok: true, app: "margin-bible", version: "2026.10.02.21" }));
+app.get("/health", (c) => c.json({ ok: true, app: "margin-bible", version: "2026.10.02.22" }));
 
 app.get("/bsb/*", (c) => c.env.ASSETS.fetch(c.req.raw));
 
@@ -364,7 +364,9 @@ app.get("/:slug", async (c) => {
   const libraryId = c.get("libraryId");
   const slug = passageSlug(passage);
   // Chapters paint scripture first and hydrate notes. A verse or range waits for that note.
-  const eagerNotes = !lazyChapterNotes(passage);
+  // ?chapter_note=1 is the exception: the note has to be in the first HTML, already open.
+  const chapterNoteOpen = c.req.query("chapter_note") === "1";
+  const eagerNotes = !lazyChapterNotes(passage) || chapterNoteOpen;
   const packPromise = loadChapter(c.env.ASSETS, passage);
   const notesPromise = eagerNotes
     ? notesForQuery(c.env.DB, libraryId, chapterSlug(passage), undefined)
@@ -379,6 +381,7 @@ app.get("/:slug", async (c) => {
       pack,
       notes,
       notesPending: !eagerNotes,
+      chapterNoteOpen,
       signedIn: c.get("signedIn"),
     }),
     200,

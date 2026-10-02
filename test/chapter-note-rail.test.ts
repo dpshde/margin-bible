@@ -1,7 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import { page } from "../src/html";
+import { renderChapterPage } from "../src/reader-page";
+import { parsePassage } from "../src/passage";
 import { readFileSync } from "node:fs";
 import path from "node:path";
+import type { ChapterPack } from "../src/usj";
 
 describe("chapter note rail CSS", () => {
   const css = page("t", "<p>x</p>");
@@ -37,5 +40,43 @@ describe("chapter note rail client boot", () => {
     expect(client).toContain('get("chapter_note") === "1"');
     expect(client).toContain("setChapterNoteOpen(true, { push: false, focus: false })");
     expect(client).toContain('rail.dataset.hasNote = hasNote ? "true" : "false"');
+  });
+});
+
+describe("chapter note first paint", () => {
+  const pack: ChapterPack = {
+    translation: "BSB",
+    book: "JHN",
+    chapter: 3,
+    title: "John 3",
+    verses: [{ v: 16, text: "For God so loved the world" }],
+  };
+
+  test("?chapter_note=1 paints the tray open with the note", () => {
+    const html = renderChapterPage({
+      passage: parsePassage("jhn.3")!,
+      pack,
+      notes: [
+        {
+          slug: "jhn.3",
+          kind: "chapter",
+          blocks: [{ id: "b1", indent: 0, text: "chapter body", bullet: true }],
+          bookmarked: false,
+        },
+      ],
+      notesPending: false,
+      chapterNoteOpen: true,
+    });
+    expect(html).toContain('class="chapter-note-rail is-open"');
+    expect(html).toContain('aria-expanded="true"');
+    expect(html).toContain("chapter body");
+    expect(html).not.toMatch(/id="chapter-tray"[^>]*\shidden/);
+    expect(html).toContain('data-notes-pending="0"');
+  });
+
+  test("a normal chapter keeps the tray closed", () => {
+    const html = renderChapterPage({ passage: parsePassage("jhn.3")!, pack, notes: [] });
+    expect(html).toContain('id="chapter-tray" data-slug="jhn.3" hidden');
+    expect(html).not.toContain("chapter-note-rail is-open");
   });
 });

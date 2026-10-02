@@ -49,8 +49,10 @@ export function renderChapterPage(input: {
   signedIn?: boolean;
   /** When true, SSR skips note bodies/markers; client hydrates via /api/notes?chapter=. */
   notesPending?: boolean;
+  /** First paint already shows the chapter note. Used by /slug?chapter_note=1. */
+  chapterNoteOpen?: boolean;
 }): string {
-  const { passage, pack, notes, signedIn = false, notesPending = false } = input;
+  const { passage, pack, notes, signedIn = false, notesPending = false, chapterNoteOpen = false } = input;
   const chapSlug = chapterSlug(passage);
 
   // notesPending: embed [] so HTML/TTFB never waits on D1; client fills noteMap from /api/notes.
@@ -116,11 +118,11 @@ ${chapterGridHtml(passage.book, passage.chapter)}
 <main class="reader">
   ${jumpFormHtml()}
   <p class="hint" id="reader-hint">Tap a verse to open its outliner; tap again to close. Enter splits / next node · Shift+Enter newline · Tab or two spaces indent · Clear deletes. Refs like John 3:16 become wiki chips on blur. ${signedIn ? "Signed in — this browser has a session, and the passphrase opens the same notes elsewhere." : "Guest notes stay in this browser until you sign in with a passphrase."}</p>
-  <div class="chapter-note-rail" id="chapter-note-rail" data-has-note="${chapterNote ? "true" : "false"}">
-    <button type="button" class="chapter-note-peek" id="chapter-note-peek" aria-expanded="false" aria-controls="chapter-tray" aria-label="Open chapter note" title="Chapter note">
+  <div class="chapter-note-rail${chapterNoteOpen ? " is-open" : ""}" id="chapter-note-rail" data-has-note="${chapterNote ? "true" : "false"}">
+    <button type="button" class="chapter-note-peek" id="chapter-note-peek" aria-expanded="${chapterNoteOpen ? "true" : "false"}" aria-controls="chapter-tray" aria-label="${chapterNoteOpen ? "Close chapter note" : "Open chapter note"}" title="${chapterNoteOpen ? "Close chapter note" : "Chapter note"}">
       <span class="chapter-note-peek-bar" aria-hidden="true"></span>
     </button>
-    <section class="chapter-tray" id="chapter-tray" data-slug="${escapeHtml(chapSlug)}" hidden>
+    <section class="chapter-tray" id="chapter-tray" data-slug="${escapeHtml(chapSlug)}"${chapterNoteOpen ? "" : " hidden"}>
       ${renderTrayShell({
         slug: chapSlug,
         label: `Chapter note · ${chapterTitle}`,
