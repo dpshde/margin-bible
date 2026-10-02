@@ -795,10 +795,18 @@ export function page(title: string, body: string): string {
       border-radius: 0;
     }
     .note-bundle {
+      position: relative;
       display: flex; flex-wrap: wrap; align-items: center;
       column-gap: .7rem; row-gap: .4rem;
       padding: .7rem .65rem;
     }
+    .note-bundle.note-row-chapter { min-height: var(--tap); padding: .95rem .65rem; }
+    /* The row itself opens the chapter. The name sits above it and opens the chapter note. */
+    .note-bundle-open { position: absolute; inset: 0; z-index: 0; }
+    .note-bundle-name,
+    .note-bundle-verse { position: relative; z-index: 1; }
+    .note-bundle .note-row-excerpt { position: relative; z-index: 0; pointer-events: none; }
+    .note-bundle:has(.note-bundle-open:hover) { background: var(--fill); }
     .note-bundle-name {
       flex: none; text-decoration: none;
       font-weight: 700; font-size: .95rem; letter-spacing: -.015em; color: var(--ink);

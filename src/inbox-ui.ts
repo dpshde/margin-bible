@@ -259,7 +259,19 @@ function verseCitation(note: InboxNote): string {
   return label.slice(colon + 1).trim();
 }
 
-/** Every verse and range is a card, even when it is the only note in the chapter. A chapter note stays a normal row. */
+/** Book + chapter opens the chapter note. The rest of the row opens the chapter. Verse cards stay on top. */
+function chapterBundleHtml(slug: string, title: string, opts: { verses?: string; excerpt?: string; stamp?: string } = {}): string {
+  const titleAttr = opts.stamp ? ` title="${escapeHtml(opts.stamp)}"` : "";
+  const body = opts.verses
+    ? `<span class="note-bundle-verses">${opts.verses}</span>`
+    : opts.excerpt
+      ? `<span class="note-row-excerpt">${escapeHtml(opts.excerpt)}</span>`
+      : "";
+  const rowClass = opts.verses ? "note-bundle" : "note-bundle note-row-chapter";
+  return `<li class="${rowClass}"><a class="note-bundle-open" href="/${escapeHtml(slug)}" tabindex="-1" aria-hidden="true"></a><a class="note-bundle-name" href="/${escapeHtml(slug)}?chapter_note=1"${titleAttr}>${escapeHtml(title)}</a>${body}</li>`;
+}
+
+/** Every verse and range is a card, even when it is the only note in the chapter. A chapter note stays a chapter row. */
 function weekChapterRows(notes: InboxNote[]): string {
   const order: string[] = [];
   const byChapter = new Map<string, InboxNote[]>();
@@ -285,21 +297,21 @@ function weekChapterRows(notes: InboxNote[]): string {
         })
         .filter(Boolean)
         .join("");
-      if (!verses) return list.map((note) => noteRowHtml(note)).join("");
-      const title = chapterTitleFromNote(list[0]!);
-      return `<li class="note-bundle"><a class="note-bundle-name" href="/${escapeHtml(slug)}">${escapeHtml(title)}</a><span class="note-bundle-verses">${verses}</span></li>`;
+      if (!verses) {
+        return list
+          .map((note) => chapterBundleHtml(slug, chapterTitleFromNote(note), { excerpt: note.excerpt || "", stamp: formatStamp(note) }))
+          .join("");
+      }
+      return chapterBundleHtml(slug, chapterTitleFromNote(list[0]!), { verses });
     })
     .join("");
 }
 
 function chapterRowHtml(ch: InboxChapterBundle): string {
-  const title = escapeHtml(ch.label || ch.slug);
-  const excerpt = escapeHtml(ch.excerpt || "");
-  const stamp = formatStamp({ updatedAt: ch.updatedAt });
-  const titleAttr = stamp ? ` title="${escapeHtml(stamp)}"` : "";
-  return `<li><a class="note-row note-row-chapter" href="/${escapeHtml(ch.slug)}"${titleAttr}><span class="note-row-title">${title}</span>${
-    excerpt ? `<span class="note-row-excerpt">${excerpt}</span>` : ""
-  }</a></li>`;
+  return chapterBundleHtml(ch.slug, ch.label || ch.slug, {
+    excerpt: ch.excerpt || "",
+    stamp: formatStamp({ updatedAt: ch.updatedAt }),
+  });
 }
 
 /** Separate collapsible Rails-style view of bookmarked chapter/verse notes.
@@ -458,22 +470,31 @@ export function notesInboxScript(): string {
         verses += '<a class="note-bundle-verse" href="/' + escape(n.slug) + '" aria-label="' + escape(label) + '"' + titleAttr + ">" + escape(place) + "</a>";
       }
       if (!verses) {
-        for (const n of list) html += noteRow(n);
+        for (const n of list) {
+          const when = noteWhen(n);
+          const stamp = when.getTime() ? when.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" }) : "";
+          html += chapterBundleRow(slug, chapterTitle(n), { excerpt: n.excerpt || "", stamp });
+        }
         continue;
       }
-      html += '<li class="note-bundle"><a class="note-bundle-name" href="/' + escape(slug) + '">' + escape(chapterTitle(list[0])) + '</a><span class="note-bundle-verses">' + verses + "</span></li>";
+      html += chapterBundleRow(slug, chapterTitle(list[0]), { verses });
     }
     return html;
   }
 
+  function chapterBundleRow(slug, title, opts) {
+    const titleAttr = opts.stamp ? ' title="' + escape(opts.stamp) + '"' : "";
+    const body = opts.verses
+      ? '<span class="note-bundle-verses">' + opts.verses + "</span>"
+      : (opts.excerpt ? '<span class="note-row-excerpt">' + escape(opts.excerpt) + "</span>" : "");
+    const rowClass = opts.verses ? "note-bundle" : "note-bundle note-row-chapter";
+    return '<li class="' + rowClass + '"><a class="note-bundle-open" href="/' + escape(slug) + '" tabindex="-1" aria-hidden="true"></a><a class="note-bundle-name" href="/' + escape(slug) + '?chapter_note=1"' + titleAttr + ">" + escape(title) + "</a>" + body + "</li>";
+  }
+
   function chapterRow(ch) {
-    const title = escape(ch.label || ch.slug);
-    const excerpt = escape(ch.excerpt || "");
     const when = noteWhen({ updatedAt: ch.updatedAt });
     const stamp = when.getTime() ? when.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" }) : "";
-    const titleAttr = stamp ? ' title="' + escape(stamp) + '"' : "";
-    return '<li><a class="note-row note-row-chapter" href="/' + escape(ch.slug) + '"' + titleAttr + '><span class="note-row-title">' + title + "</span>" +
-      (excerpt ? '<span class="note-row-excerpt">' + excerpt + "</span>" : "") + "</a></li>";
+    return chapterBundleRow(ch.slug, ch.label || ch.slug, { excerpt: ch.excerpt || "", stamp });
   }
 
   function rowsHtml(notes) {
@@ -685,7 +706,7 @@ export function notesInboxScript(): string {
     if (!a || !a.href) return false;
     // note-row (recent + Older chapter rows), starter chips, chapter-grid cells, reader back icon.
     if (a.classList?.contains("note-row")) return true;
-    if (a.classList?.contains("note-bundle-name") || a.classList?.contains("note-bundle-verse")) return true;
+    if (a.classList?.contains("note-bundle-name") || a.classList?.contains("note-bundle-verse") || a.classList?.contains("note-bundle-open")) return true;
     if (a.classList?.contains("starter-chip")) return true;
     if (a.classList?.contains("chapter-grid-cell") || a.hasAttribute("data-chapter-nav")) return true;
     if (a.classList?.contains("icon-btn") && a.getAttribute("aria-label") === "Reader") return true;
@@ -706,7 +727,7 @@ export function notesInboxScript(): string {
   });
 
   document.addEventListener("pointerenter", (event) => {
-    const a = event.target?.closest?.("a.note-row[href], a.note-bundle-name[href], a.note-bundle-verse[href], a.starter-chip[href], a.chapter-grid-cell[href]");
+    const a = event.target?.closest?.("a.note-row[href], a.note-bundle-name[href], a.note-bundle-open[href], a.note-bundle-verse[href], a.starter-chip[href], a.chapter-grid-cell[href]");
     if (a?.href && chapterSlugFromHref(a.href)) prefetchChapter(a.href);
   }, true);
 

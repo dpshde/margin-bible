@@ -77,6 +77,9 @@ describe("inbox week grouping", () => {
     expect(html).not.toContain(">2 Corinthians 12:8–9<");
     expect(html).toContain(">Joshua 8<");
     expect(html).toContain("chapter question");
+    expect(html).toContain('class="note-bundle-name" href="/jos.8?chapter_note=1"');
+    expect(html).toContain('class="note-bundle-open" href="/jos.8"');
+    expect(html).toContain('class="note-bundle-name" href="/jhn.1?chapter_note=1"');
   });
 });
 
@@ -370,7 +373,9 @@ describe("inbox recent weeks + older chapter bundles", () => {
     // Every Older row is chapter-keyed — never /book.ch.verse
     expect(older).not.toMatch(/class="note-row"[^>]*href="\/[a-z0-9]+\.\d+\.\d+/i);
     expect(older).not.toMatch(/href="\/[a-z0-9]+\.\d+\.\d+/i);
-    const hrefs = [...older.matchAll(/href="\/([^"]+)"/g)].map((m) => m[1]);
+    const hrefs = [...older.matchAll(/href="\/([^"]+)"/g)].map((m) => m[1].split("?")[0]);
+    expect(older).toContain('href="/rom.6?chapter_note=1"');
+    expect(older).toContain('class="note-bundle-open" href="/rom.6"');
     expect(hrefs.length).toBeGreaterThan(0);
     for (const href of hrefs) {
       expect(isVerseLevelSlug(href)).toBe(false);

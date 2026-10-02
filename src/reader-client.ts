@@ -346,11 +346,9 @@ export function clientScript(): string {
     return '<li><a class="note-row" href="/' + escapeHtml(n.slug) + '"' + titleAttr + '><span class="note-row-title">' + escapeHtml(titleRaw) + "</span>" + excerpt + "</a></li>";
   }
   function inboxChapterRow(ch) {
-    const excerpt = ch.excerpt ? '<span class="note-row-excerpt">' + escapeHtml(ch.excerpt) + "</span>" : "";
     const when = inboxNoteWhen({ updatedAt: ch.updatedAt });
     const stamp = when.getTime() ? when.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" }) : "";
-    const titleAttr = stamp ? ' title="' + escapeHtml(stamp) + '"' : "";
-    return '<li><a class="note-row note-row-chapter" href="/' + escapeHtml(ch.slug) + '"' + titleAttr + '><span class="note-row-title">' + escapeHtml(ch.label || ch.slug) + "</span>" + excerpt + "</a></li>";
+    return inboxChapterBundleRow(ch.slug, ch.label || ch.slug, { excerpt: ch.excerpt || "", stamp });
   }
   function inboxWeekChapterRows(notes) {
     const order = [];
@@ -377,12 +375,24 @@ export function clientScript(): string {
         verses += '<a class="note-bundle-verse" href="/' + escapeHtml(n.slug) + '" aria-label="' + escapeHtml(label) + '"' + titleAttr + ">" + escapeHtml(place) + "</a>";
       }
       if (!verses) {
-        for (const n of list) html += inboxNoteRow(n);
+        for (const n of list) {
+          const when = inboxNoteWhen(n);
+          const stamp = when.getTime() ? when.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" }) : "";
+          html += inboxChapterBundleRow(slug, inboxChapterTitle(n), { excerpt: n.excerpt || "", stamp });
+        }
         continue;
       }
-      html += '<li class="note-bundle"><a class="note-bundle-name" href="/' + escapeHtml(slug) + '">' + escapeHtml(inboxChapterTitle(list[0])) + '</a><span class="note-bundle-verses">' + verses + "</span></li>";
+      html += inboxChapterBundleRow(slug, inboxChapterTitle(list[0]), { verses });
     }
     return html;
+  }
+  function inboxChapterBundleRow(slug, title, opts) {
+    const titleAttr = opts.stamp ? ' title="' + escapeHtml(opts.stamp) + '"' : "";
+    const body = opts.verses
+      ? '<span class="note-bundle-verses">' + opts.verses + "</span>"
+      : (opts.excerpt ? '<span class="note-row-excerpt">' + escapeHtml(opts.excerpt) + "</span>" : "");
+    const rowClass = opts.verses ? "note-bundle" : "note-bundle note-row-chapter";
+    return '<li class="' + rowClass + '"><a class="note-bundle-open" href="/' + escapeHtml(slug) + '" tabindex="-1" aria-hidden="true"></a><a class="note-bundle-name" href="/' + escapeHtml(slug) + '?chapter_note=1"' + titleAttr + ">" + escapeHtml(title) + "</a>" + body + "</li>";
   }
   function inboxListHtml(notes) {
     const rows = inboxNormalize(notes);
@@ -3178,7 +3188,7 @@ export function clientScript(): string {
     const slug = chapterSlugFromHref(a.href);
     if (!slug) return;
     // Soft-nav chapter hops (pager + chapter grid + inbox note-rows).
-    if (a.closest?.(".pager, .chapter-grid") || a.hasAttribute("data-chapter-nav") || a.classList?.contains("note-row") || a.classList?.contains("note-bundle-name") || a.classList?.contains("note-bundle-verse")) {
+    if (a.closest?.(".pager, .chapter-grid") || a.hasAttribute("data-chapter-nav") || a.classList?.contains("note-row") || a.classList?.contains("note-bundle-name") || a.classList?.contains("note-bundle-open") || a.classList?.contains("note-bundle-verse")) {
       event.preventDefault();
       softNavTo(a.href, { push: true });
     }
