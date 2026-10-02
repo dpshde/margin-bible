@@ -241,15 +241,12 @@ function formatStamp(note: { updatedAt?: string; createdAt?: string }): string {
   return d.toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" });
 }
 
-function noteRowHtml(n: InboxNote, opts: { forBookmarks?: boolean } = {}): string {
+function noteRowHtml(n: InboxNote): string {
   const title = escapeHtml(humanNoteLabel(n));
   const excerpt = escapeHtml(n.excerpt || "");
   const stamp = formatStamp(n);
-  const verse = isVerseLevelSlug(n.slug);
-  const verseClass = verse ? " note-row-verse" : "";
-  // Skip native title on bookmark verse rows — desktop hover shows BSB text instead.
-  const titleAttr = stamp && !(opts.forBookmarks && verse) ? ` title="${escapeHtml(stamp)}"` : "";
-  return `<li><a class="note-row${verseClass}" href="/${escapeHtml(n.slug)}"${titleAttr}><span class="note-row-title">${title}</span>${
+  const titleAttr = stamp ? ` title="${escapeHtml(stamp)}"` : "";
+  return `<li><a class="note-row" href="/${escapeHtml(n.slug)}"${titleAttr}><span class="note-row-title">${title}</span>${
     excerpt ? `<span class="note-row-excerpt">${excerpt}</span>` : ""
   }</a></li>`;
 }
@@ -278,7 +275,7 @@ export function bookmarksViewHtml(notes: InboxNote[]): string {
     .filter((note) => Boolean(note.bookmarked))
     .map((note) => ({ ...note, excerpt: inboxNoteExcerpt(note) || note.excerpt || "" }))
     .sort((a, b) => noteWhen(b).getTime() - noteWhen(a).getTime());
-  const rows = bookmarked.map((note) => noteRowHtml(note, { forBookmarks: true })).join("");
+  const rows = bookmarked.map((note) => noteRowHtml(note)).join("");
   const body = rows
     ? `<ul class="note-list">${rows}</ul>`
     : `<p class="empty">No bookmarks yet.</p>`;
@@ -711,124 +708,5 @@ export function notesInboxScript(): string {
       showChapterPane(currentBook);
     }
   });
-
-  // Desktop Bookmarks: hover verse/range rows → BSB popup (not chapter bookmarks like heb.12).
-  (function bookmarkVersePopup() {
-    const panel = document.querySelector(".bookmarks-panel");
-    if (!panel) return;
-    const fine = window.matchMedia("(hover: hover) and (pointer: fine)");
-    const wide = window.matchMedia("(min-width: 641px)");
-    const tip = document.createElement("div");
-    tip.className = "bookmark-verse-popup";
-    tip.hidden = true;
-    tip.setAttribute("role", "tooltip");
-    document.body.appendChild(tip);
-    const cache = new Map();
-    let active = null;
-    let seq = 0;
-
-    function parseVerseSlug(slug) {
-      const m = /^([a-z0-9]+)\\.(\\d+)\\.(\\d+)(?:-(\\d+))?$/i.exec(String(slug || "").trim());
-      if (!m) return null;
-      return {
-        chapter: m[1].toLowerCase() + "." + m[2],
-        start: Number(m[3]),
-        end: m[4] ? Number(m[4]) : Number(m[3]),
-      };
-    }
-
-    function verseText(slug) {
-      if (cache.has(slug)) return cache.get(slug);
-      const parts = parseVerseSlug(slug);
-      if (!parts) {
-        cache.set(slug, Promise.resolve(null));
-        return cache.get(slug);
-      }
-      const req = fetch("/bsb/" + parts.chapter + ".json")
-        .then((r) => (r.ok ? r.json() : null))
-        .then((pack) => {
-          if (!pack || !Array.isArray(pack.verses)) return null;
-          const text = pack.verses
-            .filter((v) => v.v >= parts.start && v.v <= parts.end)
-            .map((v) => v.text)
-            .join(" ")
-            .replace(/\\s+/g, " ")
-            .trim();
-          return text || null;
-        })
-        .catch(() => null);
-      cache.set(slug, req);
-      return req;
-    }
-
-    function hide() {
-      active = null;
-      tip.hidden = true;
-      tip.textContent = "";
-    }
-
-    function place(anchor) {
-      const r = anchor.getBoundingClientRect();
-      tip.hidden = false;
-      const maxW = Math.min(352, window.innerWidth - 24);
-      tip.style.width = maxW + "px";
-      const tr = tip.getBoundingClientRect();
-      let left = r.left;
-      if (left + maxW > window.innerWidth - 12) left = window.innerWidth - maxW - 12;
-      if (left < 12) left = 12;
-      let top = r.bottom + 8;
-      if (top + tr.height > window.innerHeight - 12) {
-        top = Math.max(12, r.top - tr.height - 8);
-      }
-      tip.style.left = left + "px";
-      tip.style.top = top + "px";
-    }
-
-    async function showFor(a) {
-      if (!fine.matches || !wide.matches) return;
-      const href = a.getAttribute("href") || "";
-      const slug = href.charAt(0) === "/" ? href.slice(1) : href;
-      if (!parseVerseSlug(slug)) return;
-      active = a;
-      const my = ++seq;
-      tip.textContent = "…";
-      place(a);
-      const text = await verseText(slug);
-      if (my !== seq || active !== a) return;
-      if (!text) { hide(); return; }
-      tip.textContent = text;
-      place(a);
-    }
-
-    panel.addEventListener("mouseover", (event) => {
-      const a = event.target.closest && event.target.closest("a.note-row-verse");
-      if (!a || !panel.contains(a)) return;
-      if (active === a) return;
-      showFor(a);
-    });
-    panel.addEventListener("mouseout", (event) => {
-      const a = event.target.closest && event.target.closest("a.note-row-verse");
-      if (!a || !panel.contains(a)) return;
-      const related = event.relatedTarget;
-      if (related && a.contains(related)) return;
-      if (active === a) hide();
-    });
-    panel.addEventListener("focusin", (event) => {
-      const a = event.target.closest && event.target.closest("a.note-row-verse");
-      if (!a || !panel.contains(a)) return;
-      showFor(a);
-    });
-    panel.addEventListener("focusout", (event) => {
-      const a = event.target.closest && event.target.closest("a.note-row-verse");
-      if (!a || !panel.contains(a)) return;
-      const related = event.relatedTarget;
-      if (related && a.contains(related)) return;
-      if (active === a) hide();
-    });
-    window.addEventListener("scroll", () => { if (active) hide(); }, { passive: true });
-    document.addEventListener("keydown", (event) => {
-      if (event.key === "Escape" && active) hide();
-    });
-  })();
 })();`;
 }

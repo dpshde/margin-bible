@@ -64,6 +64,8 @@ describe("VBV-first chapter notes", () => {
   test("clientScript hydrates notes without overwriting dirty trays", () => {
     const source = clientScript();
     expect(source).toContain("function noteIsDirty");
+    expect(source).toContain("Autofocus on a direct verse link is not an edit");
+    expect(source).toContain("return lastSaved.get(slug) !== key");
     expect(source).toContain("function ensureNoteTray");
     expect(source).toContain("function paintNoteIntoTray");
     expect(source).toContain("dataset.covering");

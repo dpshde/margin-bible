@@ -24,7 +24,8 @@ describe("chapter note rail CSS", () => {
   });
 
   test("hint can be hidden after interact", () => {
-    expect(css).toContain(".hint[hidden] { display: none !important; }");
+    expect(css).toContain(".hint[hidden],");
+    expect(css).toContain('html[data-reader-hint="off"] #reader-hint { display: none !important; }');
     expect(css).toContain("cursor: pointer;");
   });
 });

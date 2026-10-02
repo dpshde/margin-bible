@@ -23,6 +23,11 @@ export function themeToggleHtml(): string {
 function themeBootScript(): string {
   return `<script>
 (function () {
+  try {
+    if (localStorage.getItem("margin_reader_hint_v1") === "1") {
+      document.documentElement.setAttribute("data-reader-hint", "off");
+    }
+  } catch (err) {}
   var key = "margin_theme";
   function preferred() {
     try {
@@ -599,7 +604,8 @@ export function page(title: string, body: string): string {
     .note-list li { border-top: 1px solid var(--line); }
     .note-week .note-list li:first-child { border-top: 0; }
     .note-list .note-row {
-      display: block; padding: .7rem .6rem; text-decoration: none;
+      display: flex; align-items: baseline; gap: .5rem; min-width: 0;
+      padding: .55rem .6rem; overflow: hidden; text-decoration: none;
       border-radius: .4rem;
     }
     /* Week rows sit inside square rails; keep fills flush with the frame. */
@@ -610,31 +616,14 @@ export function page(title: string, body: string): string {
     .note-list .note-row:hover, .note-list .note-row:focus-visible { background: var(--fill); }
     .note-list .note-row:focus-visible { outline: 2px solid var(--sel-rail-open); outline-offset: -2px; }
     .note-row-title {
-      display: block; font-weight: 700; font-size: .95rem;
+      flex: none; max-width: 100%;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+      font-weight: 700; font-size: .95rem;
       letter-spacing: -.015em; color: var(--ink);
     }
     .note-row-excerpt {
-      display: -webkit-box; margin-top: .2rem;
-      color: var(--faint); font-size: .78rem; font-weight: 400; line-height: 1.4;
-      -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;
-    }
-    /* Desktop: verse/range bookmark hover shows BSB text (not chapter bookmarks). */
-    .bookmark-verse-popup { display: none; }
-    @media (hover: hover) and (pointer: fine) {
-      @media (min-width: 641px) {
-        .bookmark-verse-popup {
-          display: block; position: fixed; z-index: 60;
-          max-width: min(22rem, calc(100vw - 1.5rem));
-          padding: .65rem .75rem;
-          border: 1px solid var(--line); border-radius: .55rem;
-          background: var(--paper-raised);
-          box-shadow: 0 10px 28px color-mix(in srgb, var(--ink) 14%, transparent);
-          font-family: var(--read); font-size: .92rem; line-height: 1.45;
-          color: var(--ink-soft);
-          pointer-events: none;
-        }
-        .bookmark-verse-popup[hidden] { display: none; }
-      }
+      min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+      color: var(--faint); font-size: .78rem; font-weight: 400;
     }
     .empty { color: var(--muted); font-size: .92rem; }
     .starter-chips {
@@ -657,7 +646,8 @@ export function page(title: string, body: string): string {
       color: var(--muted); font-size: .82rem; line-height: 1.45;
       cursor: pointer;
     }
-    .hint[hidden] { display: none !important; }
+    .hint[hidden],
+    html[data-reader-hint="off"] #reader-hint { display: none !important; }
     .auth-chip {
       display: inline-flex; align-items: center; justify-content: center;
       width: var(--tap); height: var(--tap); margin: 0; padding: 0;
@@ -687,8 +677,8 @@ export function page(title: string, body: string): string {
     .menu-item.export-link svg { display: block; flex-shrink: 0; }
     .auth-export {
       display: inline-flex; align-items: center; gap: .55rem;
-      margin: 0 0 .65rem; padding: 0 .15rem;
-      min-height: var(--tap); width: auto;
+      margin: 0; padding: .15rem 0;
+      min-height: 2.25rem; width: auto;
       border-radius: .45rem; text-decoration: none;
       color: var(--ink-soft); font-size: .92rem; font-weight: 600;
     }
@@ -715,33 +705,87 @@ export function page(title: string, body: string): string {
       padding: .65rem .85rem; background: var(--ink); color: var(--paper); cursor: pointer; font-weight: 600;
     }
     .auth-form button.auth-secondary { background: transparent; color: var(--ink-soft); border: 1px solid var(--line); }
+    .passkey-btn {
+      appearance: none; width: 100%; margin: .85rem 0 0;
+      border-radius: .55rem; padding: .6rem .85rem;
+      background: transparent; color: var(--ink-soft); border: 1px solid var(--line);
+      cursor: pointer; font: inherit; font-weight: 600;
+    }
+    .passkey-account { margin: 0; padding: 0; border: 0; }
+    .passkey-kicker {
+      margin: 0;
+      color: var(--muted); font-size: .9rem; font-weight: 500; line-height: 1.4;
+    }
+    .passkey-list {
+      list-style: none; margin: 0; padding: 0;
+    }
+    .passkey-list li {
+      display: flex; align-items: center; gap: .55rem;
+      min-height: 2.25rem; margin: 0; padding: 0;
+      border: 0; border-radius: 0; background: transparent;
+      color: var(--ink); font-size: .95rem; font-weight: 400;
+    }
+    .passkey-list li + li { margin-top: .15rem; }
+    .passkey-name {
+      flex: none; max-width: 55%;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+      font-weight: 600;
+    }
+    .passkey-when {
+      min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+      color: var(--faint); font-size: .82rem; font-weight: 400;
+    }
+    .passkey-list form { margin: 0 0 0 auto; flex: none; }
+    .passkey-remove {
+      appearance: none; display: inline-flex; align-items: center; justify-content: center;
+      border: 0; border-radius: .45rem; background: transparent; cursor: pointer;
+      color: #e11d48; min-width: 2.25rem; min-height: 2.25rem; padding: 0;
+    }
+    .passkey-remove svg { display: block; width: 1.05rem; height: 1.05rem; }
+    .passkey-remove:hover, .passkey-remove:focus-visible {
+      color: #be123c; background: color-mix(in srgb, currentColor 12%, transparent);
+    }
+    html[data-theme="dark"] .passkey-remove { color: #fb7185; }
+    html[data-theme="dark"] .passkey-remove:hover,
+    html[data-theme="dark"] .passkey-remove:focus-visible { color: #fda4af; }
     .auth-signed {
-      display: grid; gap: .75rem;
+      display: grid; gap: .7rem;
       margin: .35rem 0 1.25rem;
     }
     .auth-status-card {
-      margin: 0; padding: .7rem .8rem;
-      border: 1px solid var(--line); border-radius: .65rem;
+      display: grid; gap: 1.15rem;
+      margin: 0; padding: 1rem 1rem .95rem;
+      border: 1px solid var(--line); border-radius: .75rem;
       background: var(--paper-raised);
     }
-    .auth-status-card .auth-status { margin: 0 0 .65rem; color: var(--ink-soft); }
-    .auth-status-card .auth-form { margin: 0; }
+    .auth-status-card .auth-status { margin: 0; color: var(--ink-soft); }
+    .auth-status-card .auth-hint { margin: 0; font-size: .78rem; }
+    .auth-status-card .auth-form {
+      margin: 0; padding: 0; border: 0;
+    }
     .auth-status-card .auth-form button {
-      background: var(--ink); color: var(--paper); border: 0; width: 100%;
+      background: var(--ink); color: var(--paper); border: 0; width: 100%; margin-top: 0;
     }
     .auth-switch {
       border: 1px solid var(--line); border-radius: .65rem;
-      background: transparent; padding: .15rem .7rem .55rem;
+      background: transparent; padding: 0 .9rem;
     }
+    .auth-switch[open] { padding-bottom: .85rem; }
     .auth-switch > summary {
+      display: flex; align-items: center; justify-content: space-between; gap: .75rem;
       cursor: pointer; list-style: none;
+      min-height: 2.75rem; padding: 0;
       font-size: .82rem; font-weight: 600; color: var(--muted);
-      padding: .45rem 0;
     }
     .auth-switch > summary::-webkit-details-marker { display: none; }
-    .auth-switch > summary::after { content: " ▾"; font-weight: 400; color: var(--faint); }
-    .auth-switch[open] > summary::after { content: " ▴"; }
-    .auth-switch .auth-form { margin: .25rem 0 .35rem; }
+    .auth-switch > summary::after {
+      content: ""; flex: none;
+      width: .4rem; height: .4rem; margin-bottom: .15rem;
+      border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor;
+      transform: rotate(45deg);
+    }
+    .auth-switch[open] > summary::after { transform: rotate(-135deg); margin-top: .15rem; margin-bottom: 0; }
+    .auth-switch .auth-form { margin: 0 0 .35rem; }
     .auth-switch .auth-hint { margin: .35rem 0 0; font-size: .78rem; }
     .tray-actions { display: flex; align-items: center; gap: 0; flex-shrink: 0; }
     .tray-bookmark, .tray-attach, .tray-clear, .tray-close {

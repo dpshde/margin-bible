@@ -1,20 +1,21 @@
 import { Hono, type Context } from "hono";
+import type { AuthenticationResponseJSON, RegistrationResponseJSON } from "@simplewebauthn/server";
 import {
-  authCookie,
   clearAuthCookie,
-  findOrCreateIdentityLibrary,
-  identityKeyFromPassphrase,
-  readAuthCookie,
+  clearLibraryCookie,
+  clientIp,
+  normalizeLabel,
+  readSessionCookie,
+  requestHasLegacyAuthCookie,
+  sessionCookie,
   validatePassphrase,
 } from "./auth";
+import { createGuestLibrary, createSession, deletePasskey, deleteSession, listPasskeys, readSession } from "./auth-store";
 import {
   deleteNote,
-  ensureLibrary,
   findNote,
-  libraryCookie,
   listNotes,
   noteJson,
-  readLibraryCookie,
   rememberRead,
   saveNote,
   type NoteRecord,
@@ -23,6 +24,18 @@ import { renderLoginPage } from "./login-page";
 import { buildLibrarySnapshot, snapshotFilename } from "./library-snapshot";
 import { draftNote } from "./notes";
 import { canGo, jumpState } from "./jump-suggest";
+import { performLogin, performPassphraseChange } from "./perform-login";
+import {
+  authenticationOptions,
+  challengeCookie,
+  clearChallengeCookie,
+  passkeySettings,
+  PasskeyError,
+  readChallengeCookie,
+  registrationOptions,
+  verifyAuthentication,
+  verifyRegistration,
+} from "./passkeys";
 import { parsePassage, passageLabel, passageSlug, type Passage } from "./passage";
 import { renderChapterPage, renderMissing, renderNotesIndex } from "./reader-page";
 import type { ChapterPack } from "./usj";
@@ -31,89 +44,217 @@ import { ensureBidirectionalXrefs, syncBidirectionalXrefs } from "./xref-sync";
 export type Env = {
   DB: D1Database;
   ASSETS: Fetcher;
+  AUTH_PEPPER?: string;
+  WEBAUTHN_RP_ID?: string;
+  WEBAUTHN_ORIGIN?: string;
 };
 
 type Variables = {
   libraryId: string;
-  freshLibrary: boolean;
+  sessionId: string;
   signedIn: boolean;
+  sessionCookieSet?: boolean;
 };
 
 const app = new Hono<{ Bindings: Env; Variables: Variables }>();
+
+async function loginHtml(
+  c: AppContext,
+  input: {
+    error?: string;
+    notice?: string;
+    next?: string;
+    confirmCreate?: boolean;
+    openPassphrase?: boolean;
+  } = {},
+): Promise<string> {
+  const enabled = passkeySettings(c.env, c.req.url) !== null;
+  const savedPasskeys = enabled && c.get("signedIn") ? await listPasskeys(c.env.DB, c.get("libraryId")) : [];
+  return renderLoginPage({
+    ...input,
+    signedIn: c.get("signedIn"),
+    passkeys: enabled,
+    savedPasskeys,
+  });
+}
 
 app.use("*", async (c, next) => {
   if (c.req.path === "/health" || c.req.path.startsWith("/bsb/")) {
     await next();
     return;
   }
-  const cookieId = readLibraryCookie(c.req.header("Cookie") ?? null);
-  const signedIn = readAuthCookie(c.req.header("Cookie") ?? null);
-  const library = await ensureLibrary(c.env.DB, cookieId);
-  c.set("libraryId", library.id);
-  c.set("freshLibrary", library.fresh || cookieId !== library.id);
-  // Signed in only when auth cookie is present and the library is passphrase-bound.
-  const isSignedIn = Boolean(signedIn && library.identityKey && !c.get("freshLibrary"));
-  c.set("signedIn", isSignedIn);
   const secure = new URL(c.req.url).protocol === "https:";
-  if (c.get("freshLibrary")) {
-    const cookies = [libraryCookie(library.id, secure)];
-    if (signedIn) cookies.push(clearAuthCookie(secure));
-    for (const cookie of cookies) c.header("Set-Cookie", cookie, { append: true });
-  } else if (signedIn && !library.identityKey) {
-    // Stale auth cookie on a guest library — drop it.
+  const header = c.req.header("Cookie") ?? null;
+  const existing = readSessionCookie(header);
+  let session = existing ? await readSession(c.env.DB, existing) : null;
+  let createdSession: string | null = null;
+  if (!session) {
+    const libraryId = await createGuestLibrary(c.env.DB);
+    createdSession = await createSession(c.env.DB, libraryId);
+    session = { id: createdSession, libraryId, bound: false };
+  }
+  c.set("libraryId", session.libraryId);
+  c.set("sessionId", session.id);
+  c.set("signedIn", session.bound);
+  await next();
+  if (createdSession && !c.get("sessionCookieSet")) {
+    c.header("Set-Cookie", sessionCookie(createdSession, secure), { append: true });
+  }
+  if (requestHasLegacyAuthCookie(header)) {
+    c.header("Set-Cookie", clearLibraryCookie(secure), { append: true });
     c.header("Set-Cookie", clearAuthCookie(secure), { append: true });
   }
-  await next();
 });
 
-app.get("/health", (c) => c.json({ ok: true, app: "margin-bible", version: "2026.09.30.35" }));
+app.get("/health", (c) => c.json({ ok: true, app: "margin-bible", version: "2026.10.02.7" }));
 
 app.get("/bsb/*", (c) => c.env.ASSETS.fetch(c.req.raw));
 
 app.get("/vendor/*", (c) => c.env.ASSETS.fetch(c.req.raw));
 
-app.get("/login", (c) => {
-  return c.html(
-    renderLoginPage({
-      next: c.req.query("next") || "/",
-      signedIn: c.get("signedIn"),
-      notice: c.req.query("claimed") === "1" ? "Library opened. Notes now follow this passphrase." : undefined,
-    }),
-  );
+app.get("/login", async (c) => {
+  const passkeyQuery = c.req.query("passkey");
+  const notice =
+    passkeyQuery === "1"
+      ? "Passkey added. It is listed on this page."
+      : passkeyQuery === "removed"
+        ? "Passkey removed."
+        : passkeyQuery === "missing"
+          ? "That passkey is already gone."
+          : c.req.query("passphrase") === "1"
+            ? "Passphrase updated. Other browsers need the new phrase. Passkeys on a device still open this library."
+            : c.req.query("claimed") === "1"
+              ? "Library opened. This browser now has a session for it."
+              : undefined;
+  return c.html(await loginHtml(c, { next: c.req.query("next") || "/", notice }));
 });
 
 app.post("/login", async (c) => {
   const form = await c.req.parseBody();
   const next = safeNext(typeof form.next === "string" ? form.next : "/");
   const check = validatePassphrase(form.passphrase);
-  if (!check.ok) {
-    return c.html(renderLoginPage({ error: check.error, next, signedIn: c.get("signedIn") }), 422);
+  const page = async (error: string, status: 422 | 429 | 500, confirmCreate = false) =>
+    c.html(await loginHtml(c, { error, next, confirmCreate }), status);
+  if (!check.ok) return page(check.error, 422);
+  const result = await performLogin(c.env.DB, {
+    pepper: c.env.AUTH_PEPPER ?? "",
+    passphrase: check.passphrase,
+    label: normalizeLabel(form.label),
+    claimToken: typeof form.claim === "string" ? form.claim : "",
+    confirmCreate: form.confirm_create === "1",
+    currentLibraryId: c.get("libraryId"),
+    currentSessionId: c.get("sessionId"),
+    ip: clientIp(c.req.header("CF-Connecting-IP") ?? null),
+  });
+  if (!result.ok) return page(result.error, result.status, result.confirmCreate);
+  return redirectWithSession(c, next, result.sessionId);
+});
+
+app.post("/login/passphrase", async (c) => {
+  const form = await c.req.parseBody();
+  const next = safeNext(typeof form.next === "string" ? form.next : "/");
+  const page = async (error: string, status: 422 | 429 | 500) =>
+    c.html(await loginHtml(c, { error, next, openPassphrase: true }), status);
+  if (!c.get("signedIn")) return page("Sign in before changing the passphrase.", 422);
+  const result = await performPassphraseChange(c.env.DB, {
+    pepper: c.env.AUTH_PEPPER ?? "",
+    currentPassphrase: typeof form.current_passphrase === "string" ? form.current_passphrase : "",
+    passphrase: typeof form.passphrase === "string" ? form.passphrase : "",
+    confirmPassphrase: typeof form.confirm_passphrase === "string" ? form.confirm_passphrase : "",
+    libraryId: c.get("libraryId"),
+    currentSessionId: c.get("sessionId"),
+    ip: clientIp(c.req.header("CF-Connecting-IP") ?? null),
+  });
+  if (!result.ok) return page(result.error, result.status);
+  return redirectWithSession(c, "/login?passphrase=1", result.sessionId);
+});
+
+app.post("/login/passkey/delete", async (c) => {
+  if (!c.get("signedIn")) {
+    return c.html(await loginHtml(c, { error: "Sign in before removing a passkey.", next: "/" }), 422);
   }
-  const label =
-    typeof form.label === "string" && form.label.trim()
-      ? form.label.normalize("NFKC").trim().slice(0, 80)
-      : null;
-  const key = await identityKeyFromPassphrase(check.passphrase);
-  const library = await findOrCreateIdentityLibrary(c.env.DB, key, label);
-  const secure = new URL(c.req.url).protocol === "https:";
-  const headers = new Headers();
-  headers.append("Set-Cookie", libraryCookie(library.id, secure));
-  headers.append("Set-Cookie", authCookie(secure));
-  headers.set("Location", next === "/login" ? "/" : next);
-  return new Response(null, { status: 303, headers });
+  const form = await c.req.parseBody();
+  const credentialId = typeof form.credential_id === "string" ? form.credential_id : "";
+  const removed = await deletePasskey(c.env.DB, c.get("libraryId"), credentialId);
+  return c.redirect(`/login?passkey=${removed ? "removed" : "missing"}`, 303);
 });
 
 app.post("/logout", async (c) => {
   const form = await c.req.parseBody().catch(() => ({} as Record<string, unknown>));
   const next = safeNext(typeof form.next === "string" ? form.next : "/");
+  await deleteSession(c.env.DB, c.get("sessionId"));
+  const libraryId = await createGuestLibrary(c.env.DB);
+  const sessionId = await createSession(c.env.DB, libraryId);
+  return redirectWithSession(c, next, sessionId);
+});
+
+app.post("/api/passkey/register/options", async (c) => {
+  const settings = passkeySettings(c.env, c.req.url);
+  if (!settings) return c.json({ ok: false, error: "Passkeys are not available on this host." }, 404);
+  try {
+    const { options, challengeId } = await registrationOptions(c.env.DB, settings, c.get("libraryId"));
+    const secure = new URL(c.req.url).protocol === "https:";
+    c.header("Set-Cookie", challengeCookie(challengeId, secure), { append: true });
+    return c.json({ ok: true, options });
+  } catch (error) {
+    if (error instanceof PasskeyError) return c.json({ ok: false, error: error.message }, error.status);
+    throw error;
+  }
+});
+
+app.post("/api/passkey/register/verify", async (c) => {
+  const settings = passkeySettings(c.env, c.req.url);
+  if (!settings) return c.json({ ok: false, error: "Passkeys are not available on this host." }, 404);
   const secure = new URL(c.req.url).protocol === "https:";
-  // Drop identity session and mint a fresh anonymous library so prior notes stay private.
-  const guest = await ensureLibrary(c.env.DB, null);
-  const headers = new Headers();
-  headers.append("Set-Cookie", libraryCookie(guest.id, secure));
-  headers.append("Set-Cookie", clearAuthCookie(secure));
-  headers.set("Location", next);
-  return new Response(null, { status: 303, headers });
+  try {
+    const body = await c.req.json<RegistrationResponseJSON>();
+    await verifyRegistration(
+      c.env.DB,
+      settings,
+      c.get("libraryId"),
+      readChallengeCookie(c.req.header("Cookie") ?? null),
+      body,
+    );
+    c.header("Set-Cookie", clearChallengeCookie(secure), { append: true });
+    return c.json({ ok: true });
+  } catch (error) {
+    c.header("Set-Cookie", clearChallengeCookie(secure), { append: true });
+    if (error instanceof PasskeyError) return c.json({ ok: false, error: error.message }, error.status);
+    throw error;
+  }
+});
+
+app.post("/api/passkey/login/options", async (c) => {
+  const settings = passkeySettings(c.env, c.req.url);
+  if (!settings) return c.json({ ok: false, error: "Passkeys are not available on this host." }, 404);
+  const { options, challengeId } = await authenticationOptions(c.env.DB, settings);
+  const secure = new URL(c.req.url).protocol === "https:";
+  c.header("Set-Cookie", challengeCookie(challengeId, secure), { append: true });
+  return c.json({ ok: true, options });
+});
+
+app.post("/api/passkey/login/verify", async (c) => {
+  const settings = passkeySettings(c.env, c.req.url);
+  if (!settings) return c.json({ ok: false, error: "Passkeys are not available on this host." }, 404);
+  const secure = new URL(c.req.url).protocol === "https:";
+  try {
+    const body = await c.req.json<AuthenticationResponseJSON>();
+    const sessionId = await verifyAuthentication(
+      c.env.DB,
+      settings,
+      readChallengeCookie(c.req.header("Cookie") ?? null),
+      body,
+      c.get("sessionId"),
+    );
+    c.set("sessionCookieSet", true);
+    c.header("Set-Cookie", sessionCookie(sessionId, secure), { append: true });
+    c.header("Set-Cookie", clearChallengeCookie(secure), { append: true });
+    return c.json({ ok: true, next: "/" });
+  } catch (error) {
+    c.header("Set-Cookie", clearChallengeCookie(secure), { append: true });
+    if (error instanceof PasskeyError) return c.json({ ok: false, error: error.message }, error.status);
+    throw error;
+  }
 });
 
 app.get("/", async (c) => {
@@ -358,6 +499,13 @@ async function loadChapter(assets: Fetcher, passage: Passage): Promise<ChapterPa
 function fail(c: AppContext, formPost: boolean, status: 404 | 422, error: string): Response {
   if (formPost) return c.html(renderMissing(error), status);
   return c.json({ ok: false, error }, status);
+}
+
+function redirectWithSession(c: AppContext, next: string, sessionId: string): Response {
+  const secure = new URL(c.req.url).protocol === "https:";
+  c.set("sessionCookieSet", true);
+  c.header("Set-Cookie", sessionCookie(sessionId, secure), { append: true });
+  return c.redirect(next, 303);
 }
 
 function safeBack(slug: string): string {

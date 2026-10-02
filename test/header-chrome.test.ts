@@ -84,6 +84,11 @@ describe("header chrome without chapter note pencil", () => {
     const html = renderChapterPage({ passage, pack, notes: [] });
     expect(html).toContain('id="reader-hint"');
     expect(html).toContain("Tap a verse to open its outliner");
+    const hide = html.indexOf("margin_reader_hint_v1");
+    const hint = html.indexOf('id="reader-hint"');
+    expect(hide).toBeGreaterThan(-1);
+    expect(hide).toBeLessThan(hint);
+    expect(html).toContain('html[data-reader-hint="off"] #reader-hint');
     const client = readFileSync(path.join(import.meta.dir, "../src/reader-client.ts"), "utf8");
     expect(client).toContain("margin_reader_hint_v1");
     expect(client).toContain("function dismissReaderHint");

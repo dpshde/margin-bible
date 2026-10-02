@@ -97,7 +97,10 @@ describe("bookmark card polish", () => {
     expect(css).toContain(".note-week-label {\n      display: flex; align-items: center;\n      margin: 0; padding: .35rem .55rem;");
     expect(css).toContain("border-radius: 0;");
     expect(css).toContain(".note-week .note-list li:first-child { border-top: 0; }");
-    expect(css).toContain("display: block; padding: .7rem .6rem; text-decoration: none;");
+    expect(css).toContain("display: flex; align-items: baseline; gap: .5rem; min-width: 0;");
+    expect(css).toContain(".note-row-title {\n      flex: none; max-width: 100%;\n      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;");
+    expect(css).toContain(".note-row-excerpt {\n      min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;");
+    expect(css).not.toContain("-webkit-line-clamp");
     expect(css).toContain(".note-week .note-row {\n      padding-inline: .65rem;");
     expect(css).toContain("border-radius: 0;");
     expect(css).toContain("background: var(--ink); color: var(--paper);");
@@ -117,28 +120,21 @@ describe("bookmark card polish", () => {
     expect(css).not.toContain(".note-row { display: grid");
   });
 
-  test("verse/range bookmark rows get note-row-verse; chapter bookmarks do not", () => {
+  test("bookmark rows are plain links, with no verse hover popover", () => {
     const html = bookmarksViewHtml([
       { slug: "2co.12.7-9", label: "2 Corinthians 12:7–9", excerpt: "grace", bookmarked: true, updatedAt: "2026-09-30T12:00:00Z" },
       { slug: "rom.9.17", label: "Romans 9:17", excerpt: "", bookmarked: true, updatedAt: "2026-09-30T12:00:00Z" },
       { slug: "heb.12", label: "Hebrews 12", excerpt: "chapter note", bookmarked: true, updatedAt: "2026-09-30T12:00:00Z" },
     ]);
-    expect(html).toContain('class="note-row note-row-verse" href="/2co.12.7-9"');
-    expect(html).toContain('class="note-row note-row-verse" href="/rom.9.17"');
+    expect(html).toContain('class="note-row" href="/2co.12.7-9"');
+    expect(html).toContain('class="note-row" href="/rom.9.17"');
     expect(html).toContain('class="note-row" href="/heb.12"');
-    expect(html).not.toContain('note-row-verse" href="/heb.12"');
-  });
-
-  test("desktop bookmark verse popup script + CSS are present", () => {
+    expect(html).not.toContain("note-row-verse");
     const css = page("t", "<p>x</p>");
-    expect(css).toContain(".bookmark-verse-popup");
-    expect(css).toContain("@media (min-width: 641px)");
+    expect(css).not.toContain("bookmark-verse-popup");
     const script = notesInboxScript();
-    expect(script).toContain("bookmarkVersePopup");
-    expect(script).toContain("note-row-verse");
-    expect(script).toContain('/bsb/" + parts.chapter + ".json"');
-    expect(script).toContain('(min-width: 641px)');
-    expect(script).toContain("(hover: hover) and (pointer: fine)");
+    expect(script).not.toContain("bookmarkVersePopup");
+    expect(script).not.toContain("bookmark-verse-popup");
   });
 });
 

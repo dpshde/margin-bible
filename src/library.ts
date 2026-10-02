@@ -44,31 +44,6 @@ export function libraryCookie(id: string, secure: boolean): string {
   return parts.join("; ");
 }
 
-export async function ensureLibrary(
-  db: D1Database,
-  cookieId: string | null,
-): Promise<{ id: string; fresh: boolean; lastReadSlug: string | null; identityKey: string | null }> {
-  if (cookieId) {
-    const existing = await db
-      .prepare("SELECT id, last_read_slug, identity_key FROM libraries WHERE id = ?")
-      .bind(cookieId)
-      .first<{ id: string; last_read_slug: string | null; identity_key: string | null }>();
-    if (existing) {
-      return {
-        id: existing.id,
-        fresh: false,
-        lastReadSlug: existing.last_read_slug,
-        identityKey: existing.identity_key,
-      };
-    }
-  }
-
-  const id = crypto.randomUUID();
-  const now = new Date().toISOString();
-  await db.prepare("INSERT INTO libraries (id, created_at, updated_at) VALUES (?, ?, ?)").bind(id, now, now).run();
-  return { id, fresh: true, lastReadSlug: null, identityKey: null };
-}
-
 export async function rememberRead(db: D1Database, libraryId: string, slug: string): Promise<void> {
   await db
     .prepare("UPDATE libraries SET last_read_slug = ?, updated_at = ? WHERE id = ?")

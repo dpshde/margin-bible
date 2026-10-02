@@ -11,16 +11,16 @@ Imported Dylan's authorized Rails library notes into Cloudflare **prod** D1 `mar
 - Side effect: Railway agent briefly created function `inventory-query` to run read-only SQL; a **staged delete** of that function is waiting for dashboard 2FA. Do not treat that as part of the product cutover.
 
 ## Auth mapping
-Rails libraries use `claim_token` / passkeys / magic links — **no passphrase hash**. Prod Workers hash is `SHA-256(PEPPER + ":" + NFKC passphrase)` with `PEPPER=margin-spike-v1` stored as `libraries.identity_key`.
+Rails libraries use `claim_token` / passkeys / magic links — **no passphrase hash**. The import left `identity_key` null on the labeled library `Dylan (Rails)`. Existing Rails passkeys were not copied.
 
-**Chose (B):** import library with `identity_key = NULL`, label `Dylan (Rails)`. Existing Rails passphrase/passkey cannot open this row. Dylan must visit `/login` on prod and open (or create) a passphrase-bound library, then notes can be moved/claimed later — **or** set `identity_key` once his chosen prod passphrase hash is known.
+**2026-10-01:** The imported library id was a bearer credential (the `margin_library` cookie). It was removed from this file. Do not put library ids back in the repo. Sign-in is now a random `margin_session` id.
 
 Spike had only smoke-test bound libraries (`Smoke test` / unlabeled, 1 note each); those identity keys were **not** copied onto Dylan's 63-note library.
 
 ## Destination mapping
 | Rails | D1 |
 |---|---|
-| libraries.id (int 96) | libraries.id UUID `6d617267-696e-4096-a000-000000000096` |
+| libraries.id (int 96) | libraries.id (rotated on 2026-10-02; value is not in this repo) |
 | last_read_slug / notes.* | same columns |
 | blocks JSON | notes.blocks TEXT JSON |
 | bookmarked bool | notes.bookmarked 0/1 |
@@ -59,15 +59,11 @@ Import result: `Processed 64 queries` / `191 rows written` on database `0f48d232
 ## Smoke
 - `GET https://margin-bible.dpshade.workers.dev/health` → `{"ok":true,"app":"margin-bible"}`
 - `GET /login` → 200 passphrase UI
-- Cookie `margin_library=6d617267-696e-4096-a000-000000000096`:
-  - `/api/notes` → 63 notes
-  - `/api/notes?verse=heb.12.15` → `heb.12.15`
-  - `/api/notes?chapter=luk.15` → 15 notes
-  - `/heb.12.15` HTML contains outliner text "What is bitterness?"
-- Spike `https://margin-bible-spike.dpshade.workers.dev/health` still ok; same library UUID returns 0 notes there (prod-only import).
+- Authenticated note reads were checked for the imported library (63 notes, including `heb.12.15` and chapter `luk.15`). The cookie value is not recorded here.
+- Spike `https://margin-bible-spike.dpshade.workers.dev/health` still ok. The prod import was not copied there.
 - Rails `https://margin-bible.up.railway.app/up` → 200. DNS untouched.
 
 ## Follow-ups for Dylan
-1. Choose a prod passphrase on `/login`, note the new `identity_key` library id, then either re-import notes under that id or UPDATE `libraries.identity_key` for `6d617267-...` to the hash of that passphrase (option A retrofit).
+1. The imported library id was rotated when session auth shipped. Bind a passphrase with the one-time recovery code from that rotation. Do not put the library id or the code in this repo.
 2. Apply the staged Railway delete of leftover `inventory-query` in the dashboard (2FA), or leave it — it is not the Rails app.
 3. Cloudflare OAuth token expired after import (~19:37Z); refresh with interactive `wrangler login` before further D1 CLI work.

@@ -112,7 +112,7 @@ ${prefetchLinks}
 ${chapterGridHtml(passage.book, passage.chapter)}
 <main class="reader">
   ${jumpFormHtml()}
-  <p class="hint" id="reader-hint">Tap a verse to open its outliner; tap again to close. Enter splits / next node · Shift+Enter newline · Tab or two spaces indent · Clear deletes. Refs like John 3:16 become wiki chips on blur. ${signedIn ? "Signed in — notes follow your passphrase across browsers." : "Guest cookie saves notes on this browser only. Sign in with a passphrase to keep them everywhere."}</p>
+  <p class="hint" id="reader-hint">Tap a verse to open its outliner; tap again to close. Enter splits / next node · Shift+Enter newline · Tab or two spaces indent · Clear deletes. Refs like John 3:16 become wiki chips on blur. ${signedIn ? "Signed in — this browser has a session, and the passphrase opens the same notes elsewhere." : "Guest notes stay in this browser until you sign in with a passphrase."}</p>
   <div class="chapter-note-rail" id="chapter-note-rail" data-has-note="${chapterNote ? "true" : "false"}">
     <button type="button" class="chapter-note-peek" id="chapter-note-peek" aria-expanded="false" aria-controls="chapter-tray" aria-label="Open chapter note" title="Chapter note">
       <span class="chapter-note-peek-bar" aria-hidden="true"></span>

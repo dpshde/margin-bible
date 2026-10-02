@@ -72,18 +72,18 @@ Wrangler prints a `*.workers.dev` URL. That host is the spike. Leave `margin.bib
 
 `POST /api/search` is not implemented. Search stays with the sibling that owns it.
 
-## Auth (passphrase)
+## Auth (passphrase, then passkey)
 
 Open **Sign in** (top-right) or `/login`.
 
-1. Enter any passphrase (≥ 4 characters). Optional label is only a reminder.
-2. Submit **Open library**. The Worker hashes the passphrase (SHA-256 + spike pepper) into an `identity_key`, finds or creates that library in D1, and sets `margin_library` + `margin_auth` cookies.
-3. The same passphrase on another browser opens the same notes. There is no email reset — remember the phrase.
-4. **Sign out** on `/login` mints a fresh guest library so the previous notes stay private to the passphrase.
+1. Enter a passphrase of at least 12 characters. Optional label is only a reminder.
+2. Submit **Open library**. The browser gets an `HttpOnly` `margin_session` cookie. The value is a random session id in D1, not the library id. The passphrase is stored as an HMAC lookup (Worker secret `AUTH_PEPPER`) plus PBKDF2 with a per-library salt.
+3. The same passphrase on another browser opens the same notes. A guest library that already has notes is bound in place. An empty miss asks you to confirm before a typo creates a new library. There is no email reset.
+4. **Sign out** deletes that session and mints a fresh guest library.
+5. **Change passphrase** asks for the current phrase and the new phrase twice. A wrong current phrase counts toward the rate limit. Other sessions for that library are signed out. Passkeys already enrolled on a device keep working.
+6. Passkeys are on for the site you are visiting, including `https://margin-bible.dpshade.workers.dev`. The relying party id is that host unless `WEBAUTHN_RP_ID` and `WEBAUTHN_ORIGIN` pin a different matching origin. A passkey made on `workers.dev` does not sign in on `margin.bible`. Add one from the profile page after a passphrase sign-in, and remove one from that list. Removing a passkey does not sign out browsers that already have a session. Either factor mints a session.
 
-Guest mode (no sign-in) still autosaves notes to an anonymous cookie on that browser only.
-
-Demo tip for Dylan: pick a memorable phrase (e.g. a short private PIN-like string) the first time you sign in on https://margin-bible-spike.dpshade.workers.dev, then reuse it everywhere.
+`/login` rate-limits failed attempts (8 per IP per 15 minutes). A one-time recovery code, if one was issued for a library, binds your passphrase onto that library.
 
 ## Bookmarks, attachments, cross-refs
 
@@ -126,12 +126,11 @@ Top-bar actions (icon-only + tooltips):
 
 Compared with the Rails app:
 
-- Magic-link email delivery, passkeys, OAuth, Cloudflare Access, and MCP
+- Magic-link email delivery, OAuth, Cloudflare Access, and MCP.
 - Hotwire Native / the iOS shell
 - Agent signatures, read trail UI, inbox, file (CAS) attachments — spike chips are xref + http(s) URL only
 - Copy-note / tray-external chrome beyond the route.bible label link
-- Production data. D1 starts empty. Do not point this at Railway Postgres.
-- DNS and the Railway services. They stay where they are.
+- `margin.bible` DNS. The live Worker is still `https://margin-bible.dpshade.workers.dev`.
 
 ## Cost thesis
 

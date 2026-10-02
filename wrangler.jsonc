@@ -18,7 +18,15 @@
     }
   ],
   "observability": {
+    "enabled": true,
+    "redact_query_string": true,
     "issues": {
+      "enabled": true
+    },
+    "logs": {
+      "enabled": true
+    },
+    "traces": {
       "enabled": true
     }
   }

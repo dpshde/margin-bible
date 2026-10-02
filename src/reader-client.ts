@@ -2274,8 +2274,16 @@ export function clientScript(): string {
   function noteIsDirty(slug) {
     if (timers.has(slug)) return true;
     const active = document.activeElement?.closest?.(".outliner");
-    if (active && active.dataset.slug === slug) return true;
-    return false;
+    if (!active || active.dataset.slug !== slug) return false;
+    // Autofocus on a direct verse link is not an edit. Compare the tray to the
+    // last snapshot so /api/notes can still fill an untouched composer.
+    const payload = trayPayload(active);
+    const key = JSON.stringify({
+      blocks: payload.blocks,
+      bookmarked: payload.bookmarked,
+      attachments: payload.attachments,
+    });
+    return lastSaved.get(slug) !== key;
   }
   function ensureNoteTray(note) {
     if (!note?.slug) return null;
@@ -2323,10 +2331,14 @@ export function clientScript(): string {
     if (!tray || !note) return;
     if (noteIsDirty(note.slug)) return;
     const outliner = tray.querySelector(".outliner");
+    const wasFocused = !!(outliner && outliner.contains(document.activeElement));
     const blocks = (note.blocks && note.blocks.length)
       ? note.blocks
       : [{ id: outliner?.dataset.emptyId || "b_empty", indent: 0, text: "", bullet: true }];
-    if (outliner) renderOutliner(outliner, blocks);
+    if (outliner) {
+      const focusId = wasFocused ? blocks[0]?.id : undefined;
+      renderOutliner(outliner, blocks, focusId, focusId ? 0 : undefined);
+    }
     syncBookmarkButton(tray, note.bookmarked);
     paintAttBoard(tray, note.attachments || []);
     lastSaved.set(note.slug, JSON.stringify({
@@ -2426,6 +2438,7 @@ export function clientScript(): string {
   function dismissReaderHint() {
     const hint = document.querySelector("#reader-hint");
     if (hint) hint.hidden = true;
+    document.documentElement.setAttribute("data-reader-hint", "off");
     try { localStorage.setItem(READER_HINT_KEY, "1"); } catch {}
   }
   function bootReaderHint() {
