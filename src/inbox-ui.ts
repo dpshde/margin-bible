@@ -259,7 +259,7 @@ function verseCitation(note: InboxNote): string {
   return label.slice(colon + 1).trim();
 }
 
-/** Several notes in one chapter share a single row. A lone note stays a normal row. */
+/** Every verse and range is a card, even when it is the only note in the chapter. A chapter note stays a normal row. */
 function weekChapterRows(notes: InboxNote[]): string {
   const order: string[] = [];
   const byChapter = new Map<string, InboxNote[]>();
@@ -274,8 +274,6 @@ function weekChapterRows(notes: InboxNote[]): string {
   return order
     .map((slug) => {
       const list = byChapter.get(slug)!;
-      if (list.length === 1) return noteRowHtml(list[0]!);
-      const title = chapterTitleFromNote(list[0]!);
       const verses = list
         .map((note) => {
           const place = verseCitation(note);
@@ -287,8 +285,9 @@ function weekChapterRows(notes: InboxNote[]): string {
         })
         .filter(Boolean)
         .join("");
-      const verseHtml = verses ? `<span class="note-bundle-verses">${verses}</span>` : "";
-      return `<li class="note-bundle"><a class="note-bundle-name" href="/${escapeHtml(slug)}">${escapeHtml(title)}</a>${verseHtml}</li>`;
+      if (!verses) return list.map((note) => noteRowHtml(note)).join("");
+      const title = chapterTitleFromNote(list[0]!);
+      return `<li class="note-bundle"><a class="note-bundle-name" href="/${escapeHtml(slug)}">${escapeHtml(title)}</a><span class="note-bundle-verses">${verses}</span></li>`;
     })
     .join("");
 }
@@ -439,10 +438,16 @@ export function notesInboxScript(): string {
     let html = "";
     for (const slug of order) {
       const list = byChapter.get(slug);
-      if (list.length === 1) { html += noteRow(list[0]); continue; }
       let verses = "";
       for (const n of list) {
-        const label = String(n.label || "").trim();
+        let label = String(n.label || "").trim();
+        if (!label || /^[a-z0-9]+\.\d+/i.test(label)) {
+          const sm = /^([a-z0-9]+)\.(\d+)(?:\.(\d+)(?:-(\d+))?)?$/i.exec(String(n.slug || ""));
+          if (sm && sm[3]) {
+            const name = BOOK_NAMES[sm[1].toUpperCase()] || sm[1];
+            label = name + " " + sm[2] + ":" + sm[3] + (sm[4] ? "–" + sm[4] : "");
+          }
+        }
         const colon = label.lastIndexOf(":");
         if (colon < 0) continue;
         const place = label.slice(colon + 1).trim();
@@ -452,8 +457,11 @@ export function notesInboxScript(): string {
         const titleAttr = stamp ? ' title="' + escape(stamp) + '"' : "";
         verses += '<a class="note-bundle-verse" href="/' + escape(n.slug) + '" aria-label="' + escape(label) + '"' + titleAttr + ">" + escape(place) + "</a>";
       }
-      const verseHtml = verses ? '<span class="note-bundle-verses">' + verses + "</span>" : "";
-      html += '<li class="note-bundle"><a class="note-bundle-name" href="/' + escape(slug) + '">' + escape(chapterTitle(list[0])) + "</a>" + verseHtml + "</li>";
+      if (!verses) {
+        for (const n of list) html += noteRow(n);
+        continue;
+      }
+      html += '<li class="note-bundle"><a class="note-bundle-name" href="/' + escape(slug) + '">' + escape(chapterTitle(list[0])) + '</a><span class="note-bundle-verses">' + verses + "</span></li>";
     }
     return html;
   }

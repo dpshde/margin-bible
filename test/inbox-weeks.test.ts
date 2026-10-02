@@ -64,10 +64,19 @@ describe("inbox week grouping", () => {
   test("notesListHtml emits week headers", () => {
     const html = notesListHtml([
       { slug: "jhn.1.1", label: "John 1:1", excerpt: "hi", updatedAt: new Date().toISOString() },
+      { slug: "2co.12.8-9", label: "2 Corinthians 12:8–9", excerpt: "grace", updatedAt: new Date().toISOString() },
+      { slug: "jos.8", label: "Joshua 8", excerpt: "chapter question", updatedAt: new Date().toISOString() },
     ]);
     expect(html).toContain("note-week-label");
     expect(html).toContain("This week");
-    expect(html).toContain("John 1:1");
+    expect(html).toContain('aria-label="John 1:1"');
+    expect(html).toContain(">1</a>");
+    expect(html).not.toContain(">John 1:1<");
+    expect(html).toContain('aria-label="2 Corinthians 12:8–9"');
+    expect(html).toContain(">8–9</a>");
+    expect(html).not.toContain(">2 Corinthians 12:8–9<");
+    expect(html).toContain(">Joshua 8<");
+    expect(html).toContain("chapter question");
   });
 });
 
@@ -256,7 +265,9 @@ describe("inbox recent weeks + older chapter bundles", () => {
 
     const html = notesListHtml(notes, now);
     expect(html).toContain("John 3:16");
-    expect(html).toContain("Romans 8:28");
+    expect(html).toContain('aria-label="Romans 8:28"');
+    expect(html).toContain(">28</a>");
+    expect(html).not.toContain(">Romans 8:28<");
     expect(html).toContain(">Older<");
     expect(html).toContain('href="/heb.12"');
     expect(html).toContain("Hebrews 12");
@@ -286,9 +297,11 @@ describe("inbox recent weeks + older chapter bundles", () => {
     expect(html).not.toContain('href="/rom.6.12"');
     expect(html).not.toContain('href="/rom.6.11"');
     expect(html).not.toContain(">Romans 6:18<");
-    // recent 14d still verse rows
+    // A lone recent verse is still a card, not a full citation row.
     expect(html).toContain('href="/luk.16.25"');
-    expect(html).toContain(">Luke 16:25<");
+    expect(html).toContain('aria-label="Luke 16:25"');
+    expect(html).toContain(">25</a>");
+    expect(html).not.toContain(">Luke 16:25<");
   });
 
   test("chapterTitleFromNote prefers human title even when label is raw OSIS", () => {

@@ -363,10 +363,10 @@ export function clientScript(): string {
     let html = "";
     for (const slug of order) {
       const list = byChapter.get(slug);
-      if (list.length === 1) { html += inboxNoteRow(list[0]); continue; }
       let verses = "";
       for (const n of list) {
-        const label = String(n.label || "").trim() || slugLabel(n.slug) || "";
+        let label = String(n.label || "").trim();
+        if (!label || /^[a-z0-9]+\.\d+/i.test(label)) label = slugLabel(n.slug) || label;
         const colon = label.lastIndexOf(":");
         if (colon < 0) continue;
         const place = label.slice(colon + 1).trim();
@@ -376,8 +376,11 @@ export function clientScript(): string {
         const titleAttr = stamp ? ' title="' + escapeHtml(stamp) + '"' : "";
         verses += '<a class="note-bundle-verse" href="/' + escapeHtml(n.slug) + '" aria-label="' + escapeHtml(label) + '"' + titleAttr + ">" + escapeHtml(place) + "</a>";
       }
-      const verseHtml = verses ? '<span class="note-bundle-verses">' + verses + "</span>" : "";
-      html += '<li class="note-bundle"><a class="note-bundle-name" href="/' + escapeHtml(slug) + '">' + escapeHtml(inboxChapterTitle(list[0])) + "</a>" + verseHtml + "</li>";
+      if (!verses) {
+        for (const n of list) html += inboxNoteRow(n);
+        continue;
+      }
+      html += '<li class="note-bundle"><a class="note-bundle-name" href="/' + escapeHtml(slug) + '">' + escapeHtml(inboxChapterTitle(list[0])) + '</a><span class="note-bundle-verses">' + verses + "</span></li>";
     }
     return html;
   }
