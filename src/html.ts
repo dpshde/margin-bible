@@ -346,12 +346,12 @@ export function page(title: string, body: string): string {
       background: var(--sel-rail-open);
       pointer-events: none;
     }
-    /* The range rail is the left border. The hit area stays in the gutter, short of the verse number. */
+    /* The range rail is the left border. Cover the stroke itself, plus a little of the gutter, and stop short of the verse number. */
     .verse-range-rail {
       position: absolute;
       z-index: 2;
-      left: 0; top: 0; bottom: 0;
-      width: calc(var(--verse-inset) + 0.85rem);
+      left: -.7rem; top: 0; bottom: 0;
+      width: calc(.7rem + var(--verse-inset) + 0.85rem);
       margin: 0; padding: 0; border: 0;
       background: transparent;
       cursor: pointer;

@@ -74,7 +74,8 @@ describe("embedded reader scripts", () => {
   test("a range's left border opens one note under the last verse", () => {
     const source = clientScript();
     expect(source).toContain("function openRangeNote");
-    expect(source).toContain('event.target.closest(".verse-range-rail")');
+    expect(source).toContain("function rangeRailForEvent");
+    expect(source).toContain('event.target?.closest?.(".verse-range-rail")');
     expect(source).toContain("function mountRangeTray");
     expect(source).toContain("The left border of a range opens that range's one note under its last verse.");
     expect(source).toContain('if (span && span.start !== span.end) return span.end;');

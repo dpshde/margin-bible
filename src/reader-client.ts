@@ -1812,8 +1812,21 @@ export function clientScript(): string {
     if (push) history.replaceState({}, "", "/" + chapterSlug);
   }
 
+  function rangeRailForEvent(event) {
+    const direct = event.target?.closest?.(".verse-range-rail");
+    if (direct && root.contains(direct)) return direct;
+    const verse = event.target?.closest?.(".verse");
+    if (!verse || !root.contains(verse)) return null;
+    if (event.target.closest(".verse-press, .note-tray, .outliner")) return null;
+    const rail = verse.querySelector(":scope > .verse-range-rail");
+    if (!rail) return null;
+    const edge = verse.getBoundingClientRect().left;
+    const reach = rail.getBoundingClientRect().right;
+    if (event.clientX >= edge - 12 && event.clientX <= reach) return rail;
+    return null;
+  }
   root.addEventListener("click", (event) => {
-    const rail = event.target.closest(".verse-range-rail");
+    const rail = rangeRailForEvent(event);
     if (rail && root.contains(rail)) {
       event.preventDefault();
       dismissReaderHint();
