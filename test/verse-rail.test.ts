@@ -47,6 +47,9 @@ describe("verse rail", () => {
   });
 
   test("the rail sits above the spotlight wash and under the header", () => {
+    expect(css).toContain("html:has(.reader-verse-rail)");
+    expect(css).toContain("scrollbar-width: none;");
+    expect(css).toContain("html:has(.reader-verse-rail)::-webkit-scrollbar");
     expect(css).toContain(".reader-verse-rail {");
     expect(css).toContain("z-index: 6;");
     expect(css).toContain(".reader-verse-rail-dot.current");
@@ -63,7 +66,8 @@ describe("verse rail", () => {
   test("normal scrolling stays decoupled from an explicit rail jump", () => {
     expect(source).toContain("The rail scrolls. It does not open a note or change the passage.");
     expect(source).toContain("function scrollRailToExact");
-    expect(source).toContain("window.scrollTo(0, railScrollY() + delta * 0.32)");
+    expect(source).toContain("window.scrollTo(0, railTarget)");
+    expect(source).not.toContain("delta * 0.32");
     expect(source).toContain("window.setTimeout(clearRailPreview, 350)");
     expect(source).toContain('verseRail.classList.add("is-native-scroll")');
     expect(source).toContain('dot.classList.toggle("current", distance === 0)');

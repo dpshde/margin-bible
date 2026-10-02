@@ -1404,14 +1404,18 @@ export function clientScript(): string {
       : verse.dataset.slug;
     if (push) history.replaceState({}, "", "/" + slug);
     const outliner = verse.querySelector('.note-tray:not([hidden]) .outliner');
+    const spotlight = document.documentElement.classList.contains("spotlight-on");
+    if (scroll && spotlight && autofocus && outliner) placeInstant = true;
     if (autofocus && outliner) {
       const first = outliner.querySelector(".otext");
       first?.focus({ preventScroll: true });
     }
-    if (scroll && !document.documentElement.classList.contains("spotlight-on")) {
+    if (scroll && spotlight) {
+      // The scripture lands in the middle. The caret follow runs later, not on this open.
+      centerElement(verse.querySelector(".verse-press") || verse, 0, false);
+    } else if (scroll) {
       // After open anim, scroll tray fully into view (block nearest + safe-area under tray-head).
       // Mid-anim height is clipped, so waiting avoids hard-cutting the footer near the viewport bottom.
-      // Spotlight owns this scroll itself (typewriter align), so skip it while that mode is on.
       const scrollTarget = verse.querySelector('.note-tray:not([hidden])') || verse;
       const runScroll = () => {
         snappyScrollIntoView(scrollTarget, { block: "nearest" });
@@ -2461,6 +2465,8 @@ export function clientScript(): string {
   const POINTER_SLIDE_MS = 200;
   document.documentElement.classList.add("spotlight-on");
   let spotlightTween = 0;
+  // Opening a verse sets scroll once. Later caret moves still ease.
+  let placeInstant = false;
   function cancelSpotlightTween() {
     if (!spotlightTween) return;
     cancelAnimationFrame(spotlightTween);
@@ -2501,12 +2507,6 @@ export function clientScript(): string {
     if (topAlign) return rowTop - viewTop - stickyHeaderPx;
     return rowTop + rowHeight / 2 - (viewTop + viewHeight / 2);
   }
-  function alignScrollDelta(rowTop, rowHeight) {
-    const vv = window.visualViewport;
-    const viewTop = vv ? vv.offsetTop : 0;
-    const viewHeight = vv ? vv.height : window.innerHeight;
-    return centerScrollDelta(rowTop, rowHeight, viewTop, viewHeight, stickyHeaderHeight(), isMobileSpotlight());
-  }
   function spotlightLine(target) {
     if (!target || !target.closest) return null;
     const text = target.classList && target.classList.contains("otext") ? target : target.closest(".otext");
@@ -2518,11 +2518,15 @@ export function clientScript(): string {
     if (isMobileSpotlight()) return text.closest(".verse") || text.closest(".chapter-note-rail") || block;
     return block;
   }
-  function centerElement(el, ms) {
-    if (!el.isConnected) return;
+  function centerElement(el, ms, topAlign) {
+    if (!el || !el.isConnected) return;
     const rect = el.getBoundingClientRect();
     if (rect.height === 0) return;
-    slideBy(alignScrollDelta(rect.top, rect.height), ms);
+    const vv = window.visualViewport;
+    const viewTop = vv ? vv.offsetTop : 0;
+    const viewHeight = vv ? vv.height : window.innerHeight;
+    const alignTop = topAlign == null ? isMobileSpotlight() : topAlign;
+    slideBy(centerScrollDelta(rect.top, rect.height, viewTop, viewHeight, stickyHeaderHeight(), alignTop), ms);
   }
   window.addEventListener("pointerdown", () => {
     document.documentElement.classList.add("spotlight-fade");
@@ -2537,6 +2541,7 @@ export function clientScript(): string {
       if (!line.isConnected) return;
       const sel = document.getSelection();
       if (sel && !sel.isCollapsed && sel.anchorNode && line.contains(sel.anchorNode)) return;
+      if (placeInstant) { placeInstant = false; return; }
       centerElement(line, document.documentElement.classList.contains("spotlight-fade") ? POINTER_SLIDE_MS : KEYBOARD_SLIDE_MS);
     });
   }, true);
@@ -2617,19 +2622,10 @@ export function clientScript(): string {
     function setRailScrollTarget(top) {
       const maxTop = railMaxScroll();
       railTarget = Math.max(0, Math.min(maxTop, top));
-      if (railFrame) return;
-      const tick = () => {
-        if (railTarget == null) { railFrame = 0; return; }
-        const delta = railTarget - railScrollY();
-        if (Math.abs(delta) < 0.5 || prefersReduceMotion()) {
-          window.scrollTo(0, railTarget);
-          railFrame = 0;
-          return;
-        }
-        window.scrollTo(0, railScrollY() + delta * 0.32);
-        railFrame = requestAnimationFrame(tick);
-      };
-      railFrame = requestAnimationFrame(tick);
+      if (railFrame) cancelAnimationFrame(railFrame);
+      railFrame = 0;
+      cancelSpotlightTween();
+      window.scrollTo(0, railTarget);
     }
     function buildRailTargets() {
       const rows = verseRows();
@@ -2809,13 +2805,8 @@ export function clientScript(): string {
     const end = endMatch ? Number(endMatch[1]) : startFromSlug;
     applyXref({ start: startFromSlug, end });
   } else if (boot) {
-    openVerse(Number(boot), { push: false, autofocus: true, preferRange: bootPreferRange, scroll: false });
-    const focus = document.querySelector(".verse.is-open") || document.querySelector('.note-tray:not([hidden])');
-    // Double-rAF so layout includes the opened tray, then snappy-center.
-    // Spotlight's focusin align owns the scroll while that mode is on.
-    if (!spotlightOn()) {
-      requestAnimationFrame(() => requestAnimationFrame(() => snappyScrollIntoView(focus, { block: "center" })));
-    }
+    // Place the verse immediately. Spotlight follows the caret later, without a second glide on arrival.
+    openVerse(Number(boot), { push: false, autofocus: true, preferRange: bootPreferRange, scroll: true });
   }
   if (new URLSearchParams(location.search).get("chapter_note") === "1") {
     setChapterNoteOpen(true, { push: false, focus: false });

@@ -433,7 +433,18 @@ export function page(title: string, body: string): string {
     /* Verse rail: a fixed right-edge scrubber. It sits above the spotlight wash
        (z-index 4) and the lifted verse (z-index 5), and under the sticky header
        (z-index 7) and the chapter grid (z-index 40). Idle ticks stay quiet.
-       Dragging grows a wave around the current tick and shows the verse number. */
+       Dragging grows a wave around the current tick and shows the verse number.
+       The window scrollbar is hidden while the rail is on the page. Scrolling stays. */
+    html:has(.reader-verse-rail),
+    html:has(.reader-verse-rail) body {
+      scrollbar-width: none;
+    }
+    html:has(.reader-verse-rail)::-webkit-scrollbar,
+    html:has(.reader-verse-rail) body::-webkit-scrollbar {
+      display: none;
+      width: 0;
+      height: 0;
+    }
     .reader-verse-rail {
       position: fixed;
       top: calc(var(--chrome-sticky) + 6px);

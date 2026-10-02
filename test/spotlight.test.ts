@@ -53,6 +53,7 @@ describe("verse spotlight", () => {
     expect(source).toContain("const POINTER_SLIDE_MS = 200");
     expect(source).toContain("function centerScrollDelta");
     expect(source).toContain("if (topAlign) return rowTop - viewTop - stickyHeaderPx");
+    expect(source).toContain('centerElement(verse.querySelector(".verse-press") || verse, 0, false)');
     expect(source).toContain("sel.isCollapsed");
   });
 
