@@ -967,6 +967,33 @@ export function clientScript(): string {
   function caretForNeighbor(direction, neighborTextLength) {
     return direction < 0 ? neighborTextLength : 0;
   }
+  // Enter's beforeinput follows keydown. Suppress only that echo so key repeat still splits.
+  let suppressEnterUntil = 0;
+  function enterInputSuppressed(suppressUntil, now) {
+    return Number.isFinite(suppressUntil) && Number.isFinite(now) && now < suppressUntil;
+  }
+  function armEnterInputSuppression() {
+    suppressEnterUntil = Date.now() + 50;
+  }
+  // Repaint must keep the caret's row. Falling back to row 1 is what pinned mobile Enter.
+  function repaintFocus(input) {
+    if (!input.wasFocused) return null;
+    const blocks = Array.isArray(input.blocks) ? input.blocks : [];
+    if (!blocks.length) return null;
+    const wanted = String(input.activeId || "");
+    let block = wanted ? blocks.find((row) => row.id === wanted) : undefined;
+    if (!block) {
+      const index = input.activeIndex;
+      if (Number.isInteger(index) && index >= 0 && index < blocks.length) block = blocks[index];
+    }
+    if (!block) return null;
+    const text = String(block.text || "");
+    const caret = Number(input.caret);
+    const at = Number.isFinite(caret) ? Math.max(0, Math.min(Math.trunc(caret), text.length)) : text.length;
+    return { id: block.id, caret: at };
+  }
+  // WebKit puts the caret back on the first recreated row after Enter. Hold the new row briefly.
+  let focusHold = null;
   function arrowBlockNav(input) {
     if (input.shiftKey || input.altKey || input.metaKey || input.ctrlKey) return null;
     const direction = arrowDirection(input.key);
@@ -1108,10 +1135,31 @@ export function clientScript(): string {
     if (!focusId) return;
     const el = outliner.querySelector('[data-block-id="' + CSS.escape(focusId) + '"] .otext');
     if (!el) return;
-    el.focus({ preventScroll: true });
     const at = caret == null ? readEditableText(el).length : caret;
-    placeCaret(el, at);
-    requestAnimationFrame(() => placeCaret(el, at));
+    focusBlockSoon(el, at);
+  }
+  function focusBlockSoon(el, offset) {
+    focusHold = { el, offset, until: Date.now() + 100 };
+    const apply = () => {
+      if (!el.isConnected) return;
+      // A newer Enter or arrow move replaced this hold. Don't pull the caret back.
+      if (!focusHold || focusHold.el !== el) return;
+      const outliner = el.closest(".outliner");
+      const active = document.activeElement;
+      const inside = !!(active && outliner && outliner.contains(active));
+      // A click that left this note stays where it landed. Desktop click-away is unchanged.
+      if (active && active !== document.body && active !== document.documentElement && !inside) return;
+      if (active !== el) el.focus({ preventScroll: true });
+      const sel = window.getSelection();
+      const inBlock = !!(sel && sel.anchorNode && el.contains(sel.anchorNode));
+      if (inBlock && caretOffset(el) === offset) return;
+      placeCaret(el, offset);
+    };
+    apply();
+    requestAnimationFrame(apply);
+    // iOS restores the pre-split selection after the key event, then again after layout.
+    setTimeout(apply, 0);
+    setTimeout(apply, 48);
   }
   function rangeAtOffset(el, offset) {
     const range = document.createRange();
@@ -1677,6 +1725,14 @@ export function clientScript(): string {
   root.addEventListener("focusin", (event) => {
     const textEl = event.target.closest(".otext");
     if (!textEl || !root.contains(textEl)) return;
+    if (focusHold && Date.now() < focusHold.until && focusHold.el.isConnected && textEl !== focusHold.el) {
+      const holdOutliner = focusHold.el.closest(".outliner");
+      if (holdOutliner && holdOutliner.contains(textEl)) {
+        focusHold.el.focus({ preventScroll: true });
+        placeCaret(focusHold.el, focusHold.offset);
+        return;
+      }
+    }
     if (textEl.dataset.editing !== "1") {
       const offset = caretOffset(textEl);
       textEl.dataset.editing = "1";
@@ -1720,11 +1776,13 @@ export function clientScript(): string {
     // Enter = split / go to next node (NOT newline). Shift+Enter = newline inside block.
     if (event.key === "Enter" && !event.shiftKey) {
       event.preventDefault();
+      armEnterInputSuppression();
       splitAtCaret(outliner, blocks, index, caret);
       return;
     }
     if (event.key === "Enter" && event.shiftKey) {
       event.preventDefault();
+      armEnterInputSuppression();
       insertNewlineAt(outliner, blocks, index, caret);
       return;
     }
@@ -1813,13 +1871,18 @@ export function clientScript(): string {
     const caret = caretOffset(textEl);
 
     // ContentEditable Enter often arrives as insertParagraph / insertLineBreak.
+    // On mobile that echo follows keydown and would split again, leaving the caret on row 1.
     if (event.inputType === "insertParagraph") {
       event.preventDefault();
+      if (enterInputSuppressed(suppressEnterUntil, Date.now())) return;
+      armEnterInputSuppression();
       splitAtCaret(outliner, blocks, index, caret);
       return;
     }
     if (event.inputType === "insertLineBreak") {
       event.preventDefault();
+      if (enterInputSuppressed(suppressEnterUntil, Date.now())) return;
+      armEnterInputSuppression();
       insertNewlineAt(outliner, blocks, index, caret);
       return;
     }
@@ -2362,13 +2425,27 @@ export function clientScript(): string {
     if (!tray || !note) return;
     if (noteIsDirty(note.slug)) return;
     const outliner = tray.querySelector(".outliner");
-    const wasFocused = !!(outliner && outliner.contains(document.activeElement));
+    const activeText = outliner && document.activeElement && outliner.contains(document.activeElement)
+      ? document.activeElement.closest(".otext")
+      : null;
+    const wasFocused = !!activeText;
     const blocks = (note.blocks && note.blocks.length)
       ? note.blocks
       : [{ id: outliner?.dataset.emptyId || "b_empty", indent: 0, text: "", bullet: true }];
     if (outliner) {
-      const focusId = wasFocused ? blocks[0]?.id : undefined;
-      renderOutliner(outliner, blocks, focusId, focusId ? 0 : undefined);
+      const row = activeText ? activeText.closest(".oblock") : null;
+      const domRows = [...outliner.querySelectorAll(".oblock")];
+      const target = repaintFocus({
+        wasFocused,
+        activeId: row ? row.dataset.blockId : "",
+        activeIndex: row ? domRows.indexOf(row) : -1,
+        caret: activeText ? caretOffset(activeText) : 0,
+        blocks,
+      });
+      // Missing row: keep the local outline. Repainting would pin the caret on row 1.
+      if (!(wasFocused && !target)) {
+        renderOutliner(outliner, blocks, target ? target.id : undefined, target ? target.caret : undefined);
+      }
     }
     syncBookmarkButton(tray, note.bookmarked);
     paintAttBoard(tray, note.attachments || []);
@@ -2541,6 +2618,7 @@ export function clientScript(): string {
   }, true);
 
   // Verse rail. Dragging or keying it scrolls the window. The rail scrolls. It does not open a note or change the passage.
+  // A finger drag stays with the chapter: no preventDefault and no pointer capture. A tap on the rail still jumps.
   const verseRail = root.querySelector("[data-reader-rail]");
   const verseRailPreview = root.querySelector("[data-reader-rail-preview]");
   const VERSE_RAIL_DOTS = 28;
@@ -2683,6 +2761,57 @@ export function clientScript(): string {
       }
       moveRail(clientY);
     }
+    const RAIL_TOUCH_SLOP = 10;
+    let railWatch = null;
+    function railDownAction(pointerType) {
+      return pointerType === "touch" ? "watch" : "scrub";
+    }
+    function railWatchMove(dx, dy) {
+      if (!Number.isFinite(dx) || !Number.isFinite(dy)) return "pending";
+      if (Math.abs(dx) < RAIL_TOUCH_SLOP && Math.abs(dy) < RAIL_TOUCH_SLOP) return "pending";
+      return "chapter";
+    }
+    function railWatchEnd(input) {
+      if (input.decided || input.scrolled) return "ignore";
+      if (input.type !== "pointerup") return "ignore";
+      if (!Number.isFinite(input.dx) || !Number.isFinite(input.dy)) return "ignore";
+      if (Math.abs(input.dx) < RAIL_TOUCH_SLOP && Math.abs(input.dy) < RAIL_TOUCH_SLOP) return "jump";
+      return "ignore";
+    }
+    function clearRailWatch() {
+      railWatch = null;
+      window.removeEventListener("pointermove", onRailWatchMove);
+      window.removeEventListener("pointerup", onRailWatchEnd);
+      window.removeEventListener("pointercancel", onRailWatchEnd);
+    }
+    function jumpRailAt(clientY) {
+      if (railHideTimer) { window.clearTimeout(railHideTimer); railHideTimer = 0; }
+      buildRailTargets();
+      moveRail(clientY);
+      railTargets = [];
+      railHideTimer = window.setTimeout(clearRailPreview, 350);
+    }
+    function onRailWatchMove(event) {
+      if (!railWatch || event.pointerId !== railWatch.id || railWatch.decided) return;
+      const decision = railWatchMove(event.clientX - railWatch.x, event.clientY - railWatch.y);
+      if (decision === "pending") return;
+      // Chapter drag. Do not preventDefault and do not capture.
+      railWatch.decided = true;
+      clearRailWatch();
+    }
+    function onRailWatchEnd(event) {
+      if (!railWatch || event.pointerId !== railWatch.id) return;
+      const action = railWatchEnd({
+        type: event.type,
+        dx: event.clientX - railWatch.x,
+        dy: event.clientY - railWatch.y,
+        decided: railWatch.decided,
+        scrolled: Math.abs((window.scrollY || window.pageYOffset || 0) - railWatch.scrollY) > 2,
+      });
+      const y = event.clientY;
+      clearRailWatch();
+      if (action === "jump") jumpRailAt(y);
+    }
     function onRailPointerMove(event) {
       if (!railActive || event.pointerId !== railPointerId) return;
       event.preventDefault();
@@ -2690,6 +2819,20 @@ export function clientScript(): string {
     }
     function onRailPointerDown(event) {
       if (event.button !== 0 || !event.isPrimary) return;
+      if (railDownAction(event.pointerType) === "watch") {
+        if (railWatch) clearRailWatch();
+        railWatch = {
+          id: event.pointerId,
+          x: event.clientX,
+          y: event.clientY,
+          scrollY: window.scrollY || window.pageYOffset || 0,
+          decided: false,
+        };
+        window.addEventListener("pointermove", onRailWatchMove, { passive: true });
+        window.addEventListener("pointerup", onRailWatchEnd);
+        window.addEventListener("pointercancel", onRailWatchEnd);
+        return;
+      }
       event.preventDefault();
       window.addEventListener("pointermove", onRailPointerMove, { passive: false });
       window.addEventListener("pointerup", endRailDrag, { once: true });
@@ -2703,16 +2846,8 @@ export function clientScript(): string {
       event.preventDefault();
       moveRail(touch.clientY);
     }
-    function onRailTouchStart(event) {
-      if (railActive || window.PointerEvent) return;
-      const touch = event.touches && event.touches[0];
-      if (!touch) return;
-      event.preventDefault();
-      railTouchActive = true;
-      window.addEventListener("touchmove", onRailTouchMove, { passive: false });
-      window.addEventListener("touchend", endRailDrag, { once: true });
-      window.addEventListener("touchcancel", endRailDrag, { once: true });
-      startRailDrag(touch.clientY, null);
+    function onRailTouchStart() {
+      // Pointer Events owns the rail. This listener must not cancel a finger pan.
     }
     function onRailKeyDown(event) {
       const rows = verseRows();
@@ -2758,7 +2893,7 @@ export function clientScript(): string {
       verseRail.classList.toggle("is-selection-hidden", Boolean(sel && !sel.isCollapsed && inChapter));
     });
     verseRail.addEventListener("pointerdown", onRailPointerDown);
-    verseRail.addEventListener("touchstart", onRailTouchStart, { passive: false });
+    verseRail.addEventListener("touchstart", onRailTouchStart, { passive: true });
     verseRail.addEventListener("keydown", onRailKeyDown);
   }
 

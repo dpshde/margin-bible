@@ -6,6 +6,7 @@ import { renderChapterPage } from "../src/reader-page";
 import { parsePassage } from "../src/passage";
 import type { ChapterPack } from "../src/usj";
 import { clientScript } from "../src/reader-client";
+import { railDownAction, railWatchEnd, railWatchMove } from "../src/verse-rail-gesture";
 
 function pack(name: string): ChapterPack {
   return JSON.parse(readFileSync(path.join(import.meta.dir, "../assets/bsb", name), "utf8")) as ChapterPack;
@@ -58,6 +59,8 @@ describe("verse rail", () => {
     expect(css).toContain(".reader-verse-rail-dot.wave-3");
     expect(css).toContain(".reader-verse-rail.is-native-scroll { pointer-events: none; }");
     expect(css).toContain(".reader-verse-rail.is-selection-hidden { opacity: 0; pointer-events: none; }");
+    expect(css).toContain("@media (hover: none), (pointer: coarse)");
+    expect(css).toContain(".reader-verse-rail { touch-action: manipulation; }");
     expect(css).toContain(".reader-verse-modal[hidden] { display: none; }");
     expect(css).toContain(".verse.reader-rail-active-verse");
     expect(css).not.toContain("html.spotlight-on:has(.verse:is(.is-open, .is-span)) .reader-verse-rail");
@@ -81,5 +84,27 @@ describe("verse rail", () => {
     expect(rail).not.toContain("openVerse");
     expect(rail).not.toContain("history.replaceState");
     expect(rail).not.toContain("addEventListener(\"scroll\"");
+  });
+
+  test("a finger pan is not captured; a mouse drag still scrubs", () => {
+    expect(railDownAction("touch")).toBe("watch");
+    expect(railDownAction("mouse")).toBe("scrub");
+    expect(railDownAction("pen")).toBe("scrub");
+    expect(railWatchMove(0, 0)).toBe("pending");
+    expect(railWatchMove(2, 4)).toBe("pending");
+    expect(railWatchMove(0, 24)).toBe("chapter");
+    expect(railWatchMove(18, 4)).toBe("chapter");
+    expect(railWatchEnd({ type: "pointerup", dx: 1, dy: 2, decided: false })).toBe("jump");
+    expect(railWatchEnd({ type: "pointerup", dx: 0, dy: 30, decided: false })).toBe("ignore");
+    expect(railWatchEnd({ type: "pointerup", dx: 1, dy: 1, decided: true })).toBe("ignore");
+    expect(railWatchEnd({ type: "pointerup", dx: 1, dy: 1, decided: false, scrolled: true })).toBe("ignore");
+    expect(railWatchEnd({ type: "pointercancel", dx: 0, dy: 0, decided: false })).toBe("ignore");
+
+    const down = source.slice(source.indexOf("function onRailPointerDown"), source.indexOf("function onRailTouchMove"));
+    expect(down).toContain('railDownAction(event.pointerType) === "watch"');
+    expect(down.indexOf("return;")).toBeLessThan(down.indexOf("event.preventDefault()"));
+    expect(down).not.toContain("setPointerCapture");
+    expect(source).toContain("Do not preventDefault and do not capture.");
+    expect(source).toContain('addEventListener("touchstart", onRailTouchStart, { passive: true })');
   });
 });

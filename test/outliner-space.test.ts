@@ -4,11 +4,14 @@ import {
   arrowDirection,
   caretForNeighbor,
   consumeLeadingSpace,
+  enterInputSuppressed,
   hasTwoLeadingSpaces,
+  repaintFocus,
   shouldBulletOnSpace,
   shouldIndentOnSpace,
   shouldLeaveBlockOnArrow,
 } from "../src/outliner-space";
+import { clientScript } from "../src/reader-client";
 
 function indentSubtree(
   blocks: { indent: number; text: string }[],
@@ -111,5 +114,49 @@ describe("arrowBlockNav (Rails parity)", () => {
     expect(arrowBlockNav({
       key: "ArrowDown", shiftKey: true, index: 0, length: 3, atFirstVisualLine: true, atLastVisualLine: true,
     })).toBeNull();
+  });
+});
+
+describe("outliner caret after Enter", () => {
+  const blocks = [
+    { id: "b1", text: "first" },
+    { id: "b2", text: "second" },
+  ];
+
+  test("a repaint keeps the row the caret is on", () => {
+    expect(repaintFocus({
+      wasFocused: true, activeId: "b2", activeIndex: 1, caret: 3, blocks,
+    })).toEqual({ id: "b2", caret: 3 });
+  });
+
+  test("a missing id uses the same index and does not fall back to row 1", () => {
+    expect(repaintFocus({
+      wasFocused: true, activeId: "b-new", activeIndex: 1, caret: 0, blocks,
+    })).toEqual({ id: "b2", caret: 0 });
+    expect(repaintFocus({
+      wasFocused: true, activeId: "b-new", activeIndex: 2, caret: 0, blocks,
+    })).toBeNull();
+    expect(repaintFocus({
+      wasFocused: false, activeId: "b2", activeIndex: 1, caret: 0, blocks,
+    })).toBeNull();
+  });
+
+  test("the beforeinput echo of Enter is suppressed; a later key is not", () => {
+    expect(enterInputSuppressed(1_050, 1_020)).toBe(true);
+    expect(enterInputSuppressed(1_000, 1_000)).toBe(false);
+    expect(enterInputSuppressed(1_000, 1_050)).toBe(false);
+  });
+
+  test("the reader keeps the focused row and reasserts it after Enter", () => {
+    const source = clientScript();
+    expect(source).toContain("function repaintFocus");
+    expect(source).toContain("function focusBlockSoon");
+    expect(source).toContain("focusHold.el !== el");
+    expect(source).toContain("function enterInputSuppressed");
+    expect(source).not.toContain("wasFocused ? blocks[0]");
+    expect(source).toContain("if (!(wasFocused && !target))");
+    const enter = source.slice(source.indexOf("if (event.key === \"Enter\" && !event.shiftKey)"), source.indexOf("if (event.key === \"Tab\")"));
+    expect(enter).toContain("armEnterInputSuppression()");
+    expect(enter).toContain("splitAtCaret");
   });
 });
