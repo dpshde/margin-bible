@@ -41,6 +41,7 @@ import { renderChapterPage, renderMissing, renderNotesIndex } from "./reader-pag
 import type { ChapterPack } from "./usj";
 import { ensureBidirectionalXrefs, syncBidirectionalXrefs } from "./xref-sync";
 import { handleMcpDelete, handleMcpGet, handleMcpOptions, handleMcpPost } from "./mcp";
+import { isPwaAssetPath, manifestResponse, pwaIconAssetPath } from "./pwa";
 
 export type Env = {
   DB: D1Database;
@@ -88,7 +89,8 @@ app.use("*", async (c, next) => {
     c.req.path === "/health" ||
     c.req.path === "/mcp" ||
     c.req.path.startsWith("/bsb/") ||
-    c.req.path.startsWith("/vendor/")
+    c.req.path.startsWith("/vendor/") ||
+    isPwaAssetPath(c.req.path)
   ) {
     await next();
     return;
@@ -117,6 +119,12 @@ app.use("*", async (c, next) => {
 });
 
 app.get("/health", (c) => c.json({ ok: true, app: "margin-bible", version: "2026.10.02.26" }));
+
+app.get("/manifest.webmanifest", () => manifestResponse());
+app.get("/manifest.json", () => manifestResponse());
+app.get("/apple-touch-icon.png", (c) => servePwaIcon(c));
+app.get("/apple-touch-icon-precomposed.png", (c) => servePwaIcon(c));
+app.get("/icons/*", (c) => servePwaIcon(c));
 
 app.get("/bsb/*", (c) => c.env.ASSETS.fetch(c.req.raw));
 
@@ -516,6 +524,20 @@ async function listNotesForQuery(
     return { ok: true, notes, scoped: true };
   }
   return { ok: true, notes: await listNotes(db, libraryId), scoped: false };
+}
+
+async function servePwaIcon(c: AppContext): Promise<Response> {
+  const assetPath = pwaIconAssetPath(c.req.path);
+  if (!assetPath) return c.notFound();
+  const fetched = await c.env.ASSETS.fetch(new URL(assetPath, "https://assets.local"));
+  if (!fetched.ok) return c.notFound();
+  return new Response(fetched.body, {
+    status: 200,
+    headers: {
+      "content-type": "image/png",
+      "cache-control": "public, max-age=86400",
+    },
+  });
 }
 
 async function loadChapter(assets: Fetcher, passage: Passage): Promise<ChapterPack | null> {
