@@ -207,7 +207,7 @@ export function renderNotesIndex(
   // Notes title is a book/chapter picker (Rails/CF chapter-grid parity); soft-nav to the chosen chapter.
   return page(
     "Notes · Margin",
-    `<header class="topbar">
+    `<header class="topbar topbar-notes">
   <div class="topbar-side"></div>
   <h1 class="topbar-title">
     <button type="button" class="topbar-title-btn" id="chapter-grid-title" aria-haspopup="dialog" aria-expanded="false" aria-controls="chapter-grid" title="Choose book or chapter">Notes</button>
