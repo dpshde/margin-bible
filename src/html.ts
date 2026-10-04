@@ -1280,6 +1280,20 @@ export function page(title: string, body: string): string {
     @media (max-width: 640px) {
       .topbar { grid-template-columns: auto 1fr auto; gap: .25rem; padding-left: .5rem; padding-right: .5rem; }
       .topbar-title { font-size: .95rem; }
+      /* Notes inbox only. The left slot is empty and the right slot is three icons,
+         so a title centered in the flexible middle track sits left of the screen.
+         Paint the same title across the bar; the icons stay in the end column. */
+      .topbar-notes .topbar-side { grid-column: 1; grid-row: 1; z-index: 2; }
+      .topbar-notes .topbar-title {
+        grid-column: 1 / -1;
+        grid-row: 1;
+        justify-self: center;
+        width: max-content;
+        max-width: calc(100% - 9.5rem);
+        z-index: 1;
+      }
+      .topbar-notes .topbar-title-btn { width: max-content; max-width: 100%; }
+      .topbar-notes .topbar-actions { grid-column: 3; grid-row: 1; z-index: 2; }
       .expand-btn { width: var(--tap); padding: 0; justify-content: center; }
       .reader, .verse, .chapter {
         --verse-gutter: 1.2rem;
