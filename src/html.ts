@@ -169,8 +169,15 @@ export function page(title: string, body: string): string {
       outline: 2px solid color-mix(in srgb, var(--ink) 28%, transparent);
       outline-offset: 1px;
     }
-    /* Chapter bookmark sits with the title so it reads as chapter-scoped, not a toolbar action. */
-    .topbar-chapter-mark { flex: none; }
+    /* Chapter bookmark sits with the title so it reads as chapter-scoped, not a toolbar action.
+       Keep the leading inset of a 44px icon button; shave the trailing side so the glyph
+       sits a little closer to the chapter name. */
+    .topbar-chapter-mark {
+      flex: none;
+      width: auto;
+      padding-inline-start: calc((var(--tap) - 1.1rem) / 2);
+      padding-inline-end: .4rem;
+    }
     .is-grid-open .topbar { z-index: 45; }
     .icon-btn {
       appearance: none; display: inline-flex; align-items: center; justify-content: center;
@@ -196,8 +203,19 @@ export function page(title: string, body: string): string {
     }
     .icon-btn[data-state-icon][data-state-on="true"]:hover,
     .tray-bookmark[data-state-icon][data-state-on="true"]:hover { background: transparent; }
+    /* Header bookmark stays flat. Hover must not paint a fill, border, or shadow. */
+    .icon-btn.topbar-chapter-mark:hover {
+      background: transparent;
+      border-color: transparent;
+      box-shadow: none;
+    }
     @media (hover: hover) and (pointer: fine) {
       .icon-btn:hover { color: var(--ink); background: var(--fill); }
+      .icon-btn.topbar-chapter-mark:hover {
+        background: transparent;
+        border-color: transparent;
+        box-shadow: none;
+      }
     }
     .icon-btn:focus-visible { color: var(--ink); background: var(--fill); }
     .icon-btn:disabled { opacity: .35; cursor: default; }
