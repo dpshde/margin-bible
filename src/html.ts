@@ -571,6 +571,65 @@ export function page(title: string, body: string): string {
     }
     html[data-theme="dark"] .search-mark { color: #fb923c; }
     html.search-modal-open { overflow: hidden; }
+    /* scripture.ar.io translation <select>: text-xs, weight 500, no border, 4px radius, chevron. */
+    .search-testament { flex: 0 0 auto; min-width: 0; }
+    .search-testament-btn {
+      display: inline-flex; align-items: center; justify-content: flex-start;
+      box-sizing: border-box; height: 20px; margin: 0;
+      padding: .125rem 1.75rem .125rem .375rem;
+      border: 0; border-radius: .25rem; outline: none;
+      background-color: #fafaf9;
+      background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e");
+      background-repeat: no-repeat;
+      background-position: right .25rem center;
+      background-size: 1.25em 1.25em;
+      color: #44403c;
+      font: inherit; font-size: .75rem; font-weight: 500; line-height: 1rem;
+      cursor: pointer; appearance: none; -webkit-appearance: none;
+      touch-action: manipulation;
+    }
+    html[data-theme="dark"] .search-testament-btn {
+      background-color: #1b1917;
+      color: #d6d3d1;
+      background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%23a8a29e' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e");
+    }
+    .search-testament-btn:focus-visible { outline: none; }
+    .search-testament-more {
+      display: none;
+      flex: 0 0 auto; align-items: center; justify-content: center;
+      width: 32px; height: 32px; margin: 0; padding: 8px;
+      border: 0; border-radius: .25rem; background: transparent;
+      color: #57534e; cursor: pointer; touch-action: manipulation;
+    }
+    html[data-theme="dark"] .search-testament-more { color: #a8a29e; }
+    .search-testament-more svg { display: block; width: 16px; height: 16px; }
+    .search-testament-sheet { display: none; }
+    .search-testament-menu {
+      position: fixed; z-index: 5;
+      min-width: 5.5rem; margin: 0; padding: .25rem 0;
+      border: 1px solid #e7e5e4; border-radius: .25rem;
+      background: #fff; color: #44403c;
+      box-shadow: 0 .5rem 1.25rem rgb(28 25 23 / .16);
+    }
+    .search-testament-menu[hidden] { display: none; }
+    html[data-theme="dark"] .search-testament-menu {
+      background: #1c1917; color: #d6d3d1; border-color: #44403c;
+    }
+    .search-testament-option {
+      display: flex; align-items: center; gap: .4rem;
+      width: 100%; margin: 0; padding: .3rem .7rem;
+      border: 0; background: transparent; color: inherit;
+      font: inherit; font-size: .75rem; font-weight: 500; line-height: 1rem;
+      text-align: left; cursor: pointer; touch-action: manipulation;
+    }
+    .search-testament-check { width: .8em; opacity: 0; font-size: .75rem; }
+    .search-testament-option.is-selected .search-testament-check { opacity: 1; }
+    @media (hover: hover) and (pointer: fine) {
+      .search-testament-option.is-active { background: #f5f5f4; }
+      html[data-theme="dark"] .search-testament-option.is-active { background: #292524; }
+    }
+    .search-testament-option:active { background: #f5f5f4; }
+    html[data-theme="dark"] .search-testament-option:active { background: #292524; }
     .search-fab { display: none; }
     @media (max-width: 767px) {
       .search-fab {
@@ -636,6 +695,40 @@ export function page(title: string, body: string): string {
       }
       .search-suggest-chips::-webkit-scrollbar { display: none; width: 0; height: 0; }
       .search-suggest-chip { flex: 0 0 auto; }
+      .search-testament-desktop { display: none; }
+      .search-testament-more { display: inline-flex; }
+      .search-testament-sheet:not([hidden]) {
+        display: flex; align-items: center; justify-content: space-between;
+        flex: 0 0 auto;
+        padding: .5rem .75rem;
+        background: #f5f5f4;
+        border-top: 1px solid #e7e5e4;
+      }
+      html[data-theme="dark"] .search-testament-sheet:not([hidden]) {
+        background: #292524;
+        border-top-color: #44403c;
+      }
+      .search-testament-sheet-label {
+        color: #57534e;
+        font-size: .75rem; font-weight: 500; line-height: 1rem;
+      }
+      html[data-theme="dark"] .search-testament-sheet-label { color: #a8a29e; }
+      .search-testament-sheet .search-testament-btn {
+        height: auto;
+        padding: .25rem 1.75rem .25rem .5rem;
+        border: 1px solid #e7e5e4;
+        background-color: #fff;
+        color: #44403c;
+      }
+      html[data-theme="dark"] .search-testament-sheet .search-testament-btn {
+        border-color: #44403c;
+        background-color: #1c1917;
+        color: #d6d3d1;
+      }
+      .search-testament-sheet .search-testament-btn:focus-visible {
+        outline: 1px solid #a8a29e;
+        outline-offset: 1px;
+      }
     }
     .section-head {
       margin: 1.4rem 0 .55rem calc(var(--verse-gutter) + var(--verse-gutter-gap));

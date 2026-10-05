@@ -27,7 +27,12 @@ export function hiddenArrowOrigin(override?: string | null): string {
   }
 }
 
-/** Upstream request shape. Only the trimmed query is forwarded. */
+/**
+ * Upstream request shape. Only the trimmed query is forwarded.
+ * POST /api/search has no testament or scope field (an unauthenticated call
+ * returns {"error":"Unauthorized."} and no schema). Margin keeps All / NT / OT
+ * in the browser and drops hits whose book is outside that testament.
+ */
 export function hiddenArrowSearchRequest(query: string, origin?: string | null): HiddenArrowSearchRequest {
   return {
     url: `${hiddenArrowOrigin(origin)}/api/search`,

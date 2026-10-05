@@ -14,6 +14,7 @@ import {
   shouldQueryHiddenArrow,
 } from "../src/ha-search";
 import { canGo, jumpState } from "../src/jump-suggest";
+import { marginPathInTestament, testamentCodes } from "../src/books";
 import { isSearchChord, jumpScript } from "../src/jump-ui";
 
 const hrefs: Array<[string, string | null]> = [
@@ -62,7 +63,7 @@ describe("Hidden Arrow hrefs open inside Margin", () => {
     const searching = source.slice(source.indexOf("async function searchScripture"), source.indexOf("async function suggestNow"));
     expect(searching).toContain('fetch("/api/ha-search"');
     expect(searching).not.toContain("keepKeyword");
-    expect(searching).toContain("writeSearchCache(q, next)");
+    expect(searching).toContain("writeSearchCache(q, next, true)");
     expect(searching).toContain("close()");
     expect(searching).toContain("showSearchUnavailable()");
     expect(searching).not.toContain("showSearchSkeletons");
@@ -456,10 +457,13 @@ describe("clearing the modal input", () => {
     expect(submit).toContain("searchScripture(q, my)");
     expect(submit).not.toContain("keywordHits");
     const searching = source.slice(source.indexOf("async function searchScripture"), source.indexOf("async function suggestNow"));
-    expect(searching).toContain("writeSearchCache(q, next)");
+    expect(searching).toContain("writeSearchCache(q, next, true)");
     const writing = source.slice(source.indexOf("function writeSearchCache"), source.indexOf("function clearSearchCache"));
     expect(writing).toContain('sessionStorage.setItem("margin-search-cache"');
-    expect(writing).toContain("cachedSearch = { query: String(query || \"\"), hits: packed }");
+    expect(writing).toContain('query: String(query || "")');
+    expect(writing).toContain("hits: packed");
+    expect(writing).toContain("testament: normalizeTestament(searchTestament)");
+    expect(writing).toContain("scripture: Boolean(scripture)");
   });
 });
 
@@ -716,6 +720,81 @@ describe("topic suggestion chips", () => {
     expect(rule).toContain("color: #fb923c");
     expect(rule).toContain("font-weight: 600");
     expect(rule).not.toContain("text-shadow");
+  });
+});
+
+describe("testament filter", () => {
+  test("book paths split at Matthew and unknown paths stay out of a single testament", () => {
+    expect(marginPathInTestament("/gen.2.9", "all")).toBe(true);
+    expect(marginPathInTestament("/gen.2.9", "ot")).toBe(true);
+    expect(marginPathInTestament("/mal.4.2", "ot")).toBe(true);
+    expect(marginPathInTestament("/mat.1.1", "ot")).toBe(false);
+    expect(marginPathInTestament("/jhn.3.16", "nt")).toBe(true);
+    expect(marginPathInTestament("/gen.1.1", "nt")).toBe(false);
+    expect(marginPathInTestament("/not.a.book", "nt")).toBe(false);
+    expect(testamentCodes().nt[0]).toBe("MAT");
+    expect(testamentCodes().ot.at(-1)).toBe("MAL");
+  });
+
+  test("the search bar picker is All / NT / OT and a change reruns only a submitted scripture query", () => {
+    const source = jumpScript();
+    expect(source).toContain('["all", "All"]');
+    expect(source).toContain('["nt", "NT"]');
+    expect(source).toContain('["ot", "OT"]');
+    expect(source).toContain('sheetLabel.textContent = "Testament:"');
+    expect(source).toContain('aria-label", "Testament options"');
+    expect(source).toContain("search-testament-more");
+    expect(source).toContain("search-testament-menu");
+    expect(source).not.toContain("search-modal-translation");
+    expect(source).toContain(JSON.stringify(testamentCodes().ot.map((code) => code.toLowerCase())));
+    expect(source).toContain(JSON.stringify(testamentCodes().nt.map((code) => code.toLowerCase())));
+    const search = source.slice(source.indexOf("async function searchScripture"), source.indexOf("async function suggestNow"));
+    expect(search).toContain("JSON.stringify({ query: q })");
+    expect(search).not.toContain("testament");
+    expect(search.match(/fetch\("\/api\/ha-search"/g)?.length).toBe(1);
+    const rerun = source.slice(source.indexOf("function rerunScriptureSearch"), source.indexOf("function chooseTestament"));
+    expect(rerun.indexOf("q !== submittedQuery")).toBeLessThan(rerun.indexOf("searchScripture(q, my)"));
+    expect(rerun).toContain("!scriptureSearchActive");
+    expect(rerun.match(/searchScripture\(/g)?.length).toBe(1);
+    expect(source).toContain('url.searchParams.set("testament", searchTestament)');
+    expect(source).toContain('url.searchParams.delete("testament")');
+    expect(source).toContain("scripture: Boolean(scripture)");
+    const hits = source.slice(source.indexOf("function scriptureHits"), source.indexOf("function readRecentSearches"));
+    expect(hits).toContain("keepScripture(path)");
+    const books = source.slice(source.indexOf("function scriptureBook"), source.indexOf("function rerunScriptureSearch"));
+    const api = new Function(
+      `const OT_BOOKS = ${JSON.stringify(testamentCodes().ot.map((code) => code.toLowerCase()))};
+       const NT_BOOKS = ${JSON.stringify(testamentCodes().nt.map((code) => code.toLowerCase()))};
+       let searchTestament = "all";
+       ${books}
+       return { keep(path, testament) { searchTestament = testament; return keepScripture(path); } };`,
+    )() as { keep: (path: string, testament: string) => boolean };
+    expect(api.keep("/gen.2.9", "ot")).toBe(true);
+    expect(api.keep("/jhn.3.16", "ot")).toBe(false);
+    expect(api.keep("/jhn.3.16", "nt")).toBe(true);
+    expect(api.keep("/gen.2.9", "all")).toBe(true);
+    const css = readFileSync(path.join(import.meta.dir, "../src/html.ts"), "utf8");
+    const picker = css.slice(css.indexOf(".search-testament {"), css.indexOf(".search-fab { display: none; }"));
+    expect(picker).toContain("font-size: .75rem");
+    expect(picker).toContain("font-weight: 500");
+    expect(picker).toContain("border: 0");
+    expect(picker).toContain("border-radius: .25rem");
+    expect(picker).toContain("padding: .125rem 1.75rem .125rem .375rem");
+    expect(picker).toContain("background-color: #fafaf9");
+    expect(picker).toContain("color: #44403c");
+    expect(picker).toContain("background-color: #1b1917");
+    expect(picker).toContain("color: #d6d3d1");
+    expect(picker).toContain("background-size: 1.25em 1.25em");
+    expect(picker).toContain("stroke='%236b7280'");
+    expect(picker).toContain("stroke='%23a8a29e'");
+    expect(picker).toContain("appearance: none");
+    const sheet = css.slice(css.indexOf("@media (max-width: 640px)"), css.indexOf(".section-head {"));
+    expect(sheet).toContain(".search-testament-desktop { display: none; }");
+    expect(sheet).toContain(".search-testament-more { display: inline-flex; }");
+    expect(sheet).toContain(".search-testament-sheet-label");
+    expect(sheet).toContain("background: #f5f5f4");
+    expect(sheet).toContain("background: #292524");
+    expect(sheet).toContain("border: 1px solid #e7e5e4");
   });
 });
 

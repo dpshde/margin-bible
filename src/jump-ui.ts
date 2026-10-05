@@ -1,3 +1,5 @@
+import { testamentCodes } from "./books";
+
 export type SearchChordEvent = {
   key?: string;
   code?: string;
@@ -204,13 +206,19 @@ function highlightFromHiddenArrow(item) {
 
 /** Browser jump combobox (string). Idempotent — safe to call after SPA injects a new form.jump. */
 export function jumpScript(): string {
+  const otBooks = JSON.stringify(testamentCodes().ot.map((code) => code.toLowerCase()));
+  const ntBooks = JSON.stringify(testamentCodes().nt.map((code) => code.toLowerCase()));
   return `(() => {
 
+  const OT_BOOKS = ${otBooks};
+  const NT_BOOKS = ${ntBooks};
   let hits = [];
   let selected = -1;
   let seq = 0;
   let timer = null;
   let submittedQuery = "";
+  let searchTestament = "all";
+  let scriptureSearchActive = false;
   let cachedSearch = null;
   let searchState = false;
   let closeViaPop = false;
@@ -267,6 +275,158 @@ export function jumpScript(): string {
     return modal ? modal.querySelector("ul.search-modal-list") : null;
   }
 
+  function normalizeTestament(value) {
+    return value === "nt" || value === "ot" ? value : "all";
+  }
+
+  function testamentLabel(value) {
+    if (value === "nt") return "NT";
+    if (value === "ot") return "OT";
+    return "All";
+  }
+
+  function testamentFromLocation() {
+    try {
+      const url = new URL(location.href);
+      if (!url.searchParams.has("testament")) return null;
+      return normalizeTestament(url.searchParams.get("testament"));
+    } catch (_) {
+      return null;
+    }
+  }
+
+  function testamentMenu() {
+    return document.getElementById("search-testament-menu");
+  }
+
+  function paintTestament() {
+    const label = testamentLabel(searchTestament);
+    document.querySelectorAll(".search-testament-label").forEach((el) => {
+      el.textContent = label;
+    });
+    document.querySelectorAll(".search-testament-btn").forEach((el) => {
+      el.setAttribute("aria-label", "Select testament, " + label);
+    });
+    const menu = testamentMenu();
+    if (!menu) return;
+    menu.querySelectorAll(".search-testament-option").forEach((el) => {
+      const on = el.getAttribute("data-value") === searchTestament;
+      el.classList.toggle("is-selected", on);
+      el.setAttribute("aria-selected", on ? "true" : "false");
+    });
+  }
+
+  function syncTestamentFromStorage() {
+    const fromUrl = testamentFromLocation();
+    if (fromUrl) searchTestament = fromUrl;
+    else {
+      const cache = readSearchCache();
+      if (cache) searchTestament = normalizeTestament(cache.testament);
+    }
+    paintTestament();
+  }
+
+  function syncTestamentUrl() {
+    let url;
+    try { url = new URL(location.href); } catch (_) { return; }
+    if (searchTestament === "all") url.searchParams.delete("testament");
+    else url.searchParams.set("testament", searchTestament);
+    const nextHref = url.pathname + url.search + url.hash;
+    const current = location.pathname + location.search + location.hash;
+    if (nextHref === current) return;
+    history.replaceState(history.state, "", nextHref);
+  }
+
+  function setTestamentSheet(open) {
+    const sheet = document.getElementById("search-testament-sheet");
+    const more = document.querySelector(".search-testament-more");
+    if (sheet) sheet.hidden = !open;
+    if (more) more.setAttribute("aria-expanded", open ? "true" : "false");
+  }
+
+  function placeTestamentMenu() {
+    const menu = testamentMenu();
+    const btn = menu && menu._anchor;
+    if (!menu || !btn || menu.hidden) return;
+    const rect = btn.getBoundingClientRect();
+    const vv = window.visualViewport;
+    const top = rect.bottom + 4 + (vv ? vv.offsetTop : 0);
+    const right = (vv ? vv.offsetLeft + vv.width : window.innerWidth) - rect.right;
+    menu.style.top = top + "px";
+    menu.style.right = Math.max(8, right) + "px";
+    menu.style.left = "auto";
+  }
+
+  function closeTestamentMenu() {
+    const menu = testamentMenu();
+    if (!menu || menu.hidden) return false;
+    menu.hidden = true;
+    menu._anchor = null;
+    document.querySelectorAll(".search-testament-btn").forEach((el) => {
+      el.setAttribute("aria-expanded", "false");
+    });
+    return true;
+  }
+
+  function openTestamentMenu(btn) {
+    const menu = testamentMenu();
+    if (!menu || !btn) return;
+    menu.hidden = false;
+    menu._anchor = btn;
+    document.querySelectorAll(".search-testament-btn").forEach((el) => {
+      el.setAttribute("aria-expanded", el === btn ? "true" : "false");
+    });
+    paintTestament();
+    const options = [...menu.querySelectorAll(".search-testament-option")];
+    options.forEach((el) => el.classList.remove("is-active"));
+    const current = options.find((el) => el.getAttribute("data-value") === searchTestament) || options[0];
+    if (current) current.classList.add("is-active");
+    placeTestamentMenu();
+  }
+
+  function moveTestament(delta) {
+    const menu = testamentMenu();
+    if (!menu || menu.hidden) return;
+    const options = [...menu.querySelectorAll(".search-testament-option")];
+    if (!options.length) return;
+    let index = options.findIndex((el) => el.classList.contains("is-active"));
+    if (index < 0) index = 0;
+    index = (index + delta + options.length) % options.length;
+    options.forEach((el, i) => el.classList.toggle("is-active", i === index));
+  }
+
+  function scriptureBook(path) {
+    return String(path || "").replace(/^\\/+/, "").split(".")[0].toLowerCase();
+  }
+
+  function keepScripture(path) {
+    if (searchTestament === "all") return true;
+    const book = scriptureBook(path);
+    const list = searchTestament === "nt" ? NT_BOOKS : OT_BOOKS;
+    return list.indexOf(book) !== -1;
+  }
+
+  function rerunScriptureSearch() {
+    const input = searchInput();
+    const q = input ? String(input.value || "").trim() : "";
+    if (!q || q !== submittedQuery || !scriptureSearchActive) return;
+    const my = ++seq;
+    showSearchSkeletons();
+    searchScripture(q, my);
+  }
+
+  function chooseTestament(value, fromSheet) {
+    const next = normalizeTestament(value);
+    const changed = next !== searchTestament;
+    searchTestament = next;
+    paintTestament();
+    syncTestamentUrl();
+    closeTestamentMenu();
+    if (fromSheet) setTestamentSheet(false);
+    if (!changed) return;
+    rerunScriptureSearch();
+  }
+
   function mirrorHeader(value) {
     const forms = [...document.querySelectorAll("form.jump")];
     const visible = forms.find((f) => f.offsetParent !== null) || forms[0];
@@ -313,6 +473,8 @@ export function jumpScript(): string {
     suggestToken += 1;
     suggestAttempted = false;
     suggestTopics = [];
+    closeTestamentMenu();
+    setTestamentSheet(false);
     hideTopicChips();
     const cache = readSearchCache();
     if (cache && cache.query) mirrorHeader(cache.query);
@@ -356,6 +518,7 @@ export function jumpScript(): string {
 
     bar.addEventListener("pointerdown", (event) => {
       if (!phoneSheet() || event.button) return;
+      if (event.target.closest("button, .search-testament")) return;
       active = true;
       kind = "bar";
       startY = event.clientY;
@@ -404,7 +567,17 @@ export function jumpScript(): string {
     });
   }
 
+  function refetchCachedTestament(cache) {
+    if (!cache || !cache.scripture) return false;
+    if (normalizeTestament(cache.testament) === searchTestament) return false;
+    const my = ++seq;
+    showSearchSkeletons();
+    searchScripture(cache.query, my);
+    return true;
+  }
+
   function revealCachedSearch() {
+    syncTestamentFromStorage();
     const cache = readSearchCache();
     if (!cache || !cache.query) return false;
     const input = searchInput();
@@ -412,6 +585,8 @@ export function jumpScript(): string {
     input.value = cache.query;
     mirrorHeader(cache.query);
     submittedQuery = cache.query;
+    scriptureSearchActive = Boolean(cache.scripture);
+    if (refetchCachedTestament(cache)) return true;
     const list = searchList();
     const waiting = list && list.querySelector(".suggest-skeleton");
     const painted = list && list.querySelector("button.search-result");
@@ -459,6 +634,65 @@ export function jumpScript(): string {
     icon.className = "search-modal-icon";
     icon.setAttribute("aria-hidden", "true");
     icon.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="6.5"/><path d="M16.2 16.2 20 20"/></svg>';
+    const testamentWrap = document.createElement("div");
+    testamentWrap.className = "search-testament search-testament-desktop";
+    const testamentBtn = document.createElement("button");
+    testamentBtn.type = "button";
+    testamentBtn.className = "search-testament-btn";
+    testamentBtn.setAttribute("aria-haspopup", "listbox");
+    testamentBtn.setAttribute("aria-expanded", "false");
+    testamentBtn.setAttribute("aria-controls", "search-testament-menu");
+    const testamentLabel = document.createElement("span");
+    testamentLabel.className = "search-testament-label";
+    testamentBtn.appendChild(testamentLabel);
+    testamentWrap.appendChild(testamentBtn);
+    const more = document.createElement("button");
+    more.type = "button";
+    more.className = "search-testament-more";
+    more.setAttribute("aria-label", "Testament options");
+    more.setAttribute("aria-expanded", "false");
+    more.setAttribute("aria-controls", "search-testament-sheet");
+    more.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>';
+    const sheet = document.createElement("div");
+    sheet.className = "search-testament-sheet";
+    sheet.id = "search-testament-sheet";
+    sheet.hidden = true;
+    const sheetLabel = document.createElement("span");
+    sheetLabel.className = "search-testament-sheet-label";
+    sheetLabel.textContent = "Testament:";
+    const sheetBtn = document.createElement("button");
+    sheetBtn.type = "button";
+    sheetBtn.className = "search-testament-btn";
+    sheetBtn.setAttribute("aria-haspopup", "listbox");
+    sheetBtn.setAttribute("aria-expanded", "false");
+    sheetBtn.setAttribute("aria-controls", "search-testament-menu");
+    const sheetValue = document.createElement("span");
+    sheetValue.className = "search-testament-label";
+    sheetBtn.appendChild(sheetValue);
+    sheet.appendChild(sheetLabel);
+    sheet.appendChild(sheetBtn);
+    const menu = document.createElement("div");
+    menu.className = "search-testament-menu";
+    menu.id = "search-testament-menu";
+    menu.hidden = true;
+    menu.setAttribute("role", "listbox");
+    menu.setAttribute("aria-label", "Testament");
+    for (const pair of [["all", "All"], ["nt", "NT"], ["ot", "OT"]]) {
+      const item = document.createElement("button");
+      item.type = "button";
+      item.className = "search-testament-option";
+      item.setAttribute("role", "option");
+      item.setAttribute("data-value", pair[0]);
+      const check = document.createElement("span");
+      check.className = "search-testament-check";
+      check.setAttribute("aria-hidden", "true");
+      check.textContent = "\\u2713";
+      const name = document.createElement("span");
+      name.textContent = pair[1];
+      item.appendChild(check);
+      item.appendChild(name);
+      menu.appendChild(item);
+    }
     const input = document.createElement("input");
     input.id = "search-modal-q";
     input.name = "q";
@@ -489,14 +723,68 @@ export function jumpScript(): string {
     topics.appendChild(topicChips);
     bar.appendChild(icon);
     bar.appendChild(input);
+    bar.appendChild(testamentWrap);
+    bar.appendChild(more);
     results.appendChild(list);
     results.appendChild(footer);
     searchForm.appendChild(bar);
+    searchForm.appendChild(sheet);
     searchForm.appendChild(topics);
     searchForm.appendChild(results);
     panel.appendChild(searchForm);
     modal.appendChild(backdrop);
     modal.appendChild(panel);
+    modal.appendChild(menu);
+    paintTestament();
+    function toggleTestamentMenu(btn) {
+      if (menu.hidden || menu._anchor !== btn) openTestamentMenu(btn);
+      else closeTestamentMenu();
+    }
+    testamentBtn.addEventListener("click", () => toggleTestamentMenu(testamentBtn));
+    sheetBtn.addEventListener("click", () => toggleTestamentMenu(sheetBtn));
+    testamentBtn.addEventListener("keydown", (event) => {
+      if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
+      event.preventDefault();
+      openTestamentMenu(testamentBtn);
+    });
+    sheetBtn.addEventListener("keydown", (event) => {
+      if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
+      event.preventDefault();
+      openTestamentMenu(sheetBtn);
+    });
+    more.addEventListener("click", () => {
+      const open = sheet.hidden;
+      setTestamentSheet(open);
+      if (!open) closeTestamentMenu();
+    });
+    menu.addEventListener("click", (event) => {
+      const item = event.target.closest(".search-testament-option");
+      if (!item) return;
+      event.preventDefault();
+      chooseTestament(item.getAttribute("data-value"), menu._anchor === sheetBtn);
+    });
+    document.addEventListener("pointerdown", (event) => {
+      if (menu.hidden) return;
+      if (event.target.closest(".search-testament-menu, .search-testament-btn")) return;
+      closeTestamentMenu();
+    }, true);
+    document.addEventListener("keydown", (event) => {
+      if (menu.hidden) return;
+      if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+        event.preventDefault();
+        event.stopPropagation();
+        moveTestament(event.key === "ArrowDown" ? 1 : -1);
+        return;
+      }
+      if (event.key === "Enter") {
+        const active = menu.querySelector(".search-testament-option.is-active");
+        if (!active) return;
+        event.preventDefault();
+        event.stopPropagation();
+        chooseTestament(active.getAttribute("data-value"), menu._anchor === sheetBtn);
+      }
+    }, true);
+    window.addEventListener("resize", () => placeTestamentMenu());
     document.body.appendChild(modal);
     backdrop.addEventListener("click", () => closeSearchModal());
     bindSheetSwipe(bar, results, panel);
@@ -589,14 +877,19 @@ export function jumpScript(): string {
       if (!raw) return null;
       const data = JSON.parse(raw);
       if (!data || typeof data.query !== "string" || !Array.isArray(data.hits)) return null;
-      cachedSearch = { query: data.query, hits: data.hits };
+      cachedSearch = {
+        query: data.query,
+        hits: data.hits,
+        testament: normalizeTestament(data.testament),
+        scripture: Boolean(data.scripture),
+      };
       return cachedSearch;
     } catch (_) {
       return null;
     }
   }
 
-  function writeSearchCache(query, nextHits) {
+  function writeSearchCache(query, nextHits, scripture) {
     const packed = (nextHits || []).map((hit) => ({
       kind: hit && hit.kind ? String(hit.kind) : "scripture",
       label: String((hit && (hit.label || hit.insertText)) || ""),
@@ -605,7 +898,12 @@ export function jumpScript(): string {
       insertText: hit && hit.insertText ? String(hit.insertText) : "",
       html: hit && hit.html ? String(hit.html) : "",
     }));
-    cachedSearch = { query: String(query || ""), hits: packed };
+    cachedSearch = {
+      query: String(query || ""),
+      hits: packed,
+      testament: normalizeTestament(searchTestament),
+      scripture: Boolean(scripture),
+    };
     try { sessionStorage.setItem("margin-search-cache", JSON.stringify(cachedSearch)); }
     catch (_) {}
     mirrorHeader(cachedSearch.query);
@@ -752,7 +1050,7 @@ export function jumpScript(): string {
     const next = [];
     for (const item of evidence) {
       const path = marginPathFromRouteHref(item && item.href);
-      if (!path) continue;
+      if (!path || !keepScripture(path)) continue;
       const text = String((item && item.text) || "");
       next.push({
         kind: "scripture",
@@ -939,7 +1237,7 @@ export function jumpScript(): string {
       });
       if (my !== seq) return;
       if (!res.ok) {
-        writeSearchCache(q, []);
+        writeSearchCache(q, [], true);
         if (modalIsOpen()) showSearchUnavailable();
         return;
       }
@@ -947,15 +1245,15 @@ export function jumpScript(): string {
       if (my !== seq) return;
       const next = scriptureHits(data);
       if (!next.length) {
-        writeSearchCache(q, []);
+        writeSearchCache(q, [], true);
         if (modalIsOpen()) close();
         return;
       }
-      writeSearchCache(q, next);
+      writeSearchCache(q, next, true);
       if (modalIsOpen()) render({ hits: next });
     } catch (_) {
       if (my !== seq) return;
-      writeSearchCache(q, []);
+      writeSearchCache(q, [], true);
       if (modalIsOpen()) showSearchUnavailable();
     }
   }
@@ -1004,11 +1302,13 @@ export function jumpScript(): string {
       return;
     }
     if ((data.hits && data.hits.length) || data.hint) {
+      scriptureSearchActive = false;
       submittedQuery = q;
       writeSearchCache(q, data.hits || []);
       render(data);
       return;
     }
+    scriptureSearchActive = true;
     submittedQuery = q;
     rememberRecentSearch(q);
     showSearchSkeletons();
@@ -1151,6 +1451,7 @@ export function jumpScript(): string {
   }
 
   function bootSearchQuery() {
+    syncTestamentFromStorage();
     let q = "";
     try { q = new URL(location.href).searchParams.get("q") || ""; } catch (_) { return; }
     q = q.trim();
@@ -1168,7 +1469,7 @@ export function jumpScript(): string {
     input.value = q;
     const clearBtn = visible.querySelector("button.jump-clear");
     if (clearBtn) clearBtn.hidden = false;
-    if (cache && cache.query === q) return;
+    if (cache && cache.query === q && normalizeTestament(cache.testament) === searchTestament) return;
     if (typeof visible.requestSubmit === "function") visible.requestSubmit();
   }
 
@@ -1223,6 +1524,11 @@ export function jumpScript(): string {
     });
     document.addEventListener("keydown", (event) => {
       if (event.key !== "Escape") return;
+      if (closeTestamentMenu()) {
+        event.preventDefault();
+        event.stopPropagation();
+        return;
+      }
       const modal = document.querySelector(".search-modal");
       if (!modal || modal.hidden) return;
       event.preventDefault();
