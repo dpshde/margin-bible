@@ -180,6 +180,8 @@ export function jumpScript(): string {
     const searchForm = document.createElement("form");
     searchForm.className = "search-modal-form";
     searchForm.setAttribute("role", "search");
+    const bar = document.createElement("div");
+    bar.className = "search-modal-bar";
     const input = document.createElement("input");
     input.id = "search-modal-q";
     input.name = "q";
@@ -196,7 +198,8 @@ export function jumpScript(): string {
     list.id = "search-modal-list";
     list.setAttribute("role", "listbox");
     list.hidden = true;
-    searchForm.appendChild(input);
+    bar.appendChild(input);
+    searchForm.appendChild(bar);
     searchForm.appendChild(list);
     panel.appendChild(searchForm);
     modal.appendChild(backdrop);

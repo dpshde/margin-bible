@@ -385,34 +385,43 @@ export function page(title: string, body: string): string {
     .search-modal-backdrop {
       position: absolute; inset: 0;
       margin: 0; padding: 0; border: 0; cursor: pointer;
-      /* Dark scrim in both themes. --ink flips to near-white in dark mode, so it cannot tint this wash. */
-      background: rgba(12, 10, 9, 0.42);
-      -webkit-backdrop-filter: blur(8px);
-      backdrop-filter: blur(8px);
+      /* scripture.ar.io: stone-900/90, and #000000e6 in dark, with backdrop-blur-sm. */
+      background: rgb(28 25 23 / 0.9);
+      -webkit-backdrop-filter: blur(4px);
+      backdrop-filter: blur(4px);
     }
+    html[data-theme="dark"] .search-modal-backdrop { background: #000000e6; }
     .search-modal-panel {
       position: relative; z-index: 1;
       width: min(36rem, 100%);
       max-height: calc(100dvh - var(--safe-top) - var(--safe-bottom) - 1.5rem);
       display: flex; flex-direction: column; min-height: 0;
       background: var(--paper-raised);
-      border-radius: .85rem; overflow: hidden;
-      box-shadow: 0 1rem 2.5rem color-mix(in srgb, var(--ink) 22%, transparent);
+      border-radius: .5rem; overflow: hidden;
     }
+    html[data-theme="dark"] .search-modal-panel { background: #1b1917; }
     .search-modal-form {
       display: flex; flex-direction: column; min-height: 0;
       max-height: calc(100dvh - var(--safe-top) - var(--safe-bottom) - 1.5rem);
     }
+    .search-modal-bar {
+      display: flex; align-items: center; flex: 0 0 auto;
+      min-width: 0;
+      padding: .75rem 1rem;
+      border-bottom: 1px solid var(--line);
+    }
     .search-modal-form input[type="search"] {
+      flex: 1 1 auto; align-self: center;
       box-sizing: border-box;
-      width: 100%; height: 3.5rem; margin: 0;
-      padding: 0 1rem;
-      border: 0; border-bottom: 1px solid var(--line);
-      border-radius: 0; background: transparent; outline: none;
-      font: inherit; font-size: 16px; line-height: calc(3.5rem - 1px);
+      width: 100%; height: auto; min-height: 0; margin: 0;
+      padding: .25rem 0;
+      border: 0; border-radius: 0; background: transparent; outline: none;
+      font: inherit; font-size: 1.125rem; line-height: 1.25; font-weight: 400;
       color: var(--ink);
       -webkit-appearance: none; appearance: none;
     }
+    .search-modal-form input[type="search"]::placeholder { color: #a8a29e; opacity: 1; }
+    html[data-theme="dark"] .search-modal-form input[type="search"]::placeholder { color: #78716c; }
     .search-modal-form input[type="search"]::-webkit-search-decoration,
     .search-modal-form input[type="search"]::-webkit-search-cancel-button,
     .search-modal-form input[type="search"]::-webkit-search-results-button,
@@ -454,9 +463,9 @@ export function page(title: string, body: string): string {
       color: var(--ink); overflow-wrap: anywhere;
     }
     .search-mark {
-      background: transparent; color: #c2410c; font-weight: 650;
+      background: none; color: #ea580c; font-weight: 600;
     }
-    html[data-theme="dark"] .search-mark { color: #fdba74; }
+    html[data-theme="dark"] .search-mark { color: #fb923c; }
     html.search-modal-open { overflow: hidden; }
     .search-fab { display: none; }
     @media (max-width: 767px) {
