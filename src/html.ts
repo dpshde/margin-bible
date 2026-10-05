@@ -598,7 +598,7 @@ export function page(title: string, body: string): string {
       box-sizing: border-box; height: 20px; margin: 0;
       padding: .125rem 1.75rem .125rem .375rem;
       border: 0; border-radius: .25rem; outline: none;
-      background-color: #fafaf9;
+      background-color: transparent;
       background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e");
       background-repeat: no-repeat;
       background-position: right .25rem center;
@@ -609,7 +609,7 @@ export function page(title: string, body: string): string {
       touch-action: manipulation;
     }
     html[data-theme="dark"] .search-testament-btn {
-      background-color: #1b1917;
+      background-color: transparent;
       color: #d6d3d1;
       background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%23a8a29e' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e");
     }

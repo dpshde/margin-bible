@@ -783,9 +783,10 @@ describe("testament filter", () => {
     expect(picker).toContain("border: 0");
     expect(picker).toContain("border-radius: .25rem");
     expect(picker).toContain("padding: .125rem 1.75rem .125rem .375rem");
-    expect(picker).toContain("background-color: #fafaf9");
+    expect(picker).toContain("background-color: transparent");
+    expect(picker).not.toContain("background-color: #fafaf9");
+    expect(picker).not.toContain("background-color: #1b1917");
     expect(picker).toContain("color: #44403c");
-    expect(picker).toContain("background-color: #1b1917");
     expect(picker).toContain("color: #d6d3d1");
     expect(picker).toContain("background-size: 1.25em 1.25em");
     expect(picker).toContain("stroke='%236b7280'");
