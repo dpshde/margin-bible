@@ -1732,9 +1732,9 @@ export function page(title: string, body: string): string {
     @media (max-width: 640px) {
       .topbar { grid-template-columns: auto 1fr auto; gap: .25rem; padding-left: .5rem; padding-right: .5rem; }
       .topbar-title { font-size: .95rem; }
-      /* A long chapter name fills the middle track. Keep the bookmark with that name,
-         and leave a gap before the theme / profile / expand icons. */
-      .topbar-chapter-mark { margin-inline-end: .75rem; }
+      /* A long chapter name fills the middle track. Keep the bookmark on the title's left,
+         with a gap before the Notes icon. */
+      .topbar-chapter-mark { margin-inline-start: .75rem; }
       /* Notes inbox only. The left slot is empty and the right slot is three icons,
          so a title centered in the flexible middle track sits left of the screen.
          Paint the same title across the bar; the icons stay in the end column. */

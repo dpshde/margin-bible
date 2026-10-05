@@ -105,8 +105,8 @@ ${notesPreload}${prefetchLinks}
     <a class="icon-btn" href="/notes" data-inbox-link aria-label="Notes" title="Notes">${iconNotes()}</a>
   </div>
   <h1 class="topbar-title">
-    <button type="button" class="topbar-title-btn" id="chapter-grid-title" aria-haspopup="dialog" aria-expanded="false" aria-controls="chapter-grid" title="Choose book or chapter">${escapeHtml(title)}</button>
     <button type="button" class="icon-btn${chapterNote?.bookmarked ? " is-on" : ""} topbar-chapter-mark" id="chapter-bookmark-btn" data-state-icon="bookmark" data-state-on="${chapterNote?.bookmarked ? "true" : "false"}" aria-label="Bookmark chapter" title="Bookmark chapter" aria-pressed="${chapterNote?.bookmarked ? "true" : "false"}">${iconBookmark()}</button>
+    <button type="button" class="topbar-title-btn" id="chapter-grid-title" aria-haspopup="dialog" aria-expanded="false" aria-controls="chapter-grid" title="Choose book or chapter">${escapeHtml(title)}</button>
   </h1>
   <div class="topbar-actions">
     ${themeToggleHtml()}

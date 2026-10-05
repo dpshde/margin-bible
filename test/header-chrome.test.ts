@@ -32,6 +32,7 @@ describe("header chrome without chapter note pencil", () => {
     const actions = header.slice(header.indexOf('<div class="topbar-actions">'), header.lastIndexOf("</div>"));
     expect(title).toContain('id="chapter-grid-title"');
     expect(title).toContain('id="chapter-bookmark-btn"');
+    expect(title.indexOf('id="chapter-bookmark-btn"')).toBeLessThan(title.indexOf('id="chapter-grid-title"'));
     expect(title).toContain("topbar-chapter-mark");
     expect(actions).not.toContain('id="chapter-bookmark-btn"');
     expect(actions).toContain('id="expand-all-btn"');
@@ -39,7 +40,7 @@ describe("header chrome without chapter note pencil", () => {
     expect(html).toContain("display: flex; align-items: center; justify-content: center;");
     expect(html).toContain(".topbar-chapter-mark { flex: none;");
     const phone = html.indexOf("@media (max-width: 640px)");
-    expect(html.slice(phone)).toContain(".topbar-chapter-mark { margin-inline-end: .75rem; }");
+    expect(html.slice(phone)).toContain(".topbar-chapter-mark { margin-inline-start: .75rem; }");
   });
 
   test("chapter bookmark button reflects bookmarked chapter note on SSR", () => {
