@@ -78,7 +78,10 @@ export function jumpScript(): string {
   function syncKeyboardInset() {
     const vv = window.visualViewport;
     const covered = vv ? Math.max(0, window.innerHeight - vv.offsetTop - vv.height) : 0;
-    document.documentElement.style.setProperty("--keyboard-inset", covered + "px");
+    const root = document.documentElement.style;
+    root.setProperty("--keyboard-inset", covered + "px");
+    root.setProperty("--vv-top", (vv ? vv.offsetTop : 0) + "px");
+    root.setProperty("--vv-height", (vv ? vv.height : window.innerHeight) + "px");
   }
   if (window.visualViewport && !window.__marginKeyboardInset) {
     window.__marginKeyboardInset = true;

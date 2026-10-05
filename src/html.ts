@@ -373,12 +373,17 @@ export function page(title: string, body: string): string {
       border-radius: 0 0 var(--list-radius) var(--list-radius);
     }
     .search-modal {
-      position: fixed; inset: 0; z-index: 50;
-      display: flex; align-items: flex-start; justify-content: center;
+      position: fixed; z-index: 50;
+      left: 0; right: 0;
+      top: var(--vv-top, 0px);
+      height: var(--vv-height, 100dvh);
+      display: flex; align-items: center; justify-content: center;
+      box-sizing: border-box;
+      --search-gutter: max(.75rem, calc(.75rem + var(--safe-top)), calc(.75rem + var(--safe-bottom)));
       padding:
-        calc(.75rem + var(--safe-top))
+        var(--search-gutter)
         calc(.75rem + env(safe-area-inset-right, 0px))
-        calc(.75rem + var(--safe-bottom))
+        var(--search-gutter)
         calc(.75rem + env(safe-area-inset-left, 0px));
     }
     .search-modal[hidden] { display: none; }
@@ -394,7 +399,7 @@ export function page(title: string, body: string): string {
     .search-modal-panel {
       position: relative; z-index: 1;
       width: min(36rem, 100%);
-      max-height: calc(100dvh - var(--safe-top) - var(--safe-bottom) - 1.5rem);
+      max-height: 100%;
       display: flex; flex-direction: column; min-height: 0;
       background: var(--paper-raised);
       border-radius: .5rem; overflow: hidden;
@@ -402,7 +407,7 @@ export function page(title: string, body: string): string {
     html[data-theme="dark"] .search-modal-panel { background: #1b1917; }
     .search-modal-form {
       display: flex; flex-direction: column; min-height: 0;
-      max-height: calc(100dvh - var(--safe-top) - var(--safe-bottom) - 1.5rem);
+      width: 100%; max-height: 100%;
     }
     .search-modal-bar {
       display: flex; align-items: center; flex: 0 0 auto;
@@ -434,6 +439,7 @@ export function page(title: string, body: string): string {
     }
     .search-modal-list {
       list-style: none; margin: 0; padding: 0; min-height: 0;
+      flex: 1 1 auto;
       overflow-x: hidden; overflow-y: auto;
       overscroll-behavior: contain;
       -webkit-overflow-scrolling: touch;

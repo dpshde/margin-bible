@@ -460,6 +460,18 @@ describe("search list stays on screen", () => {
     expect(css).toContain(".search-fab { display: none; }");
     expect(css).toContain("bottom: calc(1rem + var(--safe-bottom))");
     expect(css).toContain(".search-modal");
+    const modalBox = css.slice(css.indexOf(".search-modal {"), css.indexOf(".search-modal[hidden]"));
+    expect(modalBox).toContain("align-items: center");
+    expect(modalBox).not.toContain("flex-start");
+    expect(modalBox).toContain("var(--vv-top, 0px)");
+    expect(modalBox).toContain("var(--vv-height, 100dvh)");
+    expect(modalBox).toContain("--search-gutter:");
+    const source = jumpScript();
+    const inset = source.slice(source.indexOf("function syncKeyboardInset"), source.indexOf("function escape"));
+    expect(inset).toContain('setProperty("--vv-top"');
+    expect(inset).toContain('setProperty("--vv-height"');
+    expect(inset).toContain("vv.offsetTop");
+    expect(inset).toContain("vv.height");
     expect(css).toContain(".search-result-ref");
     expect(css).toContain("text-transform: uppercase");
     const backdrop = css.slice(css.indexOf(".search-modal-backdrop"), css.indexOf(".search-modal-panel {"));
