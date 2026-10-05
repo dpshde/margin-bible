@@ -531,9 +531,9 @@ export function page(title: string, body: string): string {
     /* touch-action stays none on phones too. manipulation lets the browser take the
        pan and then drop it on this fixed rail, so the chapter never moves. The touch
        handler scrolls by the finger delta instead. Mouse scrubbing is unchanged. */
-    /* An open search list paints with the jump field and covers this rail. */
-    main:has(.jump.is-open) .reader-verse-rail,
-    main:has(.jump:has(.suggest:not([hidden]))) .reader-verse-rail { z-index: 4; }
+    /* An open search list paints with the jump field and covers this rail.
+       Nested :has() is split so one unsupported selector cannot drop the rule. */
+    main:has(.jump.is-open) .reader-verse-rail { z-index: 4; }
     .reader-verse-rail-checkpoints {
       position: absolute;
       inset: 20px -1px;
