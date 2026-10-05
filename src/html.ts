@@ -101,6 +101,8 @@ export function page(title: string, body: string): string {
       --verse-gutter: 1.65rem;
       --verse-gutter-gap: .55rem;
       --verse-inset: .7rem;
+      /* How far the selection stroke sits left of the scripture line. 0 keeps it on the padding edge. */
+      --verse-rail-gap: 0rem;
       --read: "Iowan Old Style", Palatino, "Palatino Linotype", Georgia, serif;
       --sans: ui-sans-serif, system-ui, -apple-system, sans-serif;
       --head: ui-sans-serif, system-ui, -apple-system, sans-serif;
@@ -788,23 +790,31 @@ export function page(title: string, body: string): string {
       padding: 0 0 0 var(--verse-inset);
       margin: .15rem 0;
     }
-    .verse.has-note { border-left: 2px solid var(--sel-rail); }
+    .verse.has-note,
     .verse.is-open,
     .verse.is-span { border-left: 0; }
+    /* Stroke sits in the margin (--verse-rail-gap). The line itself does not move,
+       so a desktop column can stay flush with the jump field. */
+    .verse.has-note::before,
     .verse.is-open::before,
     .verse.is-span::before {
       content: "";
       position: absolute;
-      left: 0; top: 0; bottom: 0; width: 2px;
-      background: var(--sel-rail-open);
+      left: calc(-1 * var(--verse-rail-gap));
+      top: 0; bottom: 0; width: 2px;
+      background: var(--sel-rail);
       pointer-events: none;
+    }
+    .verse.is-open::before,
+    .verse.is-span::before {
+      background: var(--sel-rail-open);
     }
     /* The range rail is the left border. Cover the stroke itself, plus a little of the gutter, and stop short of the verse number. */
     .verse-range-rail {
       position: absolute;
       z-index: 2;
-      left: -.7rem; top: 0; bottom: 0;
-      width: calc(.7rem + var(--verse-inset) + 0.85rem);
+      left: calc(-.4rem - var(--verse-rail-gap)); top: 0; bottom: 0;
+      width: calc(.4rem + var(--verse-rail-gap) + var(--verse-inset) + 0.85rem);
       margin: 0; padding: 0; border: 0;
       background: transparent;
       cursor: pointer;
@@ -1042,10 +1052,16 @@ export function page(title: string, body: string): string {
       .reader-verse-rail.dragging .reader-verse-rail-dot.wave-1 { width: 12px; }
     }
     /* Desktop reading column matches the jump field: same left and right edges.
-       Verse numbers hang in the margin so they don't shorten the line. */
+       Verse numbers hang in the margin so they don't shorten the line.
+       The selection stroke steps left into that margin; the wider gutter gap
+       keeps the number clear of the stroke without shifting the line. */
     @media (min-width: 656px) {
       .section-head { margin-left: 0; margin-right: 0; }
       .verse { padding-left: 0; }
+      .reader, .verse, .chapter {
+        --verse-gutter-gap: 1.1rem;
+        --verse-rail-gap: .55rem;
+      }
       .verse-press {
         width: calc(100% + var(--verse-gutter) + var(--verse-gutter-gap));
         margin-left: calc(-1 * (var(--verse-gutter) + var(--verse-gutter-gap)));
@@ -1782,7 +1798,7 @@ export function page(title: string, body: string): string {
       .reader, .verse, .chapter {
         --verse-gutter: 1.2rem;
         --verse-gutter-gap: .45rem;
-        --verse-inset: .3rem;
+        --verse-inset: .65rem;
       }
       #reader:has(.reader-verse-rail) .chapter,
       #reader:has(.reader-verse-rail) .pager { padding-right: .85rem; }
@@ -1811,7 +1827,7 @@ export function page(title: string, body: string): string {
       .reader, .verse, .chapter {
         --verse-gutter: 1.05rem;
         --verse-gutter-gap: .35rem;
-        --verse-inset: .15rem;
+        --verse-inset: .5rem;
       }
       .oblock { padding-left: calc(.25rem + (var(--depth, 0) * .85rem)); }
       .tray-label { font-size: .72rem; }

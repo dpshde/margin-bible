@@ -49,7 +49,7 @@ describe("note tray CSS density", () => {
   });
 
   test("is-span selection rail matches is-open chrome", () => {
-    expect(css).toContain(".verse.is-open,\n    .verse.is-span { border-left: 0; }");
+    expect(css).toContain(".verse.has-note,\n    .verse.is-open,\n    .verse.is-span { border-left: 0; }");
     expect(css).toContain(".verse.is-open::before,\n    .verse.is-span::before");
     expect(css).not.toContain("background: color-mix(in srgb, var(--ink) 4%, transparent);");
   });
