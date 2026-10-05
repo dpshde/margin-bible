@@ -51,6 +51,15 @@ describe("Hidden Arrow hrefs open inside Margin", () => {
     expect(source).toContain("JSON.stringify({ query: q })");
     expect(source).not.toContain("railway.app");
     expect(source).not.toContain("hidden-arrow");
+    expect(source).not.toContain("scheduleScripture");
+    expect(source).not.toContain(", 280)");
+    const suggestNow = source.slice(source.indexOf("async function suggestNow"), source.indexOf("async function submitJump"));
+    expect(suggestNow).toContain("/api/jump-suggest");
+    expect(suggestNow).not.toContain("/api/ha-search");
+    const submit = source.slice(source.indexOf("async function submitJump"), source.indexOf("function suggest()"));
+    expect(submit).toContain("searchScripture(q, my)");
+    expect(submit).toContain('location.assign("/jump?q=" + encodeURIComponent(q))');
+    expect(submit).toContain("data.canGo");
     const fromScript = browserMarginPath();
     expect(fromScript("https://route.bible/mrk.12.31?src=hidden-arrow")).toBe("/mrk.12.31");
     expect(fromScript("https://route.bible/mat.22.37-39?src=hidden-arrow")).toBe("/mat.22.37-39");

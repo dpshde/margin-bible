@@ -60,7 +60,7 @@ Wrangler prints a `*.workers.dev` URL. That host is the spike. Leave `margin.bib
 | Piece | Spike behavior |
 |---|---|
 | Reader | `GET /jhn.3`, `/jhn.3.16`, `/jhn.3.16-18`. The page is always the chapter. A verse or range focuses those verses. |
-| Addresses | npm [`grab-bcv`](https://www.npmjs.com/package/grab-bcv) `findAnyPassage` on `/jump` + route slugs (same OSIS contract as Rails / route.bible). The search box still autosuggests books and chapters (`/api/jump-suggest`). A resolved reference (`John 3:16`, `Jn 3`, `jhn.3.16`) jumps inside Margin. Other text is scripture search: the worker proxies Hidden Arrow at `POST /api/ha-search` and a hit opens that passage here. |
+| Addresses | npm [`grab-bcv`](https://www.npmjs.com/package/grab-bcv) `findAnyPassage` on `/jump` + route slugs (same OSIS contract as Rails / route.bible). The search box autosuggests books and chapters while typing (`/api/jump-suggest`). A resolved reference (`John 3:16`, `Jn 3`, `jhn.3.16`) jumps inside Margin. Submitting other text searches scripture: the worker proxies Hidden Arrow at `POST /api/ha-search` and a hit opens that passage here. Typing does not call Hidden Arrow. |
 | Scripture | Official BSB USJ, flattened with the same verse-row rules as `Margin::Usj.pack_chapter`. One JSON file per chapter in `assets/bsb/`. Public domain. |
 | Notes | One row per library + slug. Verse, range, and chapter notes stay separate. Body is outline blocks, same idea as Rails. |
 | Bookmarks | Tray bookmark control on every expanded outliner (verse + chapter). Empty bookmarked notes are kept. |

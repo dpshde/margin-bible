@@ -77,7 +77,6 @@ export function jumpScript(): string {
     let hits = [];
     let selected = -1;
     let timer = null;
-    let scriptureTimer = null;
     let seq = 0;
 
     function syncClear() {
@@ -203,22 +202,9 @@ export function jumpScript(): string {
       }
     }
 
-    function scheduleScripture(q, my) {
-      if (scriptureTimer) clearTimeout(scriptureTimer);
-      scriptureTimer = setTimeout(() => {
-        scriptureTimer = null;
-        if (my !== seq) return;
-        searchScripture(q, my);
-      }, 280);
-    }
-
     async function suggestNow() {
       const q = input.value;
       const my = ++seq;
-      if (scriptureTimer) {
-        clearTimeout(scriptureTimer);
-        scriptureTimer = null;
-      }
       if (!String(q).trim()) {
         close();
         return;
@@ -230,16 +216,33 @@ export function jumpScript(): string {
         if (!res.ok || my !== seq) return;
         const data = await res.json();
         if (my !== seq) return;
-        const passageLike = Boolean(data.canGo) || (data.hits && data.hits.length) || data.hint;
-        if (passageLike) {
-          render(data);
-          return;
-        }
-        if (!hits.length || hits[0]?.kind !== "scripture") close();
-        scheduleScripture(String(q).trim(), my);
+        render(data);
       } catch (_) {
-        /* jump still works on submit when this blip is a reference */
+        /* ignore transient network blips */
       }
+    }
+
+    async function submitJump(q) {
+      const my = ++seq;
+      let data = null;
+      try {
+        const res = await fetch("/api/jump-suggest?q=" + encodeURIComponent(q), {
+          headers: { accept: "application/json" },
+        });
+        if (res.ok) data = await res.json();
+      } catch (_) {
+        data = null;
+      }
+      if (my !== seq) return;
+      if (!data || data.canGo) {
+        location.assign("/jump?q=" + encodeURIComponent(q));
+        return;
+      }
+      if ((data.hits && data.hits.length) || data.hint) {
+        render(data);
+        return;
+      }
+      searchScripture(q, my);
     }
 
     function suggest() {
@@ -347,17 +350,11 @@ export function jumpScript(): string {
       applyHit(hits[index]);
     });
 
-    form.addEventListener("submit", async (event) => {
+    form.addEventListener("submit", (event) => {
       const q = input.value.trim();
-      if (!q) {
-        event.preventDefault();
-        return;
-      }
-      // Block book-only submits the same way Rails canGo does.
-      if (!(await canGo(q))) {
-        event.preventDefault();
-        suggestNow();
-      }
+      event.preventDefault();
+      if (!q) return;
+      submitJump(q);
     });
   }
 

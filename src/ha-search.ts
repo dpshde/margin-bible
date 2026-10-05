@@ -65,7 +65,7 @@ export function marginPathFromRouteHref(href: string | null | undefined): string
   return `/${slug}`;
 }
 
-/** Free text searches. A resolved reference, book/chapter hit, or chapter hint stays on jump. */
+/** Free text, and only after submit. A resolved reference, book/chapter hit, or chapter hint stays on jump. */
 export function shouldQueryHiddenArrow(input: {
   query: string;
   hits: readonly unknown[];
