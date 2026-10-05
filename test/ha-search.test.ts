@@ -849,6 +849,50 @@ describe("passage helpers while typing", () => {
   });
 });
 
+describe("recent query history", () => {
+  test("an empty modal lists margin-recent-searches and a tap submits that query", () => {
+    const source = jumpScript();
+    expect(source).toContain('localStorage.getItem("margin-recent-searches")');
+    expect(source).toContain('localStorage.setItem("margin-recent-searches"');
+    expect(source).not.toContain("margin-query-history");
+    expect(source).not.toContain("margin-search-history");
+    expect(source).toContain('textContent = "Recent"');
+    expect(source).not.toContain('textContent = "Suggested"');
+    expect(source).not.toContain("search-suggest-label");
+    const paint = source.slice(source.indexOf("function paintHistory"), source.indexOf("function syncChipFades"));
+    expect(paint).toContain("readRecentSearches()");
+    expect(paint).toContain('btn.setAttribute("data-query", query)');
+    expect(paint).toContain("search-suggest-chip");
+    expect(paint).toContain("btn.textContent = query");
+    const load = source.slice(source.indexOf("async function loadTopicSuggestions"), source.indexOf("async function searchScripture"));
+    expect(load.indexOf("paintHistory()")).toBeLessThan(load.indexOf("recent.length < 2"));
+    expect(load.indexOf("recent.length < 2")).toBeLessThan(load.indexOf('fetch("/api/ha-suggest"'));
+    const inputAt = source.indexOf('input.addEventListener("input"');
+    const typing = source.slice(inputAt, source.indexOf("if (timer)", inputAt));
+    expect(typing).toContain("hideHistory()");
+    expect(typing).not.toContain("fetch(");
+    expect(typing).not.toContain("/api/ha-search");
+    const submitChip = source.slice(source.indexOf("function submitChip"), source.indexOf('topicChips.addEventListener("click"'));
+    expect(submitChip).toContain("submitJump(q)");
+    expect(submitChip).toContain("hideHistory()");
+    expect(submitChip).not.toContain("/api/ha-search");
+    const remembered = source.slice(source.indexOf("async function submitJump"), source.indexOf("function suggest()"));
+    const passage = remembered.slice(0, remembered.indexOf("if ((data.hits"));
+    expect(passage).not.toContain("rememberRecentSearch");
+    const freeText = remembered.slice(remembered.lastIndexOf("submittedQuery = q"));
+    expect(freeText.indexOf("rememberRecentSearch(q)")).toBeLessThan(freeText.indexOf("searchScripture(q, my)"));
+    const css = readFileSync(path.join(import.meta.dir, "../src/html.ts"), "utf8");
+    const history = css.slice(css.indexOf(".search-history {"), css.indexOf(".search-suggest {"));
+    expect(history).toContain("padding: 0 14px 12px");
+    expect(history).toContain(".search-history[hidden] { display: none; }");
+    expect(history).toContain(".search-history-label");
+    expect(history).not.toContain("Suggested");
+    const sheet = css.slice(css.indexOf("@media (max-width: 640px)"), css.indexOf(".section-head {"));
+    expect(sheet).toContain(".search-history,");
+    expect(sheet).toContain("calc(14px + env(safe-area-inset-left, 0px));");
+  });
+});
+
 describe("touch result selection", () => {
   test("the selected row background is only for a fine pointer that can hover", () => {
     const css = readFileSync(path.join(import.meta.dir, "../src/html.ts"), "utf8");

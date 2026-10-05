@@ -486,6 +486,18 @@ export function page(title: string, body: string): string {
     html[data-theme="dark"] .search-modal-footer { color: #78716c; }
     .search-modal-form:has(.search-modal-list:not([hidden])) .search-modal-footer { display: block; }
     .search-modal-form:has(.search-modal-list.is-passage) .search-modal-footer { display: none; }
+    .search-history {
+      flex: 0 0 auto; min-width: 0;
+      /* Same inset as topic chips, so the first recent query lines up with the search icon. */
+      padding: 0 14px 12px;
+    }
+    .search-history[hidden] { display: none; }
+    .search-history-label {
+      margin: 0 0 .3rem;
+      font-size: .72rem; font-weight: 500; line-height: 1.2;
+      color: #a8a29e;
+    }
+    html[data-theme="dark"] .search-history-label { color: #78716c; }
     .search-suggest {
       flex: 0 0 auto; min-width: 0;
       /* First chip lines up with the search icon. Right and bottom match the bar's 14px / 12px inset. */
@@ -688,6 +700,7 @@ export function page(title: string, body: string): string {
       }
       .search-modal-results::-webkit-scrollbar { display: none; width: 0; height: 0; }
       .search-modal-list { flex: none; overflow: visible; }
+      .search-history,
       .search-suggest {
         padding:
           0

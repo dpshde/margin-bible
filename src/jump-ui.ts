@@ -479,6 +479,7 @@ export function jumpScript(): string {
     closeTestamentMenu();
     setTestamentSheet(false);
     hideTopicChips();
+    hideHistory();
     const cache = readSearchCache();
     if (cache && cache.query) mirrorHeader(cache.query);
     if (wasOpen && searchState && !closeViaPop) {
@@ -717,6 +718,18 @@ export function jumpScript(): string {
     footer.textContent = "BSB";
     const results = document.createElement("div");
     results.className = "search-modal-results";
+    const history = document.createElement("div");
+    history.className = "search-history";
+    history.hidden = true;
+    const historyLabel = document.createElement("p");
+    historyLabel.className = "search-history-label";
+    historyLabel.textContent = "Recent";
+    const historyChips = document.createElement("div");
+    historyChips.className = "search-suggest-chips search-history-chips";
+    historyChips.setAttribute("role", "group");
+    historyChips.setAttribute("aria-label", "Recent searches");
+    history.appendChild(historyLabel);
+    history.appendChild(historyChips);
     const topics = document.createElement("div");
     topics.className = "search-suggest";
     topics.hidden = true;
@@ -732,6 +745,7 @@ export function jumpScript(): string {
     results.appendChild(footer);
     searchForm.appendChild(bar);
     searchForm.appendChild(sheet);
+    searchForm.appendChild(history);
     searchForm.appendChild(topics);
     searchForm.appendChild(results);
     panel.appendChild(searchForm);
@@ -845,6 +859,7 @@ export function jumpScript(): string {
     input.addEventListener("input", () => {
       if (String(input.value || "").trim()) {
         hideTopicChips();
+        hideHistory();
         suggest();
         return;
       }
@@ -855,17 +870,30 @@ export function jumpScript(): string {
       loadTopicSuggestions();
     });
     topicChips.addEventListener("scroll", () => syncChipFades(topicChips), { passive: true });
+    function submitChip(q) {
+      input.value = q;
+      mirrorHeader(q);
+      syncSearchQuery(q);
+      hideTopicChips();
+      hideHistory();
+      submitJump(q);
+    }
     topicChips.addEventListener("click", (event) => {
       const chip = event.target.closest("button.search-suggest-chip");
       if (!chip) return;
       event.preventDefault();
       const q = String(chip.getAttribute("data-query") || "").trim();
       if (!q) return;
-      input.value = q;
-      mirrorHeader(q);
-      syncSearchQuery(q);
-      hideTopicChips();
-      submitJump(q);
+      submitChip(q);
+    });
+    historyChips.addEventListener("scroll", () => syncChipFades(historyChips), { passive: true });
+    historyChips.addEventListener("click", (event) => {
+      const chip = event.target.closest("button.search-suggest-chip");
+      if (!chip) return;
+      event.preventDefault();
+      const q = String(chip.getAttribute("data-query") || "").trim();
+      if (!q) return;
+      submitChip(q);
     });
     list.addEventListener("click", (event) => {
       const btn = event.target.closest("button[data-index]");
@@ -1182,6 +1210,16 @@ export function jumpScript(): string {
     if (row) row.hidden = true;
   }
 
+  function historyRow() {
+    const modal = searchRoot();
+    return modal ? modal.querySelector(".search-history") : null;
+  }
+
+  function hideHistory() {
+    const row = historyRow();
+    if (row) row.hidden = true;
+  }
+
   function canOfferTopics() {
     const input = searchInput();
     return Boolean(modalIsOpen() && input && !String(input.value || "").trim() && !resultsOpen());
@@ -1207,6 +1245,31 @@ export function jumpScript(): string {
     requestAnimationFrame(() => syncChipFades(chips));
   }
 
+  function paintHistory() {
+    const row = historyRow();
+    const chips = row && row.querySelector(".search-history-chips");
+    if (!row || !chips || !canOfferTopics()) {
+      hideHistory();
+      return;
+    }
+    const recent = readRecentSearches();
+    if (!recent.length) {
+      hideHistory();
+      return;
+    }
+    chips.replaceChildren();
+    for (const query of recent) {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "search-suggest-chip";
+      btn.textContent = query;
+      btn.setAttribute("data-query", query);
+      chips.appendChild(btn);
+    }
+    row.hidden = false;
+    requestAnimationFrame(() => syncChipFades(chips));
+  }
+
   function syncChipFades(chips) {
     const row = chips || document.querySelector(".search-suggest-chips");
     if (!row) return;
@@ -1216,15 +1279,22 @@ export function jumpScript(): string {
   }
 
   function syncTopicChips() {
-    if (!canOfferTopics()) hideTopicChips();
-    else paintTopicChips(suggestTopics);
+    if (!canOfferTopics()) {
+      hideTopicChips();
+      hideHistory();
+      return;
+    }
+    paintHistory();
+    paintTopicChips(suggestTopics);
   }
 
   async function loadTopicSuggestions() {
     if (!canOfferTopics()) {
       hideTopicChips();
+      hideHistory();
       return;
     }
+    paintHistory();
     const recent = readRecentSearches();
     if (recent.length < 2) {
       hideTopicChips();
