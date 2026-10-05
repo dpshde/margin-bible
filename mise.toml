@@ -2,7 +2,7 @@
 bun = "1.4.2"
 node = "22.23.3"
 # Pin the beta. An unpinned `cf` install resolves to an unrelated 0.x package.
-"npm:cf" = "1.0.0-beta.10"
+"npm:cf" = "1.0.0-beta.12"
 
 [env]
 _.path = ["{{config_root}}/node_modules/.bin"]
@@ -23,19 +23,19 @@ run = "mise exec -- bun test"
 [tasks.ci]
 description = "What GitHub runs before a Worker can publish"
 depends = ["install"]
-run = ["mise exec -- bun run check", "mise exec -- bun test", "mise exec -- bunx wrangler deploy --dry-run"]
+run = ["mise exec -- bun run check", "mise exec -- bun test", "mise exec -- bun run dry-run"]
 
 [tasks.deploy]
-description = "Publish the Worker with the lockfile Wrangler, then confirm /health"
+description = "Publish the Worker with cf, then confirm /health"
 depends = ["install"]
 run = "sh scripts/deploy.sh"
 
 [tasks."cf:whoami"]
-description = "Show the Cloudflare identity cf and Wrangler will use"
+description = "Show the Cloudflare identity cf will use"
 run = "sh scripts/cf-whoami.sh"
 
 [tasks."d1:local"]
-description = "Apply D1 migrations to the local Miniflare database"
+description = "Apply D1 migrations to the local database used by cf dev"
 run = "mise exec -- bun run migrate:local"
 
 [tasks."d1:remote"]

@@ -9,15 +9,16 @@ Open a chapter by OSIS slug, focus a verse, and keep notes in D1. Guest browsing
 From `spike/workers/`:
 
 ```sh
-bun install
+mise install
+mise exec -- bun install
 bun run build:bsb          # refresh assets/bsb from the official USJ zip; committed cache is enough to skip this
-bun run migrate:local      # apply D1 migrations to the local Miniflare database
-bun run dev                # http://localhost:8787
+mise exec -- bun run migrate:local   # local D1 migrations for cf dev
+mise exec -- bun run dev             # http://localhost:8787
 bun test
 bun run check
 ```
 
-`wrangler` is the dev server and the deploy tool. There is no Rails process and no Postgres.
+`cf dev` is the dev server and `cf deploy` publishes. There is no Rails process and no Postgres. `cf` loads `cloudflare.config.ts` with Node ≥ 22.18 (`mise.toml` pins 22.23.3). Do not run `bunx cf`. `bun test` and `bun run check` stay on Bun. See [docs/CI-CD.md](docs/CI-CD.md).
 
 ### Smoke checklist
 
@@ -42,18 +43,11 @@ curl -s -c /tmp/margin.ck -b /tmp/margin.ck http://localhost:8787/api/notes?chap
 This checkout does not ship a live URL. Deploy when you have a Cloudflare account:
 
 ```sh
-bunx wrangler login
-bunx wrangler d1 create margin-spike
+mise exec -- cf auth login
+mise run deploy
 ```
 
-Put the printed `database_id` in `wrangler.jsonc` (replace the all-zero local placeholder). Then:
-
-```sh
-bunx wrangler d1 migrations apply margin-spike --remote
-bunx wrangler deploy
-```
-
-Wrangler prints a `*.workers.dev` URL. That host is the spike. Leave `margin.bible` on Railway.
+The Worker name, account, and D1 binding are in `cloudflare.config.ts`. Deploy prints the `*.workers.dev` URL. Leave `margin.bible` DNS alone. Publish steps are in [docs/CI-CD.md](docs/CI-CD.md).
 
 ## What is in
 

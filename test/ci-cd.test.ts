@@ -14,7 +14,7 @@ describe("durable CI/CD", () => {
   test("mise pins bun, node, and the Cloudflare CLI", () => {
     expect(mise).toContain('bun = "1.4.2"');
     expect(mise).toContain('node = "22.23.3"');
-    expect(mise).toContain('"npm:cf" = "1.0.0-beta.10"');
+    expect(mise).toContain('"npm:cf" = "1.0.0-beta.12"');
   });
 
   test("GitHub and a laptop share the mise tasks", () => {
@@ -28,16 +28,32 @@ describe("durable CI/CD", () => {
     expect(existsSync(new URL(".github/workflows/deploy.yml", root))).toBe(false);
   });
 
-  test("publish stays on Wrangler and remote migrations stay on cf", () => {
+  test("publish and migrations use cf", () => {
     const deploy = read("scripts/deploy.sh");
     const remote = read("scripts/d1-remote.sh");
-    expect(deploy).toContain("mise exec -- bunx wrangler deploy");
-    const commands = deploy.split("\n").filter((line) => !line.trim().startsWith("#"));
-    expect(commands.join("\n")).not.toContain("cf deploy");
-    expect(remote).toContain('mise exec -- cf d1 migrations apply "$D1_ID"');
+    const local = read("scripts/d1-local.sh");
+    const config = read("cloudflare.config.ts");
+    expect(deploy).toContain("mise exec -- cf deploy");
+    expect(deploy).not.toContain("wrangler deploy");
+    expect(remote).toContain('mise exec -- cf d1 migrations apply "$D1_ID" --dir migrations');
+    expect(local).toContain('mise exec -- cf d1 migrations apply "$D1_ID" --local --dir migrations --persist-to .wrangler/state');
     expect(read("scripts/cloudflare-env.mjs")).not.toContain("CLOUDFLARE_API_TOKEN");
     expect(read("scripts/cf-whoami.mjs")).toContain("tokenValid");
     expect(read("scripts/cf-whoami.mjs")).not.toContain("scopes");
-    expect(read("wrangler.jsonc")).toContain('"account_id": "91ff2c2b757414041aeaa00896a8a43f"');
+    expect(config).toContain('accountId: "91ff2c2b757414041aeaa00896a8a43f"');
+    expect(config).toContain('name: "margin-bible"');
+    expect(config).toContain('id: "0f48d232-f2d8-46c2-a8a3-3b36c4279feb"');
+    expect(config).toContain("workersDev: true");
+    expect(config).toContain("runWorkerFirst: true");
+    expect(config).toContain("redactQueryString: true");
+    expect(config).toContain("issues:");
+    expect(config).toContain("logs:");
+    expect(config).toContain("traces:");
+    expect(config).not.toContain("TODO(@cloudflare)");
+    expect(config).not.toContain("throw new Error");
+    expect(existsSync(new URL("wrangler.jsonc", root))).toBe(false);
+    expect(read("wrangler.config.ts")).toContain('assetsDirectory: "./assets"');
+    expect(mise).toContain("mise exec -- bun run dry-run");
+    expect(mise).not.toContain("wrangler deploy");
   });
 });

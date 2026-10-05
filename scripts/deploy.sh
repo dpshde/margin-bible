@@ -1,8 +1,8 @@
 #!/bin/sh
-# Publish with the Wrangler version locked in bun.lock, then wait until /health answers.
-# `cf deploy` is not used: this project is wrangler.jsonc, and cf deploy reads cloudflare.config.ts.
+# Publish with the project `cf`. Node >= 22.18 loads cloudflare.config.ts.
+# Do not run this under Bun (`bunx cf`); Bun cannot load that config.
 set -eu
-mise exec -- bunx wrangler deploy
+mise exec -- cf deploy
 url=https://margin-bible.dpshade.workers.dev/health
 i=0
 while [ "$i" -lt 5 ]; do
