@@ -626,7 +626,8 @@ export function page(title: string, body: string): string {
     .search-testament-sheet { display: none; }
     .search-testament-menu {
       position: fixed; z-index: 5;
-      min-width: 5.5rem; margin: 0; padding: .25rem 0;
+      min-width: 5.5rem; margin: 0; padding: 0;
+      overflow: hidden;
       border: 1px solid #e7e5e4; border-radius: .25rem;
       background: #fff; color: #44403c;
       box-shadow: 0 .5rem 1.25rem rgb(28 25 23 / .16);
@@ -637,11 +638,13 @@ export function page(title: string, body: string): string {
     }
     .search-testament-option {
       display: flex; align-items: center; gap: .4rem;
-      width: 100%; margin: 0; padding: .3rem .7rem;
-      border: 0; background: transparent; color: inherit;
+      box-sizing: border-box; width: 100%; margin: 0; padding: .3rem .7rem;
+      border: 0; border-radius: 0; background: transparent; color: inherit;
       font: inherit; font-size: .75rem; font-weight: 500; line-height: 1rem;
       text-align: left; cursor: pointer; touch-action: manipulation;
     }
+    .search-testament-menu .search-testament-option:first-child { border-radius: .2rem .2rem 0 0; }
+    .search-testament-menu .search-testament-option:last-child { border-radius: 0 0 .2rem .2rem; }
     .search-testament-check { width: .8em; opacity: 0; font-size: .75rem; }
     .search-testament-option.is-selected .search-testament-check { opacity: 1; }
     @media (hover: hover) and (pointer: fine) {

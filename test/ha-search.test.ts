@@ -799,6 +799,13 @@ describe("testament filter", () => {
     expect(picker).toContain("stroke='%236b7280'");
     expect(picker).toContain("stroke='%23a8a29e'");
     expect(picker).toContain("appearance: none");
+    const menu = picker.slice(picker.indexOf(".search-testament-menu {"), picker.indexOf(".search-testament-menu[hidden]"));
+    expect(menu).toContain("padding: 0");
+    expect(menu).not.toContain("padding: .25rem");
+    expect(menu).toContain("overflow: hidden");
+    expect(picker).toContain(".search-testament-menu .search-testament-option:first-child { border-radius: .2rem .2rem 0 0; }");
+    expect(picker).toContain(".search-testament-menu .search-testament-option:last-child { border-radius: 0 0 .2rem .2rem; }");
+    expect(picker).toContain("padding: .3rem .7rem");
     const sheet = css.slice(css.indexOf("@media (max-width: 640px)"), css.indexOf(".section-head {"));
     expect(sheet).toContain(".search-testament-desktop { display: none; }");
     expect(sheet).toContain(".search-testament-more { display: inline-flex; }");
