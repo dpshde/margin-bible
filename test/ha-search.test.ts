@@ -798,6 +798,57 @@ describe("testament filter", () => {
   });
 });
 
+describe("passage helpers while typing", () => {
+  test("book, chapter, and verse suggestions stay on jump-suggest and free text still waits for submit", () => {
+    const source = jumpScript();
+    const modal = source.slice(source.indexOf("function ensureSearchModal"), source.indexOf("function ensureSearchFab"));
+    const onInput = modal.slice(modal.indexOf('input.addEventListener("input"'), modal.indexOf("topicChips.addEventListener"));
+    const typing = onInput.slice(0, onInput.indexOf("if (timer)"));
+    expect(typing).toContain("hideTopicChips()");
+    expect(typing).toContain("suggest()");
+    expect(typing).not.toContain("searchScripture");
+    expect(typing).not.toContain("/api/ha-search");
+    expect(typing).not.toContain("writeSearchCache");
+    expect(onInput).toContain("suggestSeq += 1");
+    expect(onInput).toContain("seq += 1");
+    expect(onInput).toContain("close()");
+    expect(onInput).toContain("loadTopicSuggestions()");
+    expect(onInput).not.toContain("fetch(");
+    expect(onInput).not.toContain("clearSearchCache");
+
+    const live = source.slice(source.indexOf("async function suggestNow"), source.indexOf("async function submitJump"));
+    expect(live).toContain('fetch("/api/jump-suggest?q="');
+    expect(live).toContain("render(data)");
+    expect(live).toContain("if (showingPassageHelpers()) close()");
+    expect(live).not.toContain("/api/ha-search");
+    expect(live).not.toContain("searchScripture");
+    expect(live).not.toContain("writeSearchCache");
+    expect(live).not.toContain("showSearchSkeletons");
+    expect(live.indexOf("my !== suggestSeq || searchSeq !== seq")).toBeLessThan(live.indexOf("render(data)"));
+
+    const keys = modal.slice(modal.indexOf('input.addEventListener("keydown"'), modal.indexOf('input.addEventListener("input"'));
+    expect(keys).toContain('event.key === "Tab"');
+    expect(keys).toContain("passageHit(hits[selected])");
+    expect(keys.indexOf("applyHit(passage)")).toBeLessThan(keys.indexOf("q === submittedQuery"));
+
+    const submit = source.slice(source.indexOf("async function submitJump"), source.indexOf("function suggest()"));
+    expect(submit.indexOf("suggestSeq += 1")).toBeLessThan(submit.indexOf('fetch("/api/jump-suggest?q="'));
+    expect(submit.indexOf("showSearchSkeletons()")).toBeLessThan(submit.indexOf("searchScripture(q, my)"));
+    const freeText = submit.slice(submit.lastIndexOf("submittedQuery = q"));
+    expect(freeText).toContain("searchScripture(q, my)");
+    expect(freeText).not.toContain('fetch("/api/jump-suggest');
+
+    expect(source).toContain("search-result-passage");
+    expect(source).toContain('kind === "book" || kind === "chapter" || kind === "verse"');
+    const css = readFileSync(path.join(import.meta.dir, "../src/html.ts"), "utf8");
+    const passage = css.slice(css.indexOf(".search-result-passage {"), css.indexOf(".search-mark {"));
+    expect(passage).toContain("font-size: .92rem");
+    expect(passage).not.toContain("text-transform");
+    expect(css).toContain(".search-modal-form:has(.search-modal-list.is-passage) .search-modal-footer { display: none; }");
+    expect(css).toContain(".search-modal-list .suggest-hint");
+  });
+});
+
 describe("touch result selection", () => {
   test("the selected row background is only for a fine pointer that can hover", () => {
     const css = readFileSync(path.join(import.meta.dir, "../src/html.ts"), "utf8");

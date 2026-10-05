@@ -485,6 +485,7 @@ export function page(title: string, body: string): string {
     }
     html[data-theme="dark"] .search-modal-footer { color: #78716c; }
     .search-modal-form:has(.search-modal-list:not([hidden])) .search-modal-footer { display: block; }
+    .search-modal-form:has(.search-modal-list.is-passage) .search-modal-footer { display: none; }
     .search-suggest {
       flex: 0 0 auto; min-width: 0;
       /* First chip lines up with the search icon. Right and bottom match the bar's 14px / 12px inset. */
@@ -566,6 +567,13 @@ export function page(title: string, body: string): string {
       font-family: var(--read); font-size: 1.02rem; line-height: 1.35;
       color: var(--ink); overflow-wrap: anywhere;
     }
+    .search-result-passage {
+      display: block;
+      font-size: .92rem; line-height: 1.35;
+      color: var(--ink);
+    }
+    .search-modal-list .suggest-hint { padding: .55rem 1rem .7rem; }
+    .search-modal-list > li:first-child.suggest-hint { border-top: 0; }
     .search-mark {
       background: none; color: #ea580c; font-weight: 600;
     }

@@ -215,6 +215,7 @@ export function jumpScript(): string {
   let hits = [];
   let selected = -1;
   let seq = 0;
+  let suggestSeq = 0;
   let timer = null;
   let submittedQuery = "";
   let searchTestament = "all";
@@ -470,6 +471,8 @@ export function jumpScript(): string {
       panel.style.transform = "";
       panel.style.transition = "";
     }
+    if (timer) clearTimeout(timer);
+    suggestSeq += 1;
     suggestToken += 1;
     suggestAttempted = false;
     suggestTopics = [];
@@ -815,10 +818,23 @@ export function jumpScript(): string {
       }
       if (event.key === "Enter") {
         const q = input.value.trim();
+        const passage = selected >= 0 && passageHit(hits[selected]) ? hits[selected] : null;
+        if (passage) {
+          event.preventDefault();
+          applyHit(passage);
+          return;
+        }
         if (hits.length && selected >= 0 && q === submittedQuery) {
           event.preventDefault();
           applyHit(hits[selected]);
         }
+        return;
+      }
+      if (event.key === "Tab") {
+        const passage = selected >= 0 && passageHit(hits[selected]) ? hits[selected] : null;
+        if (!passage) return;
+        event.preventDefault();
+        applyHit(passage);
         return;
       }
       if (event.key === "Escape") {
@@ -829,8 +845,11 @@ export function jumpScript(): string {
     input.addEventListener("input", () => {
       if (String(input.value || "").trim()) {
         hideTopicChips();
+        suggest();
         return;
       }
+      if (timer) clearTimeout(timer);
+      suggestSeq += 1;
       seq += 1;
       close();
       loadTopicSuggestions();
@@ -955,6 +974,7 @@ export function jumpScript(): string {
     }
     selected = -1;
     hits = [];
+    if (list) list.classList.remove("is-passage");
     syncTopicChips();
   }
 
@@ -966,6 +986,7 @@ export function jumpScript(): string {
     const input = searchInput();
     if (!list || !input) return;
     list.hidden = false;
+    list.classList.remove("is-passage");
     input.setAttribute("aria-expanded", "true");
     list.setAttribute("aria-busy", "true");
     input.removeAttribute("aria-activedescendant");
@@ -989,6 +1010,7 @@ export function jumpScript(): string {
     const input = searchInput();
     if (!list || !input) return;
     list.hidden = false;
+    list.classList.remove("is-passage");
     list.removeAttribute("aria-busy");
     input.setAttribute("aria-expanded", "true");
     input.removeAttribute("aria-activedescendant");
@@ -1013,6 +1035,9 @@ export function jumpScript(): string {
     const hint = hintText
       ? '<li class="suggest-hint" role="note">' + escape(hintText) + "</li>"
       : "";
+    const passageList = open && !hits.some((hit) => hit && hit.kind === "scripture") &&
+      (hits.some(passageHit) || Boolean(hintText));
+    list.classList.toggle("is-passage", passageList);
     const options = hits
       .map((hit, index) => {
         const id = "search-result-" + index;
@@ -1021,7 +1046,9 @@ export function jumpScript(): string {
         const body = hit.kind === "scripture"
           ? '<span class="search-result-ref">' + escape(hit.label) + "</span>" +
             (hit.text || hit.html ? '<span class="search-result-text">' + shown + "</span>" : "")
-          : '<span class="search-result-ref">' + escape(hit.label) + "</span>";
+          : passageHit(hit)
+            ? '<span class="search-result-passage">' + escape(hit.label) + "</span>"
+            : '<span class="search-result-ref">' + escape(hit.label) + "</span>";
         return (
           '<li id="' + id + '" role="option" aria-selected="' + (sel ? "true" : "false") + '">' +
           '<button type="button" class="search-result' + (sel ? " is-selected" : "") + '" data-index="' + index + '">' +
@@ -1033,6 +1060,18 @@ export function jumpScript(): string {
     list.innerHTML = options + hint;
     syncActive();
     syncTopicChips();
+  }
+
+  function passageHit(hit) {
+    const kind = hit && hit.kind;
+    return kind === "book" || kind === "chapter" || kind === "verse";
+  }
+
+  function showingPassageHelpers() {
+    if (hits.some(passageHit)) return true;
+    const list = searchList();
+    if (!list || list.hidden || hits.some((hit) => hit && hit.kind === "scripture")) return false;
+    return list.classList.contains("is-passage");
   }
 
   function insertTextFor(hit) {
@@ -1261,27 +1300,36 @@ export function jumpScript(): string {
   async function suggestNow() {
     const input = searchInput();
     const q = input ? input.value : "";
-    const my = ++seq;
+    const my = ++suggestSeq;
+    const searchSeq = seq;
     if (!String(q).trim()) {
-      close();
+      if (my === suggestSeq) close();
       return;
     }
     try {
       const res = await fetch("/api/jump-suggest?q=" + encodeURIComponent(q), {
         headers: { accept: "application/json" },
       });
-      if (!res.ok || my !== seq) return;
+      if (!res.ok || my !== suggestSeq || searchSeq !== seq) return;
       const data = await res.json();
-      if (my !== seq) return;
-      submittedQuery = String(q).trim();
-      writeSearchCache(submittedQuery, data.hits || []);
-      render(data);
+      if (my !== suggestSeq || searchSeq !== seq || !modalIsOpen()) return;
+      const typed = searchInput();
+      if (!typed || String(typed.value || "") !== String(q)) return;
+      const nextHits = Array.isArray(data.hits) ? data.hits : [];
+      const hint = data.hint ? String(data.hint) : "";
+      if (nextHits.length || hint) {
+        render(data);
+        return;
+      }
+      if (showingPassageHelpers()) close();
     } catch (_) {
       /* ignore transient network blips */
     }
   }
 
   async function submitJump(q) {
+    if (timer) clearTimeout(timer);
+    suggestSeq += 1;
     const my = ++seq;
     let data = null;
     try {
