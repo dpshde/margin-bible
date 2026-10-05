@@ -830,6 +830,12 @@ export function jumpScript(): string {
       }
       if (event.key === "Enter") {
         const q = input.value.trim();
+        if (q && canGo(q)) {
+          event.preventDefault();
+          if (input.form) input.form.requestSubmit();
+          else submitJump(q);
+          return;
+        }
         const passage = selected >= 0 && passageHit(hits[selected]) ? hits[selected] : null;
         if (passage) {
           event.preventDefault();

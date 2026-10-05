@@ -838,6 +838,13 @@ describe("passage helpers while typing", () => {
     expect(keys).toContain('event.key === "Tab"');
     expect(keys).toContain("passageHit(hits[selected])");
     expect(keys.indexOf("applyHit(passage)")).toBeLessThan(keys.indexOf("q === submittedQuery"));
+    const enter = keys.slice(keys.indexOf('event.key === "Enter"'), keys.indexOf('event.key === "Tab"'));
+    expect(enter.indexOf("canGo(q)")).toBeGreaterThan(-1);
+    expect(enter.indexOf("canGo(q)")).toBeLessThan(enter.indexOf("applyHit(passage)"));
+    expect(enter).toContain("input.form.requestSubmit()");
+    const tab = keys.slice(keys.indexOf('event.key === "Tab"'));
+    expect(tab).toContain("applyHit(passage)");
+    expect(tab).not.toContain("canGo(q)");
 
     const submit = source.slice(source.indexOf("async function submitJump"), source.indexOf("function suggest()"));
     const exact = submit.slice(0, submit.indexOf('fetch("/api/jump-suggest?q="'));
