@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { spawnSync } from "child_process";
-import { readFileSync, unlinkSync, writeFileSync } from "fs";
+import { existsSync, readFileSync, unlinkSync, writeFileSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
 import type { Attachment } from "../src/attachments";
@@ -187,6 +187,11 @@ describe("preview worker publish", () => {
     expect(workflow).not.toContain("refs/heads/main");
     expect(config).toContain('name: "margin-bible"');
     expect(config).not.toContain("margin-bible-verse-groups");
+    expect(script).not.toContain("railway");
+    expect(workflow).not.toContain("railway");
+    expect(existsSync(new URL("../Dockerfile", import.meta.url))).toBe(false);
+    expect(existsSync(new URL("../railway.toml", import.meta.url))).toBe(false);
+    expect(existsSync(new URL("../src/preview-server.ts", import.meta.url))).toBe(false);
   });
 });
 

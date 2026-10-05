@@ -12,6 +12,5 @@
     "forceConsistentCasingInFileNames": true,
     "verbatimModuleSyntax": true
   },
-  "include": ["src/**/*.ts"],
-  "exclude": ["src/preview-d1.ts", "src/preview-assets.ts", "src/preview-server.ts"]
+  "include": ["src/**/*.ts"]
 }
