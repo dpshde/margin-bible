@@ -427,7 +427,7 @@ describe("search list stays on screen", () => {
     expect(panel).not.toContain("box-shadow");
     const field = css.slice(css.indexOf(".search-modal-bar"), css.indexOf(".search-modal-list {"));
     expect(field).toContain("align-items: center");
-    expect(field).toContain("padding: .75rem 1rem");
+    expect(field).toContain("padding: 11px 16px 13px");
     expect(field).toContain("padding: .25rem 0");
     expect(field).toContain("line-height: 1.25");
     expect(field).toContain("font-size: 1.125rem");

@@ -407,7 +407,11 @@ export function page(title: string, body: string): string {
     .search-modal-bar {
       display: flex; align-items: center; flex: 0 0 auto;
       min-width: 0;
-      padding: .75rem 1rem;
+      box-sizing: border-box;
+      /* The 1px divider is part of the bar. Top padding is 1px tighter than the
+         bottom padding so the glyphs, which sit low in the line box, land in
+         the middle. Same padding with and without results. */
+      padding: 11px 16px 13px;
       border-bottom: 1px solid var(--line);
     }
     .search-modal-form input[type="search"] {
