@@ -38,14 +38,14 @@ describe("header chrome without chapter note pencil", () => {
     expect(actions).toContain('id="expand-all-btn"');
     expect(html).toContain(".topbar-title {");
     expect(html).toContain("display: flex; align-items: center; justify-content: center;");
-    expect(html).toMatch(/\.topbar-chapter-mark \{\s*flex: none;/);
+    expect(html).toMatch(/\.icon-btn\.topbar-chapter-mark \{\s*flex: none;/);
     const phone = html.indexOf("@media (max-width: 640px)");
     expect(html.slice(phone)).toContain(".topbar-chapter-mark { margin-inline-start: .75rem; }");
   });
 
   test("chapter bookmark has no hover chrome and tighter padding toward the title", () => {
     const html = renderChapterPage({ passage, pack, notes: [] });
-    const ruleStart = html.indexOf(".topbar-chapter-mark {");
+    const ruleStart = html.indexOf(".icon-btn.topbar-chapter-mark {");
     const rule = html.slice(ruleStart, html.indexOf("}", ruleStart));
     expect(rule).toContain("flex: none;");
     expect(rule).toContain("width: auto;");

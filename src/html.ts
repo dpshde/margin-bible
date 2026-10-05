@@ -172,7 +172,7 @@ export function page(title: string, body: string): string {
     /* Chapter bookmark sits with the title so it reads as chapter-scoped, not a toolbar action.
        Keep the leading inset of a 44px icon button; shave the trailing side so the glyph
        sits a little closer to the chapter name. */
-    .topbar-chapter-mark {
+    .icon-btn.topbar-chapter-mark {
       flex: none;
       width: auto;
       padding-inline-start: calc((var(--tap) - 1.1rem) / 2);
