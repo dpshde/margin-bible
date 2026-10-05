@@ -581,6 +581,8 @@ export function page(title: string, body: string): string {
       margin-top: .28rem;
       font-family: var(--read); font-size: 1.02rem; line-height: 1.35;
       color: var(--ink); overflow-wrap: anywhere;
+      text-wrap: pretty;
+      hanging-punctuation: allow-end last;
     }
     .search-result-passage {
       display: block;

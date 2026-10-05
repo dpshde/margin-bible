@@ -81,6 +81,13 @@ function queryStems(query) {
   }
   return stems;
 }
+function glueClosingQuotes(text) {
+  return String(text || "").replace(/([^\s\u2060])(["'\u2019\u201D\u00BB\u203A])/g, "$1\u2060$2");
+}
+function glueQuoteBoundary(prev, next) {
+  if (!next || !prev || /[\s\u2060]$/.test(prev)) return next;
+  return /^["'\u2019\u201D\u00BB\u203A]/.test(next) ? "\u2060" + next : next;
+}
 function markWords(text, accept) {
   const raw = String(text || "");
   const re = new RegExp("\\b[A-Za-z0-9']+\\b", "g");
@@ -88,12 +95,17 @@ function markWords(text, accept) {
   let cursor = 0;
   let match;
   while ((match = re.exec(raw))) {
-    out += escape(raw.slice(cursor, match.index));
+    let gap = raw.slice(cursor, match.index);
+    if (cursor > 0) gap = glueQuoteBoundary(raw.slice(0, cursor), gap);
+    out += escape(glueClosingQuotes(gap));
     const word = match[0];
-    out += accept(word) ? '<mark class="search-mark">' + escape(word) + "</mark>" : escape(word);
+    const shown = escape(glueClosingQuotes(word));
+    out += accept(word) ? '<mark class="search-mark">' + shown + "</mark>" : shown;
     cursor = match.index + word.length;
   }
-  out += escape(raw.slice(cursor));
+  let rest = raw.slice(cursor);
+  if (cursor > 0) rest = glueQuoteBoundary(raw.slice(0, cursor), rest);
+  out += escape(glueClosingQuotes(rest));
   return out;
 }
 function highlightQuery(text, query) {
@@ -142,17 +154,24 @@ function applyOffsets(text, ranges) {
   let cursor = 0;
   for (const pair of sorted) {
     if (pair[0] < cursor) continue;
-    out += escape(raw.slice(cursor, pair[0]));
-    out += '<mark class="search-mark">' + escape(raw.slice(pair[0], pair[1])) + "</mark>";
+    let gap = raw.slice(cursor, pair[0]);
+    if (cursor > 0) gap = glueQuoteBoundary(raw.slice(0, cursor), gap);
+    out += escape(glueClosingQuotes(gap));
+    let chunk = raw.slice(pair[0], pair[1]);
+    chunk = glueQuoteBoundary(raw.slice(0, pair[0]), chunk);
+    out += '<mark class="search-mark">' + escape(glueClosingQuotes(chunk)) + "</mark>";
     cursor = pair[1];
   }
-  out += escape(raw.slice(cursor));
+  let rest = raw.slice(cursor);
+  if (cursor > 0) rest = glueQuoteBoundary(raw.slice(0, cursor), rest);
+  out += escape(glueClosingQuotes(rest));
   return out;
 }
 function sanitizeMarks(html) {
   const parts = String(html).split(/(<\/?\s*(?:mark|em|strong|b)\b[^>]*>)/gi);
   let open = false;
   let out = "";
+  let prev = "";
   for (const part of parts) {
     if (/^<\s*(mark|em|strong|b)\b/i.test(part)) {
       open = true;
@@ -162,8 +181,10 @@ function sanitizeMarks(html) {
       open = false;
       continue;
     }
-    const safe = escape(part.replace(/<[^>]+>/g, ""));
+    const plain = part.replace(/<[^>]+>/g, "");
+    const safe = escape(glueClosingQuotes(glueQuoteBoundary(prev, plain)));
     out += open ? '<mark class="search-mark">' + safe + "</mark>" : safe;
+    prev += plain;
   }
   return out;
 }

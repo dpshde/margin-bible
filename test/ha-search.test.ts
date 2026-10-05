@@ -722,6 +722,21 @@ describe("topic suggestion chips", () => {
     expect(exact).toContain('<mark class="search-mark">life</mark>');
     expect(exact).not.toContain('<mark class="search-mark">tree</mark>');
     expect(api.highlightFromHiddenArrow({ text: deut })).toBe("");
+    const john = "“Truly, truly, I tell you,” Jesus declared, “before Abraham was born, I am!”";
+    const johnHtml = api.highlightQuery(john, "Jesus is God");
+    expect(johnHtml).toContain('<mark class="search-mark">Jesus</mark>');
+    expect(johnHtml).toContain("am!\u2060”");
+    expect(johnHtml).toContain("you,\u2060”");
+    expect(api.highlightQuery('"before Abraham was born, I am!"', "born")).toContain("am!\u2060&quot;");
+    const stuck = api.highlightFromHiddenArrow({
+      text: "I am”",
+      highlights: [{ start: 2, end: 4 }],
+    });
+    expect(stuck).toContain('<mark class="search-mark">am</mark>\u2060”');
+    const css = readFileSync(path.join(import.meta.dir, "../src/html.ts"), "utf8");
+    const snippet = css.slice(css.indexOf(".search-result-text {"), css.indexOf(".search-result-passage {"));
+    expect(snippet).toContain("text-wrap: pretty");
+    expect(snippet).toContain("hanging-punctuation: allow-end last");
     expect(source).toContain("highlightFromHiddenArrow(item)");
     expect(source).toContain("hit.html ? hit.html : highlightQuery(hit.text, submittedQuery)");
     const mark = readFileSync(path.join(import.meta.dir, "../src/html.ts"), "utf8");
