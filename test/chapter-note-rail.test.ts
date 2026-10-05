@@ -18,6 +18,18 @@ describe("chapter note rail CSS", () => {
     expect(css).toContain('.chapter-note-rail.is-open .chapter-note-peek { display: none; }');
   });
 
+  test("desktop scripture column shares the jump field's left and right edges", () => {
+    const desk = css.slice(css.indexOf("@media (min-width: 656px)"), css.indexOf(".note-tray, .chapter-tray {"));
+    expect(desk).toContain(".section-head { margin-left: 0; margin-right: 0; }");
+    expect(desk).toContain(".verse { padding-left: 0; }");
+    expect(desk).toContain("width: calc(100% + var(--verse-gutter) + var(--verse-gutter-gap));");
+    expect(desk).toContain("margin-left: calc(-1 * (var(--verse-gutter) + var(--verse-gutter-gap)));");
+    expect(css).toContain("@media (min-width: 656px) {\n      .note-tray { margin-left: 0; }");
+    expect(css).not.toContain("padding-right: 1.15rem");
+    const phone = css.slice(css.lastIndexOf("@media (max-width: 640px)"));
+    expect(phone).toContain("#reader:has(.reader-verse-rail) .chapter,\n      #reader:has(.reader-verse-rail) .pager { padding-right: .85rem; }");
+  });
+
   test("chapter tray matches jump width and keeps light internal padding", () => {
     expect(css).toContain("margin: 0 0 .35rem;\n      /* Keep air vertical without shrinking the shared left/right edges. */\n      padding: .28rem 0 .42rem;");
     expect(css).not.toContain("margin: 0 0 .35rem calc(var(--verse-inset) + var(--verse-gutter) + var(--verse-gutter-gap));");

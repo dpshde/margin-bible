@@ -1004,9 +1004,9 @@ export function page(title: string, body: string): string {
       pointer-events: none;
     }
     .reader-verse-modal[hidden] { display: none; }
-    #reader:has(.reader-verse-rail) .chapter,
-    #reader:has(.reader-verse-rail) .pager { padding-right: 1.15rem; }
-    /* Phone rail is a leaner strip. Desktop scrub width stays 32px. The hit target stays wide enough to tap. */
+    /* Phone rail is a leaner strip. Desktop scrub width stays 32px. The hit target stays wide enough to tap.
+       The rail is fixed to the viewport edge. On a centered desktop column it does not overlap the text,
+       so the chapter keeps the jump field's right edge. Narrow screens still inset for the rail. */
     @media (max-width: 767px) {
       .reader-verse-rail { width: 28px; padding-left: 16px; }
       .reader-verse-rail.visible,
@@ -1022,13 +1022,24 @@ export function page(title: string, body: string): string {
       .reader-verse-rail.dragging .reader-verse-rail-dot.wave-2 { width: 10px; }
       .reader-verse-rail-dot.wave-1,
       .reader-verse-rail.dragging .reader-verse-rail-dot.wave-1 { width: 12px; }
-      #reader:has(.reader-verse-rail) .chapter,
-      #reader:has(.reader-verse-rail) .pager { padding-right: .85rem; }
+    }
+    /* Desktop reading column matches the jump field: same left and right edges.
+       Verse numbers hang in the margin so they don't shorten the line. */
+    @media (min-width: 656px) {
+      .section-head { margin-left: 0; margin-right: 0; }
+      .verse { padding-left: 0; }
+      .verse-press {
+        width: calc(100% + var(--verse-gutter) + var(--verse-gutter-gap));
+        margin-left: calc(-1 * (var(--verse-gutter) + var(--verse-gutter-gap)));
+      }
     }
     .note-tray, .chapter-tray {
       position: relative;
       margin-left: calc(var(--verse-gutter) + var(--verse-gutter-gap));
       padding: .12rem 0 .28rem;
+    }
+    @media (min-width: 656px) {
+      .note-tray { margin-left: 0; }
     }
     .chapter-note-rail {
       margin: 0 0 .55rem;
@@ -1755,6 +1766,8 @@ export function page(title: string, body: string): string {
         --verse-gutter-gap: .45rem;
         --verse-inset: .3rem;
       }
+      #reader:has(.reader-verse-rail) .chapter,
+      #reader:has(.reader-verse-rail) .pager { padding-right: .85rem; }
       .note-tray, .chapter-tray {
         margin-left: calc(var(--verse-gutter) + var(--verse-gutter-gap));
         padding-right: 0;
