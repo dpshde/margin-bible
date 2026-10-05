@@ -386,9 +386,9 @@ export function page(title: string, body: string): string {
       position: absolute; inset: 0;
       margin: 0; padding: 0; border: 0; cursor: pointer;
       /* Dark scrim in both themes. --ink flips to near-white in dark mode, so it cannot tint this wash. */
-      background: rgba(12, 10, 9, 0.55);
-      -webkit-backdrop-filter: blur(16px);
-      backdrop-filter: blur(16px);
+      background: rgba(12, 10, 9, 0.42);
+      -webkit-backdrop-filter: blur(8px);
+      backdrop-filter: blur(8px);
     }
     .search-modal-panel {
       position: relative; z-index: 1;
