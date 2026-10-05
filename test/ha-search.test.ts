@@ -484,7 +484,14 @@ describe("search list stays on screen", () => {
     expect(panel).not.toContain("box-shadow");
     const field = css.slice(css.indexOf(".search-modal-bar"), css.indexOf(".search-modal-list {"));
     expect(field).toContain("align-items: center");
-    expect(field).toContain("padding: 11px 16px 13px");
+    expect(field).toContain("padding: 12px 14px");
+    expect(field).not.toContain("border-bottom");
+    expect(field).toContain(".search-modal-icon");
+    expect(field).toContain(".search-modal-translation");
+    expect(field).toContain("font-variant-caps: all-small-caps");
+    expect(field).toContain(".search-modal-form:has(.search-modal-list:not([hidden])) .search-modal-bar::after");
+    expect(source).toContain('translation.textContent = "BSB"');
+    expect(source).toContain("search-modal-icon");
     expect(field).toContain("padding: .25rem 0");
     expect(field).toContain("line-height: 1.25");
     expect(field).toContain("font-size: 1.125rem");

@@ -185,6 +185,10 @@ export function jumpScript(): string {
     searchForm.setAttribute("role", "search");
     const bar = document.createElement("div");
     bar.className = "search-modal-bar";
+    const icon = document.createElement("span");
+    icon.className = "search-modal-icon";
+    icon.setAttribute("aria-hidden", "true");
+    icon.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="6.5"/><path d="M16.2 16.2 20 20"/></svg>';
     const input = document.createElement("input");
     input.id = "search-modal-q";
     input.name = "q";
@@ -201,7 +205,12 @@ export function jumpScript(): string {
     list.id = "search-modal-list";
     list.setAttribute("role", "listbox");
     list.hidden = true;
+    const translation = document.createElement("span");
+    translation.className = "search-modal-translation";
+    translation.textContent = "BSB";
+    bar.appendChild(icon);
     bar.appendChild(input);
+    bar.appendChild(translation);
     searchForm.appendChild(bar);
     searchForm.appendChild(list);
     panel.appendChild(searchForm);

@@ -410,15 +410,40 @@ export function page(title: string, body: string): string {
       width: 100%; max-height: 100%;
     }
     .search-modal-bar {
+      position: relative;
       display: flex; align-items: center; flex: 0 0 auto;
+      gap: .55rem;
       min-width: 0;
       box-sizing: border-box;
-      /* The 1px divider is part of the bar. Top padding is 1px tighter than the
-         bottom padding so the glyphs, which sit low in the line box, land in
-         the middle. Same padding with and without results. */
-      padding: 11px 16px 13px;
-      border-bottom: 1px solid var(--line);
+      padding: 12px 14px;
     }
+    .search-modal-form:has(.search-modal-list:not([hidden])) .search-modal-bar::after {
+      content: "";
+      position: absolute; left: 0; right: 0; bottom: 0;
+      height: 1px;
+      background: color-mix(in srgb, var(--ink) 14%, transparent);
+      pointer-events: none;
+    }
+    .search-modal-icon {
+      flex: 0 0 auto;
+      display: flex; align-items: center; justify-content: center;
+      width: 18px; height: 18px;
+      color: #a8a29e;
+    }
+    .search-modal-icon svg { display: block; width: 18px; height: 18px; }
+    html[data-theme="dark"] .search-modal-icon { color: #78716c; }
+    .search-modal-translation {
+      flex: 0 0 auto;
+      margin: 0; padding: .2rem .45rem;
+      border-radius: 999px;
+      background: color-mix(in srgb, var(--ink) 7%, transparent);
+      color: #a8a29e;
+      font-size: .68rem; font-weight: 650; line-height: 1.2;
+      letter-spacing: .08em; text-transform: uppercase;
+      font-variant-caps: all-small-caps;
+      pointer-events: none; user-select: none;
+    }
+    html[data-theme="dark"] .search-modal-translation { color: #78716c; }
     .search-modal-form input[type="search"] {
       flex: 1 1 auto; align-self: center;
       box-sizing: border-box;
