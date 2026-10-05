@@ -642,7 +642,8 @@ describe("topic suggestion chips", () => {
     expect(chips).toContain("color: #78716c");
     expect(chips).toContain("box-shadow: none");
     expect(chips).not.toContain("text-shadow");
-    expect(chips).toContain("padding: 0 14px 12px calc(14px + 18px + .55rem)");
+    expect(chips).toContain("padding: 0 14px 12px");
+    expect(chips).not.toContain("18px + .55rem");
     expect(chips).toContain("--chip-fade: 28px");
     expect(chips).toContain("gap: .3rem");
     expect(chips).toContain("padding: .2rem .5rem");
@@ -658,7 +659,8 @@ describe("topic suggestion chips", () => {
     expect(sheet).toContain("overflow-x: auto");
     expect(sheet).toContain("scrollbar-width: none");
     expect(sheet).toContain(".search-suggest-chips::-webkit-scrollbar { display: none; width: 0; height: 0; }");
-    expect(sheet).toContain("calc(14px + env(safe-area-inset-left, 0px) + 18px + .55rem)");
+    expect(sheet).toContain("calc(14px + env(safe-area-inset-left, 0px));");
+    expect(sheet).not.toContain("18px + .55rem");
   });
 
   test("Hidden Arrow results mark query words, including a light stem, or the upstream spans", () => {

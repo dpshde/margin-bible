@@ -487,8 +487,8 @@ export function page(title: string, body: string): string {
     .search-modal-form:has(.search-modal-list:not([hidden])) .search-modal-footer { display: block; }
     .search-suggest {
       flex: 0 0 auto; min-width: 0;
-      /* Left edge lines up with the input, past the icon. Right and bottom match the bar's 14px / 12px inset. */
-      padding: 0 14px 12px calc(14px + 18px + .55rem);
+      /* First chip lines up with the search icon. Right and bottom match the bar's 14px / 12px inset. */
+      padding: 0 14px 12px;
     }
     .search-suggest[hidden] { display: none; }
     .search-suggest-chips {
@@ -626,7 +626,7 @@ export function page(title: string, body: string): string {
           0
           calc(14px + env(safe-area-inset-right, 0px))
           12px
-          calc(14px + env(safe-area-inset-left, 0px) + 18px + .55rem);
+          calc(14px + env(safe-area-inset-left, 0px));
       }
       .search-suggest-chips {
         flex-wrap: nowrap;
