@@ -417,5 +417,18 @@ describe("search list stays on screen", () => {
     expect(css).toContain(".search-modal");
     expect(css).toContain(".search-result-ref");
     expect(css).toContain("text-transform: uppercase");
+    const backdrop = css.slice(css.indexOf(".search-modal-backdrop"), css.indexOf(".search-modal-panel"));
+    expect(backdrop).toContain("rgba(12, 10, 9, 0.55)");
+    expect(backdrop).toContain("-webkit-backdrop-filter: blur(16px)");
+    expect(backdrop).toContain("backdrop-filter: blur(16px)");
+    expect(backdrop).not.toContain("var(--ink)");
+    const field = css.slice(css.indexOf('.search-modal-form input[type="search"]'), css.indexOf(".search-modal-list {"));
+    expect(field).toContain("height: 3.5rem");
+    expect(field).toContain("line-height: calc(3.5rem - 1px)");
+    expect(field).toContain("padding: 0 1rem");
+    const list = css.slice(css.indexOf(".search-modal-list {"), css.indexOf(".search-modal-list[hidden]"));
+    expect(list).toContain("overflow-y: auto");
+    expect(list).toContain("scrollbar-width: none");
+    expect(css).toContain(".search-modal-list::-webkit-scrollbar");
   });
 });

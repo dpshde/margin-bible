@@ -385,8 +385,10 @@ export function page(title: string, body: string): string {
     .search-modal-backdrop {
       position: absolute; inset: 0;
       margin: 0; padding: 0; border: 0; cursor: pointer;
-      background: color-mix(in srgb, var(--ink) 28%, transparent);
-      backdrop-filter: blur(6px);
+      /* Dark scrim in both themes. --ink flips to near-white in dark mode, so it cannot tint this wash. */
+      background: rgba(12, 10, 9, 0.55);
+      -webkit-backdrop-filter: blur(16px);
+      backdrop-filter: blur(16px);
     }
     .search-modal-panel {
       position: relative; z-index: 1;
@@ -402,16 +404,30 @@ export function page(title: string, body: string): string {
       max-height: calc(100dvh - var(--safe-top) - var(--safe-bottom) - 1.5rem);
     }
     .search-modal-form input[type="search"] {
-      width: 100%; font: inherit; font-size: 16px;
-      padding: .9rem 1rem; border: 0; border-bottom: 1px solid var(--line);
+      box-sizing: border-box;
+      width: 100%; height: 3.5rem; margin: 0;
+      padding: 0 1rem;
+      border: 0; border-bottom: 1px solid var(--line);
       border-radius: 0; background: transparent; outline: none;
+      font: inherit; font-size: 16px; line-height: calc(3.5rem - 1px);
+      color: var(--ink);
       -webkit-appearance: none; appearance: none;
+    }
+    .search-modal-form input[type="search"]::-webkit-search-decoration,
+    .search-modal-form input[type="search"]::-webkit-search-cancel-button,
+    .search-modal-form input[type="search"]::-webkit-search-results-button,
+    .search-modal-form input[type="search"]::-webkit-search-results-decoration {
+      -webkit-appearance: none; appearance: none; display: none;
     }
     .search-modal-list {
       list-style: none; margin: 0; padding: 0; min-height: 0;
       overflow-x: hidden; overflow-y: auto;
       overscroll-behavior: contain;
       -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+    }
+    .search-modal-list::-webkit-scrollbar {
+      display: none; width: 0; height: 0;
     }
     .search-modal-list[hidden] { display: none; }
     .search-result {
