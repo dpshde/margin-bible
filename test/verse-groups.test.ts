@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { spawnSync } from "child_process";
-import { unlinkSync, writeFileSync } from "fs";
+import { readFileSync, unlinkSync, writeFileSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
 import type { Attachment } from "../src/attachments";
@@ -171,6 +171,22 @@ describe("verse group detection", () => {
     const description = cleanGroupDescription(`  line\r\nnext  ${"y".repeat(3_000)}`);
     expect(description.startsWith("line\nnext")).toBe(true);
     expect(description.length).toBe(2_000);
+  });
+});
+
+describe("preview worker publish", () => {
+  test("deploys a separate worker and leaves the production name in config", () => {
+    const script = readFileSync(new URL("../scripts/preview-worker.sh", import.meta.url), "utf8");
+    const workflow = readFileSync(new URL("../.github/workflows/preview-worker.yml", import.meta.url), "utf8");
+    const config = readFileSync(new URL("../cloudflare.config.ts", import.meta.url), "utf8");
+    expect(script).toContain('preview_name="margin-bible-verse-groups"');
+    expect(script).toContain("production worker is serving this preview build");
+    expect(script).toContain('id="verse-groups-btn"');
+    expect(script).not.toContain("migrations apply");
+    expect(workflow).toContain("sh scripts/preview-worker.sh");
+    expect(workflow).not.toContain("refs/heads/main");
+    expect(config).toContain('name: "margin-bible"');
+    expect(config).not.toContain("margin-bible-verse-groups");
   });
 });
 
