@@ -11,6 +11,9 @@ permissions:
 
 jobs:
   preview:
+    # The Cloudflare token lives on this environment. The script still
+    # publishes worker margin-bible-verse-groups, not margin-bible.
+    environment: production
     runs-on: ubuntu-latest
     timeout-minutes: 20
     concurrency:
