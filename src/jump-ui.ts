@@ -1,3 +1,24 @@
+export type SearchChordEvent = {
+  key?: string;
+  code?: string;
+  metaKey?: boolean;
+  ctrlKey?: boolean;
+  altKey?: boolean;
+  shiftKey?: boolean;
+  repeat?: boolean;
+};
+
+/** Cmd+K on Apple platforms, Ctrl+K elsewhere. Slash and j stay separate. */
+export function isSearchChord(event: SearchChordEvent, platform: string): boolean {
+  if (event.repeat) return false;
+  const key = event.key || "";
+  if (key !== "k" && key !== "K" && event.code !== "KeyK") return false;
+  if (event.altKey || event.shiftKey) return false;
+  const mac = /Mac|iPhone|iPad|iPod/i.test(platform);
+  if (mac) return Boolean(event.metaKey) && !event.ctrlKey;
+  return Boolean(event.ctrlKey) && !event.metaKey;
+}
+
 /** Jump form markup + browser combobox. Mirrors Rails search_controller + /api/jump-suggest. */
 
 export function jumpFormHtml(): string {
@@ -362,8 +383,35 @@ export function jumpScript(): string {
     document.querySelectorAll("form.jump").forEach(bindJump);
   }
 
+  function focusVisibleJump() {
+    const forms = [...document.querySelectorAll("form.jump")];
+    const visible = forms.find((f) => f.offsetParent !== null) || forms[0];
+    const input = visible && visible.querySelector('input[type="search"]');
+    if (!input) return false;
+    input.focus();
+    input.select();
+    return true;
+  }
+
+  function isSearchChord(event) {
+    if (event.repeat) return false;
+    const key = event.key || "";
+    if (key !== "k" && key !== "K" && event.code !== "KeyK") return false;
+    if (event.altKey || event.shiftKey) return false;
+    const platform = (navigator.platform || "") + " " + (navigator.userAgent || "");
+    const mac = /Mac|iPhone|iPad|iPod/i.test(platform);
+    if (mac) return Boolean(event.metaKey) && !event.ctrlKey;
+    return Boolean(event.ctrlKey) && !event.metaKey;
+  }
+
   if (!window.__marginJumpShortcutBound) {
     window.__marginJumpShortcutBound = true;
+    document.addEventListener("keydown", (event) => {
+      if (!isSearchChord(event)) return;
+      if (!focusVisibleJump()) return;
+      event.preventDefault();
+      event.stopPropagation();
+    }, true);
     document.addEventListener("keydown", (event) => {
       if (event.defaultPrevented) return;
       if (event.key !== "/" && event.key !== "j") return;
@@ -371,13 +419,8 @@ export function jumpScript(): string {
       const t = event.target;
       const tag = t && t.tagName;
       if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || t?.isContentEditable) return;
-      const forms = [...document.querySelectorAll("form.jump")];
-      const visible = forms.find((f) => f.offsetParent !== null) || forms[0];
-      const input = visible && visible.querySelector('input[type="search"]');
-      if (!input) return;
+      if (!focusVisibleJump()) return;
       event.preventDefault();
-      input.focus();
-      input.select();
     });
   }
 

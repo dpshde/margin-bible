@@ -12,7 +12,7 @@ import {
   shouldQueryHiddenArrow,
 } from "../src/ha-search";
 import { canGo, jumpState } from "../src/jump-suggest";
-import { jumpScript } from "../src/jump-ui";
+import { isSearchChord, jumpScript } from "../src/jump-ui";
 
 const hrefs: Array<[string, string | null]> = [
   ["https://route.bible/mrk.12.31?src=hidden-arrow", "/mrk.12.31"],
@@ -66,6 +66,45 @@ describe("Hidden Arrow hrefs open inside Margin", () => {
     expect(fromScript("https://route.bible/1co.13.1-13?src=hidden-arrow")).toBe("/1co.13.1-13");
     expect(fromScript("https://example.com/mrk.12.31")).toBeNull();
     expect(fromScript("https://route.bible/not-a-passage")).toBeNull();
+  });
+});
+
+describe("search focus chord", () => {
+  test("Cmd+K on Apple platforms, Ctrl+K elsewhere, including while a field is focused", () => {
+    expect(isSearchChord({ key: "k", metaKey: true }, "MacIntel")).toBe(true);
+    expect(isSearchChord({ key: "K", metaKey: true }, "iPhone")).toBe(true);
+    expect(isSearchChord({ code: "KeyK", metaKey: true }, "iPad")).toBe(true);
+    expect(isSearchChord({ key: "k", ctrlKey: true }, "MacIntel")).toBe(false);
+    expect(isSearchChord({ key: "k", ctrlKey: true }, "Win32")).toBe(true);
+    expect(isSearchChord({ key: "k", ctrlKey: true }, "Linux x86_64")).toBe(true);
+    expect(isSearchChord({ key: "k", metaKey: true }, "Linux x86_64")).toBe(false);
+    expect(isSearchChord({ key: "k", ctrlKey: true, shiftKey: true }, "Linux")).toBe(false);
+    expect(isSearchChord({ key: "k", ctrlKey: true, altKey: true }, "Linux")).toBe(false);
+    expect(isSearchChord({ key: "k", ctrlKey: true, repeat: true }, "Linux")).toBe(false);
+    expect(isSearchChord({ key: "j", ctrlKey: true }, "Linux")).toBe(false);
+    expect(isSearchChord({ key: "/", metaKey: true }, "MacIntel")).toBe(false);
+  });
+
+  test("the page chord is capture-phase and slash and j still ignore fields", () => {
+    const source = jumpScript();
+    const chord = source.slice(source.indexOf("function isSearchChord"), source.indexOf("if (!window.__marginJumpShortcutBound)"));
+    expect(chord).toContain('key !== "k" && key !== "K" && event.code !== "KeyK"');
+    expect(chord).toContain("event.metaKey) && !event.ctrlKey");
+    expect(chord).toContain("event.ctrlKey) && !event.metaKey");
+    const listener = source.slice(source.indexOf("if (!window.__marginJumpShortcutBound)"));
+    expect(listener).toContain("if (!isSearchChord(event)) return;");
+    expect(listener).toContain("if (!focusVisibleJump()) return;");
+    expect(listener).toContain("event.preventDefault()");
+    expect(listener).toContain("event.stopPropagation()");
+    const focus = source.slice(source.indexOf("function focusVisibleJump"), source.indexOf("function isSearchChord"));
+    expect(focus).toContain("input.focus()");
+    expect(focus).toContain("input.select()");
+    expect(listener).toContain("}, true);");
+    expect(listener).toContain('event.key !== "/" && event.key !== "j"');
+    expect(listener).toContain('tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || t?.isContentEditable');
+    expect(listener).not.toContain("verse-rail");
+    expect(source).toContain("searchScripture(q, my)");
+    expect(source).not.toContain("scheduleScripture");
   });
 });
 
