@@ -1,8 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import app from "../src/index";
-import type { Env } from "../src/index";
+import app, { homeLocation, type Env } from "../src/index";
 import {
   HIDDEN_ARROW_ORIGIN,
   hiddenArrowOrigin,
@@ -272,6 +271,34 @@ describe("POST /api/ha-search", () => {
     } finally {
       globalThis.fetch = real;
     }
+  });
+});
+
+describe("shareable search query", () => {
+  test("home keeps q on the way to the last-read chapter", () => {
+    expect(homeLocation(null, null)).toBe("/jhn.1");
+    expect(homeLocation("jhn.3", "  ")).toBe("/jhn.3");
+    expect(homeLocation("jhn.1", "love your neighbor")).toBe("/jhn.1?q=love+your+neighbor");
+    expect(homeLocation(null, "John 3:16")).toBe("/jhn.1?q=John+3%3A16");
+    const url = new URL(homeLocation("mrk.12", "love your neighbor"), "http://margin.test");
+    expect(url.pathname).toBe("/mrk.12");
+    expect(url.searchParams.get("q")).toBe("love your neighbor");
+  });
+
+  test("opening q submits the same search and a later submit updates q", () => {
+    const source = jumpScript();
+    const boot = source.slice(source.indexOf("function bootSearchQuery"), source.indexOf("function bindAll"));
+    expect(boot).toContain('searchParams.get("q")');
+    expect(boot).toContain("input.value = q");
+    expect(boot).toContain("visible.requestSubmit()");
+    expect(boot).not.toContain("/api/ha-search");
+    const sync = source.slice(source.indexOf("function syncSearchQuery"), source.indexOf("function bootSearchQuery"));
+    expect(sync).toContain('searchParams.set("q", next)');
+    expect(sync).toContain("history.replaceState");
+    const submit = source.slice(source.indexOf('form.addEventListener("submit"'), source.indexOf("function syncSearchQuery"));
+    expect(submit.indexOf("syncSearchQuery(q)")).toBeLessThan(submit.indexOf("submitJump(q)"));
+    expect(source).toContain("bootSearchQuery()");
+    expect(source).not.toContain("scheduleScripture");
   });
 });
 

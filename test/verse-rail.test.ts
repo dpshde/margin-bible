@@ -6,7 +6,7 @@ import { renderChapterPage } from "../src/reader-page";
 import { parsePassage } from "../src/passage";
 import type { ChapterPack } from "../src/usj";
 import { clientScript } from "../src/reader-client";
-import { railDownAction, railWatchEnd, railWatchMove } from "../src/verse-rail-gesture";
+import { railDownAction, railPanScrollDelta, railWatchEnd, railWatchMove } from "../src/verse-rail-gesture";
 
 function pack(name: string): ChapterPack {
   return JSON.parse(readFileSync(path.join(import.meta.dir, "../assets/bsb", name), "utf8")) as ChapterPack;
@@ -59,8 +59,15 @@ describe("verse rail", () => {
     expect(css).toContain(".reader-verse-rail-dot.wave-3");
     expect(css).toContain(".reader-verse-rail.is-native-scroll { pointer-events: none; }");
     expect(css).toContain(".reader-verse-rail.is-selection-hidden { opacity: 0; pointer-events: none; }");
-    expect(css).toContain("@media (hover: none), (pointer: coarse)");
-    expect(css).toContain(".reader-verse-rail { touch-action: manipulation; }");
+    expect(css).toContain("touch-action stays none on phones too");
+    expect(css).not.toContain(".reader-verse-rail { touch-action: manipulation; }");
+    expect(css).toContain("main:has(.jump.is-open) .reader-verse-rail");
+    expect(css).toContain(".jump.is-open");
+    const covered = css.slice(css.indexOf("main:has(.jump.is-open) .reader-verse-rail"), css.indexOf(".reader-verse-rail-checkpoints"));
+    expect(covered).toContain("z-index: 4;");
+    expect(css).toContain("Phone rail is a leaner strip");
+    expect(css).toContain(".reader-verse-rail { width: 28px; padding-left: 16px; }");
+    expect(css).toContain("width: 32px;");
     expect(css).toContain(".reader-verse-modal[hidden] { display: none; }");
     expect(css).toContain(".verse.reader-rail-active-verse");
     expect(css).not.toContain("html.spotlight-on:has(.verse:is(.is-open, .is-span)) .reader-verse-rail");
@@ -99,6 +106,16 @@ describe("verse rail", () => {
     expect(railWatchEnd({ type: "pointerup", dx: 1, dy: 1, decided: true })).toBe("ignore");
     expect(railWatchEnd({ type: "pointerup", dx: 1, dy: 1, decided: false, scrolled: true })).toBe("ignore");
     expect(railWatchEnd({ type: "pointercancel", dx: 0, dy: 0, decided: false })).toBe("ignore");
+    expect(railPanScrollDelta(200, 260)).toBe(-60);
+    expect(railPanScrollDelta(260, 200)).toBe(60);
+    expect(railPanScrollDelta(Number.NaN, 10)).toBe(0);
+    expect(railPanScrollDelta(10, Number.POSITIVE_INFINITY)).toBe(0);
+
+    const watchMove = source.slice(source.indexOf("function onRailWatchMove"), source.indexOf("function onRailWatchEnd"));
+    expect(watchMove).toContain("railPanScrollDelta(railWatch.lastY, event.clientY)");
+    expect(watchMove).toContain("window.scrollBy(0, delta)");
+    expect(watchMove).not.toContain("event.preventDefault");
+    expect(watchMove).not.toContain("clearRailWatch");
 
     const down = source.slice(source.indexOf("function onRailPointerDown"), source.indexOf("function onRailTouchMove"));
     expect(down).toContain('railDownAction(event.pointerType) === "watch"');

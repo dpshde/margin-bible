@@ -400,9 +400,38 @@ export function jumpScript(): string {
     form.addEventListener("submit", (event) => {
       const q = input.value.trim();
       event.preventDefault();
+      syncSearchQuery(q);
       if (!q) return;
       submitJump(q);
     });
+  }
+
+  function syncSearchQuery(q) {
+    let url;
+    try { url = new URL(location.href); } catch (_) { return; }
+    const next = String(q || "").trim();
+    if (next) url.searchParams.set("q", next);
+    else url.searchParams.delete("q");
+    const nextHref = url.pathname + url.search + url.hash;
+    const current = location.pathname + location.search + location.hash;
+    if (nextHref === current) return;
+    history.replaceState(history.state, "", nextHref);
+  }
+
+  function bootSearchQuery() {
+    let q = "";
+    try { q = new URL(location.href).searchParams.get("q") || ""; } catch (_) { return; }
+    q = q.trim();
+    if (!q) return;
+    const forms = [...document.querySelectorAll("form.jump")];
+    const visible = forms.find((f) => f.offsetParent !== null) || forms[0];
+    if (!visible || visible.dataset.jumpBound !== "1") return;
+    const input = visible.querySelector('input[type="search"]');
+    if (!input) return;
+    input.value = q;
+    const clearBtn = visible.querySelector("button.jump-clear");
+    if (clearBtn) clearBtn.hidden = false;
+    if (typeof visible.requestSubmit === "function") visible.requestSubmit();
   }
 
   function bindAll() {
@@ -452,5 +481,9 @@ export function jumpScript(): string {
 
   window.__marginBindJump = bindAll;
   bindAll();
+  if (!window.__marginSearchQueryBoot) {
+    window.__marginSearchQueryBoot = true;
+    bootSearchQuery();
+  }
 })();`;
 }

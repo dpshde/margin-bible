@@ -279,13 +279,22 @@ app.post("/api/passkey/login/verify", async (c) => {
   }
 });
 
+/** Home opens the last-read chapter and keeps a shareable `q` search. */
+export function homeLocation(slug: string | null | undefined, q: string | null | undefined): string {
+  const raw = (slug || "jhn.1").trim().replace(/^\/+/, "") || "jhn.1";
+  const query = (q ?? "").trim();
+  if (!query) return `/${raw}`;
+  const params = new URLSearchParams();
+  params.set("q", query);
+  return `/${raw}?${params.toString()}`;
+}
+
 app.get("/", async (c) => {
   const library = await c.env.DB
     .prepare("SELECT last_read_slug FROM libraries WHERE id = ?")
     .bind(c.get("libraryId"))
     .first<{ last_read_slug: string | null }>();
-  const slug = library?.last_read_slug || "jhn.1";
-  return c.redirect(`/${slug}`, 302);
+  return c.redirect(homeLocation(library?.last_read_slug, c.req.query("q")), 302);
 });
 
 app.get("/api/jump-suggest", (c) => {

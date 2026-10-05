@@ -238,6 +238,9 @@ export function page(title: string, body: string): string {
       display: block; margin: .85rem 0 .35rem;
       position: relative; z-index: 5;
     }
+    /* Open results sit above the verse rail (which drops to 4) and under the header (7). */
+    .jump.is-open,
+    .jump:has(.suggest:not([hidden])) { z-index: 6; }
     #reader-hint { position: relative; z-index: 5; }
     .jump-field {
       position: relative; min-width: 0;
@@ -525,11 +528,12 @@ export function page(title: string, body: string): string {
     }
     .reader-verse-rail.is-native-scroll { pointer-events: none; }
     .reader-verse-rail.is-selection-hidden { opacity: 0; pointer-events: none; }
-    /* Coarse pointers: a finger pan on the rail still scrolls the chapter.
-       Desktop (fine pointer) keeps touch-action: none so mouse scrubbing is unchanged. */
-    @media (hover: none), (pointer: coarse) {
-      .reader-verse-rail { touch-action: manipulation; }
-    }
+    /* touch-action stays none on phones too. manipulation lets the browser take the
+       pan and then drop it on this fixed rail, so the chapter never moves. The touch
+       handler scrolls by the finger delta instead. Mouse scrubbing is unchanged. */
+    /* An open search list paints with the jump field and covers this rail. */
+    main:has(.jump.is-open) .reader-verse-rail,
+    main:has(.jump:has(.suggest:not([hidden]))) .reader-verse-rail { z-index: 4; }
     .reader-verse-rail-checkpoints {
       position: absolute;
       inset: 20px -1px;
@@ -615,6 +619,25 @@ export function page(title: string, body: string): string {
     .reader-verse-modal[hidden] { display: none; }
     #reader:has(.reader-verse-rail) .chapter,
     #reader:has(.reader-verse-rail) .pager { padding-right: 1.15rem; }
+    /* Phone rail is a leaner strip. Desktop scrub width stays 32px. The hit target stays wide enough to tap. */
+    @media (max-width: 767px) {
+      .reader-verse-rail { width: 28px; padding-left: 16px; }
+      .reader-verse-rail.visible,
+      .reader-verse-rail:hover,
+      .reader-verse-rail:focus-visible { width: 30px; padding-left: 12px; }
+      .reader-verse-rail.dragging { width: 32px; padding-left: 8px; }
+      .reader-verse-rail-dot { width: 8px; }
+      .reader-verse-rail-dot.current,
+      .reader-verse-rail.dragging .reader-verse-rail-dot.current { width: 14px; }
+      .reader-verse-rail-dot.wave-3,
+      .reader-verse-rail.dragging .reader-verse-rail-dot.wave-3 { width: 9px; }
+      .reader-verse-rail-dot.wave-2,
+      .reader-verse-rail.dragging .reader-verse-rail-dot.wave-2 { width: 10px; }
+      .reader-verse-rail-dot.wave-1,
+      .reader-verse-rail.dragging .reader-verse-rail-dot.wave-1 { width: 12px; }
+      #reader:has(.reader-verse-rail) .chapter,
+      #reader:has(.reader-verse-rail) .pager { padding-right: .85rem; }
+    }
     .note-tray, .chapter-tray {
       position: relative;
       margin-left: calc(var(--verse-gutter) + var(--verse-gutter-gap));
