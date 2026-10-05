@@ -30,6 +30,35 @@ describe("jumpState (Rails-parity grab-bcv)", () => {
     expect(canGo("Deuteronomy 3:16")).toBe(true);
   });
 
+  test("John narrows from book to chapter to verse", () => {
+    const book = jumpState("joh");
+    expect(book.hits[0]?.kind).toBe("book");
+    expect(book.hits[0]?.label).toBe("John");
+    expect(insertTextFor(book.hits[0])).toBe("John ");
+    expect(canGo("joh")).toBe(false);
+
+    const named = jumpState("john");
+    expect(named.hits).toEqual([]);
+    expect(named.hint).toBe("21 chapters");
+    expect(canGo("john")).toBe(false);
+
+    const chapter = jumpState("john 3");
+    expect(chapter.hits[0]?.kind).toBe("chapter");
+    expect(chapter.hits[0]?.label).toBe("John 3");
+    expect(chapter.hint).toBe("36 verses");
+    expect(canGo("john 3")).toBe(true);
+
+    const verses = jumpState("john 3:");
+    expect(verses.hits[0]?.kind).toBe("verse");
+    expect(verses.hits[0]?.label).toBe("John 3:1");
+    expect(verses.hint).toBe("36 verses");
+
+    const verse = jumpState("john 3:16");
+    expect(verse.hits.map((hit) => hit.label)).toContain("John 3:16");
+    expect(verse.hits.every((hit) => hit.kind === "verse")).toBe(true);
+    expect(canGo("john 3:16")).toBe(true);
+  });
+
   test("passageContext tracks book/chapter/verse", () => {
     expect(passageContext("deut")).toEqual({ book: "DEU" });
     expect(passageContext("Deuteronomy 3")?.chapter).toBe(3);

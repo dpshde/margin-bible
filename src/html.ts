@@ -147,12 +147,13 @@ export function page(title: string, body: string): string {
     .topbar-side { display: flex; align-items: center; gap: .25rem; }
     .topbar-actions { display: flex; align-items: center; justify-content: flex-end; gap: 0; }
     .topbar-title {
+      display: flex; align-items: center; justify-content: center;
       margin: 0; font-family: var(--head); font-size: 1.05rem; font-weight: 600;
       text-align: center; letter-spacing: -.01em; min-width: 0;
     }
     .topbar-title-btn {
       appearance: none; -webkit-appearance: none;
-      display: block; width: 100%; max-width: 100%;
+      display: block; width: auto; max-width: 100%; min-width: 0; flex: 0 1 auto;
       min-height: var(--tap);
       margin: 0; padding: .2rem .4rem;
       border: 0; border-radius: .45rem;
@@ -168,6 +169,8 @@ export function page(title: string, body: string): string {
       outline: 2px solid color-mix(in srgb, var(--ink) 28%, transparent);
       outline-offset: 1px;
     }
+    /* Chapter bookmark sits with the title so it reads as chapter-scoped, not a toolbar action. */
+    .topbar-chapter-mark { flex: none; }
     .is-grid-open .topbar { z-index: 45; }
     .icon-btn {
       appearance: none; display: inline-flex; align-items: center; justify-content: center;
@@ -485,6 +488,19 @@ export function page(title: string, body: string): string {
     }
     html[data-theme="dark"] .search-modal-footer { color: #78716c; }
     .search-modal-form:has(.search-modal-list:not([hidden])) .search-modal-footer { display: block; }
+    .search-modal-form:has(.search-modal-list.is-passage) .search-modal-footer { display: none; }
+    .search-history {
+      flex: 0 0 auto; min-width: 0;
+      /* Same inset as topic chips, so the first recent query lines up with the search icon. */
+      padding: 0 14px 12px;
+    }
+    .search-history[hidden] { display: none; }
+    .search-history-label {
+      margin: 0 0 .3rem;
+      font-size: .72rem; font-weight: 500; line-height: 1.2;
+      color: #a8a29e;
+    }
+    html[data-theme="dark"] .search-history-label { color: #78716c; }
     .search-suggest {
       flex: 0 0 auto; min-width: 0;
       /* First chip lines up with the search icon. Right and bottom match the bar's 14px / 12px inset. */
@@ -565,7 +581,16 @@ export function page(title: string, body: string): string {
       margin-top: .28rem;
       font-family: var(--read); font-size: 1.02rem; line-height: 1.35;
       color: var(--ink); overflow-wrap: anywhere;
+      text-wrap: pretty;
+      hanging-punctuation: allow-end last;
     }
+    .search-result-passage {
+      display: block;
+      font-size: .92rem; line-height: 1.35;
+      color: var(--ink);
+    }
+    .search-modal-list .suggest-hint { padding: .55rem 1rem .7rem; }
+    .search-modal-list > li:first-child.suggest-hint { border-top: 0; }
     .search-mark {
       background: none; color: #ea580c; font-weight: 600;
     }
@@ -578,7 +603,7 @@ export function page(title: string, body: string): string {
       box-sizing: border-box; height: 20px; margin: 0;
       padding: .125rem 1.75rem .125rem .375rem;
       border: 0; border-radius: .25rem; outline: none;
-      background-color: #fafaf9;
+      background-color: transparent;
       background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e");
       background-repeat: no-repeat;
       background-position: right .25rem center;
@@ -589,7 +614,7 @@ export function page(title: string, body: string): string {
       touch-action: manipulation;
     }
     html[data-theme="dark"] .search-testament-btn {
-      background-color: #1b1917;
+      background-color: transparent;
       color: #d6d3d1;
       background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%23a8a29e' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e");
     }
@@ -606,7 +631,8 @@ export function page(title: string, body: string): string {
     .search-testament-sheet { display: none; }
     .search-testament-menu {
       position: fixed; z-index: 5;
-      min-width: 5.5rem; margin: 0; padding: .25rem 0;
+      min-width: 5.5rem; margin: 0; padding: 0;
+      overflow: hidden;
       border: 1px solid #e7e5e4; border-radius: .25rem;
       background: #fff; color: #44403c;
       box-shadow: 0 .5rem 1.25rem rgb(28 25 23 / .16);
@@ -617,11 +643,13 @@ export function page(title: string, body: string): string {
     }
     .search-testament-option {
       display: flex; align-items: center; gap: .4rem;
-      width: 100%; margin: 0; padding: .3rem .7rem;
-      border: 0; background: transparent; color: inherit;
+      box-sizing: border-box; width: 100%; margin: 0; padding: .3rem .7rem;
+      border: 0; border-radius: 0; background: transparent; color: inherit;
       font: inherit; font-size: .75rem; font-weight: 500; line-height: 1rem;
       text-align: left; cursor: pointer; touch-action: manipulation;
     }
+    .search-testament-menu .search-testament-option:first-child { border-radius: .2rem .2rem 0 0; }
+    .search-testament-menu .search-testament-option:last-child { border-radius: 0 0 .2rem .2rem; }
     .search-testament-check { width: .8em; opacity: 0; font-size: .75rem; }
     .search-testament-option.is-selected .search-testament-check { opacity: 1; }
     @media (hover: hover) and (pointer: fine) {
@@ -680,6 +708,7 @@ export function page(title: string, body: string): string {
       }
       .search-modal-results::-webkit-scrollbar { display: none; width: 0; height: 0; }
       .search-modal-list { flex: none; overflow: visible; }
+      .search-history,
       .search-suggest {
         padding:
           0
@@ -975,9 +1004,9 @@ export function page(title: string, body: string): string {
       pointer-events: none;
     }
     .reader-verse-modal[hidden] { display: none; }
-    #reader:has(.reader-verse-rail) .chapter,
-    #reader:has(.reader-verse-rail) .pager { padding-right: 1.15rem; }
-    /* Phone rail is a leaner strip. Desktop scrub width stays 32px. The hit target stays wide enough to tap. */
+    /* Phone rail is a leaner strip. Desktop scrub width stays 32px. The hit target stays wide enough to tap.
+       The rail is fixed to the viewport edge. On a centered desktop column it does not overlap the text,
+       so the chapter keeps the jump field's right edge. Narrow screens still inset for the rail. */
     @media (max-width: 767px) {
       .reader-verse-rail { width: 28px; padding-left: 16px; }
       .reader-verse-rail.visible,
@@ -993,13 +1022,24 @@ export function page(title: string, body: string): string {
       .reader-verse-rail.dragging .reader-verse-rail-dot.wave-2 { width: 10px; }
       .reader-verse-rail-dot.wave-1,
       .reader-verse-rail.dragging .reader-verse-rail-dot.wave-1 { width: 12px; }
-      #reader:has(.reader-verse-rail) .chapter,
-      #reader:has(.reader-verse-rail) .pager { padding-right: .85rem; }
+    }
+    /* Desktop reading column matches the jump field: same left and right edges.
+       Verse numbers hang in the margin so they don't shorten the line. */
+    @media (min-width: 656px) {
+      .section-head { margin-left: 0; margin-right: 0; }
+      .verse { padding-left: 0; }
+      .verse-press {
+        width: calc(100% + var(--verse-gutter) + var(--verse-gutter-gap));
+        margin-left: calc(-1 * (var(--verse-gutter) + var(--verse-gutter-gap)));
+      }
     }
     .note-tray, .chapter-tray {
       position: relative;
       margin-left: calc(var(--verse-gutter) + var(--verse-gutter-gap));
       padding: .12rem 0 .28rem;
+    }
+    @media (min-width: 656px) {
+      .note-tray { margin-left: 0; }
     }
     .chapter-note-rail {
       margin: 0 0 .55rem;
@@ -1703,6 +1743,9 @@ export function page(title: string, body: string): string {
     @media (max-width: 640px) {
       .topbar { grid-template-columns: auto 1fr auto; gap: .25rem; padding-left: .5rem; padding-right: .5rem; }
       .topbar-title { font-size: .95rem; }
+      /* A long chapter name fills the middle track. Keep the bookmark on the title's left,
+         with a gap before the Notes icon. */
+      .topbar-chapter-mark { margin-inline-start: .75rem; }
       /* Notes inbox only. The left slot is empty and the right slot is three icons,
          so a title centered in the flexible middle track sits left of the screen.
          Paint the same title across the bar; the icons stay in the end column. */
@@ -1723,6 +1766,8 @@ export function page(title: string, body: string): string {
         --verse-gutter-gap: .45rem;
         --verse-inset: .3rem;
       }
+      #reader:has(.reader-verse-rail) .chapter,
+      #reader:has(.reader-verse-rail) .pager { padding-right: .85rem; }
       .note-tray, .chapter-tray {
         margin-left: calc(var(--verse-gutter) + var(--verse-gutter-gap));
         padding-right: 0;

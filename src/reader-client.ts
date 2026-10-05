@@ -274,9 +274,9 @@ export function clientScript(): string {
     writeInboxCache(notes, chapterSlug);
   }
   function prefetchInbox() {
+    // HTML goes into the soft-nav cache. JSON still warms sessionStorage.
+    prefetchInboxHtml();
     if (inboxPrefetch) return inboxPrefetch;
-    // Warm HTML document cache + JSON list.
-    fetch("/notes", { credentials: "same-origin", priority: "low" }).catch(() => {});
     inboxPrefetch = fetch("/api/notes", {
       credentials: "same-origin",
       headers: { accept: "application/json" },
@@ -1447,8 +1447,9 @@ export function clientScript(): string {
         if (!Array.isArray(data.chapterNotes)) bumpChapterNotesGen(chapterSlug);
         notesPrefetch.delete(chapterSlug);
         writeChapterNotesCache(chapterSlug, [...noteMap.values()]);
-        // Refresh full list in background after edits so inbox stays complete.
+        // A save makes the prefetched inbox document stale. Drop it, then fetch the new SSR.
         inboxPrefetch = null;
+        dropInboxHtml();
         prefetchInbox().catch(() => {});
         syncVerseMarks();
         syncExpandBtn();
@@ -2577,6 +2578,16 @@ export function clientScript(): string {
   // --- Chapter notes cache + lazy hydrate (VBV-first) ---
   const CHAPTER_NOTES_KEY = "margin_chapter_notes_v1";
   const htmlCache = new Map();
+  // Paint a prefetched /notes document only while it is still young. Refresh in the
+  // background after TTL so a later tap stays instant. Refuse a snapshot older than MAX
+  // (another device, or a background tab whose refresh did not run). A save on this page
+  // drops the snapshot immediately. The list is the SSR document, not a client re-render.
+  const INBOX_HTML_TTL = 20000;
+  const INBOX_HTML_MAX = 120000;
+  let inboxHtml = null;
+  let inboxHtmlFlight = null;
+  let inboxHtmlGen = 0;
+  let inboxHtmlTimer = 0;
   const notesCache = new Map();
   function readChapterNotesCache() {
     try {
@@ -3234,9 +3245,19 @@ export function clientScript(): string {
   syncChapterBookmarkBtn(Boolean(noteMap.get(chapterSlug)?.bookmarked));
   syncChapterNoteChrome();
 
-  const boot = root.dataset.bootVerse;
+  function verseTargetFromLocation() {
+    const path = location.pathname.replace(/^\\/+/, "");
+    const match = /^[a-z0-9]+\\.\\d+\\.(\\d+)(?:-(\\d+))?$/i.exec(path);
+    if (!match) return null;
+    const start = Number(match[1]);
+    const end = match[2] ? Number(match[2]) : start;
+    if (!start || !end) return null;
+    return { boot: end, range: Boolean(match[2]) && end !== start };
+  }
+  const located = verseTargetFromLocation();
+  const boot = root.dataset.bootVerse || (located ? String(located.boot) : "");
   const passageSlug = root.dataset.passageSlug || "";
-  const bootPreferRange = passageSlug.includes("-");
+  const bootPreferRange = passageSlug.includes("-") || Boolean(located && located.range);
   const xrefParam = new URLSearchParams(location.search).get("xref") === "1";
   if (boot && xrefParam) {
     const endMatch = /-(\\d+)$/.exec(passageSlug);
@@ -3280,14 +3301,110 @@ export function clientScript(): string {
     if (embedded && embedded.length) writeChapterNotesCache(slug, embedded.map(normalizeHydrateNote));
     return embedded;
   }
-  async function prefetchChapter(href) {
+  function documentHref(href) {
+    try {
+      const url = new URL(href, location.origin);
+      if (url.origin !== location.origin) return "";
+      url.hash = "";
+      return url.href;
+    } catch { return ""; }
+  }
+  function inboxPageHref() {
+    return documentHref("/notes");
+  }
+  function inboxHtmlFresh() {
+    const href = inboxPageHref();
+    if (!href || !htmlCache.has(href)) return false;
+    if (!inboxHtml) return true;
+    return Date.now() - inboxHtml.at < INBOX_HTML_MAX;
+  }
+  function dropInboxHtml() {
+    inboxHtmlGen += 1;
+    inboxHtml = null;
+    inboxHtmlFlight = null;
+    if (inboxHtmlTimer) {
+      window.clearTimeout(inboxHtmlTimer);
+      inboxHtmlTimer = 0;
+    }
+    const href = inboxPageHref();
+    if (!href) return;
+    htmlCache.delete(href);
+  }
+  function scheduleInboxHtml(delay) {
+    if (inboxHtmlTimer) return;
+    inboxHtmlTimer = window.setTimeout(() => {
+      inboxHtmlTimer = 0;
+      prefetchInboxHtml();
+    }, delay);
+  }
+  function prefetchInboxHtml() {
+    const href = inboxPageHref();
+    if (!href) return;
+    const age = inboxHtml ? Date.now() - inboxHtml.at : Infinity;
+    if (inboxHtmlFlight) return;
+    if (age < INBOX_HTML_TTL) {
+      scheduleInboxHtml(INBOX_HTML_TTL - age);
+      return;
+    }
+    const gen = ++inboxHtmlGen;
+    const promise = fetch(href, {
+      credentials: "same-origin",
+      headers: { accept: "text/html", purpose: "prefetch" },
+      priority: "low",
+    })
+      .then((r) => (r.ok ? r.text() : Promise.reject()))
+      .then((html) => {
+        if (gen !== inboxHtmlGen) return html;
+        inboxHtml = { html, at: Date.now() };
+        htmlCache.set(href, Promise.resolve(html));
+        return html;
+      })
+      .catch(() => {
+        if (gen !== inboxHtmlGen) return null;
+        if (!inboxHtml) htmlCache.delete(href);
+        return null;
+      })
+      .finally(() => {
+        if (gen !== inboxHtmlGen) return;
+        inboxHtmlFlight = null;
+        scheduleInboxHtml(INBOX_HTML_TTL);
+      });
+    inboxHtmlFlight = promise;
+    if (!inboxHtml) htmlCache.set(href, promise);
+  }
+  let searchPrefetch = null;
+  function prefetchSearchChapter(href) {
+    if (!href) {
+      if (searchPrefetch) searchPrefetch.controller.abort();
+      searchPrefetch = null;
+      return;
+    }
+    const key = documentHref(href);
+    const slug = chapterSlugFromHref(key);
+    if (!slug) return;
+    const chapterKey = documentHref("/" + slug);
+    if (searchPrefetch && searchPrefetch.key === chapterKey) return;
+    if (searchPrefetch) searchPrefetch.controller.abort();
+    const controller = new AbortController();
+    searchPrefetch = { key: chapterKey, controller };
+    prefetchChapter(chapterKey, { priority: "low", signal: controller.signal });
+  }
+  async function prefetchChapter(href, opts) {
+    href = documentHref(href);
     const slug = chapterSlugFromHref(href);
     if (!slug) return;
     if (!htmlCache.has(href)) {
-      htmlCache.set(href, fetch(href, { credentials: "same-origin", headers: { accept: "text/html", purpose: "prefetch" } })
+      const init = { credentials: "same-origin", headers: { accept: "text/html", purpose: "prefetch" } };
+      if (opts && opts.priority) init.priority = opts.priority;
+      if (opts && opts.signal) init.signal = opts.signal;
+      const promise = fetch(href, init)
         .then((r) => r.ok ? r.text() : Promise.reject())
         .then((html) => { seedNotesFromHtml(slug, html); return html; })
-        .catch(() => { htmlCache.delete(href); return null; }));
+        .catch(() => {
+          if (htmlCache.get(href) === promise) htmlCache.delete(href);
+          return null;
+        });
+      htmlCache.set(href, promise);
     } else {
       Promise.resolve(htmlCache.get(href)).then((html) => seedNotesFromHtml(slug, html)).catch(() => {});
     }
@@ -3314,19 +3431,25 @@ export function clientScript(): string {
     if (a?.href) prefetchChapter(a.href);
   }, true);
 
-  async function softNavTo(href, { push = true } = {}) {
+  async function softNavTo(href, { push = true, useChapterCache = false } = {}) {
     const url = new URL(href, location.origin);
     if (url.origin !== location.origin) { location.href = href; return; }
     // Persist unsaved attach/xref/body before document.write tears the page down.
     await flushAll({ keepalive: false });
-    const slug = chapterSlugFromHref(url.href);
+    const exactKey = documentHref(url.href);
+    const slug = chapterSlugFromHref(exactKey);
     // Chapters hydrate notes beside the HTML. An exact verse or range does not.
     if (slug && !hrefIsExactNote(url.href)) prefetchChapterNotes(slug);
-    const htmlPromise = htmlCache.get(url.href) || fetch(url.href, { credentials: "same-origin", headers: { accept: "text/html" } }).then((r) => {
-      if (!r.ok) throw new Error("nav");
-      return r.text();
-    }).then((html) => { seedNotesFromHtml(slug, html); return html; });
-    htmlCache.set(url.href, htmlPromise);
+    const chapterKey = slug ? documentHref("/" + slug) : "";
+    let htmlPromise = htmlCache.get(exactKey);
+    if (!htmlPromise && useChapterCache && chapterKey && chapterKey !== exactKey) htmlPromise = htmlCache.get(chapterKey);
+    if (!htmlPromise) {
+      htmlPromise = fetch(exactKey, { credentials: "same-origin", headers: { accept: "text/html" } }).then((r) => {
+        if (!r.ok) throw new Error("nav");
+        return r.text();
+      }).then((html) => { seedNotesFromHtml(slug, html); return html; });
+      htmlCache.set(exactKey, htmlPromise);
+    }
     try {
       // VBV HTML first; destination page hydrates notes via /api/notes?chapter= (and session cache).
       const html = await htmlPromise;
@@ -3341,12 +3464,21 @@ export function clientScript(): string {
       location.href = href;
     }
   }
+  window.__marginPrefetchChapter = prefetchSearchChapter;
+  window.__marginSoftNav = softNavTo;
   document.addEventListener("click", (event) => {
     if (event.defaultPrevented) return;
     if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button) return;
     const a = event.target?.closest?.("a[href]");
     if (!a || a.target === "_blank" || a.hasAttribute("download")) return;
-    if (a.dataset.inboxLink != null || a.getAttribute("href") === "/notes") return;
+    if (a.dataset.inboxLink != null || a.getAttribute("href") === "/notes") {
+      // Warm SSR document: soft-nav. Cold or older than INBOX_HTML_MAX: the browser loads /notes.
+      if (inboxHtmlFresh()) {
+        event.preventDefault();
+        softNavTo(a.href, { push: true });
+      }
+      return;
+    }
     if (a.closest?.(".att-drop")) return;
     const slug = chapterSlugFromHref(a.href);
     if (!slug) return;
@@ -3442,8 +3574,7 @@ export function clientScript(): string {
   document.querySelectorAll("[data-inbox-link], a[href='/notes']").forEach((link) => {
     link.addEventListener("pointerenter", () => { prefetchInbox().catch(() => {}); }, { passive: true });
     link.addEventListener("pointerdown", () => { prefetchInbox().catch(() => {}); }, { passive: true });
-    // Full navigation to /notes (no soft-nav). Sticky chapter tabs with older client JS
-    // were re-expanding Older into per-verse OSIS rows; SSR notesListHtml is authoritative.
+    // Prefetch fills htmlCache. A warm click soft-navs that SSR document. Client list HTML stays unused.
   });
   window.addEventListener("popstate", () => {
     // Full document navigation so SSR notesListHtml paints Older chapter rows.

@@ -1,4 +1,5 @@
 import { testamentCodes } from "./books";
+import { passageHelpersClientSource } from "./passage-helpers";
 
 export type SearchChordEvent = {
   key?: string;
@@ -80,6 +81,13 @@ function queryStems(query) {
   }
   return stems;
 }
+function glueClosingQuotes(text) {
+  return String(text || "").replace(/([^\s\u2060])(["'\u2019\u201D\u00BB\u203A])/g, "$1\u2060$2");
+}
+function glueQuoteBoundary(prev, next) {
+  if (!next || !prev || /[\s\u2060]$/.test(prev)) return next;
+  return /^["'\u2019\u201D\u00BB\u203A]/.test(next) ? "\u2060" + next : next;
+}
 function markWords(text, accept) {
   const raw = String(text || "");
   const re = new RegExp("\\b[A-Za-z0-9']+\\b", "g");
@@ -87,12 +95,17 @@ function markWords(text, accept) {
   let cursor = 0;
   let match;
   while ((match = re.exec(raw))) {
-    out += escape(raw.slice(cursor, match.index));
+    let gap = raw.slice(cursor, match.index);
+    if (cursor > 0) gap = glueQuoteBoundary(raw.slice(0, cursor), gap);
+    out += escape(glueClosingQuotes(gap));
     const word = match[0];
-    out += accept(word) ? '<mark class="search-mark">' + escape(word) + "</mark>" : escape(word);
+    const shown = escape(glueClosingQuotes(word));
+    out += accept(word) ? '<mark class="search-mark">' + shown + "</mark>" : shown;
     cursor = match.index + word.length;
   }
-  out += escape(raw.slice(cursor));
+  let rest = raw.slice(cursor);
+  if (cursor > 0) rest = glueQuoteBoundary(raw.slice(0, cursor), rest);
+  out += escape(glueClosingQuotes(rest));
   return out;
 }
 function highlightQuery(text, query) {
@@ -141,17 +154,24 @@ function applyOffsets(text, ranges) {
   let cursor = 0;
   for (const pair of sorted) {
     if (pair[0] < cursor) continue;
-    out += escape(raw.slice(cursor, pair[0]));
-    out += '<mark class="search-mark">' + escape(raw.slice(pair[0], pair[1])) + "</mark>";
+    let gap = raw.slice(cursor, pair[0]);
+    if (cursor > 0) gap = glueQuoteBoundary(raw.slice(0, cursor), gap);
+    out += escape(glueClosingQuotes(gap));
+    let chunk = raw.slice(pair[0], pair[1]);
+    chunk = glueQuoteBoundary(raw.slice(0, pair[0]), chunk);
+    out += '<mark class="search-mark">' + escape(glueClosingQuotes(chunk)) + "</mark>";
     cursor = pair[1];
   }
-  out += escape(raw.slice(cursor));
+  let rest = raw.slice(cursor);
+  if (cursor > 0) rest = glueQuoteBoundary(raw.slice(0, cursor), rest);
+  out += escape(glueClosingQuotes(rest));
   return out;
 }
 function sanitizeMarks(html) {
   const parts = String(html).split(/(<\/?\s*(?:mark|em|strong|b)\b[^>]*>)/gi);
   let open = false;
   let out = "";
+  let prev = "";
   for (const part of parts) {
     if (/^<\s*(mark|em|strong|b)\b/i.test(part)) {
       open = true;
@@ -161,8 +181,10 @@ function sanitizeMarks(html) {
       open = false;
       continue;
     }
-    const safe = escape(part.replace(/<[^>]+>/g, ""));
+    const plain = part.replace(/<[^>]+>/g, "");
+    const safe = escape(glueClosingQuotes(glueQuoteBoundary(prev, plain)));
     out += open ? '<mark class="search-mark">' + safe + "</mark>" : safe;
+    prev += plain;
   }
   return out;
 }
@@ -212,10 +234,10 @@ export function jumpScript(): string {
 
   const OT_BOOKS = ${otBooks};
   const NT_BOOKS = ${ntBooks};
+  ${passageHelpersClientSource()}
   let hits = [];
   let selected = -1;
   let seq = 0;
-  let timer = null;
   let submittedQuery = "";
   let searchTestament = "all";
   let scriptureSearchActive = false;
@@ -476,6 +498,7 @@ export function jumpScript(): string {
     closeTestamentMenu();
     setTestamentSheet(false);
     hideTopicChips();
+    hideHistory();
     const cache = readSearchCache();
     if (cache && cache.query) mirrorHeader(cache.query);
     if (wasOpen && searchState && !closeViaPop) {
@@ -714,6 +737,18 @@ export function jumpScript(): string {
     footer.textContent = "BSB";
     const results = document.createElement("div");
     results.className = "search-modal-results";
+    const history = document.createElement("div");
+    history.className = "search-history";
+    history.hidden = true;
+    const historyLabel = document.createElement("p");
+    historyLabel.className = "search-history-label";
+    historyLabel.textContent = "Recent";
+    const historyChips = document.createElement("div");
+    historyChips.className = "search-suggest-chips search-history-chips";
+    historyChips.setAttribute("role", "group");
+    historyChips.setAttribute("aria-label", "Recent searches");
+    history.appendChild(historyLabel);
+    history.appendChild(historyChips);
     const topics = document.createElement("div");
     topics.className = "search-suggest";
     topics.hidden = true;
@@ -729,6 +764,7 @@ export function jumpScript(): string {
     results.appendChild(footer);
     searchForm.appendChild(bar);
     searchForm.appendChild(sheet);
+    searchForm.appendChild(history);
     searchForm.appendChild(topics);
     searchForm.appendChild(results);
     panel.appendChild(searchForm);
@@ -815,10 +851,29 @@ export function jumpScript(): string {
       }
       if (event.key === "Enter") {
         const q = input.value.trim();
+        if (q && canGo(q)) {
+          event.preventDefault();
+          if (input.form) input.form.requestSubmit();
+          else submitJump(q);
+          return;
+        }
+        const passage = selected >= 0 && passageHit(hits[selected]) ? hits[selected] : null;
+        if (passage) {
+          event.preventDefault();
+          applyHit(passage);
+          return;
+        }
         if (hits.length && selected >= 0 && q === submittedQuery) {
           event.preventDefault();
           applyHit(hits[selected]);
         }
+        return;
+      }
+      if (event.key === "Tab") {
+        const passage = selected >= 0 && passageHit(hits[selected]) ? hits[selected] : null;
+        if (!passage) return;
+        event.preventDefault();
+        applyHit(passage);
         return;
       }
       if (event.key === "Escape") {
@@ -829,24 +884,40 @@ export function jumpScript(): string {
     input.addEventListener("input", () => {
       if (String(input.value || "").trim()) {
         hideTopicChips();
+        hideHistory();
+        suggest();
         return;
       }
       seq += 1;
+      prefetchPassage(null);
       close();
       loadTopicSuggestions();
     });
     topicChips.addEventListener("scroll", () => syncChipFades(topicChips), { passive: true });
+    function submitChip(q) {
+      input.value = q;
+      mirrorHeader(q);
+      syncSearchQuery(q);
+      hideTopicChips();
+      hideHistory();
+      submitJump(q);
+    }
     topicChips.addEventListener("click", (event) => {
       const chip = event.target.closest("button.search-suggest-chip");
       if (!chip) return;
       event.preventDefault();
       const q = String(chip.getAttribute("data-query") || "").trim();
       if (!q) return;
-      input.value = q;
-      mirrorHeader(q);
-      syncSearchQuery(q);
-      hideTopicChips();
-      submitJump(q);
+      submitChip(q);
+    });
+    historyChips.addEventListener("scroll", () => syncChipFades(historyChips), { passive: true });
+    historyChips.addEventListener("click", (event) => {
+      const chip = event.target.closest("button.search-suggest-chip");
+      if (!chip) return;
+      event.preventDefault();
+      const q = String(chip.getAttribute("data-query") || "").trim();
+      if (!q) return;
+      submitChip(q);
     });
     list.addEventListener("click", (event) => {
       const btn = event.target.closest("button[data-index]");
@@ -955,6 +1026,7 @@ export function jumpScript(): string {
     }
     selected = -1;
     hits = [];
+    if (list) list.classList.remove("is-passage");
     syncTopicChips();
   }
 
@@ -966,6 +1038,7 @@ export function jumpScript(): string {
     const input = searchInput();
     if (!list || !input) return;
     list.hidden = false;
+    list.classList.remove("is-passage");
     input.setAttribute("aria-expanded", "true");
     list.setAttribute("aria-busy", "true");
     input.removeAttribute("aria-activedescendant");
@@ -989,6 +1062,7 @@ export function jumpScript(): string {
     const input = searchInput();
     if (!list || !input) return;
     list.hidden = false;
+    list.classList.remove("is-passage");
     list.removeAttribute("aria-busy");
     input.setAttribute("aria-expanded", "true");
     input.removeAttribute("aria-activedescendant");
@@ -1013,6 +1087,9 @@ export function jumpScript(): string {
     const hint = hintText
       ? '<li class="suggest-hint" role="note">' + escape(hintText) + "</li>"
       : "";
+    const passageList = open && !hits.some((hit) => hit && hit.kind === "scripture") &&
+      (hits.some(passageHit) || Boolean(hintText));
+    list.classList.toggle("is-passage", passageList);
     const options = hits
       .map((hit, index) => {
         const id = "search-result-" + index;
@@ -1021,7 +1098,9 @@ export function jumpScript(): string {
         const body = hit.kind === "scripture"
           ? '<span class="search-result-ref">' + escape(hit.label) + "</span>" +
             (hit.text || hit.html ? '<span class="search-result-text">' + shown + "</span>" : "")
-          : '<span class="search-result-ref">' + escape(hit.label) + "</span>";
+          : passageHit(hit)
+            ? '<span class="search-result-passage">' + escape(hit.label) + "</span>"
+            : '<span class="search-result-ref">' + escape(hit.label) + "</span>";
         return (
           '<li id="' + id + '" role="option" aria-selected="' + (sel ? "true" : "false") + '">' +
           '<button type="button" class="search-result' + (sel ? " is-selected" : "") + '" data-index="' + index + '">' +
@@ -1033,6 +1112,18 @@ export function jumpScript(): string {
     list.innerHTML = options + hint;
     syncActive();
     syncTopicChips();
+  }
+
+  function passageHit(hit) {
+    const kind = hit && hit.kind;
+    return kind === "book" || kind === "chapter" || kind === "verse" || kind === "range";
+  }
+
+  function showingPassageHelpers() {
+    if (hits.some(passageHit)) return true;
+    const list = searchList();
+    if (!list || list.hidden || hits.some((hit) => hit && hit.kind === "scripture")) return false;
+    return list.classList.contains("is-passage");
   }
 
   function insertTextFor(hit) {
@@ -1143,6 +1234,16 @@ export function jumpScript(): string {
     if (row) row.hidden = true;
   }
 
+  function historyRow() {
+    const modal = searchRoot();
+    return modal ? modal.querySelector(".search-history") : null;
+  }
+
+  function hideHistory() {
+    const row = historyRow();
+    if (row) row.hidden = true;
+  }
+
   function canOfferTopics() {
     const input = searchInput();
     return Boolean(modalIsOpen() && input && !String(input.value || "").trim() && !resultsOpen());
@@ -1168,6 +1269,31 @@ export function jumpScript(): string {
     requestAnimationFrame(() => syncChipFades(chips));
   }
 
+  function paintHistory() {
+    const row = historyRow();
+    const chips = row && row.querySelector(".search-history-chips");
+    if (!row || !chips || !canOfferTopics()) {
+      hideHistory();
+      return;
+    }
+    const recent = readRecentSearches();
+    if (!recent.length) {
+      hideHistory();
+      return;
+    }
+    chips.replaceChildren();
+    for (const query of recent) {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "search-suggest-chip";
+      btn.textContent = query;
+      btn.setAttribute("data-query", query);
+      chips.appendChild(btn);
+    }
+    row.hidden = false;
+    requestAnimationFrame(() => syncChipFades(chips));
+  }
+
   function syncChipFades(chips) {
     const row = chips || document.querySelector(".search-suggest-chips");
     if (!row) return;
@@ -1177,15 +1303,22 @@ export function jumpScript(): string {
   }
 
   function syncTopicChips() {
-    if (!canOfferTopics()) hideTopicChips();
-    else paintTopicChips(suggestTopics);
+    if (!canOfferTopics()) {
+      hideTopicChips();
+      hideHistory();
+      return;
+    }
+    paintHistory();
+    paintTopicChips(suggestTopics);
   }
 
   async function loadTopicSuggestions() {
     if (!canOfferTopics()) {
       hideTopicChips();
+      hideHistory();
       return;
     }
+    paintHistory();
     const recent = readRecentSearches();
     if (recent.length < 2) {
       hideTopicChips();
@@ -1258,31 +1391,76 @@ export function jumpScript(): string {
     }
   }
 
-  async function suggestNow() {
+  function chapterHref(state) {
+    if (!state || !state.book || !state.chapter) return "";
+    return "/" + String(state.book).toLowerCase() + "." + state.chapter;
+  }
+
+  function passageHref(state) {
+    const chapter = chapterHref(state);
+    if (!chapter || !state.canGo) return "";
+    if (!state.verse) return chapter;
+    let href = chapter + "." + state.verse;
+    if (state.verseEnd && state.verseEnd !== state.verse) href += "-" + state.verseEnd;
+    return href;
+  }
+
+  let prefetchedChapterHref = "";
+  function prefetchPassage(state) {
+    const prefetch = window.__marginPrefetchChapter;
+    if (typeof prefetch !== "function") return;
+    const href = chapterHref(state);
+    if (!href) {
+      if (prefetchedChapterHref) {
+        prefetchedChapterHref = "";
+        prefetch("");
+      }
+      return;
+    }
+    if (href === prefetchedChapterHref) return;
+    prefetchedChapterHref = href;
+    prefetch(href);
+  }
+
+  function suggestNow() {
     const input = searchInput();
     const q = input ? input.value : "";
-    const my = ++seq;
     if (!String(q).trim()) {
+      prefetchPassage(null);
       close();
       return;
     }
-    try {
-      const res = await fetch("/api/jump-suggest?q=" + encodeURIComponent(q), {
-        headers: { accept: "application/json" },
-      });
-      if (!res.ok || my !== seq) return;
-      const data = await res.json();
-      if (my !== seq) return;
-      submittedQuery = String(q).trim();
-      writeSearchCache(submittedQuery, data.hits || []);
+    if (!modalIsOpen()) return;
+    const data = passageHelpers(q);
+    prefetchPassage(data);
+    const nextHits = Array.isArray(data.hits) ? data.hits : [];
+    const hint = data.hint ? String(data.hint) : "";
+    if (nextHits.length || hint) {
       render(data);
-    } catch (_) {
-      /* ignore transient network blips */
+      return;
     }
+    if (showingPassageHelpers()) close();
   }
 
   async function submitJump(q) {
     const my = ++seq;
+    const local = passageHelpers(q);
+    if (local && local.canGo) {
+      const href = passageHref(local);
+      const nav = window.__marginSoftNav;
+      if (href && typeof nav === "function") {
+        const push = !searchState;
+        searchState = false;
+        nav(href, { push: push, useChapterCache: true });
+        return;
+      }
+      const jumpUrl = "/jump?q=" + encodeURIComponent(q);
+      if (searchState) {
+        searchState = false;
+        location.replace(jumpUrl);
+      } else location.assign(jumpUrl);
+      return;
+    }
     let data = null;
     try {
       const res = await fetch("/api/jump-suggest?q=" + encodeURIComponent(q), {
@@ -1316,8 +1494,7 @@ export function jumpScript(): string {
   }
 
   function suggest() {
-    if (timer) clearTimeout(timer);
-    timer = setTimeout(suggestNow, 40);
+    suggestNow();
   }
 
   function moveHighlight(delta) {
@@ -1333,17 +1510,9 @@ export function jumpScript(): string {
     syncActive();
   }
 
-  async function canGo(value) {
-    try {
-      const res = await fetch("/api/jump-suggest?q=" + encodeURIComponent(value), {
-        headers: { accept: "application/json" },
-      });
-      if (!res.ok) return false;
-      const data = await res.json();
-      return Boolean(data.canGo);
-    } catch (_) {
-      return false;
-    }
+  function canGo(value) {
+    const state = passageHelpers(value);
+    return Boolean(state && state.canGo);
   }
 
   function goToInput() {
@@ -1368,7 +1537,7 @@ export function jumpScript(): string {
     if (!input) return;
     const next = insertTextFor(hit);
     const current = input.value;
-    if (sameEntry(current, next) && (await canGo(current))) {
+    if (sameEntry(current, next) && canGo(current)) {
       goToInput();
       return;
     }
@@ -1504,52 +1673,75 @@ export function jumpScript(): string {
     return Boolean(event.ctrlKey) && !event.metaKey;
   }
 
-  if (!window.__marginJumpShortcutBound) {
-    window.__marginJumpShortcutBound = true;
-    document.addEventListener("keydown", (event) => {
-      if (!isSearchChord(event)) return;
-      if (!focusVisibleJump()) return;
-      event.preventDefault();
-      event.stopPropagation();
-    }, true);
-    document.addEventListener("keydown", (event) => {
-      if (event.defaultPrevented) return;
-      if (event.key !== "/" && event.key !== "j") return;
-      if (event.metaKey || event.ctrlKey || event.altKey) return;
-      const t = event.target;
-      const tag = t && t.tagName;
-      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || t?.isContentEditable) return;
-      if (!focusVisibleJump()) return;
-      event.preventDefault();
-    });
-    document.addEventListener("keydown", (event) => {
-      if (event.key !== "Escape") return;
-      if (closeTestamentMenu()) {
-        event.preventDefault();
-        event.stopPropagation();
-        return;
-      }
-      const modal = document.querySelector(".search-modal");
-      if (!modal || modal.hidden) return;
-      event.preventDefault();
-      event.stopPropagation();
-      closeSearchModal();
-    }, true);
-    window.addEventListener("popstate", () => {
-      const modal = document.querySelector(".search-modal");
-      const sheetOpen = Boolean(modal && !modal.hidden);
-      const shouldRestore = restoreQueryOnPop || sheetOpen;
-      restoreQueryOnPop = false;
-      if (sheetOpen) {
-        closeViaPop = true;
-        closeSearchModal();
-        closeViaPop = false;
-      }
-      if (!shouldRestore) return;
-      const cache = readSearchCache();
-      if (cache && cache.query) syncSearchQuery(cache.query);
-    });
+  function onSearchChord(event) {
+    if (!isSearchChord(event)) return;
+    if (!focusVisibleJump()) return;
+    event.preventDefault();
+    event.stopPropagation();
   }
+  function onSearchSlash(event) {
+    if (event.defaultPrevented) return;
+    if (event.metaKey || event.ctrlKey || event.altKey) return;
+    const t = event.target;
+    const tag = t && t.tagName;
+    if (event.key === "/") {
+      // A note is contenteditable. Slash still focuses search from there.
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+      if (!focusVisibleJump()) return;
+      event.preventDefault();
+      event.stopPropagation();
+      return;
+    }
+    if (event.key !== "j") return;
+    if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || t?.isContentEditable) return;
+    if (!focusVisibleJump()) return;
+    event.preventDefault();
+  }
+  function onSearchEscape(event) {
+    if (event.key !== "Escape") return;
+    if (closeTestamentMenu()) {
+      event.preventDefault();
+      event.stopPropagation();
+      return;
+    }
+    const modal = document.querySelector(".search-modal");
+    if (!modal || modal.hidden) return;
+    event.preventDefault();
+    event.stopPropagation();
+    closeSearchModal();
+  }
+  function onSearchPop() {
+    const modal = document.querySelector(".search-modal");
+    const sheetOpen = Boolean(modal && !modal.hidden);
+    const shouldRestore = restoreQueryOnPop || sheetOpen;
+    restoreQueryOnPop = false;
+    if (sheetOpen) {
+      closeViaPop = true;
+      closeSearchModal();
+      closeViaPop = false;
+    }
+    if (!shouldRestore) return;
+    const cache = readSearchCache();
+    if (cache && cache.query) syncSearchQuery(cache.query);
+  }
+  // document.write drops document listeners. The window flag used to skip the new page.
+  const previous = window.__marginJumpShortcut;
+  if (previous) {
+    document.removeEventListener("keydown", previous.chord, true);
+    document.removeEventListener("keydown", previous.slash, true);
+    document.removeEventListener("keydown", previous.escape, true);
+    window.removeEventListener("popstate", previous.pop);
+  }
+  window.__marginJumpShortcut = {
+    chord: onSearchChord,
+    slash: onSearchSlash,
+    escape: onSearchEscape,
+    pop: onSearchPop,
+  };
+  document.addEventListener("keydown", onSearchChord, true);
+  document.addEventListener("keydown", onSearchSlash, true);
+  document.addEventListener("keydown", onSearchEscape, true);
+  window.addEventListener("popstate", onSearchPop);
 
   window.__marginBindJump = bindAll;
   bindAll();
