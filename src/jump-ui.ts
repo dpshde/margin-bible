@@ -209,12 +209,12 @@ export function jumpScript(): string {
     searchForm.addEventListener("submit", (event) => {
       const q = input.value.trim();
       event.preventDefault();
-      mirrorHeader(q);
-      syncSearchQuery(q);
       if (!q) {
         close();
         return;
       }
+      mirrorHeader(q);
+      syncSearchQuery(q);
       submitJump(q);
     });
     input.addEventListener("keydown", (event) => {
@@ -243,6 +243,11 @@ export function jumpScript(): string {
         event.preventDefault();
         closeSearchModal();
       }
+    });
+    input.addEventListener("input", () => {
+      if (String(input.value || "").trim()) return;
+      seq += 1;
+      close();
     });
     list.addEventListener("click", (event) => {
       const btn = event.target.closest("button[data-index]");

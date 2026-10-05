@@ -400,6 +400,51 @@ describe("shareable search query", () => {
   });
 });
 
+describe("clearing the modal input", () => {
+  test("clear hides results and closing restores the cached query", () => {
+    const source = jumpScript();
+    const modal = source.slice(source.indexOf("function ensureSearchModal"), source.indexOf("function ensureSearchFab"));
+    const onInput = modal.slice(modal.indexOf('input.addEventListener("input"'), modal.indexOf('list.addEventListener("click"'));
+    expect(onInput).toContain("seq += 1");
+    expect(onInput).toContain("close()");
+    expect(onInput).not.toContain("clearSearchCache");
+    expect(onInput).not.toContain("writeSearchCache");
+    expect(onInput).not.toContain("fetch(");
+    expect(onInput).not.toContain("/api/ha-search");
+    const closeList = source.slice(source.indexOf("function close()"), source.indexOf("function showSearchSkeletons"));
+    expect(closeList).toContain("list.hidden = true");
+    expect(closeList).toContain('list.innerHTML = ""');
+    expect(closeList).not.toContain("clearSearchCache");
+    expect(closeList).not.toContain("sessionStorage");
+    const closeModal = source.slice(source.indexOf("function closeSearchModal"), source.indexOf("function revealCachedSearch"));
+    expect(closeModal).toContain("readSearchCache()");
+    expect(closeModal).toContain("mirrorHeader(cache.query)");
+    expect(closeModal).not.toContain("clearSearchCache");
+    const reveal = source.slice(source.indexOf("function revealCachedSearch"), source.indexOf("function openFromHeader"));
+    expect(reveal).toContain("input.value = cache.query");
+    expect(reveal).toContain("submittedQuery = cache.query");
+    expect(reveal).toContain("render({ hits: cache.hits })");
+    expect(reveal).not.toContain("fetch(");
+    expect(reveal).not.toContain("/api/ha-search");
+  });
+
+  test("submitting a new search replaces the cache", () => {
+    const source = jumpScript();
+    const modal = source.slice(source.indexOf("function ensureSearchModal"), source.indexOf("function ensureSearchFab"));
+    const onSubmit = modal.slice(modal.indexOf('searchForm.addEventListener("submit"'), modal.indexOf('input.addEventListener("keydown"'));
+    expect(onSubmit.indexOf("if (!q)")).toBeLessThan(onSubmit.indexOf("mirrorHeader(q)"));
+    expect(onSubmit.indexOf("mirrorHeader(q)")).toBeLessThan(onSubmit.indexOf("syncSearchQuery(q)"));
+    expect(onSubmit.indexOf("syncSearchQuery(q)")).toBeLessThan(onSubmit.indexOf("submitJump(q)"));
+    expect(onSubmit).toContain("close()");
+    const submit = source.slice(source.indexOf("async function submitJump"), source.indexOf("function suggest()"));
+    expect(submit).toContain("writeSearchCache(q, data.hits || [])");
+    expect(submit).toContain("writeSearchCache(q, keywordHits)");
+    const writing = source.slice(source.indexOf("function writeSearchCache"), source.indexOf("function clearSearchCache"));
+    expect(writing).toContain('sessionStorage.setItem("margin-search-cache"');
+    expect(writing).toContain("cachedSearch = { query: String(query || \"\"), hits: packed }");
+  });
+});
+
 describe("search list stays on screen", () => {
   test("suggest list scrolls inside the viewport and above the keyboard", () => {
     const css = readFileSync(path.join(import.meta.dir, "../src/html.ts"), "utf8");
