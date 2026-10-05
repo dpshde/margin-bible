@@ -839,7 +839,17 @@ describe("passage helpers while typing", () => {
     expect(keys.indexOf("applyHit(passage)")).toBeLessThan(keys.indexOf("q === submittedQuery"));
 
     const submit = source.slice(source.indexOf("async function submitJump"), source.indexOf("function suggest()"));
+    const exact = submit.slice(0, submit.indexOf('fetch("/api/jump-suggest?q="'));
+    expect(exact).toContain("passageHelpers(q)");
+    expect(exact).toContain("local.canGo");
+    expect(exact).toContain('"/jump?q=" + encodeURIComponent(q)');
+    expect(exact).toContain("location.assign(jumpUrl)");
+    expect(exact).toContain("location.replace(jumpUrl)");
+    expect(exact).not.toContain("/api/ha-search");
+    expect(exact).not.toContain("searchScripture");
+    expect(exact).not.toContain("rememberRecentSearch");
     expect(submit).toContain('fetch("/api/jump-suggest?q="');
+    expect(submit.indexOf("local.canGo")).toBeLessThan(submit.indexOf('fetch("/api/jump-suggest?q="'));
     expect(submit.indexOf("showSearchSkeletons()")).toBeLessThan(submit.indexOf("searchScripture(q, my)"));
     const freeText = submit.slice(submit.lastIndexOf("submittedQuery = q"));
     expect(freeText).toContain("searchScripture(q, my)");

@@ -1383,6 +1383,15 @@ export function jumpScript(): string {
 
   async function submitJump(q) {
     const my = ++seq;
+    const local = passageHelpers(q);
+    if (local && local.canGo) {
+      const jumpUrl = "/jump?q=" + encodeURIComponent(q);
+      if (searchState) {
+        searchState = false;
+        location.replace(jumpUrl);
+      } else location.assign(jumpUrl);
+      return;
+    }
     let data = null;
     try {
       const res = await fetch("/api/jump-suggest?q=" + encodeURIComponent(q), {
