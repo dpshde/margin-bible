@@ -12,6 +12,7 @@ import {
   PAIR_FILL_CAP,
   cleanGroupDescription,
   cleanGroupTitle,
+  verseMemberFromInput,
   missingPairwise,
   realVerseGroups,
   userEdges,
@@ -20,6 +21,7 @@ import {
   withoutUserXref,
   type GroupNote,
 } from "../src/verse-groups";
+import { closestJevTopic, DEMO_VERSE_TEXTS, JEV_TOPICS } from "../src/jev-topics";
 import { verseGroupCardHtml, verseGroupsScript } from "../src/verse-groups-ui";
 
 function xref(slug: string, source: "manual" | "scan" | "backlink" = "manual"): Attachment {
@@ -172,6 +174,12 @@ describe("verse group detection", () => {
     expect(description.startsWith("line\nnext")).toBe(true);
     expect(description.length).toBe(2_000);
   });
+
+  test("a verse chip accepts a passage and refuses a url", () => {
+    expect(verseMemberFromInput("John 9:3")).toEqual({ ok: true, slug: "jhn.9.3", label: "John 9:3" });
+    expect(verseMemberFromInput("https://example.com/note")).toEqual({ ok: false, error: "Need a passage." });
+    expect(verseMemberFromInput("")).toEqual({ ok: false, error: "Need a passage." });
+  });
 });
 
 describe("preview worker publish", () => {
@@ -195,6 +203,28 @@ describe("preview worker publish", () => {
   });
 });
 
+describe("jev topic hierarchy", () => {
+  test("the seed passages land on Providence, under God", () => {
+    const match = closestJevTopic(DEMO_VERSE_TEXTS);
+    expect(match?.parent).toBe("God");
+    expect(match?.parentId).toBe("god");
+    expect(match?.child).toBe("Providence");
+    expect(match && match.passages >= 3).toBe(true);
+  });
+
+  test("an empty passage list has no topic", () => {
+    expect(closestJevTopic(["", "  "])).toBeNull();
+  });
+
+  test("parents are the first step and children stay under a parent", () => {
+    const labels = JEV_TOPICS.map((parent) => parent.label);
+    expect(labels).toEqual(["God", "Character", "Life"]);
+    const god = JEV_TOPICS.find((parent) => parent.id === "god");
+    expect(god?.children.map((child) => child.label)).toContain("Providence");
+    expect(god?.children.map((child) => child.label)).not.toContain("Humility");
+  });
+});
+
 describe("verse groups inbox", () => {
   test("empty inbox puts Verse groups beside Bookmarks and shows the seed mesh", () => {
     const html = renderNotesIndex([], "jhn.1");
@@ -211,13 +241,32 @@ describe("verse groups inbox", () => {
     expect(html).toContain("John 9:3");
     expect(html).toContain("Romans 12:3");
     expect(html).toContain("Name this web");
-    expect(html).toContain("Add the cross-links in this web");
-    expect(html).toContain("Nothing is added until you confirm");
-    expect(html).toContain('class="verse-group-preview" hidden');
+    expect(html).toContain('value="Providence"');
+    expect(html).toContain('class="verse-group-description"');
+    expect(html).not.toContain('class="verse-group-description" open');
+    expect(html).toContain("optional");
+    const panel = html.slice(html.indexOf('id="verse-groups-panel"'));
+    const parents = panel.slice(panel.indexOf("verse-group-topic-parents"), panel.indexOf("verse-group-topic-children"));
+    expect(parents).toContain(">God</button>");
+    expect(parents).toContain(">Character</button>");
+    expect(parents).toContain(">Life</button>");
+    expect(parents).not.toContain("Providence");
+    expect(html).toContain('data-parent="god" hidden');
+    expect(html).toContain('data-vg-topic-child="Providence"');
+    expect(html).toContain('class="att-chip wiki"');
+    expect(html).toContain('data-vg-attach');
+    expect(html).toContain("Drop a link. Or a passage.");
+    expect(html).toContain("John 3:16");
+    expect(html).not.toContain("verse-group-preview");
+    expect(html).not.toContain("is-highlight");
+    expect(html).not.toContain("verse-group-members");
     expect(html).not.toMatch(/>Open</);
     const css = page("t", "<p>x</p>");
     expect(css).toContain(".inbox-tool-row");
     expect(css).toContain(".verse-groups-btn");
+    const vgCss = css.slice(css.indexOf(".verse-groups-btn"), css.indexOf(".note-week"));
+    expect(vgCss).not.toContain("border-left");
+    expect(vgCss).not.toContain("inset 3px");
     nodeCheck(verseGroupsScript());
   });
 
@@ -244,7 +293,11 @@ describe("verse groups inbox", () => {
     expect(html).toContain("data-sample=\"0\"");
     expect(html).not.toContain("<script>alert");
     expect(html).toContain("&lt;script&gt;");
+    expect(html).toContain('class="verse-group-description" open');
     expect(html).toContain(">Save</button>");
-    expect(html).toContain("Cross-links already connect this web.");
+    expect(html).toContain('class="att-chip wiki"');
+    expect(html).toContain("1 Peter 5:6");
+    expect(html).not.toContain("verse-group-preview");
+    expect(html).not.toContain("border-left");
   });
 });

@@ -11,7 +11,8 @@
  * TODO(pair): include verse_groups rows in the library snapshot.
  * TODO(pair): stack more than the last cross-link add on undo.
  */
-import { addAttachment, type Attachment } from "./attachments";
+import { addAttachment, parseAttachmentInput, type Attachment } from "./attachments";
+import { applySuggestedTopic, DEMO_VERSE_TEXTS } from "./jev-topics";
 import { parsePassage, passageSlug } from "./passage";
 import { slugLabel } from "./xref";
 
@@ -70,6 +71,10 @@ export type VerseGroupView = {
   missingPairs: VersePair[];
   missingCount: number;
   undoReady: boolean;
+  /** Nearest topic, used when the web has no saved title. */
+  suggestedTitle?: string;
+  /** Parent id for that topic, so the picker can open on the right branch. */
+  topicParent?: string;
 };
 
 const DEMO_ORDER = new Map<string, number>(DEMO_SPOKE_SLUGS.map((slug, index) => [slug, index]));
@@ -85,6 +90,15 @@ export function cleanGroupTitle(value: unknown): string {
     .replace(/\s+/g, " ")
     .trim()
     .slice(0, GROUP_TITLE_MAX);
+}
+
+/** A verse-group chip is a passage, same as an xref attachment. URLs are not members. */
+export function verseMemberFromInput(raw: unknown): { ok: true; slug: string; label: string } | { ok: false; error: string } {
+  const parsed = parseAttachmentInput(raw);
+  if (!parsed || parsed.kind !== "xref") return { ok: false, error: "Need a passage." };
+  const slug = canonSlug(parsed.slug);
+  if (!slug) return { ok: false, error: "Need a passage." };
+  return { ok: true, slug, label: slugLabel(slug) };
 }
 
 export function cleanGroupDescription(value: unknown): string {
@@ -221,7 +235,7 @@ export function verseGroupsFromNotes(
 
 export function sampleVerseGroup(meta?: VerseGroupMeta): VerseGroupView {
   const edges = DEMO_SPOKE_SLUGS.map((origin) => ({ origin, target: DEMO_HUB }));
-  return toView({
+  const group = toView({
     hub: DEMO_HUB,
     edges,
     members: [DEMO_HUB, ...DEMO_SPOKE_SLUGS],
@@ -230,6 +244,8 @@ export function sampleVerseGroup(meta?: VerseGroupMeta): VerseGroupView {
     sample: true,
     meta,
   });
+  if (group.title.trim()) return group;
+  return applySuggestedTopic(group, DEMO_VERSE_TEXTS);
 }
 
 function toView(input: {

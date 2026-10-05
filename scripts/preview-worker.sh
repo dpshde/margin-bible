@@ -45,7 +45,7 @@ mise exec -- cf deploy
 
 prod=$(curl -fsS -H "cache-control: no-cache" "https://margin-bible.dpshade.workers.dev/health" || true)
 printf '%s\n' "$prod"
-if printf '%s' "$prod" | grep -q '2026.10.05.1'; then
+if printf '%s' "$prod" | grep -q '2026.10.05.3'; then
   echo "production worker is serving this preview build" >&2
   exit 1
 fi
@@ -55,17 +55,21 @@ body=""
 while [ "$i" -lt 12 ]; do
   body=$(curl -fsS -H "cache-control: no-cache" "$preview_url/health" || true)
   printf '%s\n' "$body"
-  if printf '%s' "$body" | grep -q '2026.10.05.1'; then
+  if printf '%s' "$body" | grep -q '2026.10.05.3'; then
     break
   fi
   i=$((i + 1))
   sleep 3
 done
-printf '%s' "$body" | grep -q '2026.10.05.1'
+printf '%s' "$body" | grep -q '2026.10.05.3'
 
 notes=$(curl -fsS -H "cache-control: no-cache" "$preview_url/notes")
 printf '%s' "$notes" | grep -q 'id="verse-groups-btn"'
 printf '%s' "$notes" | grep -q 'data-hub="rom.9.17"'
-printf '%s' "$notes" | grep -q 'Add the cross-links in this web'
+printf '%s' "$notes" | grep -q 'data-vg-attach'
+printf '%s' "$notes" | grep -q 'class="att-chip wiki"'
+printf '%s' "$notes" | grep -q 'value="Providence"'
+printf '%s' "$notes" | grep -q 'data-vg-topic-parent="god"'
+printf '%s' "$notes" | grep -q 'class="verse-group-description"'
 
 echo "PREVIEW_URL=$preview_url/notes"

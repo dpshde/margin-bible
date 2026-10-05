@@ -17,6 +17,7 @@ import {
   DEMO_SPOKE_SLUGS,
   realVerseGroups,
   verseGroupsFromNotes,
+  verseMemberFromInput,
   withManualXref,
   withoutUserXref,
   type GroupNote,
@@ -76,7 +77,13 @@ export async function handleVerseGroupAction(
   const action = record.action;
   const hub = canonSlug(typeof record.hub === "string" ? record.hub : "");
   if (!hub) return { ok: false, status: 422, error: "unresolvable hub" };
-  if (action !== "save" && action !== "add-links" && action !== "undo-links") {
+  if (
+    action !== "save" &&
+    action !== "add-links" &&
+    action !== "undo-links" &&
+    action !== "add-member" &&
+    action !== "remove-member"
+  ) {
     return { ok: false, status: 422, error: "unknown action" };
   }
   try {
@@ -87,6 +94,8 @@ export async function handleVerseGroupAction(
         description: cleanGroupDescription(record.description),
       });
     }
+    if (action === "add-member") return await addVerseMember(db, libraryId, hub, record.text);
+    if (action === "remove-member") return await removeVerseMember(db, libraryId, hub, record.slug);
     if (action === "add-links") return await addVerseGroupLinks(db, libraryId, hub);
     return await undoVerseGroupLinks(db, libraryId, hub);
   } catch (err) {
@@ -114,6 +123,45 @@ async function saveVerseGroup(
   const group = await groupForHub(db, libraryId, hub);
   if (!group) return { ok: false, status: 422, error: "That verse is not a hub yet." };
   return { ok: true, statusText: "Saved.", group };
+}
+
+async function addVerseMember(
+  db: D1Database,
+  libraryId: string,
+  hub: string,
+  raw: unknown,
+): Promise<VerseGroupActionResult> {
+  const parsed = verseMemberFromInput(raw);
+  if (!parsed.ok) return { ok: false, status: 422, error: parsed.error };
+  if (parsed.slug === hub) return { ok: false, status: 422, error: "Already attached." };
+  const seen = await groupForHub(db, libraryId, hub);
+  if (seen?.members.some((member) => member.slug === parsed.slug)) {
+    return { ok: false, status: 422, error: "Already attached." };
+  }
+  const ready = await ensureHub(db, libraryId, hub);
+  if (!ready.ok) return ready;
+  await addUserLink(db, libraryId, parsed.slug, hub);
+  const group = await groupForHub(db, libraryId, hub);
+  if (!group) return { ok: false, status: 422, error: "That verse is not a hub yet." };
+  return { ok: true, statusText: `Attached ${parsed.label}.`, group };
+}
+
+async function removeVerseMember(
+  db: D1Database,
+  libraryId: string,
+  hub: string,
+  raw: unknown,
+): Promise<VerseGroupActionResult> {
+  const slug = canonSlug(typeof raw === "string" ? raw : "");
+  if (!slug) return { ok: false, status: 422, error: "Need a passage." };
+  if (slug === hub) return { ok: false, status: 422, error: "That verse stays." };
+  const ready = await ensureHub(db, libraryId, hub);
+  if (!ready.ok) return ready;
+  await removeUserLink(db, libraryId, slug, hub);
+  await removeUserLink(db, libraryId, hub, slug);
+  const group = await groupForHub(db, libraryId, hub);
+  if (!group) return { ok: false, status: 422, error: "That verse is not a hub yet." };
+  return { ok: true, statusText: "Removed.", group };
 }
 
 async function addVerseGroupLinks(
