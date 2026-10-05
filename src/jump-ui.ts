@@ -547,6 +547,7 @@ export function jumpScript(): string {
       close();
       loadTopicSuggestions();
     });
+    topicChips.addEventListener("scroll", () => syncChipFades(topicChips), { passive: true });
     topicChips.addEventListener("click", (event) => {
       const chip = event.target.closest("button.search-suggest-chip");
       if (!chip) return;
@@ -866,6 +867,15 @@ export function jumpScript(): string {
       chips.appendChild(btn);
     }
     row.hidden = false;
+    requestAnimationFrame(() => syncChipFades(chips));
+  }
+
+  function syncChipFades(chips) {
+    const row = chips || document.querySelector(".search-suggest-chips");
+    if (!row) return;
+    const max = row.scrollWidth - row.clientWidth;
+    row.classList.toggle("is-fade-left", row.scrollLeft > 2);
+    row.classList.toggle("is-fade-right", max - row.scrollLeft > 2);
   }
 
   function syncTopicChips() {

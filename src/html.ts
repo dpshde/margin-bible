@@ -487,20 +487,38 @@ export function page(title: string, body: string): string {
     .search-modal-form:has(.search-modal-list:not([hidden])) .search-modal-footer { display: block; }
     .search-suggest {
       flex: 0 0 auto; min-width: 0;
-      padding: 0 14px 12px;
+      /* Left edge lines up with the input, past the icon. Right and bottom match the bar's 14px / 12px inset. */
+      padding: 0 14px 12px calc(14px + 18px + .55rem);
     }
     .search-suggest[hidden] { display: none; }
     .search-suggest-chips {
-      display: flex; flex-wrap: nowrap; gap: .4rem;
+      --chip-fade: 28px;
+      display: flex; flex-wrap: nowrap; gap: .3rem;
       min-width: 0;
       overflow-x: auto;
       scrollbar-width: none;
       -webkit-overflow-scrolling: touch;
+      -webkit-mask-size: 100% 100%;
+      mask-size: 100% 100%;
+      -webkit-mask-repeat: no-repeat;
+      mask-repeat: no-repeat;
     }
     .search-suggest-chips::-webkit-scrollbar { display: none; width: 0; height: 0; }
+    .search-suggest-chips.is-fade-right {
+      -webkit-mask-image: linear-gradient(to right, #000 0, #000 calc(100% - var(--chip-fade)), transparent 100%);
+      mask-image: linear-gradient(to right, #000 0, #000 calc(100% - var(--chip-fade)), transparent 100%);
+    }
+    .search-suggest-chips.is-fade-left {
+      -webkit-mask-image: linear-gradient(to right, transparent 0, #000 var(--chip-fade), #000 100%);
+      mask-image: linear-gradient(to right, transparent 0, #000 var(--chip-fade), #000 100%);
+    }
+    .search-suggest-chips.is-fade-left.is-fade-right {
+      -webkit-mask-image: linear-gradient(to right, transparent 0, #000 var(--chip-fade), #000 calc(100% - var(--chip-fade)), transparent 100%);
+      mask-image: linear-gradient(to right, transparent 0, #000 var(--chip-fade), #000 calc(100% - var(--chip-fade)), transparent 100%);
+    }
     .search-suggest-chip {
       flex: 0 0 auto; white-space: nowrap;
-      margin: 0; padding: .28rem .65rem;
+      margin: 0; padding: .2rem .5rem;
       border: 1px solid color-mix(in srgb, var(--ink) 14%, transparent);
       border-radius: 999px;
       background: transparent;
@@ -608,7 +626,7 @@ export function page(title: string, body: string): string {
           0
           calc(14px + env(safe-area-inset-right, 0px))
           12px
-          calc(14px + env(safe-area-inset-left, 0px));
+          calc(14px + env(safe-area-inset-left, 0px) + 18px + .55rem);
       }
       .search-suggest-chips {
         flex-wrap: nowrap;
