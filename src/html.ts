@@ -147,12 +147,13 @@ export function page(title: string, body: string): string {
     .topbar-side { display: flex; align-items: center; gap: .25rem; }
     .topbar-actions { display: flex; align-items: center; justify-content: flex-end; gap: 0; }
     .topbar-title {
+      display: flex; align-items: center; justify-content: center;
       margin: 0; font-family: var(--head); font-size: 1.05rem; font-weight: 600;
       text-align: center; letter-spacing: -.01em; min-width: 0;
     }
     .topbar-title-btn {
       appearance: none; -webkit-appearance: none;
-      display: block; width: 100%; max-width: 100%;
+      display: block; width: auto; max-width: 100%; min-width: 0; flex: 0 1 auto;
       min-height: var(--tap);
       margin: 0; padding: .2rem .4rem;
       border: 0; border-radius: .45rem;
@@ -168,6 +169,8 @@ export function page(title: string, body: string): string {
       outline: 2px solid color-mix(in srgb, var(--ink) 28%, transparent);
       outline-offset: 1px;
     }
+    /* Chapter bookmark sits with the title so it reads as chapter-scoped, not a toolbar action. */
+    .topbar-chapter-mark { flex: none; }
     .is-grid-open .topbar { z-index: 45; }
     .icon-btn {
       appearance: none; display: inline-flex; align-items: center; justify-content: center;
@@ -1727,6 +1730,9 @@ export function page(title: string, body: string): string {
     @media (max-width: 640px) {
       .topbar { grid-template-columns: auto 1fr auto; gap: .25rem; padding-left: .5rem; padding-right: .5rem; }
       .topbar-title { font-size: .95rem; }
+      /* A long chapter name fills the middle track. Keep the bookmark with that name,
+         and leave a gap before the theme / profile / expand icons. */
+      .topbar-chapter-mark { margin-inline-end: .75rem; }
       /* Notes inbox only. The left slot is empty and the right slot is three icons,
          so a title centered in the flexible middle track sits left of the screen.
          Paint the same title across the bar; the icons stay in the end column. */

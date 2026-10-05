@@ -106,11 +106,11 @@ ${notesPreload}${prefetchLinks}
   </div>
   <h1 class="topbar-title">
     <button type="button" class="topbar-title-btn" id="chapter-grid-title" aria-haspopup="dialog" aria-expanded="false" aria-controls="chapter-grid" title="Choose book or chapter">${escapeHtml(title)}</button>
+    <button type="button" class="icon-btn${chapterNote?.bookmarked ? " is-on" : ""} topbar-chapter-mark" id="chapter-bookmark-btn" data-state-icon="bookmark" data-state-on="${chapterNote?.bookmarked ? "true" : "false"}" aria-label="Bookmark chapter" title="Bookmark chapter" aria-pressed="${chapterNote?.bookmarked ? "true" : "false"}">${iconBookmark()}</button>
   </h1>
   <div class="topbar-actions">
     ${themeToggleHtml()}
     ${authChip(signedIn, `/${passageSlug(passage)}`)}
-    <button type="button" class="icon-btn${chapterNote?.bookmarked ? " is-on" : ""}" id="chapter-bookmark-btn" data-state-icon="bookmark" data-state-on="${chapterNote?.bookmarked ? "true" : "false"}" aria-label="Bookmark chapter" title="Bookmark chapter" aria-pressed="${chapterNote?.bookmarked ? "true" : "false"}">${iconBookmark()}</button>
     <button type="button" class="expand-btn icon-btn" id="expand-all-btn" aria-label="Expand notes" title="Expand notes" aria-pressed="false" ${notesForRender.some((n) => n.kind !== "chapter" && (n.bookmarked || (n.attachments?.length ?? 0) > 0 || !emptyBlocks(n.blocks))) ? "" : "disabled"}>${iconExpand()}</button>
   </div>
 </header>
