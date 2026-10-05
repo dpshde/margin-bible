@@ -706,6 +706,22 @@ describe("topic suggestion chips", () => {
   });
 });
 
+describe("touch result selection", () => {
+  test("the selected row background is only for a fine pointer that can hover", () => {
+    const css = readFileSync(path.join(import.meta.dir, "../src/html.ts"), "utf8");
+    const block = css.slice(css.indexOf(".search-result {"), css.indexOf(".search-result-ref {"));
+    const fine = block.slice(block.indexOf("@media (hover: hover) and (pointer: fine)"));
+    expect(fine).toContain(".search-result.is-selected");
+    expect(fine).toContain(".search-result:hover");
+    expect(fine).toContain(".search-result:focus-visible");
+    expect(fine).toContain("background: color-mix(in srgb, var(--ink) 8%, var(--paper-raised))");
+    const beforeFine = block.slice(0, block.indexOf("@media (hover: hover) and (pointer: fine)"));
+    expect(beforeFine).not.toContain("background: color-mix(in srgb, var(--ink) 8%, var(--paper-raised))");
+    expect(block).toContain(".search-result:active");
+    expect(block.indexOf(".search-result:active")).toBeGreaterThan(block.indexOf("@media (hover: hover) and (pointer: fine)"));
+  });
+});
+
 describe("POST /api/ha-suggest", () => {
   test("the upstream url prefers the suggest base, then the shared base, then the search origin", () => {
     expect(hiddenArrowSuggestUrl({ suggestBase: "https://suggest.arrow.test/", base: "https://base.arrow.test" })).toBe(

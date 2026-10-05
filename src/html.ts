@@ -525,8 +525,17 @@ export function page(title: string, body: string): string {
     .search-result.is-selected,
     .search-result:hover,
     .search-result:focus-visible {
-      background: color-mix(in srgb, var(--ink) 8%, var(--paper-raised));
       outline: none;
+    }
+    @media (hover: hover) and (pointer: fine) {
+      .search-result.is-selected,
+      .search-result:hover,
+      .search-result:focus-visible {
+        background: color-mix(in srgb, var(--ink) 8%, var(--paper-raised));
+      }
+    }
+    .search-result:active {
+      background: color-mix(in srgb, var(--ink) 8%, var(--paper-raised));
     }
     .search-result-ref {
       display: block;
