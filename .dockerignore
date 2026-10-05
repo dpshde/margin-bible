@@ -1,0 +1,5 @@
+node_modules
+.git
+.wrangler
+*.sqlite
+preview-d1.ts.bak
