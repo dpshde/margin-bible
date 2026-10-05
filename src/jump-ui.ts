@@ -1652,52 +1652,75 @@ export function jumpScript(): string {
     return Boolean(event.ctrlKey) && !event.metaKey;
   }
 
-  if (!window.__marginJumpShortcutBound) {
-    window.__marginJumpShortcutBound = true;
-    document.addEventListener("keydown", (event) => {
-      if (!isSearchChord(event)) return;
-      if (!focusVisibleJump()) return;
-      event.preventDefault();
-      event.stopPropagation();
-    }, true);
-    document.addEventListener("keydown", (event) => {
-      if (event.defaultPrevented) return;
-      if (event.key !== "/" && event.key !== "j") return;
-      if (event.metaKey || event.ctrlKey || event.altKey) return;
-      const t = event.target;
-      const tag = t && t.tagName;
-      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || t?.isContentEditable) return;
-      if (!focusVisibleJump()) return;
-      event.preventDefault();
-    });
-    document.addEventListener("keydown", (event) => {
-      if (event.key !== "Escape") return;
-      if (closeTestamentMenu()) {
-        event.preventDefault();
-        event.stopPropagation();
-        return;
-      }
-      const modal = document.querySelector(".search-modal");
-      if (!modal || modal.hidden) return;
-      event.preventDefault();
-      event.stopPropagation();
-      closeSearchModal();
-    }, true);
-    window.addEventListener("popstate", () => {
-      const modal = document.querySelector(".search-modal");
-      const sheetOpen = Boolean(modal && !modal.hidden);
-      const shouldRestore = restoreQueryOnPop || sheetOpen;
-      restoreQueryOnPop = false;
-      if (sheetOpen) {
-        closeViaPop = true;
-        closeSearchModal();
-        closeViaPop = false;
-      }
-      if (!shouldRestore) return;
-      const cache = readSearchCache();
-      if (cache && cache.query) syncSearchQuery(cache.query);
-    });
+  function onSearchChord(event) {
+    if (!isSearchChord(event)) return;
+    if (!focusVisibleJump()) return;
+    event.preventDefault();
+    event.stopPropagation();
   }
+  function onSearchSlash(event) {
+    if (event.defaultPrevented) return;
+    if (event.metaKey || event.ctrlKey || event.altKey) return;
+    const t = event.target;
+    const tag = t && t.tagName;
+    if (event.key === "/") {
+      // A note is contenteditable. Slash still focuses search from there.
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+      if (!focusVisibleJump()) return;
+      event.preventDefault();
+      event.stopPropagation();
+      return;
+    }
+    if (event.key !== "j") return;
+    if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || t?.isContentEditable) return;
+    if (!focusVisibleJump()) return;
+    event.preventDefault();
+  }
+  function onSearchEscape(event) {
+    if (event.key !== "Escape") return;
+    if (closeTestamentMenu()) {
+      event.preventDefault();
+      event.stopPropagation();
+      return;
+    }
+    const modal = document.querySelector(".search-modal");
+    if (!modal || modal.hidden) return;
+    event.preventDefault();
+    event.stopPropagation();
+    closeSearchModal();
+  }
+  function onSearchPop() {
+    const modal = document.querySelector(".search-modal");
+    const sheetOpen = Boolean(modal && !modal.hidden);
+    const shouldRestore = restoreQueryOnPop || sheetOpen;
+    restoreQueryOnPop = false;
+    if (sheetOpen) {
+      closeViaPop = true;
+      closeSearchModal();
+      closeViaPop = false;
+    }
+    if (!shouldRestore) return;
+    const cache = readSearchCache();
+    if (cache && cache.query) syncSearchQuery(cache.query);
+  }
+  // document.write drops document listeners. The window flag used to skip the new page.
+  const previous = window.__marginJumpShortcut;
+  if (previous) {
+    document.removeEventListener("keydown", previous.chord, true);
+    document.removeEventListener("keydown", previous.slash, true);
+    document.removeEventListener("keydown", previous.escape, true);
+    window.removeEventListener("popstate", previous.pop);
+  }
+  window.__marginJumpShortcut = {
+    chord: onSearchChord,
+    slash: onSearchSlash,
+    escape: onSearchEscape,
+    pop: onSearchPop,
+  };
+  document.addEventListener("keydown", onSearchChord, true);
+  document.addEventListener("keydown", onSearchSlash, true);
+  document.addEventListener("keydown", onSearchEscape, true);
+  window.addEventListener("popstate", onSearchPop);
 
   window.__marginBindJump = bindAll;
   bindAll();

@@ -138,24 +138,31 @@ describe("search focus chord", () => {
     expect(isSearchChord({ key: "/", metaKey: true }, "MacIntel")).toBe(false);
   });
 
-  test("the page chord is capture-phase and slash and j still ignore fields", () => {
+  test("the page chord is capture-phase and slash focuses search from a note", () => {
     const source = jumpScript();
-    const chord = source.slice(source.indexOf("function isSearchChord"), source.indexOf("if (!window.__marginJumpShortcutBound)"));
+    const chord = source.slice(source.indexOf("function isSearchChord"), source.indexOf("function onSearchChord"));
     expect(chord).toContain('key !== "k" && key !== "K" && event.code !== "KeyK"');
     expect(chord).toContain("event.metaKey) && !event.ctrlKey");
     expect(chord).toContain("event.ctrlKey) && !event.metaKey");
-    const listener = source.slice(source.indexOf("if (!window.__marginJumpShortcutBound)"));
+    const listener = source.slice(source.indexOf("function onSearchChord"));
     expect(listener).toContain("if (!isSearchChord(event)) return;");
     expect(listener).toContain("if (!focusVisibleJump()) return;");
     expect(listener).toContain("event.preventDefault()");
     expect(listener).toContain("event.stopPropagation()");
+    expect(listener).not.toContain("__marginJumpShortcutBound");
+    expect(listener).toContain("window.__marginJumpShortcut");
+    expect(listener).toContain('document.addEventListener("keydown", onSearchChord, true)');
+    expect(listener).toContain('document.addEventListener("keydown", onSearchSlash, true)');
+    expect(listener).toContain('removeEventListener("keydown", previous.chord, true)');
+    expect(listener).toContain('window.removeEventListener("popstate", previous.pop)');
     const focus = source.slice(source.indexOf("function focusVisibleJump"), source.indexOf("function isSearchChord"));
     expect(focus).toContain("input.focus()");
     expect(focus).toContain("input.select()");
-    expect(listener).toContain("}, true);");
-    expect(listener).toContain('event.key !== "/" && event.key !== "j"');
-    expect(listener).toContain('tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || t?.isContentEditable');
-    expect(listener).not.toContain("verse-rail");
+    const slash = source.slice(source.indexOf("function onSearchSlash"), source.indexOf("function onSearchEscape"));
+    expect(slash).toContain('event.key === "/"');
+    expect(slash.indexOf('event.key === "/"')).toBeLessThan(slash.indexOf('tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT"'));
+    expect(slash.indexOf("isContentEditable")).toBeGreaterThan(slash.indexOf('event.key !== "j"'));
+    expect(slash).not.toContain("verse-rail");
     expect(source).toContain("searchScripture(q, my)");
     expect(source).not.toContain("keepKeyword");
     expect(source).not.toContain("scheduleScripture");
