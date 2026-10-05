@@ -1,5 +1,3 @@
-import { keywordSearchClientSource } from "./keyword-search";
-
 export type SearchChordEvent = {
   key?: string;
   code?: string;
@@ -50,9 +48,7 @@ export function jumpFormHtml(): string {
 /** Browser jump combobox (string). Idempotent — safe to call after SPA injects a new form.jump. */
 export function jumpScript(): string {
   return `(() => {
-  ${keywordSearchClientSource()}
 
-  let keywordIndex = null;
   let hits = [];
   let selected = -1;
   let seq = 0;
@@ -393,23 +389,6 @@ export function jumpScript(): string {
     document.body.appendChild(btn);
   }
 
-  function scheduleKeywordIndex() {
-    const start = () => {
-      const run = () => {
-        fetch("/api/keyword-corpus", { headers: { accept: "application/json" } })
-          .then((res) => (res.ok ? res.json() : null))
-          .then((rows) => {
-            if (Array.isArray(rows) && rows.length) keywordIndex = buildKeywordIndex(rows);
-          })
-          .catch(() => {});
-      };
-      if (window.requestIdleCallback) window.requestIdleCallback(run, { timeout: 1500 });
-      else setTimeout(run, 1);
-    };
-    if (document.readyState === "complete") start();
-    else window.addEventListener("load", start, { once: true });
-  }
-
   function readSearchCache() {
     if (cachedSearch && cachedSearch.query) return cachedSearch;
     try {
@@ -522,6 +501,17 @@ export function jumpScript(): string {
     list.innerHTML = '<li class="search-unavailable" role="status">Search unavailable</li>';
   }
 
+  function highlightQuery(text, query) {
+    const safe = escape(text);
+    const words = String(query || "").toLowerCase().match(/[a-z0-9']+/g) || [];
+    const skip = { of: 1, the: 1, and: 1, to: 1 };
+    const used = words.filter((word) => word.length > 2 && !skip[word]);
+    const tokens = used.length ? used : words.filter((word) => word.length > 1);
+    if (!tokens.length) return safe;
+    const pattern = tokens.map((word) => word.replace(/[.*+?^$()|[\]\\]/g, "\\$&")).join("|");
+    return safe.replace(new RegExp("\\b(" + pattern + ")\\b", "gi"), (match) => '<mark class="search-mark">' + match + "</mark>");
+  }
+
   function render(state) {
     openSearchModal();
     const list = searchList();
@@ -584,7 +574,7 @@ export function jumpScript(): string {
     return next;
   }
 
-  async function searchScripture(q, my, keepKeyword) {
+  async function searchScripture(q, my) {
     try {
       const res = await fetch("/api/ha-search", {
         method: "POST",
@@ -593,7 +583,6 @@ export function jumpScript(): string {
       });
       if (my !== seq) return;
       if (!res.ok) {
-        if (keepKeyword) return;
         writeSearchCache(q, []);
         if (modalIsOpen()) showSearchUnavailable();
         return;
@@ -602,7 +591,6 @@ export function jumpScript(): string {
       if (my !== seq) return;
       const next = scriptureHits(data);
       if (!next.length) {
-        if (keepKeyword) return;
         writeSearchCache(q, []);
         if (modalIsOpen()) close();
         return;
@@ -610,10 +598,9 @@ export function jumpScript(): string {
       writeSearchCache(q, next);
       if (modalIsOpen()) render({ hits: next });
     } catch (_) {
-      if (my === seq && !keepKeyword) {
-        writeSearchCache(q, []);
-        if (modalIsOpen()) showSearchUnavailable();
-      }
+      if (my !== seq) return;
+      writeSearchCache(q, []);
+      if (modalIsOpen()) showSearchUnavailable();
     }
   }
 
@@ -667,19 +654,8 @@ export function jumpScript(): string {
       return;
     }
     submittedQuery = q;
-    const found = keywordIndex ? searchKeywordIndex(keywordIndex, q, 8) : [];
-    const keywordHits = found.map((verse) => ({
-      kind: "scripture",
-      label: verse.label,
-      text: verse.text,
-      path: verse.path,
-    }));
-    const keepKeyword = keywordHits.length > 0;
-    if (keepKeyword) {
-      writeSearchCache(q, keywordHits);
-      render({ hits: keywordHits });
-    } else showSearchSkeletons();
-    searchScripture(q, my, keepKeyword);
+    showSearchSkeletons();
+    searchScripture(q, my);
   }
 
   function suggest() {
@@ -915,10 +891,6 @@ export function jumpScript(): string {
   window.__marginBindJump = bindAll;
   bindAll();
   ensureSearchFab();
-  if (!window.__marginKeywordScheduled) {
-    window.__marginKeywordScheduled = true;
-    scheduleKeywordIndex();
-  }
   if (!window.__marginSearchQueryBoot) {
     window.__marginSearchQueryBoot = true;
     bootSearchQuery();

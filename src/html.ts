@@ -521,13 +521,14 @@ export function page(title: string, body: string): string {
         width: 3.4rem; height: 3.4rem; padding: 0;
         border: 0; border-radius: 999px; cursor: pointer;
         background: #292524; color: #e7e5e4;
-        right: calc(2.5rem + env(safe-area-inset-right, 0px));
-        bottom: calc(1rem + var(--safe-bottom));
+        right: calc(14px + env(safe-area-inset-right, 0px));
+        bottom: calc(14px + env(safe-area-inset-bottom, 0px));
         box-shadow: 0 .35rem 1rem color-mix(in srgb, #000 28%, transparent);
         transition: opacity 160ms ease, visibility 0s linear;
       }
       .search-fab svg { display: block; width: 28px; height: 28px; }
-      html.search-modal-open .search-fab {
+      html.search-modal-open .search-fab,
+      html.spotlight-on:has(.verse:is(.is-open, .is-span)) .search-fab {
         opacity: 0; visibility: hidden; pointer-events: none;
         transition: opacity 160ms ease, visibility 0s linear 160ms;
       }
