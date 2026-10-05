@@ -1,0 +1,346 @@
+/**
+ * Persist a web's name beside the hub slug. Xref sync keeps owning the chips,
+ * so a title survives a backlink write.
+ *
+ * Saving a sample mesh writes the fan-in spokes (members → hub) only.
+ * Pairwise cross-links are a separate confirm action.
+ */
+import { newAttachmentId, noteIsEmpty, type Attachment } from "./attachments";
+import { deleteNote, findNote, listNotes, saveNote } from "./library";
+import { parsePassage, passageOsis, passageSlug } from "./passage";
+import { syncBidirectionalXrefs } from "./xref-sync";
+import {
+  canonSlug,
+  cleanGroupDescription,
+  cleanGroupTitle,
+  DEMO_HUB,
+  DEMO_SPOKE_SLUGS,
+  realVerseGroups,
+  verseGroupsFromNotes,
+  withManualXref,
+  withoutUserXref,
+  type GroupNote,
+  type VerseGroupMeta,
+  type VerseGroupView,
+} from "./verse-groups";
+import type { NoteDraft } from "./notes";
+
+const CREATE_VERSE_GROUPS = `CREATE TABLE IF NOT EXISTS verse_groups (
+  library_id TEXT NOT NULL,
+  hub_slug TEXT NOT NULL,
+  title TEXT NOT NULL DEFAULT '',
+  description TEXT NOT NULL DEFAULT '',
+  undo_json TEXT NOT NULL DEFAULT '[]',
+  updated_at TEXT NOT NULL,
+  PRIMARY KEY (library_id, hub_slug)
+)`;
+
+type MetaRow = {
+  hub_slug: string;
+  title: string;
+  description: string;
+  undo_json: string | null;
+};
+
+export type VerseGroupActionResult =
+  | { ok: true; statusText: string; group: VerseGroupView }
+  | { ok: false; status: 422 | 500; error: string };
+
+export async function loadVerseGroups(
+  db: D1Database,
+  libraryId: string,
+  notes: readonly GroupNote[],
+): Promise<VerseGroupView[]> {
+  let metas: VerseGroupMeta[] = [];
+  try {
+    await ensureVerseGroupsTable(db);
+    metas = await listVerseGroupMeta(db, libraryId);
+  } catch (err) {
+    console.error(
+      JSON.stringify({
+        msg: "verse_groups_meta_unavailable",
+        error: err instanceof Error ? err.message : String(err),
+      }),
+    );
+  }
+  return verseGroupsFromNotes(notes, metas);
+}
+
+export async function handleVerseGroupAction(
+  db: D1Database,
+  libraryId: string,
+  body: unknown,
+): Promise<VerseGroupActionResult> {
+  if (!body || typeof body !== "object") return { ok: false, status: 422, error: "invalid json" };
+  const record = body as Record<string, unknown>;
+  const action = record.action;
+  const hub = canonSlug(typeof record.hub === "string" ? record.hub : "");
+  if (!hub) return { ok: false, status: 422, error: "unresolvable hub" };
+  if (action !== "save" && action !== "add-links" && action !== "undo-links") {
+    return { ok: false, status: 422, error: "unknown action" };
+  }
+  try {
+    await ensureVerseGroupsTable(db);
+    if (action === "save") {
+      return await saveVerseGroup(db, libraryId, hub, {
+        title: cleanGroupTitle(record.title),
+        description: cleanGroupDescription(record.description),
+      });
+    }
+    if (action === "add-links") return await addVerseGroupLinks(db, libraryId, hub);
+    return await undoVerseGroupLinks(db, libraryId, hub);
+  } catch (err) {
+    console.error(
+      JSON.stringify({
+        msg: "verse_groups_action_failed",
+        action,
+        hub,
+        error: err instanceof Error ? err.message : String(err),
+      }),
+    );
+    return { ok: false, status: 500, error: "Could not update that web." };
+  }
+}
+
+async function saveVerseGroup(
+  db: D1Database,
+  libraryId: string,
+  hub: string,
+  text: { title: string; description: string },
+): Promise<VerseGroupActionResult> {
+  const ready = await ensureHub(db, libraryId, hub);
+  if (!ready.ok) return ready;
+  await upsertVerseGroupText(db, libraryId, hub, text.title, text.description);
+  const group = await groupForHub(db, libraryId, hub);
+  if (!group) return { ok: false, status: 422, error: "That verse is not a hub yet." };
+  return { ok: true, statusText: "Saved.", group };
+}
+
+async function addVerseGroupLinks(
+  db: D1Database,
+  libraryId: string,
+  hub: string,
+): Promise<VerseGroupActionResult> {
+  const ready = await ensureHub(db, libraryId, hub);
+  if (!ready.ok) return ready;
+  const before = await groupForHub(db, libraryId, hub);
+  if (!before) return { ok: false, status: 422, error: "That verse is not a hub yet." };
+  const added: { from: string; to: string }[] = [];
+  for (const pair of before.missingPairs) {
+    const did = await addUserLink(db, libraryId, pair.from, pair.to);
+    if (did) added.push({ from: pair.from, to: pair.to });
+  }
+  if (added.length) await setUndoPairs(db, libraryId, hub, added);
+  const group = await groupForHub(db, libraryId, hub);
+  if (!group) return { ok: false, status: 422, error: "That verse is not a hub yet." };
+  const statusText =
+    added.length === 0
+      ? "No missing cross-links."
+      : added.length === 1
+        ? "Added 1 cross-link."
+        : `Added ${added.length} cross-links.`;
+  const more = before.missingCount > added.length ? " Some pairs are still missing." : "";
+  return { ok: true, statusText: `${statusText}${more}`, group };
+}
+
+async function undoVerseGroupLinks(
+  db: D1Database,
+  libraryId: string,
+  hub: string,
+): Promise<VerseGroupActionResult> {
+  const ready = await ensureHub(db, libraryId, hub);
+  if (!ready.ok) return ready;
+  const metas = await listVerseGroupMeta(db, libraryId);
+  const meta = metas.find((row) => row.hub === hub);
+  const pairs = meta?.undoPairs ?? [];
+  const group = await groupForHub(db, libraryId, hub);
+  if (!group) return { ok: false, status: 422, error: "That verse is not a hub yet." };
+  const members = new Set(group.members.map((member) => member.slug));
+  let removed = 0;
+  for (const pair of pairs) {
+    if (!members.has(pair.from) || !members.has(pair.to)) continue;
+    const did = await removeUserLink(db, libraryId, pair.from, pair.to);
+    if (did) removed += 1;
+  }
+  await setUndoPairs(db, libraryId, hub, []);
+  const next = await groupForHub(db, libraryId, hub);
+  if (!next) return { ok: false, status: 422, error: "That verse is not a hub yet." };
+  const statusText = removed === 0 ? "Nothing to undo." : "Removed the cross-links from the last add.";
+  return { ok: true, statusText, group: next };
+}
+
+/** Materialize the sample spokes when this library does not already have the hub. */
+async function ensureHub(
+  db: D1Database,
+  libraryId: string,
+  hub: string,
+): Promise<{ ok: true } | { ok: false; status: 422; error: string }> {
+  const notes = await listNotes(db, libraryId);
+  const real = realVerseGroups(notes);
+  if (real.some((group) => group.hub === hub)) return { ok: true };
+  if (hub !== DEMO_HUB) return { ok: false, status: 422, error: "That verse is not a hub yet." };
+  await materializeDemoMesh(db, libraryId);
+  const again = realVerseGroups(await listNotes(db, libraryId));
+  if (!again.some((group) => group.hub === hub)) {
+    return { ok: false, status: 422, error: "Could not save the sample web." };
+  }
+  return { ok: true };
+}
+
+/**
+ * Fan-in spokes only: each sample member points at Romans 9:17.
+ * Does not add the pairwise cross-links.
+ */
+export async function materializeDemoMesh(db: D1Database, libraryId: string): Promise<void> {
+  for (const member of DEMO_SPOKE_SLUGS) {
+    const existing = await findNote(db, libraryId, member);
+    const previous = existing?.attachments ?? [];
+    const next = withManualXref(previous, DEMO_HUB, newAttachmentId());
+    if (!existing) {
+      const draft = emptyNote(member, next.list);
+      if (!draft) continue;
+      await saveNote(db, libraryId, draft);
+    } else if (next.added) {
+      await saveNote(db, libraryId, { ...existing, attachments: next.list });
+    }
+    await syncBidirectionalXrefs(db, libraryId, member, previous, next.list);
+  }
+}
+
+async function addUserLink(db: D1Database, libraryId: string, origin: string, target: string): Promise<boolean> {
+  const existing = await findNote(db, libraryId, origin);
+  const previous = existing?.attachments ?? [];
+  const next = withManualXref(previous, target, newAttachmentId());
+  if (!next.added) return false;
+  if (!existing) {
+    const draft = emptyNote(origin, next.list);
+    if (!draft) return false;
+    await saveNote(db, libraryId, draft);
+  } else {
+    await saveNote(db, libraryId, { ...existing, attachments: next.list });
+  }
+  await syncBidirectionalXrefs(db, libraryId, origin, previous, next.list);
+  return true;
+}
+
+async function removeUserLink(db: D1Database, libraryId: string, origin: string, target: string): Promise<boolean> {
+  const existing = await findNote(db, libraryId, origin);
+  if (!existing) return false;
+  const previous = existing.attachments;
+  const next = withoutUserXref(previous, target);
+  if (next.length === previous.length) return false;
+  if (noteIsEmpty(existing.blocks, next, existing.bookmarked)) {
+    await deleteNote(db, libraryId, origin);
+    await syncBidirectionalXrefs(db, libraryId, origin, previous, []);
+    return true;
+  }
+  await saveNote(db, libraryId, { ...existing, attachments: next });
+  await syncBidirectionalXrefs(db, libraryId, origin, previous, next);
+  return true;
+}
+
+async function groupForHub(db: D1Database, libraryId: string, hub: string): Promise<VerseGroupView | null> {
+  const notes = await listNotes(db, libraryId);
+  const metas = await listVerseGroupMeta(db, libraryId);
+  return verseGroupsFromNotes(notes, metas).find((group) => group.hub === hub) ?? null;
+}
+
+export async function ensureVerseGroupsTable(db: D1Database): Promise<void> {
+  await db.prepare(CREATE_VERSE_GROUPS).run();
+}
+
+export async function listVerseGroupMeta(db: D1Database, libraryId: string): Promise<VerseGroupMeta[]> {
+  const result = await db
+    .prepare("SELECT hub_slug, title, description, undo_json FROM verse_groups WHERE library_id = ?")
+    .bind(libraryId)
+    .all<MetaRow>();
+  const metas: VerseGroupMeta[] = [];
+  for (const row of result.results ?? []) {
+    const hub = canonSlug(row.hub_slug);
+    if (!hub) continue;
+    metas.push({
+      hub,
+      title: row.title ?? "",
+      description: row.description ?? "",
+      undoPairs: parseUndoPairs(row.undo_json),
+    });
+  }
+  return metas;
+}
+
+async function upsertVerseGroupText(
+  db: D1Database,
+  libraryId: string,
+  hub: string,
+  title: string,
+  description: string,
+): Promise<void> {
+  const now = new Date().toISOString();
+  await db
+    .prepare(
+      `INSERT INTO verse_groups (library_id, hub_slug, title, description, undo_json, updated_at)
+       VALUES (?, ?, ?, ?, '[]', ?)
+       ON CONFLICT(library_id, hub_slug) DO UPDATE SET
+         title = excluded.title,
+         description = excluded.description,
+         updated_at = excluded.updated_at`,
+    )
+    .bind(libraryId, hub, title, description, now)
+    .run();
+}
+
+async function setUndoPairs(
+  db: D1Database,
+  libraryId: string,
+  hub: string,
+  pairs: { from: string; to: string }[],
+): Promise<void> {
+  const now = new Date().toISOString();
+  const json = JSON.stringify(pairs.map((pair) => ({ from: pair.from, to: pair.to })));
+  await db
+    .prepare(
+      `INSERT INTO verse_groups (library_id, hub_slug, title, description, undo_json, updated_at)
+       VALUES (?, ?, '', '', ?, ?)
+       ON CONFLICT(library_id, hub_slug) DO UPDATE SET
+         undo_json = excluded.undo_json,
+         updated_at = excluded.updated_at`,
+    )
+    .bind(libraryId, hub, json, now)
+    .run();
+}
+
+function parseUndoPairs(raw: string | null): { from: string; to: string }[] {
+  try {
+    const data = JSON.parse(raw || "[]") as unknown;
+    if (!Array.isArray(data)) return [];
+    const pairs: { from: string; to: string }[] = [];
+    for (const row of data) {
+      if (!row || typeof row !== "object") continue;
+      const record = row as Record<string, unknown>;
+      const from = canonSlug(typeof record.from === "string" ? record.from : "");
+      const to = canonSlug(typeof record.to === "string" ? record.to : "");
+      if (!from || !to || from === to) continue;
+      pairs.push({ from, to });
+    }
+    return pairs;
+  } catch {
+    return [];
+  }
+}
+
+function emptyNote(slug: string, attachments: Attachment[]): NoteDraft | null {
+  const passage = parsePassage(slug);
+  if (!passage) return null;
+  return {
+    slug: passageSlug(passage),
+    osis: passageOsis(passage),
+    kind: passage.kind,
+    book: passage.book,
+    chapter: passage.chapter,
+    verseStart: passage.verseStart,
+    verseEnd: passage.verseEnd,
+    blocks: [{ id: `b_${crypto.randomUUID().replaceAll("-", "").slice(0, 8)}`, indent: 0, text: "", bullet: true }],
+    bookmarked: false,
+    attachments,
+  };
+}

@@ -18,6 +18,8 @@ import {
   type Passage,
 } from "./passage";
 import { bookmarksViewHtml, notesInboxScript, starterChipsHtml, notesListHtml } from "./inbox-ui";
+import { verseGroupsFromNotes, type VerseGroupView } from "./verse-groups";
+import { verseGroupsButtonHtml, verseGroupsPanelHtml, verseGroupsScript } from "./verse-groups-ui";
 import { jumpFormHtml, jumpScript } from "./jump-ui";
 import { chapterGridHtml } from "./chapter-grid";
 import { clientScript } from "./reader-client";
@@ -185,9 +187,10 @@ ${jumpScript()}
 export function renderNotesIndex(
   notes: NoteView[],
   backSlug: string,
-  opts: { signedIn?: boolean } = {},
+  opts: { signedIn?: boolean; verseGroups?: VerseGroupView[] } = {},
 ): string {
   const signedIn = opts.signedIn ?? false;
+  const verseGroups = opts.verseGroups ?? verseGroupsFromNotes(notes);
   const mirror = notes.map((note) => ({
     slug: note.slug,
     label: noteLabel(note.slug),
@@ -218,7 +221,11 @@ ${chapterGridHtml(gridBook, gridChapter)}
 <main class="notes-main reader">
   ${jumpFormHtml()}
   ${starterChipsHtml()}
-  ${bookmarksViewHtml(mirror)}
+  <div class="inbox-tool-row">
+    ${bookmarksViewHtml(mirror)}
+    ${verseGroupsButtonHtml()}
+  </div>
+  ${verseGroupsPanelHtml(verseGroups)}
   <div id="notes-mount">${items}</div>
 </main>
 <script type="application/json" id="inbox-pack-mirror">${JSON.stringify(mirror).replace(/</g, "\\u003c")}</script>
@@ -227,6 +234,9 @@ ${jumpScript()}
 </script>
 <script>
 ${notesInboxScript()}
+</script>
+<script>
+${verseGroupsScript()}
 </script>`,
   );
 }

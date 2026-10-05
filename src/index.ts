@@ -40,6 +40,8 @@ import {
 } from "./passkeys";
 import { chapterSlug, createPassage, lazyChapterNotes, parsePassage, passageLabel, passageSlug, type Passage } from "./passage";
 import { renderChapterPage, renderMissing, renderNotesIndex } from "./reader-page";
+import { handleVerseGroupAction, loadVerseGroups } from "./verse-groups-store";
+import { verseGroupCardHtml } from "./verse-groups-ui";
 import type { ChapterPack } from "./usj";
 import { ensureBidirectionalXrefs, syncBidirectionalXrefs } from "./xref-sync";
 import { handleMcpDelete, handleMcpGet, handleMcpOptions, handleMcpPost } from "./mcp";
@@ -131,7 +133,7 @@ app.use("*", async (c, next) => {
   }
 });
 
-app.get("/health", (c) => c.json({ ok: true, app: "margin-bible", version: "2026.10.02.26" }));
+app.get("/health", (c) => c.json({ ok: true, app: "margin-bible", version: "2026.10.05.1" }));
 
 app.get("/manifest.webmanifest", () => manifestResponse());
 app.get("/manifest.json", () => manifestResponse());
@@ -423,13 +425,35 @@ app.get("/notes", async (c) => {
       .first<{ last_read_slug: string | null }>(),
     listNotes(c.env.DB, libraryId),
   ]);
+  const verseGroups = await loadVerseGroups(c.env.DB, libraryId, notes);
   return c.html(
     renderNotesIndex(notes, safeBack(library?.last_read_slug || "jhn.1"), {
       signedIn: c.get("signedIn"),
+      verseGroups,
     }),
     200,
     { "cache-control": "private, no-store" },
   );
+});
+
+app.get("/api/verse-groups", async (c) => {
+  const libraryId = c.get("libraryId");
+  const notes = await listNotes(c.env.DB, libraryId);
+  const groups = await loadVerseGroups(c.env.DB, libraryId, notes);
+  c.header("cache-control", "private, no-store");
+  return c.json({ ok: true, groups });
+});
+
+app.post("/api/verse-groups", async (c) => {
+  const body = await c.req.json().catch(() => null);
+  const result = await handleVerseGroupAction(c.env.DB, c.get("libraryId"), body);
+  c.header("cache-control", "private, no-store");
+  if (!result.ok) return c.json({ ok: false, error: result.error }, result.status);
+  return c.json({
+    ok: true,
+    status: result.statusText,
+    cardHtml: verseGroupCardHtml(result.group, result.statusText),
+  });
 });
 
 app.get("/api/notes", async (c) => {

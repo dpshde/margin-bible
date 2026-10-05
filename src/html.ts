@@ -1279,6 +1279,145 @@ export function page(title: string, body: string): string {
         background: var(--paper-raised);
       }
     }
+    /* Verse groups sits beside Bookmarks. The panel opens under that row. */
+    .inbox-tool-row {
+      display: flex;
+      align-items: flex-start;
+      gap: .5rem;
+      margin: 0 0 1rem;
+    }
+    .inbox-tool-row .bookmarks-view {
+      flex: 1 1 auto;
+      min-width: 0;
+      margin: 0;
+    }
+    .verse-groups-btn {
+      appearance: none;
+      display: inline-flex;
+      align-items: center;
+      gap: .35rem;
+      flex: 0 0 auto;
+      margin: 0;
+      padding: .35rem .7rem;
+      min-height: var(--tap);
+      border: 0;
+      border-radius: .55rem;
+      background: var(--fill);
+      color: var(--ink-soft);
+      cursor: pointer;
+      font: 700 .7rem/1.3 var(--sans);
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+    .verse-groups-btn[aria-expanded="true"] { color: var(--ink); background: var(--paper-raised); }
+    .verse-groups-btn:focus-visible { outline: 2px solid var(--sel-rail-open); outline-offset: 2px; }
+    .verse-groups-icon { display: block; width: .9rem; height: .9rem; }
+    .verse-groups-panel {
+      margin: -0.35rem 0 1rem;
+      padding: .75rem .75rem .85rem;
+      border-radius: .55rem;
+      background: var(--fill);
+    }
+    .verse-groups-panel[hidden],
+    .verse-group-preview[hidden],
+    .verse-group-undo[hidden] { display: none !important; }
+    .verse-groups-lead {
+      margin: 0 0 .75rem;
+      color: var(--muted);
+      font-size: .82rem;
+      line-height: 1.45;
+    }
+    .verse-group {
+      margin: 0 0 .75rem;
+      padding: .75rem .8rem .85rem;
+      border-radius: .5rem;
+      background: var(--paper);
+    }
+    .verse-group:last-child { margin-bottom: 0; }
+    .verse-group.is-highlight { box-shadow: inset 3px 0 0 var(--sel-rail-open); }
+    .verse-group-name {
+      margin: 0;
+      font: 700 1.05rem/1.3 var(--serif, var(--sans));
+      letter-spacing: -.02em;
+    }
+    .verse-group-badge {
+      display: inline-block;
+      margin-left: .45rem;
+      padding: .05rem .4rem;
+      border-radius: 999px;
+      background: var(--fill);
+      color: var(--ink-soft);
+      font: 700 .68rem/1.4 var(--sans);
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      vertical-align: .15em;
+    }
+    .verse-group-why, .verse-group-hub { margin: .35rem 0 0; color: var(--muted); font-size: .82rem; }
+    .verse-group-hub a, .verse-group-members a { color: var(--ink); }
+    .verse-group-form { margin-top: .7rem; }
+    .verse-group-field {
+      display: flex;
+      flex-direction: column;
+      gap: .25rem;
+      margin: 0 0 .55rem;
+      font: 700 .72rem/1.3 var(--sans);
+      letter-spacing: .04em;
+      text-transform: uppercase;
+      color: var(--ink-soft);
+    }
+    .verse-group-field input,
+    .verse-group-field textarea {
+      width: 100%;
+      margin: 0;
+      padding: .45rem .55rem;
+      border: 1px solid var(--line);
+      border-radius: .4rem;
+      background: var(--paper);
+      color: var(--ink);
+      font: 400 1rem/1.4 var(--sans);
+      text-transform: none;
+      letter-spacing: 0;
+    }
+    .verse-group-members-label {
+      margin: .85rem 0 .35rem;
+      font: 700 .72rem/1.3 var(--sans);
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      color: var(--ink-soft);
+    }
+    .verse-group-members, .verse-group-pair-list { list-style: none; margin: 0; padding: 0; }
+    .verse-group-members li, .verse-group-pair-list li { margin: .2rem 0; font-size: .92rem; }
+    .verse-group-role { color: var(--faint); font-size: .75rem; }
+    .verse-group-links { margin-top: .75rem; }
+    .verse-group-save,
+    .verse-group-fill,
+    .verse-group-fill-confirm,
+    .verse-group-undo {
+      font: 600 .82rem/1.2 var(--sans);
+      min-height: var(--tap);
+      padding: .35rem .75rem;
+      border-radius: .45rem;
+      border: 1px solid var(--line);
+      background: var(--paper);
+      color: var(--ink);
+      cursor: pointer;
+    }
+    .verse-group-fill, .verse-group-undo { margin-top: .45rem; }
+    .verse-group-fill-confirm { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+    .verse-group-preview {
+      margin-top: .55rem;
+      color: var(--muted);
+      font-size: .82rem;
+      line-height: 1.45;
+    }
+    .verse-group-preview p { margin: 0 0 .45rem; }
+    .verse-group-cap { color: var(--faint); }
+    .verse-group-status { min-height: 1.2em; margin: .45rem 0 0; color: var(--muted); font-size: .8rem; font-weight: 400; text-transform: none; letter-spacing: 0; }
+    .verse-group-links-done { margin: 0; color: var(--muted); font-size: .82rem; }
+    .verse-group-save:focus-visible,
+    .verse-group-fill:focus-visible,
+    .verse-group-fill-confirm:focus-visible,
+    .verse-group-undo:focus-visible { outline: 2px solid var(--sel-rail-open); outline-offset: 2px; }
     /* Light side rails make each week one frame, not a stack of cards.
        Weeks stack flush so the rails do not break into a borderless gap. */
     .note-week {
