@@ -167,6 +167,7 @@ describe("verse spotlight", () => {
       userScrolling: false, fingerDown: false, keyboardOpening: false,
     })).toBe("keep");
 
+    expect(source).toContain("let kbBaseline = (window.visualViewport && window.visualViewport.height) || window.innerHeight || null");
     expect(source).toContain("function spotlightKeyboardFrame");
     expect(source).toContain("function spotlightViewportFollow");
     const viewport = source.slice(source.indexOf("function onViewportChange"), source.indexOf('addEventListener("resize", onViewportChange)'));

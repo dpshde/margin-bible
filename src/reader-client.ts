@@ -2037,7 +2037,8 @@ export function clientScript(): string {
       keepEditingVisible(textEl);
     });
   });
-  let kbBaseline = null;
+  // Seed the full height so the first keyboard shrink is a drop, not a new baseline.
+  let kbBaseline = (window.visualViewport && window.visualViewport.height) || window.innerHeight || null;
   let kbLowest = null;
   let kbFollowed = false;
   let kbOpenedAt = null;
