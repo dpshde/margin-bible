@@ -23,6 +23,7 @@ import {
 import { renderLoginPage } from "./login-page";
 import { buildLibrarySnapshot, snapshotFilename } from "./library-snapshot";
 import { draftNote } from "./notes";
+import { proxyHiddenArrowSearch } from "./ha-search";
 import { canGo, jumpState } from "./jump-suggest";
 import { performLogin, performPassphraseChange } from "./perform-login";
 import {
@@ -53,6 +54,8 @@ export type Env = {
   MCP_BEARER_TOKEN?: string;
   /** D1 library id bound to the MCP bearer (Dylan's notes). */
   MCP_LIBRARY_ID?: string;
+  /** Optional Hidden Arrow origin. Defaults to the public Railway app. */
+  HIDDEN_ARROW_ORIGIN?: string;
 };
 
 type Variables = {
@@ -88,6 +91,7 @@ app.use("*", async (c, next) => {
   if (
     c.req.path === "/health" ||
     c.req.path === "/mcp" ||
+    c.req.path === "/api/ha-search" ||
     c.req.path.startsWith("/bsb/") ||
     c.req.path.startsWith("/vendor/") ||
     isPwaAssetPath(c.req.path)
@@ -293,6 +297,17 @@ app.get("/api/jump-suggest", (c) => {
     hint: state.hint,
     canGo: canGo(q),
   });
+});
+
+app.post("/api/ha-search", async (c) => {
+  let query = "";
+  try {
+    const body = await c.req.json<{ query?: unknown }>();
+    query = typeof body?.query === "string" ? body.query : "";
+  } catch {
+    return c.json({ ok: false }, 400, { "cache-control": "no-store" });
+  }
+  return proxyHiddenArrowSearch(query, { origin: c.env?.HIDDEN_ARROW_ORIGIN });
 });
 
 app.get("/jump", (c) => {

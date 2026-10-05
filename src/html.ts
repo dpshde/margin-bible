@@ -297,6 +297,24 @@ export function page(title: string, body: string): string {
       background: transparent;
       border: 0; border-top: 1px solid var(--line);
       border-radius: 0 0 var(--list-radius) var(--list-radius);
+      max-height: min(24rem, calc(100dvh - var(--chrome-sticky) - 5.75rem - var(--safe-bottom) - var(--keyboard-inset, 0px)));
+      overflow-x: hidden;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      -webkit-overflow-scrolling: touch;
+    }
+    .suggest-scripture {
+      white-space: normal; height: auto; line-height: 1.35;
+    }
+    .suggest-ref {
+      display: block; color: var(--ink);
+      font-variant-numeric: lining-nums;
+    }
+    .suggest-text {
+      display: block; max-height: calc(1.35em * 3); overflow: hidden;
+      margin-top: .15rem;
+      color: var(--faint); font-size: .78rem; line-height: 1.35;
+      overflow-wrap: anywhere;
     }
     .suggest[hidden] { display: none; }
     .suggest li { margin: 0; }

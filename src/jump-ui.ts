@@ -2,7 +2,7 @@
 
 export function jumpFormHtml(): string {
   return `<form class="jump" action="/jump" method="get" role="search">
-    <label class="sr-only">Jump to passage</label>
+    <label class="sr-only">Search scripture</label>
     <div class="jump-field">
       <div class="jump-input-row">
         <input
@@ -27,6 +27,33 @@ export function jumpFormHtml(): string {
 /** Browser jump combobox (string). Idempotent — safe to call after SPA injects a new form.jump. */
 export function jumpScript(): string {
   return `(() => {
+  function marginPathFromRouteHref(href) {
+    if (href == null) return null;
+    const raw = String(href).trim();
+    if (!raw) return null;
+    let url;
+    try { url = new URL(raw); } catch (_) { return null; }
+    const host = url.hostname.toLowerCase().replace(/^www\\./, "");
+    if (host !== "route.bible") return null;
+    let slug = "";
+    try { slug = decodeURIComponent(url.pathname).replace(/^\\/+|\\/+$/g, "").toLowerCase(); }
+    catch (_) { return null; }
+    if (!/^(?:[1-3][a-z]{2}|[a-z]{2,3})\\.\\d+(?:\\.\\d+(?:-\\d+)?)?$/.test(slug)) return null;
+    return "/" + slug;
+  }
+
+  function syncKeyboardInset() {
+    const vv = window.visualViewport;
+    const covered = vv ? Math.max(0, window.innerHeight - vv.offsetTop - vv.height) : 0;
+    document.documentElement.style.setProperty("--keyboard-inset", covered + "px");
+  }
+  if (window.visualViewport && !window.__marginKeyboardInset) {
+    window.__marginKeyboardInset = true;
+    window.visualViewport.addEventListener("resize", syncKeyboardInset);
+    window.visualViewport.addEventListener("scroll", syncKeyboardInset);
+    syncKeyboardInset();
+  }
+
   function escape(s) {
     return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   }
@@ -50,6 +77,7 @@ export function jumpScript(): string {
     let hits = [];
     let selected = -1;
     let timer = null;
+    let scriptureTimer = null;
     let seq = 0;
 
     function syncClear() {
@@ -64,8 +92,13 @@ export function jumpScript(): string {
     function syncActive() {
       const items = optionItems();
       const active = items[selected];
-      if (active) input.setAttribute("aria-activedescendant", active.id);
-      else input.removeAttribute("aria-activedescendant");
+      if (active) {
+        input.setAttribute("aria-activedescendant", active.id);
+        const listRect = list.getBoundingClientRect();
+        const itemRect = active.getBoundingClientRect();
+        if (itemRect.top < listRect.top) list.scrollTop -= listRect.top - itemRect.top;
+        else if (itemRect.bottom > listRect.bottom) list.scrollTop += itemRect.bottom - listRect.bottom;
+      } else input.removeAttribute("aria-activedescendant");
     }
 
     function close() {
@@ -92,6 +125,11 @@ export function jumpScript(): string {
         .map((hit, index) => {
           const id = uid + "-opt-" + index;
           const sel = index === selected;
+          const body = hit.kind === "scripture"
+            ? '<span class="suggest-ref">' + escape(hit.label) + "</span>" +
+              (hit.text ? '<span class="suggest-text">' + escape(hit.text) + "</span>" : "")
+            : escape(hit.label);
+          const klass = hit.kind === "scripture" ? ' class="suggest-scripture"' : "";
           return (
             '<li id="' +
             id +
@@ -99,8 +137,10 @@ export function jumpScript(): string {
             (sel ? "true" : "false") +
             '"><button type="button" data-index="' +
             index +
-            '">' +
-            escape(hit.label) +
+            '"' +
+            klass +
+            ">" +
+            body +
             "</button></li>"
           );
         })
@@ -119,9 +159,66 @@ export function jumpScript(): string {
       return current.trim().toLowerCase() === String(next || "").trim().toLowerCase();
     }
 
+    function scriptureHits(data) {
+      const evidence = Array.isArray(data && data.evidence) ? data.evidence : [];
+      const next = [];
+      for (const item of evidence) {
+        const path = marginPathFromRouteHref(item && item.href);
+        if (!path) continue;
+        next.push({
+          kind: "scripture",
+          label: String((item && item.displayRef) || path.slice(1)),
+          text: String((item && item.text) || ""),
+          path,
+        });
+      }
+      return next;
+    }
+
+    function attributionHint(data) {
+      const lines = Array.isArray(data && data.attribution)
+        ? data.attribution.filter((line) => typeof line === "string" && line.trim())
+        : [];
+      return lines.length ? lines.join(" ") : null;
+    }
+
+    async function searchScripture(q, my) {
+      try {
+        const res = await fetch("/api/ha-search", {
+          method: "POST",
+          headers: { "content-type": "application/json", accept: "application/json" },
+          body: JSON.stringify({ query: q }),
+        });
+        if (!res.ok || my !== seq) return;
+        const data = await res.json();
+        if (my !== seq) return;
+        const next = scriptureHits(data);
+        if (!next.length) {
+          close();
+          return;
+        }
+        render({ hits: next, hint: attributionHint(data) });
+      } catch (_) {
+        if (my === seq) close();
+      }
+    }
+
+    function scheduleScripture(q, my) {
+      if (scriptureTimer) clearTimeout(scriptureTimer);
+      scriptureTimer = setTimeout(() => {
+        scriptureTimer = null;
+        if (my !== seq) return;
+        searchScripture(q, my);
+      }, 280);
+    }
+
     async function suggestNow() {
       const q = input.value;
       const my = ++seq;
+      if (scriptureTimer) {
+        clearTimeout(scriptureTimer);
+        scriptureTimer = null;
+      }
       if (!String(q).trim()) {
         close();
         return;
@@ -133,9 +230,15 @@ export function jumpScript(): string {
         if (!res.ok || my !== seq) return;
         const data = await res.json();
         if (my !== seq) return;
-        render(data);
+        const passageLike = Boolean(data.canGo) || (data.hits && data.hits.length) || data.hint;
+        if (passageLike) {
+          render(data);
+          return;
+        }
+        if (!hits.length || hits[0]?.kind !== "scripture") close();
+        scheduleScripture(String(q).trim(), my);
       } catch (_) {
-        /* ignore transient network blips */
+        /* jump still works on submit when this blip is a reference */
       }
     }
 
@@ -173,6 +276,11 @@ export function jumpScript(): string {
 
     async function applyHit(hit) {
       if (!hit) return;
+      if (hit.kind === "scripture" && hit.path) {
+        input.blur();
+        location.assign(hit.path);
+        return;
+      }
       const next = insertTextFor(hit);
       const current = input.value;
       if (sameEntry(current, next) && (await canGo(current))) {
