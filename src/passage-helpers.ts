@@ -1,5 +1,5 @@
-// The helper body is copied into the browser with Function#toString, so it stays plain JavaScript.
-// @ts-nocheck
+// Shipped into the page as source text. A compiled function's toString() can contain
+// esbuild keep-names `__name(...)` calls, which the browser does not define.
 import books from "../vendor/data/books.json";
 
 export type PassageHelperHit = {
@@ -14,27 +14,8 @@ export type PassageHelperState = {
   canGo: boolean;
 };
 
-type PassageData = {
-  codes: string[];
-  names: Record<string, string>;
-  chapterCounts: Record<string, number>;
-  verseCounts: Record<string, Record<string, number>>;
-  aliases: Record<string, string>;
-};
-
-/** Browser source for the search modal. Suggestions resolve against this data with no request. */
-export function passageHelpersClientSource(): string {
-  return `const PASSAGE_DATA = ${JSON.stringify(books)};
-function passageHelpers(raw) {
-  return (${passageHelpersWith.toString()})(PASSAGE_DATA, raw);
-}`;
-}
-
-export function passageHelpers(raw: string | null | undefined): PassageHelperState {
-  return passageHelpersWith(books, raw);
-}
-
-function passageHelpersWith(data, raw) {
+const passageHelpersFunctionSource = `function passageHelpers(raw) {
+  const data = PASSAGE_DATA;
   const codes = data.codes;
   const names = data.names;
   const chapters = data.chapterCounts;
@@ -60,7 +41,7 @@ function passageHelpersWith(data, raw) {
     return names[upper] ? upper : null;
   }
   function positiveInt(value) {
-    if (!/^\d+$/.test(value)) return null;
+    if (!/^\\d+$/.test(value)) return null;
     const parsed = parseInt(value, 10);
     if (!isFinite(parsed) || parsed <= 0) return null;
     return parsed;
@@ -74,9 +55,9 @@ function passageHelpersWith(data, raw) {
   }
   function parseVerseContext(input) {
     const patterns = [
-      /^(.+?)\s+(\d+)\s*[:.]\s*(\d*)$/i,
-      /^(.+?)\s*[./]\s*(\d+)\s*[:.]\s*(\d*)$/i,
-      /^([1-3]?[a-zA-Z]+)(\d+)\s*[:.]\s*(\d*)$/i,
+      /^(.+?)\\s+(\\d+)\\s*[:.]\\s*(\\d*)$/i,
+      /^(.+?)\\s*[./]\\s*(\\d+)\\s*[:.]\\s*(\\d*)$/i,
+      /^([1-3]?[a-zA-Z]+)(\\d+)\\s*[:.]\\s*(\\d*)$/i,
     ];
     for (let i = 0; i < patterns.length; i++) {
       const match = input.match(patterns[i]);
@@ -88,7 +69,7 @@ function passageHelpersWith(data, raw) {
     return null;
   }
   function parseRangeContext(input) {
-    const rangeMatch = input.match(/^(.*?)-\s*(\d*)$/);
+    const rangeMatch = input.match(/^(.*?)-\\s*(\\d*)$/);
     if (!rangeMatch) return null;
     const leftRaw = rangeMatch[1] ? String(rangeMatch[1]).trim() : "";
     const endPrefix = rangeMatch[2] || "";
@@ -102,7 +83,7 @@ function passageHelpersWith(data, raw) {
     return { book: left.book, chapter: left.chapter, startVerse: startVerse, endPrefix: endPrefix };
   }
   function parseChapterContext(input) {
-    const patterns = [/^(.+?)\s*[./]\s*(\d+)$/i, /^(.+?)\s+(\d+)$/i, /^([1-3]?[a-zA-Z]+)(\d+)$/i];
+    const patterns = [/^(.+?)\\s*[./]\\s*(\\d+)$/i, /^(.+?)\\s+(\\d+)$/i, /^([1-3]?[a-zA-Z]+)(\\d+)$/i];
     for (let i = 0; i < patterns.length; i++) {
       const match = input.match(patterns[i]);
       if (!match) continue;
@@ -179,7 +160,7 @@ function passageHelpersWith(data, raw) {
     return out;
   }
 
-  const normalized = String(raw || "").trim().replace(/[‐‑‒–—]/g, "-").replace(/\s+/g, " ");
+  const normalized = String(raw || "").trim().replace(/[‐‑‒–—]/g, "-").replace(/\\s+/g, " ");
   let hits = [];
   if (normalized) {
     const range = parseRangeContext(normalized);
@@ -197,7 +178,7 @@ function passageHelpersWith(data, raw) {
     }
   }
 
-  const bookOnly = lookupKey(normalized) && !/\d/.test(normalized) ? resolveBook(normalized) : null;
+  const bookOnly = lookupKey(normalized) && !/\\d/.test(normalized) ? resolveBook(normalized) : null;
   const rangeCtx = normalized ? parseRangeContext(normalized) : null;
   const verseCtx = !rangeCtx && normalized ? parseVerseContext(normalized) : null;
   const chapterCtx = !rangeCtx && !verseCtx && normalized ? parseChapterContext(normalized) : null;
@@ -244,4 +225,26 @@ function passageHelpersWith(data, raw) {
     }
   }
   return { hits: visible, hint: hint, canGo: canGo };
+}`;
+
+/** Browser source for the search modal. Suggestions resolve against this data with no request. */
+export function passageHelpersClientSource(): string {
+  return `const PASSAGE_DATA = ${JSON.stringify(books)};
+${passageHelpersFunctionSource}`;
+}
+
+type PassageHelpersFn = (raw: string | null | undefined) => PassageHelperState;
+
+let passageHelpersFn: PassageHelpersFn | undefined;
+
+function loadPassageHelpers(): PassageHelpersFn {
+  if (!passageHelpersFn) {
+    passageHelpersFn = new Function(`${passageHelpersClientSource()}
+return passageHelpers;`)() as PassageHelpersFn;
+  }
+  return passageHelpersFn;
+}
+
+export function passageHelpers(raw: string | null | undefined): PassageHelperState {
+  return loadPassageHelpers()(raw);
 }

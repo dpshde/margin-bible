@@ -6,7 +6,7 @@ import { join } from "path";
 import { clientScript } from "../src/reader-client";
 import { jumpScript } from "../src/jump-ui";
 import { notesInboxScript } from "../src/inbox-ui";
-import { renderNotesIndex } from "../src/reader-page";
+import { renderMissing, renderNotesIndex } from "../src/reader-page";
 import { page } from "../src/html";
 
 function nodeCheck(source: string, label: string) {
@@ -69,6 +69,15 @@ describe("embedded reader scripts", () => {
 
   test("jumpScript passes node --check", () => {
     nodeCheck(jumpScript(), "jump");
+  });
+
+  test("the served jump script has no esbuild keep-names helper", () => {
+    const script = jumpScript();
+    expect(script).not.toContain("__name(");
+    const html = renderMissing("missing");
+    const embedded = html.slice(html.indexOf("<script>"), html.lastIndexOf("</script>"));
+    expect(embedded).toContain("function passageHelpers(raw)");
+    expect(embedded).not.toContain("__name(");
   });
 
   test("a range's left border opens one note under the last verse", () => {
