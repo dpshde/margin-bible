@@ -607,7 +607,8 @@ describe("topic suggestion chips", () => {
     expect(source).toContain('sessionStorage.setItem("margin-suggest-cache"');
     expect(source).toContain('localStorage.getItem("margin-recent-searches")');
     expect(source).toContain('localStorage.setItem("margin-recent-searches"');
-    expect(source).toContain('topicLabel.textContent = "Suggested"');
+    expect(source).not.toContain('textContent = "Suggested"');
+    expect(source).not.toContain("search-suggest-label");
     expect(source).toContain("search-suggest-chip");
     expect(source).toContain('btn.setAttribute("data-query", topic.query)');
     expect(source).not.toContain("x-api-key");
@@ -624,20 +625,84 @@ describe("topic suggestion chips", () => {
     expect(freeText.indexOf("showSearchSkeletons()")).toBeLessThan(freeText.indexOf("searchScripture(q, my)"));
     const typed = source.slice(source.indexOf('input.addEventListener("input"'), source.indexOf("topicChips.addEventListener"));
     expect(typed).toContain("hideTopicChips()");
+    expect(typed).toContain("loadTopicSuggestions()");
+    expect(typed).not.toContain("clearSearchCache");
     expect(typed).not.toContain("fetch(");
     expect(typed).not.toContain("/api/ha-suggest");
     const css = readFileSync(path.join(import.meta.dir, "../src/html.ts"), "utf8");
     const chips = css.slice(css.indexOf(".search-suggest {"), css.indexOf(".search-result {"));
     expect(chips).toContain(".search-suggest[hidden] { display: none; }");
+    expect(chips).toContain("flex-wrap: nowrap");
+    expect(chips).toContain("overflow-x: auto");
+    expect(chips).toContain("scrollbar-width: none");
+    expect(chips).toContain(".search-suggest-chips::-webkit-scrollbar { display: none; width: 0; height: 0; }");
+    expect(chips).not.toContain("flex-wrap: wrap");
+    expect(chips).not.toContain("Suggested");
     expect(chips).toContain("color: #a8a29e");
     expect(chips).toContain("color: #78716c");
     expect(chips).toContain("box-shadow: none");
     expect(chips).not.toContain("text-shadow");
     const sheet = css.slice(css.indexOf("@media (max-width: 640px)"), css.indexOf(".section-head {"));
     expect(sheet).toContain(".search-suggest-chips");
+    expect(sheet).toContain("flex-wrap: nowrap");
     expect(sheet).toContain("overflow-x: auto");
     expect(sheet).toContain("scrollbar-width: none");
     expect(sheet).toContain(".search-suggest-chips::-webkit-scrollbar { display: none; width: 0; height: 0; }");
+  });
+
+  test("Hidden Arrow results mark query words, including a light stem, or the upstream spans", () => {
+    const source = jumpScript();
+    const start = source.indexOf("function stemLight");
+    const end = source.indexOf("function render(state)");
+    const api = new Function(
+      `function escape(s) { return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])); }
+      ${source.slice(start, end)}; return { highlightQuery, highlightFromHiddenArrow, stemLight };`,
+    )() as {
+      highlightQuery: (text: string, query: string) => string;
+      highlightFromHiddenArrow: (item: Record<string, unknown>) => string;
+      stemLight: (word: string) => string;
+    };
+    expect(api.stemLight("lives")).toBe(api.stemLight("life"));
+    expect(api.stemLight("trees")).toBe(api.stemLight("tree"));
+    const deut =
+      "so that you and your children and grandchildren may fear the LORD your God all the days of your lives by keeping all His statutes";
+    const deutHtml = api.highlightQuery(deut, "tree of life");
+    expect(deutHtml).toContain('<mark class="search-mark">lives</mark>');
+    expect(deutHtml).not.toContain(">of<");
+    expect(deutHtml).not.toContain(">your<");
+    const garden = "were the tree of life and the tree of the knowledge";
+    const gardenHtml = api.highlightQuery(garden, "tree of life");
+    expect(gardenHtml).toContain('<mark class="search-mark">tree</mark>');
+    expect(gardenHtml).toContain('<mark class="search-mark">life</mark>');
+    expect(gardenHtml).not.toContain('<mark class="search-mark">of</mark>');
+    expect(api.highlightQuery("the street was quiet", "tree")).not.toContain("search-mark");
+    const livesAt = deut.indexOf("lives");
+    const fromOffsets = api.highlightFromHiddenArrow({
+      text: deut,
+      highlights: [{ start: livesAt, end: livesAt + "lives".length }],
+    });
+    expect(fromOffsets).toContain('<mark class="search-mark">lives</mark>');
+    expect(fromOffsets).not.toContain("<script");
+    const fromTags = api.highlightFromHiddenArrow({
+      text: garden,
+      highlight: "were the <em>tree</em> of <mark>life</mark> and the tree",
+    });
+    expect(fromTags).toContain('<mark class="search-mark">tree</mark>');
+    expect(fromTags).toContain('<mark class="search-mark">life</mark>');
+    expect(fromTags).toContain("knowledge");
+    expect(fromTags).not.toContain("<em>");
+    const exact = api.highlightFromHiddenArrow({ text: garden, matches: ["life"] });
+    expect(exact).toContain('<mark class="search-mark">life</mark>');
+    expect(exact).not.toContain('<mark class="search-mark">tree</mark>');
+    expect(api.highlightFromHiddenArrow({ text: deut })).toBe("");
+    expect(source).toContain("highlightFromHiddenArrow(item)");
+    expect(source).toContain("hit.html ? hit.html : highlightQuery(hit.text, submittedQuery)");
+    const mark = readFileSync(path.join(import.meta.dir, "../src/html.ts"), "utf8");
+    const rule = mark.slice(mark.indexOf(".search-mark {"), mark.indexOf("html.search-modal-open"));
+    expect(rule).toContain("color: #ea580c");
+    expect(rule).toContain("color: #fb923c");
+    expect(rule).toContain("font-weight: 600");
+    expect(rule).not.toContain("text-shadow");
   });
 });
 

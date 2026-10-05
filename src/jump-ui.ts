@@ -45,6 +45,163 @@ export function jumpFormHtml(): string {
   </form>`;
 }
 
+/**
+ * Highlight helpers embedded in the page.
+ * Hidden Arrow offsets, marked snippets, or matched terms win.
+ * Otherwise query words are marked whole-word, case-insensitive, with a light stem
+ * (lives/life, trees/tree) so the orange marks survive without the local index.
+ */
+export function searchHighlightSource(): string {
+  return String.raw`function stemLight(word) {
+  let w = String(word || "").toLowerCase().replace(/['’]/g, "");
+  if (w.length < 3) return w;
+  if (w.endsWith("ves") && w.length > 4) w = w.slice(0, -3) + "f";
+  else if (w.endsWith("ies") && w.length > 4) w = w.slice(0, -3) + "y";
+  else if (w.endsWith("ing") && w.length > 5) w = w.slice(0, -3);
+  else if (w.endsWith("ed") && w.length > 4) w = w.slice(0, -2);
+  else if (w.endsWith("es") && w.length > 4) w = w.slice(0, -2);
+  else if (w.endsWith("s") && !w.endsWith("ss") && w.length > 3) w = w.slice(0, -1);
+  if (w.length > 3 && w.endsWith("e")) w = w.slice(0, -1);
+  return w;
+}
+function queryStems(query) {
+  const words = String(query || "").toLowerCase().match(/[a-z0-9']+/g) || [];
+  const skip = { of: 1, the: 1, and: 1, to: 1, a: 1, an: 1, or: 1, in: 1, on: 1, for: 1 };
+  const stems = [];
+  const seen = {};
+  for (const word of words) {
+    if (word.length < 2 || skip[word]) continue;
+    const stem = stemLight(word);
+    if (stem.length < 3 || seen[stem]) continue;
+    seen[stem] = 1;
+    stems.push(stem);
+  }
+  return stems;
+}
+function markWords(text, accept) {
+  const raw = String(text || "");
+  const re = new RegExp("\\b[A-Za-z0-9']+\\b", "g");
+  let out = "";
+  let cursor = 0;
+  let match;
+  while ((match = re.exec(raw))) {
+    out += escape(raw.slice(cursor, match.index));
+    const word = match[0];
+    out += accept(word) ? '<mark class="search-mark">' + escape(word) + "</mark>" : escape(word);
+    cursor = match.index + word.length;
+  }
+  out += escape(raw.slice(cursor));
+  return out;
+}
+function highlightQuery(text, query) {
+  const stems = queryStems(query);
+  if (!stems.length) return escape(text);
+  const wanted = {};
+  for (const stem of stems) wanted[stem] = 1;
+  return markWords(text, (word) => Boolean(wanted[stemLight(word)]));
+}
+function highlightExact(text, terms) {
+  const wanted = {};
+  for (const term of terms) {
+    const key = String(term || "").toLowerCase();
+    if (key) wanted[key] = 1;
+  }
+  if (!Object.keys(wanted).length) return "";
+  return markWords(text, (word) => Boolean(wanted[word.toLowerCase()]));
+}
+function offsetList(value) {
+  if (!Array.isArray(value) || !value.length) return null;
+  const out = [];
+  for (const item of value) {
+    let start = null;
+    let end = null;
+    if (Array.isArray(item) && item.length >= 2 && typeof item[0] === "number" && typeof item[1] === "number") {
+      start = item[0];
+      end = item[1];
+    } else if (item && typeof item === "object" && typeof item.start === "number" && typeof item.end === "number") {
+      start = item.start;
+      end = item.end;
+    } else if (item && typeof item === "object" && typeof item.offset === "number" && typeof item.length === "number") {
+      start = item.offset;
+      end = item.offset + item.length;
+    } else return null;
+    if (end > start) out.push([start, end]);
+  }
+  return out.length ? out : null;
+}
+function applyOffsets(text, ranges) {
+  const raw = String(text || "");
+  const sorted = ranges
+    .map((pair) => [Math.max(0, pair[0]), Math.min(raw.length, pair[1])])
+    .filter((pair) => pair[1] > pair[0])
+    .sort((a, b) => a[0] - b[0]);
+  let out = "";
+  let cursor = 0;
+  for (const pair of sorted) {
+    if (pair[0] < cursor) continue;
+    out += escape(raw.slice(cursor, pair[0]));
+    out += '<mark class="search-mark">' + escape(raw.slice(pair[0], pair[1])) + "</mark>";
+    cursor = pair[1];
+  }
+  out += escape(raw.slice(cursor));
+  return out;
+}
+function sanitizeMarks(html) {
+  const parts = String(html).split(/(<\/?\s*(?:mark|em|strong|b)\b[^>]*>)/gi);
+  let open = false;
+  let out = "";
+  for (const part of parts) {
+    if (/^<\s*(mark|em|strong|b)\b/i.test(part)) {
+      open = true;
+      continue;
+    }
+    if (/^<\s*\/\s*(mark|em|strong|b)\b/i.test(part)) {
+      open = false;
+      continue;
+    }
+    const safe = escape(part.replace(/<[^>]+>/g, ""));
+    out += open ? '<mark class="search-mark">' + safe + "</mark>" : safe;
+  }
+  return out;
+}
+function markedString(value, fullText) {
+  if (typeof value !== "string" || !/<\s*\/?\s*(mark|em|strong|b)\b/i.test(value)) return "";
+  const plain = value.replace(/<[^>]+>/g, "").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;/g, "'").trim();
+  const full = String(fullText || "").trim();
+  if (!full || plain === full) return sanitizeMarks(value);
+  const terms = [];
+  const re = new RegExp("<\\s*(?:mark|em|strong|b)\\b[^>]*>([\\s\\S]*?)<\\s*\\/\\s*(?:mark|em|strong|b)\\s*>", "gi");
+  let found;
+  while ((found = re.exec(value))) {
+    const term = found[1].replace(/<[^>]+>/g, "").trim();
+    if (term) terms.push(term);
+  }
+  return terms.length ? highlightExact(fullText, terms) : "";
+}
+function termList(value) {
+  if (!Array.isArray(value) || !value.length) return null;
+  const out = [];
+  for (const item of value) {
+    if (typeof item === "string" && item.trim()) out.push(item.trim());
+    else if (item && typeof item.text === "string" && item.text.trim()) out.push(item.text.trim());
+    else return null;
+  }
+  return out;
+}
+function highlightFromHiddenArrow(item) {
+  if (!item) return "";
+  const text = String(item.text || "");
+  const offsets = offsetList(item.highlights) || offsetList(item.spans) || offsetList(item.matches) || offsetList(item.match);
+  if (offsets) return applyOffsets(text, offsets);
+  const marked = markedString(item.highlight, text) || markedString(item.highlighted, text) || markedString(item.snippet, text);
+  if (marked) return marked;
+  const terms = termList(item.matches) || termList(item.match) || termList(item.highlights);
+  if (terms) return highlightExact(text, terms);
+  return "";
+}
+`;
+}
+
 /** Browser jump combobox (string). Idempotent — safe to call after SPA injects a new form.jump. */
 export function jumpScript(): string {
   return `(() => {
@@ -326,14 +483,9 @@ export function jumpScript(): string {
     const topics = document.createElement("div");
     topics.className = "search-suggest";
     topics.hidden = true;
-    const topicLabel = document.createElement("p");
-    topicLabel.className = "search-suggest-label";
-    topicLabel.textContent = "Suggested";
     const topicChips = document.createElement("div");
     topicChips.className = "search-suggest-chips";
     topicChips.setAttribute("role", "group");
-    topicChips.setAttribute("aria-label", "Suggested");
-    topics.appendChild(topicLabel);
     topics.appendChild(topicChips);
     bar.appendChild(icon);
     bar.appendChild(input);
@@ -393,6 +545,7 @@ export function jumpScript(): string {
       }
       seq += 1;
       close();
+      loadTopicSuggestions();
     });
     topicChips.addEventListener("click", (event) => {
       const chip = event.target.closest("button.search-suggest-chip");
@@ -449,6 +602,7 @@ export function jumpScript(): string {
       text: String((hit && hit.text) || ""),
       path: hit && hit.path ? String(hit.path) : "",
       insertText: hit && hit.insertText ? String(hit.insertText) : "",
+      html: hit && hit.html ? String(hit.html) : "",
     }));
     cachedSearch = { query: String(query || ""), hits: packed };
     try { sessionStorage.setItem("margin-search-cache", JSON.stringify(cachedSearch)); }
@@ -543,17 +697,7 @@ export function jumpScript(): string {
     syncTopicChips();
   }
 
-  function highlightQuery(text, query) {
-    const safe = escape(text);
-    const words = String(query || "").toLowerCase().match(/[a-z0-9']+/g) || [];
-    const skip = { of: 1, the: 1, and: 1, to: 1 };
-    const used = words.filter((word) => word.length > 2 && !skip[word]);
-    const tokens = used.length ? used : words.filter((word) => word.length > 1);
-    if (!tokens.length) return safe;
-    const pattern = tokens.map((word) => word.replace(/[.*+?^$()|[\]\\]/g, "\\$&")).join("|");
-    return safe.replace(new RegExp("\\b(" + pattern + ")\\b", "gi"), (match) => '<mark class="search-mark">' + match + "</mark>");
-  }
-
+  ${searchHighlightSource()}
   function render(state) {
     openSearchModal();
     const list = searchList();
@@ -574,9 +718,10 @@ export function jumpScript(): string {
       .map((hit, index) => {
         const id = "search-result-" + index;
         const sel = index === selected;
+        const shown = hit.html ? hit.html : highlightQuery(hit.text, submittedQuery);
         const body = hit.kind === "scripture"
           ? '<span class="search-result-ref">' + escape(hit.label) + "</span>" +
-            (hit.text ? '<span class="search-result-text">' + highlightQuery(hit.text, submittedQuery) + "</span>" : "")
+            (hit.text || hit.html ? '<span class="search-result-text">' + shown + "</span>" : "")
           : '<span class="search-result-ref">' + escape(hit.label) + "</span>";
         return (
           '<li id="' + id + '" role="option" aria-selected="' + (sel ? "true" : "false") + '">' +
@@ -607,10 +752,12 @@ export function jumpScript(): string {
     for (const item of evidence) {
       const path = marginPathFromRouteHref(item && item.href);
       if (!path) continue;
+      const text = String((item && item.text) || "");
       next.push({
         kind: "scripture",
         label: String((item && item.displayRef) || path.slice(1)),
-        text: String((item && item.text) || ""),
+        text,
+        html: highlightFromHiddenArrow(item),
         path,
       });
     }
