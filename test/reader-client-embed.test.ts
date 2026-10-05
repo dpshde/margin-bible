@@ -255,12 +255,27 @@ describe("inbox Older chapter bundles in reader client", () => {
     expect(source).not.toMatch(/touchInboxCache[\s\S]*?updatedAt: new Date\(\)\.toISOString/);
   });
 
-  test("notes link uses full navigation (no soft-nav preventDefault) so Older is SSR", () => {
+  test("notes link soft-navs a warm inbox document and leaves a cold tap to the browser", () => {
     const source = clientScript();
-    // Prefetch remains; click must NOT preventDefault+openInbox (sticky old JS bug).
     expect(source).toContain("prefetchInbox");
-    expect(source).toContain("Full navigation to /notes");
+    expect(source).toContain("function prefetchInboxHtml");
+    expect(source).toContain("INBOX_HTML_TTL = 20000");
+    expect(source).toContain("INBOX_HTML_MAX = 120000");
+    expect(source).toContain("function inboxHtmlFresh");
+    expect(source).toContain("function dropInboxHtml");
+    expect(source).toContain("function scheduleInboxHtml");
+    expect(source).toContain('headers: { accept: "text/html", purpose: "prefetch" }');
+    expect(source).toContain("htmlCache.set(href, Promise.resolve(html))");
+    const click = source.slice(source.indexOf('a.getAttribute("href") === "/notes"'), source.indexOf("if (a.closest?.(\".att-drop\"))"));
+    expect(click).toContain("inboxHtmlFresh()");
+    expect(click).toContain("softNavTo(a.href, { push: true })");
+    expect(click).not.toContain("openInbox");
+    // Cold path does not preventDefault into the old client inbox. Older rows stay SSR.
     expect(source).not.toMatch(/data-inbox-link[\s\S]*?event\.preventDefault\(\);\s*openInbox/);
+    expect(source).not.toContain("el.innerHTML = inboxListHtml");
+    const save = source.slice(source.indexOf("A save makes the prefetched inbox document stale"), source.indexOf("syncVerseMarks();"));
+    expect(save).toContain("dropInboxHtml()");
+    expect(save).toContain("prefetchInbox()");
   });
 
   test("notesInboxScript soft-navs note-row (and Older chapter) to chapter without full reload", () => {

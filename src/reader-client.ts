@@ -274,9 +274,9 @@ export function clientScript(): string {
     writeInboxCache(notes, chapterSlug);
   }
   function prefetchInbox() {
+    // HTML goes into the soft-nav cache. JSON still warms sessionStorage.
+    prefetchInboxHtml();
     if (inboxPrefetch) return inboxPrefetch;
-    // Warm HTML document cache + JSON list.
-    fetch("/notes", { credentials: "same-origin", priority: "low" }).catch(() => {});
     inboxPrefetch = fetch("/api/notes", {
       credentials: "same-origin",
       headers: { accept: "application/json" },
@@ -1447,8 +1447,9 @@ export function clientScript(): string {
         if (!Array.isArray(data.chapterNotes)) bumpChapterNotesGen(chapterSlug);
         notesPrefetch.delete(chapterSlug);
         writeChapterNotesCache(chapterSlug, [...noteMap.values()]);
-        // Refresh full list in background after edits so inbox stays complete.
+        // A save makes the prefetched inbox document stale. Drop it, then fetch the new SSR.
         inboxPrefetch = null;
+        dropInboxHtml();
         prefetchInbox().catch(() => {});
         syncVerseMarks();
         syncExpandBtn();
@@ -2577,6 +2578,16 @@ export function clientScript(): string {
   // --- Chapter notes cache + lazy hydrate (VBV-first) ---
   const CHAPTER_NOTES_KEY = "margin_chapter_notes_v1";
   const htmlCache = new Map();
+  // Paint a prefetched /notes document only while it is still young. Refresh in the
+  // background after TTL so a later tap stays instant. Refuse a snapshot older than MAX
+  // (another device, or a background tab whose refresh did not run). A save on this page
+  // drops the snapshot immediately. The list is the SSR document, not a client re-render.
+  const INBOX_HTML_TTL = 20000;
+  const INBOX_HTML_MAX = 120000;
+  let inboxHtml = null;
+  let inboxHtmlFlight = null;
+  let inboxHtmlGen = 0;
+  let inboxHtmlTimer = 0;
   const notesCache = new Map();
   function readChapterNotesCache() {
     try {
@@ -3298,6 +3309,69 @@ export function clientScript(): string {
       return url.href;
     } catch { return ""; }
   }
+  function inboxPageHref() {
+    return documentHref("/notes");
+  }
+  function inboxHtmlFresh() {
+    const href = inboxPageHref();
+    if (!href || !htmlCache.has(href)) return false;
+    if (!inboxHtml) return true;
+    return Date.now() - inboxHtml.at < INBOX_HTML_MAX;
+  }
+  function dropInboxHtml() {
+    inboxHtmlGen += 1;
+    inboxHtml = null;
+    inboxHtmlFlight = null;
+    if (inboxHtmlTimer) {
+      window.clearTimeout(inboxHtmlTimer);
+      inboxHtmlTimer = 0;
+    }
+    const href = inboxPageHref();
+    if (!href) return;
+    htmlCache.delete(href);
+  }
+  function scheduleInboxHtml(delay) {
+    if (inboxHtmlTimer) return;
+    inboxHtmlTimer = window.setTimeout(() => {
+      inboxHtmlTimer = 0;
+      prefetchInboxHtml();
+    }, delay);
+  }
+  function prefetchInboxHtml() {
+    const href = inboxPageHref();
+    if (!href) return;
+    const age = inboxHtml ? Date.now() - inboxHtml.at : Infinity;
+    if (inboxHtmlFlight) return;
+    if (age < INBOX_HTML_TTL) {
+      scheduleInboxHtml(INBOX_HTML_TTL - age);
+      return;
+    }
+    const gen = ++inboxHtmlGen;
+    const promise = fetch(href, {
+      credentials: "same-origin",
+      headers: { accept: "text/html", purpose: "prefetch" },
+      priority: "low",
+    })
+      .then((r) => (r.ok ? r.text() : Promise.reject()))
+      .then((html) => {
+        if (gen !== inboxHtmlGen) return html;
+        inboxHtml = { html, at: Date.now() };
+        htmlCache.set(href, Promise.resolve(html));
+        return html;
+      })
+      .catch(() => {
+        if (gen !== inboxHtmlGen) return null;
+        if (!inboxHtml) htmlCache.delete(href);
+        return null;
+      })
+      .finally(() => {
+        if (gen !== inboxHtmlGen) return;
+        inboxHtmlFlight = null;
+        scheduleInboxHtml(INBOX_HTML_TTL);
+      });
+    inboxHtmlFlight = promise;
+    if (!inboxHtml) htmlCache.set(href, promise);
+  }
   let searchPrefetch = null;
   function prefetchSearchChapter(href) {
     if (!href) {
@@ -3397,7 +3471,14 @@ export function clientScript(): string {
     if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button) return;
     const a = event.target?.closest?.("a[href]");
     if (!a || a.target === "_blank" || a.hasAttribute("download")) return;
-    if (a.dataset.inboxLink != null || a.getAttribute("href") === "/notes") return;
+    if (a.dataset.inboxLink != null || a.getAttribute("href") === "/notes") {
+      // Warm SSR document: soft-nav. Cold or older than INBOX_HTML_MAX: the browser loads /notes.
+      if (inboxHtmlFresh()) {
+        event.preventDefault();
+        softNavTo(a.href, { push: true });
+      }
+      return;
+    }
     if (a.closest?.(".att-drop")) return;
     const slug = chapterSlugFromHref(a.href);
     if (!slug) return;
@@ -3493,8 +3574,7 @@ export function clientScript(): string {
   document.querySelectorAll("[data-inbox-link], a[href='/notes']").forEach((link) => {
     link.addEventListener("pointerenter", () => { prefetchInbox().catch(() => {}); }, { passive: true });
     link.addEventListener("pointerdown", () => { prefetchInbox().catch(() => {}); }, { passive: true });
-    // Full navigation to /notes (no soft-nav). Sticky chapter tabs with older client JS
-    // were re-expanding Older into per-verse OSIS rows; SSR notesListHtml is authoritative.
+    // Prefetch fills htmlCache. A warm click soft-navs that SSR document. Client list HTML stays unused.
   });
   window.addEventListener("popstate", () => {
     // Full document navigation so SSR notesListHtml paints Older chapter rows.
