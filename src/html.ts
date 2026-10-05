@@ -101,7 +101,9 @@ export function page(title: string, body: string): string {
       --verse-gutter: 1.65rem;
       --verse-gutter-gap: .55rem;
       --verse-inset: .7rem;
-      /* How far the selection stroke sits left of the scripture line. 0 keeps it on the padding edge. */
+      /* How far the selection stroke sits left of the verse content edge.
+         0 keeps it on the padding edge (left of the number on phones).
+         Desktop sets this to the hanging number column so the stroke is outside the number. */
       --verse-rail-gap: 0rem;
       --read: "Iowan Old Style", Palatino, "Palatino Linotype", Georgia, serif;
       --sans: ui-sans-serif, system-ui, -apple-system, sans-serif;
@@ -793,7 +795,7 @@ export function page(title: string, body: string): string {
     .verse.has-note,
     .verse.is-open,
     .verse.is-span { border-left: 0; }
-    /* Stroke sits in the margin (--verse-rail-gap). The line itself does not move,
+    /* Stroke is left of the verse number. The line itself does not move,
        so a desktop column can stay flush with the jump field. */
     .verse.has-note::before,
     .verse.is-open::before,
@@ -809,12 +811,12 @@ export function page(title: string, body: string): string {
     .verse.is-span::before {
       background: var(--sel-rail-open);
     }
-    /* The range rail is the left border. Cover the stroke itself, plus a little of the gutter, and stop short of the verse number. */
+    /* The range rail is the left border. A narrow hit strip on the stroke, short of the verse number. */
     .verse-range-rail {
       position: absolute;
       z-index: 2;
-      left: calc(-.4rem - var(--verse-rail-gap)); top: 0; bottom: 0;
-      width: calc(.4rem + var(--verse-rail-gap) + var(--verse-inset) + 0.85rem);
+      left: calc(-1 * var(--verse-rail-gap) - .12rem); top: 0; bottom: 0;
+      width: .55rem;
       margin: 0; padding: 0; border: 0;
       background: transparent;
       cursor: pointer;
@@ -1053,14 +1055,13 @@ export function page(title: string, body: string): string {
     }
     /* Desktop reading column matches the jump field: same left and right edges.
        Verse numbers hang in the margin so they don't shorten the line.
-       The selection stroke steps left into that margin; the wider gutter gap
-       keeps the number clear of the stroke without shifting the line. */
+       The selection stroke sits at the outside of that number column
+       (border, then number, then text) and does not shift the line. */
     @media (min-width: 656px) {
       .section-head { margin-left: 0; margin-right: 0; }
       .verse { padding-left: 0; }
       .reader, .verse, .chapter {
-        --verse-gutter-gap: 1.1rem;
-        --verse-rail-gap: .55rem;
+        --verse-rail-gap: calc(var(--verse-gutter) + var(--verse-gutter-gap));
       }
       .verse-press {
         width: calc(100% + var(--verse-gutter) + var(--verse-gutter-gap));

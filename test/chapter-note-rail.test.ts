@@ -22,8 +22,8 @@ describe("chapter note rail CSS", () => {
     const desk = css.slice(css.indexOf("@media (min-width: 656px)"), css.indexOf(".note-tray, .chapter-tray {"));
     expect(desk).toContain(".section-head { margin-left: 0; margin-right: 0; }");
     expect(desk).toContain(".verse { padding-left: 0; }");
-    expect(desk).toContain("--verse-rail-gap: .55rem;");
-    expect(desk).toContain("--verse-gutter-gap: 1.1rem;");
+    expect(desk).toContain("--verse-rail-gap: calc(var(--verse-gutter) + var(--verse-gutter-gap));");
+    expect(desk).not.toContain("--verse-gutter-gap: 1.1rem;");
     expect(desk).toContain("width: calc(100% + var(--verse-gutter) + var(--verse-gutter-gap));");
     expect(desk).toContain("margin-left: calc(-1 * (var(--verse-gutter) + var(--verse-gutter-gap)));");
     expect(css).toContain("left: calc(-1 * var(--verse-rail-gap));");
