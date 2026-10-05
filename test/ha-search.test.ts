@@ -61,6 +61,7 @@ describe("Hidden Arrow hrefs open inside Margin", () => {
     expect(searching).toContain("keepKeyword");
     expect(searching).toContain("writeSearchCache(q, next)");
     expect(searching).toContain("close()");
+    expect(searching).toContain("showSearchUnavailable()");
     expect(searching).not.toContain("showSearchSkeletons");
     expect(searching).not.toContain("Loading");
     expect(searching).not.toContain("attribution");
@@ -88,6 +89,11 @@ describe("Hidden Arrow hrefs open inside Margin", () => {
     expect(skeletons).toContain("suggest-skeleton-text");
     expect(skeletons).toContain("i < 4");
     expect(skeletons).toContain('aria-busy", "true"');
+    const unavailable = source.slice(source.indexOf("function showSearchUnavailable"), source.indexOf("function render"));
+    expect(unavailable).toContain("Search unavailable");
+    expect(unavailable).toContain("search-unavailable");
+    expect(unavailable).toContain('role="status"');
+    expect(unavailable).not.toContain("<button");
     const submit = source.slice(source.indexOf("async function submitJump"), source.indexOf("function suggest()"));
     expect(submit).toContain("searchScripture(q, my, keepKeyword)");
     expect(submit.indexOf("showSearchSkeletons()")).toBeGreaterThan(-1);

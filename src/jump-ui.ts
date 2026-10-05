@@ -398,6 +398,20 @@ export function jumpScript(): string {
     list.innerHTML = rows;
   }
 
+  function showSearchUnavailable() {
+    hits = [];
+    selected = -1;
+    openSearchModal();
+    const list = searchList();
+    const input = searchInput();
+    if (!list || !input) return;
+    list.hidden = false;
+    list.removeAttribute("aria-busy");
+    input.setAttribute("aria-expanded", "true");
+    input.removeAttribute("aria-activedescendant");
+    list.innerHTML = '<li class="search-unavailable" role="status">Search unavailable</li>';
+  }
+
   function render(state) {
     openSearchModal();
     const list = searchList();
@@ -471,7 +485,7 @@ export function jumpScript(): string {
       if (!res.ok) {
         if (keepKeyword) return;
         writeSearchCache(q, []);
-        if (modalIsOpen()) close();
+        if (modalIsOpen()) showSearchUnavailable();
         return;
       }
       const data = await res.json();
@@ -488,7 +502,7 @@ export function jumpScript(): string {
     } catch (_) {
       if (my === seq && !keepKeyword) {
         writeSearchCache(q, []);
-        if (modalIsOpen()) close();
+        if (modalIsOpen()) showSearchUnavailable();
       }
     }
   }

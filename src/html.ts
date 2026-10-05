@@ -462,6 +462,12 @@ export function page(title: string, body: string): string {
       display: none; width: 0; height: 0;
     }
     .search-modal-list[hidden] { display: none; }
+    .search-unavailable {
+      margin: 0; padding: .85rem 1rem;
+      color: #a8a29e;
+      font-size: .92rem; line-height: 1.35; text-align: left;
+    }
+    html[data-theme="dark"] .search-unavailable { color: #78716c; }
     .search-modal-footer {
       display: none;
       flex: 0 0 auto;

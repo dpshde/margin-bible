@@ -192,6 +192,8 @@ describe("embedded reader scripts", () => {
     expect(source).toContain("function prefetchChapterNotes");
     expect(source).toContain("notesPending");
     expect(source).toContain("/api/notes?chapter=");
+    const chapterNotes = source.slice(source.indexOf("function prefetchChapterNotes"), source.indexOf("async function hydrateChapterNotes"));
+    expect(chapterNotes).toContain('credentials: "include"');
     // Chapter soft-nav still fetches notes. An exact verse or range does not.
     expect(source).toContain("function hrefIsExactNote");
     expect(source).toContain("if (slug && !hrefIsExactNote(url.href)) prefetchChapterNotes(slug)");

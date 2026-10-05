@@ -2823,7 +2823,7 @@ export function clientScript(): string {
     if (notesPrefetch.has(slug)) return notesPrefetch.get(slug);
     const gen = chapterNotesGen.get(slug) || 0;
     const req = fetch("/api/notes?chapter=" + encodeURIComponent(slug), {
-      credentials: "same-origin",
+      credentials: "include",
       headers: { accept: "application/json" },
       priority: "low",
     })
