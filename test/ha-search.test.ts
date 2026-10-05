@@ -499,6 +499,10 @@ describe("search list stays on screen", () => {
     expect(source).toContain('footer.textContent = "BSB"');
     expect(source).toContain("search-modal-footer");
     expect(source).toContain("search-modal-icon");
+    expect(source).toContain("search-modal-cancel");
+    expect(source).toContain('cancel.textContent = "Cancel"');
+    expect(source).toContain('cancel.addEventListener("click", () => closeSearchModal())');
+    expect(source).toContain("search-modal-results");
     expect(source).not.toContain("search-modal-translation");
     const footer = css.slice(css.indexOf(".search-modal-footer {"), css.indexOf("html[data-theme=\"dark\"] .search-modal-footer"));
     expect(footer).toContain("display: none");
@@ -521,5 +525,16 @@ describe("search list stays on screen", () => {
     expect(list).toContain("overflow-y: auto");
     expect(list).toContain("scrollbar-width: none");
     expect(css).toContain(".search-modal-list::-webkit-scrollbar");
+    const sheet = css.slice(css.indexOf(".search-modal-cancel {"), css.indexOf(".section-head {"));
+    expect(sheet).toContain("@media (max-width: 640px)");
+    expect(sheet).toContain("padding: 0");
+    expect(sheet).toContain("border-radius: 0");
+    expect(sheet).toContain("env(safe-area-inset-top, 0px)");
+    expect(sheet).toContain("env(safe-area-inset-bottom, 0px)");
+    expect(sheet).toContain(".search-modal-results");
+    expect(sheet).toContain("scrollbar-width: none");
+    expect(css).toContain("html.search-modal-open .search-fab");
+    expect(css).toContain("visibility: hidden");
+    expect(css).toContain("pointer-events: none");
   });
 });

@@ -200,6 +200,10 @@ export function jumpScript(): string {
     input.setAttribute("aria-autocomplete", "list");
     input.setAttribute("aria-expanded", "false");
     input.setAttribute("aria-controls", "search-modal-list");
+    const cancel = document.createElement("button");
+    cancel.type = "button";
+    cancel.className = "search-modal-cancel";
+    cancel.textContent = "Cancel";
     const list = document.createElement("ul");
     list.className = "search-modal-list";
     list.id = "search-modal-list";
@@ -208,16 +212,21 @@ export function jumpScript(): string {
     const footer = document.createElement("p");
     footer.className = "search-modal-footer";
     footer.textContent = "BSB";
+    const results = document.createElement("div");
+    results.className = "search-modal-results";
     bar.appendChild(icon);
     bar.appendChild(input);
+    bar.appendChild(cancel);
+    results.appendChild(list);
+    results.appendChild(footer);
     searchForm.appendChild(bar);
-    searchForm.appendChild(list);
-    searchForm.appendChild(footer);
+    searchForm.appendChild(results);
     panel.appendChild(searchForm);
     modal.appendChild(backdrop);
     modal.appendChild(panel);
     document.body.appendChild(modal);
     backdrop.addEventListener("click", () => closeSearchModal());
+    cancel.addEventListener("click", () => closeSearchModal());
     searchForm.addEventListener("submit", (event) => {
       const q = input.value.trim();
       event.preventDefault();
