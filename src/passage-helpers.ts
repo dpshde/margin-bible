@@ -12,6 +12,14 @@ export type PassageHelperState = {
   hits: PassageHelperHit[];
   hint: string | null;
   canGo: boolean;
+  /** OSIS code once a book is known, otherwise null. */
+  book: string | null;
+  /** Chapter number once the query has chapter scope, otherwise 0. */
+  chapter: number;
+  /** Start verse when the query names one, otherwise null. */
+  verse: number | null;
+  /** Range end when the query names a complete range, otherwise null. */
+  verseEnd: number | null;
 };
 
 const passageHelpersFunctionSource = `function passageHelpers(raw) {
@@ -224,7 +232,23 @@ const passageHelpersFunctionSource = `function passageHelpers(raw) {
       }
     }
   }
-  return { hits: visible, hint: hint, canGo: canGo };
+  const scopeBook = rangeCtx ? rangeCtx.book : (contextBook || null);
+  const scopeChapter = rangeCtx ? rangeCtx.chapter : (contextChapter || 0);
+  let verse = null;
+  let verseEnd = null;
+  if (rangeCtx && canGo) {
+    verse = rangeCtx.startVerse;
+    if (rangeCtx.endPrefix) verseEnd = positiveInt(rangeCtx.endPrefix);
+  } else if (contextVerse) verse = contextVerse;
+  return {
+    hits: visible,
+    hint: hint,
+    canGo: canGo,
+    book: scopeBook,
+    chapter: scopeChapter,
+    verse: verse,
+    verseEnd: verseEnd,
+  };
 }`;
 
 /** Browser source for the search modal. Suggestions resolve against this data with no request. */

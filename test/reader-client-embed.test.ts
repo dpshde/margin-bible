@@ -71,6 +71,21 @@ describe("embedded reader scripts", () => {
     nodeCheck(jumpScript(), "jump");
   });
 
+  test("search prefetch and soft-nav share the reader html cache", () => {
+    const source = clientScript();
+    expect(source).toContain("window.__marginPrefetchChapter = prefetchSearchChapter");
+    expect(source).toContain("window.__marginSoftNav = softNavTo");
+    expect(source).toContain('priority: "low"');
+    expect(source).toContain("new AbortController()");
+    expect(source).toContain("useChapterCache");
+    expect(source).toContain("htmlCache.get(chapterKey)");
+    expect(source).toContain("function verseTargetFromLocation");
+    const inbox = notesInboxScript();
+    expect(inbox).toContain("window.__marginPrefetchChapter = prefetchSearchChapter");
+    expect(inbox).toContain("window.__marginSoftNav = softNavTo");
+    expect(inbox).toContain("htmlCache.get(chapterKey)");
+  });
+
   test("the served jump script has no esbuild keep-names helper", () => {
     const script = jumpScript();
     expect(script).not.toContain("__name(");

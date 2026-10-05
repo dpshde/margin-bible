@@ -3234,9 +3234,19 @@ export function clientScript(): string {
   syncChapterBookmarkBtn(Boolean(noteMap.get(chapterSlug)?.bookmarked));
   syncChapterNoteChrome();
 
-  const boot = root.dataset.bootVerse;
+  function verseTargetFromLocation() {
+    const path = location.pathname.replace(/^\\/+/, "");
+    const match = /^[a-z0-9]+\\.\\d+\\.(\\d+)(?:-(\\d+))?$/i.exec(path);
+    if (!match) return null;
+    const start = Number(match[1]);
+    const end = match[2] ? Number(match[2]) : start;
+    if (!start || !end) return null;
+    return { boot: end, range: Boolean(match[2]) && end !== start };
+  }
+  const located = verseTargetFromLocation();
+  const boot = root.dataset.bootVerse || (located ? String(located.boot) : "");
   const passageSlug = root.dataset.passageSlug || "";
-  const bootPreferRange = passageSlug.includes("-");
+  const bootPreferRange = passageSlug.includes("-") || Boolean(located && located.range);
   const xrefParam = new URLSearchParams(location.search).get("xref") === "1";
   if (boot && xrefParam) {
     const endMatch = /-(\\d+)$/.exec(passageSlug);
@@ -3280,14 +3290,47 @@ export function clientScript(): string {
     if (embedded && embedded.length) writeChapterNotesCache(slug, embedded.map(normalizeHydrateNote));
     return embedded;
   }
-  async function prefetchChapter(href) {
+  function documentHref(href) {
+    try {
+      const url = new URL(href, location.origin);
+      if (url.origin !== location.origin) return "";
+      url.hash = "";
+      return url.href;
+    } catch { return ""; }
+  }
+  let searchPrefetch = null;
+  function prefetchSearchChapter(href) {
+    if (!href) {
+      if (searchPrefetch) searchPrefetch.controller.abort();
+      searchPrefetch = null;
+      return;
+    }
+    const key = documentHref(href);
+    const slug = chapterSlugFromHref(key);
+    if (!slug) return;
+    const chapterKey = documentHref("/" + slug);
+    if (searchPrefetch && searchPrefetch.key === chapterKey) return;
+    if (searchPrefetch) searchPrefetch.controller.abort();
+    const controller = new AbortController();
+    searchPrefetch = { key: chapterKey, controller };
+    prefetchChapter(chapterKey, { priority: "low", signal: controller.signal });
+  }
+  async function prefetchChapter(href, opts) {
+    href = documentHref(href);
     const slug = chapterSlugFromHref(href);
     if (!slug) return;
     if (!htmlCache.has(href)) {
-      htmlCache.set(href, fetch(href, { credentials: "same-origin", headers: { accept: "text/html", purpose: "prefetch" } })
+      const init = { credentials: "same-origin", headers: { accept: "text/html", purpose: "prefetch" } };
+      if (opts && opts.priority) init.priority = opts.priority;
+      if (opts && opts.signal) init.signal = opts.signal;
+      const promise = fetch(href, init)
         .then((r) => r.ok ? r.text() : Promise.reject())
         .then((html) => { seedNotesFromHtml(slug, html); return html; })
-        .catch(() => { htmlCache.delete(href); return null; }));
+        .catch(() => {
+          if (htmlCache.get(href) === promise) htmlCache.delete(href);
+          return null;
+        });
+      htmlCache.set(href, promise);
     } else {
       Promise.resolve(htmlCache.get(href)).then((html) => seedNotesFromHtml(slug, html)).catch(() => {});
     }
@@ -3314,19 +3357,25 @@ export function clientScript(): string {
     if (a?.href) prefetchChapter(a.href);
   }, true);
 
-  async function softNavTo(href, { push = true } = {}) {
+  async function softNavTo(href, { push = true, useChapterCache = false } = {}) {
     const url = new URL(href, location.origin);
     if (url.origin !== location.origin) { location.href = href; return; }
     // Persist unsaved attach/xref/body before document.write tears the page down.
     await flushAll({ keepalive: false });
-    const slug = chapterSlugFromHref(url.href);
+    const exactKey = documentHref(url.href);
+    const slug = chapterSlugFromHref(exactKey);
     // Chapters hydrate notes beside the HTML. An exact verse or range does not.
     if (slug && !hrefIsExactNote(url.href)) prefetchChapterNotes(slug);
-    const htmlPromise = htmlCache.get(url.href) || fetch(url.href, { credentials: "same-origin", headers: { accept: "text/html" } }).then((r) => {
-      if (!r.ok) throw new Error("nav");
-      return r.text();
-    }).then((html) => { seedNotesFromHtml(slug, html); return html; });
-    htmlCache.set(url.href, htmlPromise);
+    const chapterKey = slug ? documentHref("/" + slug) : "";
+    let htmlPromise = htmlCache.get(exactKey);
+    if (!htmlPromise && useChapterCache && chapterKey && chapterKey !== exactKey) htmlPromise = htmlCache.get(chapterKey);
+    if (!htmlPromise) {
+      htmlPromise = fetch(exactKey, { credentials: "same-origin", headers: { accept: "text/html" } }).then((r) => {
+        if (!r.ok) throw new Error("nav");
+        return r.text();
+      }).then((html) => { seedNotesFromHtml(slug, html); return html; });
+      htmlCache.set(exactKey, htmlPromise);
+    }
     try {
       // VBV HTML first; destination page hydrates notes via /api/notes?chapter= (and session cache).
       const html = await htmlPromise;
@@ -3341,6 +3390,8 @@ export function clientScript(): string {
       location.href = href;
     }
   }
+  window.__marginPrefetchChapter = prefetchSearchChapter;
+  window.__marginSoftNav = softNavTo;
   document.addEventListener("click", (event) => {
     if (event.defaultPrevented) return;
     if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button) return;

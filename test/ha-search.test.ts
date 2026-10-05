@@ -821,6 +821,7 @@ describe("passage helpers while typing", () => {
 
     const live = source.slice(source.indexOf("function suggestNow"), source.indexOf("async function submitJump"));
     expect(live).toContain("passageHelpers(q)");
+    expect(live).toContain("prefetchPassage(data)");
     expect(live).toContain("render(data)");
     expect(live).toContain("if (showingPassageHelpers()) close()");
     expect(live).not.toContain("/api/jump-suggest");
@@ -842,12 +843,21 @@ describe("passage helpers while typing", () => {
     const exact = submit.slice(0, submit.indexOf('fetch("/api/jump-suggest?q="'));
     expect(exact).toContain("passageHelpers(q)");
     expect(exact).toContain("local.canGo");
+    expect(exact).toContain("passageHref(local)");
+    expect(exact).toContain("window.__marginSoftNav");
+    expect(exact).toContain("useChapterCache: true");
+    expect(exact.indexOf("window.__marginSoftNav")).toBeLessThan(exact.indexOf('"/jump?q=" + encodeURIComponent(q)'));
     expect(exact).toContain('"/jump?q=" + encodeURIComponent(q)');
     expect(exact).toContain("location.assign(jumpUrl)");
     expect(exact).toContain("location.replace(jumpUrl)");
     expect(exact).not.toContain("/api/ha-search");
     expect(exact).not.toContain("searchScripture");
     expect(exact).not.toContain("rememberRecentSearch");
+    const prefetch = source.slice(source.indexOf("function chapterHref"), source.indexOf("function suggestNow"));
+    expect(prefetch).toContain("window.__marginPrefetchChapter");
+    expect(prefetch).toContain('return "/" + String(state.book).toLowerCase() + "." + state.chapter');
+    expect(prefetch).not.toContain("/api/ha-search");
+    expect(prefetch).not.toContain("/api/jump-suggest");
     expect(submit).toContain('fetch("/api/jump-suggest?q="');
     expect(submit.indexOf("local.canGo")).toBeLessThan(submit.indexOf('fetch("/api/jump-suggest?q="'));
     expect(submit.indexOf("showSearchSkeletons()")).toBeLessThan(submit.indexOf("searchScripture(q, my)"));

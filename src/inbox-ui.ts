@@ -676,27 +676,66 @@ export function notesInboxScript(): string {
     return req;
   }
 
-  function prefetchChapter(href) {
+  function documentHref(href) {
+    try {
+      const url = new URL(href, location.origin);
+      if (url.origin !== location.origin) return "";
+      url.hash = "";
+      return url.href;
+    } catch { return ""; }
+  }
+  let searchPrefetch = null;
+  function prefetchSearchChapter(href) {
+    if (!href) {
+      if (searchPrefetch) searchPrefetch.controller.abort();
+      searchPrefetch = null;
+      return;
+    }
+    const key = documentHref(href);
+    const slug = chapterSlugFromHref(key);
+    if (!slug) return;
+    const chapterKey = documentHref("/" + slug);
+    if (searchPrefetch && searchPrefetch.key === chapterKey) return;
+    if (searchPrefetch) searchPrefetch.controller.abort();
+    const controller = new AbortController();
+    searchPrefetch = { key: chapterKey, controller };
+    prefetchChapter(chapterKey, { priority: "low", signal: controller.signal });
+  }
+  function prefetchChapter(href, opts) {
+    href = documentHref(href);
     const slug = chapterSlugFromHref(href);
     if (!slug) return;
     if (!htmlCache.has(href)) {
-      htmlCache.set(href, fetch(href, { credentials: "same-origin", headers: { accept: "text/html", purpose: "prefetch" } })
+      const init = { credentials: "same-origin", headers: { accept: "text/html", purpose: "prefetch" } };
+      if (opts && opts.priority) init.priority = opts.priority;
+      if (opts && opts.signal) init.signal = opts.signal;
+      const promise = fetch(href, init)
         .then((r) => r.ok ? r.text() : Promise.reject())
-        .catch(() => { htmlCache.delete(href); return null; }));
+        .catch(() => {
+          if (htmlCache.get(href) === promise) htmlCache.delete(href);
+          return null;
+        });
+      htmlCache.set(href, promise);
     }
     prefetchChapterNotes(slug);
   }
 
-  async function softNavTo(href, { push = true } = {}) {
+  async function softNavTo(href, { push = true, useChapterCache = false } = {}) {
     const url = new URL(href, location.origin);
     if (url.origin !== location.origin) { location.href = href; return; }
-    const slug = chapterSlugFromHref(url.href);
+    const exactKey = documentHref(url.href);
+    const slug = chapterSlugFromHref(exactKey);
     if (slug) prefetchChapterNotes(slug);
-    const htmlPromise = htmlCache.get(url.href) || fetch(url.href, { credentials: "same-origin", headers: { accept: "text/html" } }).then((r) => {
-      if (!r.ok) throw new Error("nav");
-      return r.text();
-    });
-    htmlCache.set(url.href, htmlPromise);
+    const chapterKey = slug ? documentHref("/" + slug) : "";
+    let htmlPromise = htmlCache.get(exactKey);
+    if (!htmlPromise && useChapterCache && chapterKey && chapterKey !== exactKey) htmlPromise = htmlCache.get(chapterKey);
+    if (!htmlPromise) {
+      htmlPromise = fetch(exactKey, { credentials: "same-origin", headers: { accept: "text/html" } }).then((r) => {
+        if (!r.ok) throw new Error("nav");
+        return r.text();
+      });
+      htmlCache.set(exactKey, htmlPromise);
+    }
     try {
       const html = await htmlPromise;
       if (!html) { location.href = href; return; }
@@ -709,6 +748,8 @@ export function notesInboxScript(): string {
       location.href = href;
     }
   }
+  window.__marginPrefetchChapter = prefetchSearchChapter;
+  window.__marginSoftNav = softNavTo;
 
   function isInboxChapterLink(a) {
     if (!a || !a.href) return false;

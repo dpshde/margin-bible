@@ -862,6 +862,7 @@ export function jumpScript(): string {
         return;
       }
       seq += 1;
+      prefetchPassage(null);
       close();
       loadTopicSuggestions();
     });
@@ -1363,15 +1364,48 @@ export function jumpScript(): string {
     }
   }
 
+  function chapterHref(state) {
+    if (!state || !state.book || !state.chapter) return "";
+    return "/" + String(state.book).toLowerCase() + "." + state.chapter;
+  }
+
+  function passageHref(state) {
+    const chapter = chapterHref(state);
+    if (!chapter || !state.canGo) return "";
+    if (!state.verse) return chapter;
+    let href = chapter + "." + state.verse;
+    if (state.verseEnd && state.verseEnd !== state.verse) href += "-" + state.verseEnd;
+    return href;
+  }
+
+  let prefetchedChapterHref = "";
+  function prefetchPassage(state) {
+    const prefetch = window.__marginPrefetchChapter;
+    if (typeof prefetch !== "function") return;
+    const href = chapterHref(state);
+    if (!href) {
+      if (prefetchedChapterHref) {
+        prefetchedChapterHref = "";
+        prefetch("");
+      }
+      return;
+    }
+    if (href === prefetchedChapterHref) return;
+    prefetchedChapterHref = href;
+    prefetch(href);
+  }
+
   function suggestNow() {
     const input = searchInput();
     const q = input ? input.value : "";
     if (!String(q).trim()) {
+      prefetchPassage(null);
       close();
       return;
     }
     if (!modalIsOpen()) return;
     const data = passageHelpers(q);
+    prefetchPassage(data);
     const nextHits = Array.isArray(data.hits) ? data.hits : [];
     const hint = data.hint ? String(data.hint) : "";
     if (nextHits.length || hint) {
@@ -1385,6 +1419,14 @@ export function jumpScript(): string {
     const my = ++seq;
     const local = passageHelpers(q);
     if (local && local.canGo) {
+      const href = passageHref(local);
+      const nav = window.__marginSoftNav;
+      if (href && typeof nav === "function") {
+        const push = !searchState;
+        searchState = false;
+        nav(href, { push: push, useChapterCache: true });
+        return;
+      }
       const jumpUrl = "/jump?q=" + encodeURIComponent(q);
       if (searchState) {
         searchState = false;

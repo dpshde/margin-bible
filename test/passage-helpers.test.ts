@@ -73,6 +73,12 @@ describe("passage helpers", () => {
     expect(api("john 3").hits[0]).toMatchObject({ kind: "chapter", label: "John 3" });
     expect(api("john 3:").hits[0]?.label).toBe("John 3:1");
     expect(api("john 3:16").canGo).toBe(true);
+    expect(api("John 3")).toMatchObject({ book: "JHN", chapter: 3, verse: null, verseEnd: null, canGo: true });
+    expect(api("John 3:16")).toMatchObject({ book: "JHN", chapter: 3, verse: 16, verseEnd: null, canGo: true });
+    expect(api("john 3:16-18")).toMatchObject({ book: "JHN", chapter: 3, verse: 16, verseEnd: 18, canGo: true });
+    expect(api("john 3:16-1")).toMatchObject({ book: "JHN", chapter: 3, canGo: false });
+    expect(api("joh").chapter).toBe(0);
+    expect(api("ps 23")).toMatchObject({ book: "PSA", chapter: 23, canGo: true });
   });
 
   test("a keep-names bundle still serves helpers without __name", async () => {
