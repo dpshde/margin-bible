@@ -38,7 +38,32 @@ describe("header chrome without chapter note pencil", () => {
     expect(actions).toContain('id="expand-all-btn"');
     expect(html).toContain(".topbar-title {");
     expect(html).toContain("display: flex; align-items: center; justify-content: center;");
-    expect(html).toContain(".topbar-chapter-mark { flex: none;");
+    expect(html).toMatch(/\.icon-btn\.topbar-chapter-mark \{\s*flex: none;/);
+    const phone = html.indexOf("@media (max-width: 640px)");
+    expect(html.slice(phone)).toContain(".topbar-chapter-mark { margin-inline-start: .75rem; }");
+  });
+
+  test("chapter bookmark has no hover chrome and tighter padding toward the title", () => {
+    const html = renderChapterPage({ passage, pack, notes: [] });
+    const ruleStart = html.indexOf(".icon-btn.topbar-chapter-mark {");
+    const rule = html.slice(ruleStart, html.indexOf("}", ruleStart));
+    expect(rule).toContain("flex: none;");
+    expect(rule).toContain("width: auto;");
+    expect(rule).toContain("padding-inline-start: calc((var(--tap) - 1.1rem) / 2);");
+    expect(rule).toContain("padding-inline-end: .4rem;");
+    const hoverStart = html.indexOf(".icon-btn.topbar-chapter-mark:hover {");
+    expect(hoverStart).toBeGreaterThan(-1);
+    const hoverRule = html.slice(hoverStart, html.indexOf("}", hoverStart));
+    expect(hoverRule).toContain("background: transparent;");
+    expect(hoverRule).toContain("border-color: transparent;");
+    expect(hoverRule).toContain("box-shadow: none;");
+    const fineHover = html.indexOf("@media (hover: hover) and (pointer: fine)");
+    const fineRuleStart = html.indexOf(".icon-btn.topbar-chapter-mark:hover {", fineHover);
+    expect(fineRuleStart).toBeGreaterThan(fineHover);
+    const fineRule = html.slice(fineRuleStart, html.indexOf("}", fineRuleStart));
+    expect(fineRule).toContain("background: transparent;");
+    expect(fineRule).toContain("border-color: transparent;");
+    expect(fineRule).toContain("box-shadow: none;");
     const phone = html.indexOf("@media (max-width: 640px)");
     expect(html.slice(phone)).toContain(".topbar-chapter-mark { margin-inline-start: .75rem; }");
   });
