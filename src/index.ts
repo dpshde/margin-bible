@@ -23,6 +23,8 @@ import {
 import { renderLoginPage } from "./login-page";
 import { buildLibrarySnapshot, snapshotFilename } from "./library-snapshot";
 import { draftNote } from "./notes";
+import { proxyHiddenArrowSearch, proxyHiddenArrowSuggest } from "./ha-search";
+import { collectKeywordVerses, keywordBookSpecs } from "./keyword-search";
 import { canGo, jumpState } from "./jump-suggest";
 import { performLogin, performPassphraseChange } from "./perform-login";
 import {
@@ -36,7 +38,7 @@ import {
   verifyAuthentication,
   verifyRegistration,
 } from "./passkeys";
-import { chapterSlug, lazyChapterNotes, parsePassage, passageLabel, passageSlug, type Passage } from "./passage";
+import { chapterSlug, createPassage, lazyChapterNotes, parsePassage, passageLabel, passageSlug, type Passage } from "./passage";
 import { renderChapterPage, renderMissing, renderNotesIndex } from "./reader-page";
 import type { ChapterPack } from "./usj";
 import { ensureBidirectionalXrefs, syncBidirectionalXrefs } from "./xref-sync";
@@ -53,6 +55,14 @@ export type Env = {
   MCP_BEARER_TOKEN?: string;
   /** D1 library id bound to the MCP bearer (Dylan's notes). */
   MCP_LIBRARY_ID?: string;
+  /** Optional Hidden Arrow origin. Defaults to the public Railway app. */
+  HIDDEN_ARROW_ORIGIN?: string;
+  /** Optional suggest-topics origin. Wins over HIDDEN_ARROW_BASE_URL. */
+  HIDDEN_ARROW_SUGGEST_BASE_URL?: string;
+  /** Optional Hidden Arrow base when suggest and search share a host other than the default. */
+  HIDDEN_ARROW_BASE_URL?: string;
+  /** Server-only Hidden Arrow search key. Never sent to the browser. */
+  HIDDEN_ARROW_SEARCH_KEY?: string;
 };
 
 type Variables = {
@@ -88,6 +98,9 @@ app.use("*", async (c, next) => {
   if (
     c.req.path === "/health" ||
     c.req.path === "/mcp" ||
+    c.req.path === "/api/ha-search" ||
+    c.req.path === "/api/ha-suggest" ||
+    c.req.path === "/api/keyword-corpus" ||
     c.req.path.startsWith("/bsb/") ||
     c.req.path.startsWith("/vendor/") ||
     isPwaAssetPath(c.req.path)
@@ -275,13 +288,22 @@ app.post("/api/passkey/login/verify", async (c) => {
   }
 });
 
+/** Home opens the last-read chapter and keeps a shareable `q` search. */
+export function homeLocation(slug: string | null | undefined, q: string | null | undefined): string {
+  const raw = (slug || "jhn.1").trim().replace(/^\/+/, "") || "jhn.1";
+  const query = (q ?? "").trim();
+  if (!query) return `/${raw}`;
+  const params = new URLSearchParams();
+  params.set("q", query);
+  return `/${raw}?${params.toString()}`;
+}
+
 app.get("/", async (c) => {
   const library = await c.env.DB
     .prepare("SELECT last_read_slug FROM libraries WHERE id = ?")
     .bind(c.get("libraryId"))
     .first<{ last_read_slug: string | null }>();
-  const slug = library?.last_read_slug || "jhn.1";
-  return c.redirect(`/${slug}`, 302);
+  return c.redirect(homeLocation(library?.last_read_slug, c.req.query("q")), 302);
 });
 
 app.get("/api/jump-suggest", (c) => {
@@ -292,6 +314,59 @@ app.get("/api/jump-suggest", (c) => {
     hits: state.hits,
     hint: state.hint,
     canGo: canGo(q),
+  });
+});
+
+let keywordCorpusJson: Promise<string> | null = null;
+
+app.get("/api/keyword-corpus", async (c) => {
+  if (!keywordCorpusJson) {
+    keywordCorpusJson = collectKeywordVerses(keywordBookSpecs(), async (code, chapter) => {
+      const pack = await loadChapter(c.env.ASSETS, createPassage(code, chapter));
+      return pack ? { verses: pack.verses } : null;
+    })
+      .then((rows) => JSON.stringify(rows))
+      .catch((error) => {
+        keywordCorpusJson = null;
+        throw error;
+      });
+  }
+  const body = await keywordCorpusJson;
+  return new Response(body, {
+    headers: {
+      "content-type": "application/json; charset=utf-8",
+      "cache-control": "public, max-age=86400",
+    },
+  });
+});
+
+app.post("/api/ha-search", async (c) => {
+  let query = "";
+  try {
+    const body = await c.req.json<{ query?: unknown }>();
+    query = typeof body?.query === "string" ? body.query : "";
+  } catch {
+    return c.json({ ok: false }, 400, { "cache-control": "no-store" });
+  }
+  return proxyHiddenArrowSearch(query, {
+    origin: c.env?.HIDDEN_ARROW_ORIGIN,
+    apiKey: c.env?.HIDDEN_ARROW_SEARCH_KEY,
+  });
+});
+
+app.post("/api/ha-suggest", async (c) => {
+  let recent: unknown;
+  try {
+    const body = await c.req.json<{ recent?: unknown }>();
+    recent = body?.recent;
+  } catch {
+    return c.json({ ok: false }, 400, { "cache-control": "no-store" });
+  }
+  return proxyHiddenArrowSuggest(recent, {
+    suggestBase: c.env?.HIDDEN_ARROW_SUGGEST_BASE_URL,
+    base: c.env?.HIDDEN_ARROW_BASE_URL,
+    origin: c.env?.HIDDEN_ARROW_ORIGIN,
+    apiKey: c.env?.HIDDEN_ARROW_SEARCH_KEY,
   });
 });
 

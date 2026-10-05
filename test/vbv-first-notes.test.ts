@@ -41,7 +41,7 @@ describe("VBV-first chapter notes", () => {
     });
     expect(html).toContain('data-notes-pending="1"');
     expect(html).toContain('<script id="notes-data" type="application/json">[]</script>');
-    expect(html).toContain('href="/api/notes?chapter=jhn.3"');
+    expect(html).toContain('<link rel="preload" href="/api/notes?chapter=jhn.3" as="fetch" crossorigin="use-credentials">');
     expect(html).toContain("For God so loved the world");
     // Verse shells must not be marked until hydrate (client script still mentions has-note).
     expect(html).not.toMatch(/class="[^"]*has-note/);

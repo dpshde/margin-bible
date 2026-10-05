@@ -60,7 +60,7 @@ Wrangler prints a `*.workers.dev` URL. That host is the spike. Leave `margin.bib
 | Piece | Spike behavior |
 |---|---|
 | Reader | `GET /jhn.3`, `/jhn.3.16`, `/jhn.3.16-18`. The page is always the chapter. A verse or range focuses those verses. |
-| Addresses | npm [`grab-bcv`](https://www.npmjs.com/package/grab-bcv) `findAnyPassage` on `/jump` + route slugs (same OSIS contract as Rails / route.bible). Jump bar autosuggest (`/api/jump-suggest`, Rails `jump-suggest` / `search_controller` parity). `John 3:16`, `Jn 3`, `jhn.3.16`. This is not Bible search. |
+| Addresses | npm [`grab-bcv`](https://www.npmjs.com/package/grab-bcv) `findAnyPassage` on `/jump` + route slugs (same OSIS contract as Rails / route.bible). The search box autosuggests books and chapters while typing (`/api/jump-suggest`). A resolved reference (`John 3:16`, `Jn 3`, `jhn.3.16`) jumps inside Margin. Submitting other text searches scripture: the worker proxies Hidden Arrow at `POST /api/ha-search` and a hit opens that passage here. Typing does not call Hidden Arrow. |
 | Scripture | Official BSB USJ, flattened with the same verse-row rules as `Margin::Usj.pack_chapter`. One JSON file per chapter in `assets/bsb/`. Public domain. |
 | Notes | One row per library + slug. Verse, range, and chapter notes stay separate. Body is outline blocks, same idea as Rails. |
 | Bookmarks | Tray bookmark control on every expanded outliner (verse + chapter). Empty bookmarked notes are kept. |
@@ -70,7 +70,7 @@ Wrangler prints a `*.workers.dev` URL. That host is the spike. Leave `margin.bib
 | Share-out | `https://route.bible/{slug}` only. Chapter HTML is not loaded from route.bible. |
 | API | `GET /api/notes`, `GET /api/notes?chapter=jhn.3`, `GET /api/notes?verse=jhn.3.16`, `PUT /api/notes/:slug` with `{ "text" }` or `{ "blocks" }` plus optional `bookmarked` and `attachments`. No path version. |
 
-`POST /api/search` is not implemented. Search stays with the sibling that owns it.
+`POST /api/search` is not implemented. Scripture search is `POST /api/ha-search`, a no-store proxy to Hidden Arrow. The worker sends `x-api-key` from `HIDDEN_ARROW_SEARCH_KEY` and does not call Hidden Arrow when that value is unset. The key is not part of the page or the proxy response. Margin does not host that corpus.
 
 ## Auth (passphrase, then passkey)
 

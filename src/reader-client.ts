@@ -2037,7 +2037,8 @@ export function clientScript(): string {
       keepEditingVisible(textEl);
     });
   });
-  let kbBaseline = null;
+  // Seed the full height so the first keyboard shrink is a drop, not a new baseline.
+  let kbBaseline = (window.visualViewport && window.visualViewport.height) || window.innerHeight || null;
   let kbLowest = null;
   let kbFollowed = false;
   let kbOpenedAt = null;
@@ -2822,7 +2823,7 @@ export function clientScript(): string {
     if (notesPrefetch.has(slug)) return notesPrefetch.get(slug);
     const gen = chapterNotesGen.get(slug) || 0;
     const req = fetch("/api/notes?chapter=" + encodeURIComponent(slug), {
-      credentials: "same-origin",
+      credentials: "include",
       headers: { accept: "application/json" },
       priority: "low",
     })
@@ -3095,6 +3096,10 @@ export function clientScript(): string {
       if (Math.abs(dx) < RAIL_TOUCH_SLOP && Math.abs(dy) < RAIL_TOUCH_SLOP) return "pending";
       return "chapter";
     }
+    function railPanScrollDelta(previousY, clientY) {
+      if (!Number.isFinite(previousY) || !Number.isFinite(clientY)) return 0;
+      return previousY - clientY;
+    }
     function railWatchEnd(input) {
       if (input.decided || input.scrolled) return "ignore";
       if (input.type !== "pointerup") return "ignore";
@@ -3116,12 +3121,16 @@ export function clientScript(): string {
       railHideTimer = window.setTimeout(clearRailPreview, 350);
     }
     function onRailWatchMove(event) {
-      if (!railWatch || event.pointerId !== railWatch.id || railWatch.decided) return;
-      const decision = railWatchMove(event.clientX - railWatch.x, event.clientY - railWatch.y);
-      if (decision === "pending") return;
-      // Chapter drag. Do not preventDefault and do not capture.
-      railWatch.decided = true;
-      clearRailWatch();
+      if (!railWatch || event.pointerId !== railWatch.id) return;
+      if (!railWatch.decided) {
+        const decision = railWatchMove(event.clientX - railWatch.x, event.clientY - railWatch.y);
+        if (decision === "pending") return;
+        // Chapter drag. Scroll with the finger. Do not preventDefault and do not capture.
+        railWatch.decided = true;
+      }
+      const delta = railPanScrollDelta(railWatch.lastY, event.clientY);
+      railWatch.lastY = event.clientY;
+      if (delta) window.scrollBy(0, delta);
     }
     function onRailWatchEnd(event) {
       if (!railWatch || event.pointerId !== railWatch.id) return;
@@ -3149,6 +3158,7 @@ export function clientScript(): string {
           id: event.pointerId,
           x: event.clientX,
           y: event.clientY,
+          lastY: event.clientY,
           scrollY: window.scrollY || window.pageYOffset || 0,
           decided: false,
         };

@@ -124,7 +124,7 @@ export function page(title: string, body: string): string {
     @media (pointer: fine) {
       html, body { overscroll-behavior: none; }
     }
-    button, a, .icon-btn, .expand-btn, .tray-bookmark, .tray-attach, .tray-clear, .tray-close, .att-remove, .obullet, .verse-press, .suggest button, .topbar-title-btn, .chapter-grid-cell {
+    button, a, .icon-btn, .expand-btn, .tray-bookmark, .tray-attach, .tray-clear, .tray-close, .att-remove, .obullet, .verse-press, .suggest button, .search-result, .search-fab, .topbar-title-btn, .chapter-grid-cell {
       touch-action: manipulation;
       -webkit-tap-highlight-color: transparent;
     }
@@ -238,6 +238,9 @@ export function page(title: string, body: string): string {
       display: block; margin: .85rem 0 .35rem;
       position: relative; z-index: 5;
     }
+    /* Open results sit above the verse rail (which drops to 4) and under the header (7). */
+    .jump.is-open,
+    .jump:has(.suggest:not([hidden])) { z-index: 6; }
     #reader-hint { position: relative; z-index: 5; }
     .jump-field {
       position: relative; min-width: 0;
@@ -297,6 +300,48 @@ export function page(title: string, body: string): string {
       background: transparent;
       border: 0; border-top: 1px solid var(--line);
       border-radius: 0 0 var(--list-radius) var(--list-radius);
+      max-height: min(24rem, calc(100dvh - var(--chrome-sticky) - 5.75rem - var(--safe-bottom) - var(--keyboard-inset, 0px)));
+      overflow-x: hidden;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      -webkit-overflow-scrolling: touch;
+    }
+    .suggest-scripture {
+      white-space: normal; height: auto; line-height: 1.35;
+    }
+    .suggest-ref {
+      display: block; color: var(--ink);
+      font-variant-numeric: lining-nums;
+    }
+    .suggest-text {
+      display: block; max-height: calc(1.35em * 3); overflow: hidden;
+      margin-top: .15rem;
+      color: var(--faint); font-size: .78rem; line-height: 1.35;
+      overflow-wrap: anywhere;
+    }
+    .suggest-skeleton {
+      margin: 0; padding: .5rem .8rem; pointer-events: none;
+    }
+    .suggest-skeleton + .suggest-skeleton { box-shadow: inset 0 1px var(--line); }
+    .suggest-skeleton-ref,
+    .suggest-skeleton-text {
+      display: block; border-radius: .2rem;
+      background: color-mix(in srgb, var(--ink) 12%, transparent);
+    }
+    .suggest-skeleton-ref { height: .72rem; width: 4.6rem; }
+    .suggest-skeleton-text { height: .62rem; width: 88%; margin-top: .4rem; }
+    .suggest-skeleton:nth-child(2) .suggest-skeleton-ref { width: 6.2rem; }
+    .suggest-skeleton:nth-child(2) .suggest-skeleton-text { width: 74%; }
+    .suggest-skeleton:nth-child(3) .suggest-skeleton-ref { width: 3.8rem; }
+    .suggest-skeleton:nth-child(3) .suggest-skeleton-text { width: 92%; }
+    .suggest-skeleton:nth-child(4) .suggest-skeleton-ref { width: 5.4rem; }
+    .suggest-skeleton:nth-child(4) .suggest-skeleton-text { width: 66%; }
+    @media (prefers-reduced-motion: no-preference) {
+      .suggest-skeleton-ref,
+      .suggest-skeleton-text { animation: suggest-skeleton 1.1s ease-in-out infinite; }
+    }
+    @keyframes suggest-skeleton {
+      50% { opacity: .45; }
     }
     .suggest[hidden] { display: none; }
     .suggest li { margin: 0; }
@@ -326,6 +371,364 @@ export function page(title: string, body: string): string {
     }
     .suggest li:last-child button {
       border-radius: 0 0 var(--list-radius) var(--list-radius);
+    }
+    .search-modal {
+      position: fixed; z-index: 50;
+      left: 0; right: 0;
+      top: var(--vv-top, 0px);
+      height: var(--vv-height, 100dvh);
+      display: flex; align-items: center; justify-content: center;
+      box-sizing: border-box;
+      --search-gutter: max(.75rem, calc(.75rem + var(--safe-top)), calc(.75rem + var(--safe-bottom)));
+      padding:
+        var(--search-gutter)
+        calc(.75rem + env(safe-area-inset-right, 0px))
+        var(--search-gutter)
+        calc(.75rem + env(safe-area-inset-left, 0px));
+    }
+    .search-modal[hidden] { display: none; }
+    .search-modal-backdrop {
+      position: absolute; inset: 0;
+      margin: 0; padding: 0; border: 0; cursor: pointer;
+      /* scripture.ar.io: stone-900/90, and #000000e6 in dark, with backdrop-blur-sm. */
+      background: rgb(28 25 23 / 0.9);
+      -webkit-backdrop-filter: blur(4px);
+      backdrop-filter: blur(4px);
+    }
+    html[data-theme="dark"] .search-modal-backdrop { background: #000000e6; }
+    .search-modal-panel {
+      position: relative; z-index: 1;
+      width: min(36rem, 100%);
+      max-height: 100%;
+      display: flex; flex-direction: column; min-height: 0;
+      background: var(--paper-raised);
+      border-radius: .5rem; overflow: hidden;
+    }
+    html[data-theme="dark"] .search-modal-panel { background: #1b1917; }
+    .search-modal-form {
+      display: flex; flex-direction: column; min-height: 0;
+      width: 100%; max-height: 100%;
+    }
+    .search-modal-bar {
+      position: relative;
+      display: flex; align-items: center; flex: 0 0 auto;
+      gap: .55rem;
+      min-width: 0;
+      box-sizing: border-box;
+      padding: 12px 14px;
+    }
+    .search-modal-form:has(.search-modal-list:not([hidden])) .search-modal-bar::after {
+      content: "";
+      position: absolute; left: 0; right: 0; bottom: 0;
+      height: 1px;
+      background: color-mix(in srgb, var(--ink) 14%, transparent);
+      pointer-events: none;
+    }
+    .search-modal-icon {
+      flex: 0 0 auto;
+      display: flex; align-items: center; justify-content: center;
+      width: 18px; height: 18px;
+      color: #a8a29e;
+    }
+    .search-modal-icon svg { display: block; width: 18px; height: 18px; }
+    html[data-theme="dark"] .search-modal-icon { color: #78716c; }
+    .search-modal-results {
+      display: flex; flex-direction: column;
+      flex: 1 1 auto; min-height: 0; width: 100%;
+    }
+    .search-modal-form input[type="search"] {
+      flex: 1 1 auto; align-self: center;
+      box-sizing: border-box;
+      width: 100%; height: auto; min-height: 0; margin: 0;
+      padding: .25rem 0;
+      border: 0; border-radius: 0; background: transparent; outline: none;
+      font: inherit; font-size: 1.125rem; line-height: 1.25; font-weight: 400;
+      color: var(--ink);
+      -webkit-appearance: none; appearance: none;
+    }
+    .search-modal-form input[type="search"]::placeholder { color: #a8a29e; opacity: 1; }
+    html[data-theme="dark"] .search-modal-form input[type="search"]::placeholder { color: #78716c; }
+    .search-modal-form input[type="search"]::-webkit-search-decoration,
+    .search-modal-form input[type="search"]::-webkit-search-cancel-button,
+    .search-modal-form input[type="search"]::-webkit-search-results-button,
+    .search-modal-form input[type="search"]::-webkit-search-results-decoration {
+      -webkit-appearance: none; appearance: none; display: none;
+    }
+    .search-modal-list {
+      list-style: none; margin: 0; padding: 0; min-height: 0;
+      flex: 1 1 auto;
+      overflow-x: hidden; overflow-y: auto;
+      overscroll-behavior: contain;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+    }
+    .search-modal-list::-webkit-scrollbar {
+      display: none; width: 0; height: 0;
+    }
+    .search-modal-list[hidden] { display: none; }
+    .search-unavailable {
+      margin: 0; padding: .85rem 1rem;
+      color: #a8a29e;
+      font-size: .92rem; line-height: 1.35; text-align: left;
+    }
+    html[data-theme="dark"] .search-unavailable { color: #78716c; }
+    .search-modal-footer {
+      display: none;
+      flex: 0 0 auto;
+      margin: 0;
+      padding: .45rem 1rem .7rem;
+      border: 0; background: transparent;
+      color: #a8a29e;
+      font-size: .75rem; font-weight: 400; line-height: 1.2;
+      text-align: left;
+      pointer-events: none; user-select: none;
+    }
+    html[data-theme="dark"] .search-modal-footer { color: #78716c; }
+    .search-modal-form:has(.search-modal-list:not([hidden])) .search-modal-footer { display: block; }
+    .search-suggest {
+      flex: 0 0 auto; min-width: 0;
+      /* First chip lines up with the search icon. Right and bottom match the bar's 14px / 12px inset. */
+      padding: 0 14px 12px;
+    }
+    .search-suggest[hidden] { display: none; }
+    .search-suggest-chips {
+      --chip-fade: 28px;
+      display: flex; flex-wrap: nowrap; gap: .3rem;
+      min-width: 0;
+      overflow-x: auto;
+      scrollbar-width: none;
+      -webkit-overflow-scrolling: touch;
+      -webkit-mask-size: 100% 100%;
+      mask-size: 100% 100%;
+      -webkit-mask-repeat: no-repeat;
+      mask-repeat: no-repeat;
+    }
+    .search-suggest-chips::-webkit-scrollbar { display: none; width: 0; height: 0; }
+    .search-suggest-chips.is-fade-right {
+      -webkit-mask-image: linear-gradient(to right, #000 0, #000 calc(100% - var(--chip-fade)), transparent 100%);
+      mask-image: linear-gradient(to right, #000 0, #000 calc(100% - var(--chip-fade)), transparent 100%);
+    }
+    .search-suggest-chips.is-fade-left {
+      -webkit-mask-image: linear-gradient(to right, transparent 0, #000 var(--chip-fade), #000 100%);
+      mask-image: linear-gradient(to right, transparent 0, #000 var(--chip-fade), #000 100%);
+    }
+    .search-suggest-chips.is-fade-left.is-fade-right {
+      -webkit-mask-image: linear-gradient(to right, transparent 0, #000 var(--chip-fade), #000 calc(100% - var(--chip-fade)), transparent 100%);
+      mask-image: linear-gradient(to right, transparent 0, #000 var(--chip-fade), #000 calc(100% - var(--chip-fade)), transparent 100%);
+    }
+    .search-suggest-chip {
+      flex: 0 0 auto; white-space: nowrap;
+      margin: 0; padding: .2rem .5rem;
+      border: 1px solid color-mix(in srgb, var(--ink) 14%, transparent);
+      border-radius: 999px;
+      background: transparent;
+      box-shadow: none; outline: none;
+      color: #a8a29e;
+      font: inherit; font-size: .82rem; line-height: 1.2;
+      cursor: pointer;
+    }
+    html[data-theme="dark"] .search-suggest-chip { color: #78716c; }
+    .search-suggest-chip:hover,
+    .search-suggest-chip:focus-visible {
+      color: var(--ink-soft);
+      background: color-mix(in srgb, var(--ink) 6%, transparent);
+      box-shadow: none; outline: none;
+    }
+    .search-result {
+      display: block; width: 100%; margin: 0; text-align: left;
+      padding: .85rem 1rem; border: 0; border-radius: 0;
+      background: transparent; cursor: pointer; color: var(--ink);
+    }
+    .search-modal-list li + li .search-result { box-shadow: inset 0 1px var(--line); }
+    .search-result.is-selected,
+    .search-result:hover,
+    .search-result:focus-visible {
+      outline: none;
+    }
+    @media (hover: hover) and (pointer: fine) {
+      .search-result.is-selected,
+      .search-result:hover,
+      .search-result:focus-visible {
+        background: color-mix(in srgb, var(--ink) 8%, var(--paper-raised));
+      }
+    }
+    .search-result:active {
+      background: color-mix(in srgb, var(--ink) 8%, var(--paper-raised));
+    }
+    .search-result-ref {
+      display: block;
+      font-size: .78rem; font-weight: 650; letter-spacing: .04em;
+      text-transform: uppercase; color: var(--ink-soft);
+    }
+    .search-result-text {
+      display: block; max-height: calc(1.35em * 3); overflow: hidden;
+      margin-top: .28rem;
+      font-family: var(--read); font-size: 1.02rem; line-height: 1.35;
+      color: var(--ink); overflow-wrap: anywhere;
+    }
+    .search-mark {
+      background: none; color: #ea580c; font-weight: 600;
+    }
+    html[data-theme="dark"] .search-mark { color: #fb923c; }
+    html.search-modal-open { overflow: hidden; }
+    /* scripture.ar.io translation <select>: text-xs, weight 500, no border, 4px radius, chevron. */
+    .search-testament { flex: 0 0 auto; min-width: 0; }
+    .search-testament-btn {
+      display: inline-flex; align-items: center; justify-content: flex-start;
+      box-sizing: border-box; height: 20px; margin: 0;
+      padding: .125rem 1.75rem .125rem .375rem;
+      border: 0; border-radius: .25rem; outline: none;
+      background-color: #fafaf9;
+      background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e");
+      background-repeat: no-repeat;
+      background-position: right .25rem center;
+      background-size: 1.25em 1.25em;
+      color: #44403c;
+      font: inherit; font-size: .75rem; font-weight: 500; line-height: 1rem;
+      cursor: pointer; appearance: none; -webkit-appearance: none;
+      touch-action: manipulation;
+    }
+    html[data-theme="dark"] .search-testament-btn {
+      background-color: #1b1917;
+      color: #d6d3d1;
+      background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%23a8a29e' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e");
+    }
+    .search-testament-btn:focus-visible { outline: none; }
+    .search-testament-more {
+      display: none;
+      flex: 0 0 auto; align-items: center; justify-content: center;
+      width: 32px; height: 32px; margin: 0; padding: 8px;
+      border: 0; border-radius: .25rem; background: transparent;
+      color: #57534e; cursor: pointer; touch-action: manipulation;
+    }
+    html[data-theme="dark"] .search-testament-more { color: #a8a29e; }
+    .search-testament-more svg { display: block; width: 16px; height: 16px; }
+    .search-testament-sheet { display: none; }
+    .search-testament-menu {
+      position: fixed; z-index: 5;
+      min-width: 5.5rem; margin: 0; padding: .25rem 0;
+      border: 1px solid #e7e5e4; border-radius: .25rem;
+      background: #fff; color: #44403c;
+      box-shadow: 0 .5rem 1.25rem rgb(28 25 23 / .16);
+    }
+    .search-testament-menu[hidden] { display: none; }
+    html[data-theme="dark"] .search-testament-menu {
+      background: #1c1917; color: #d6d3d1; border-color: #44403c;
+    }
+    .search-testament-option {
+      display: flex; align-items: center; gap: .4rem;
+      width: 100%; margin: 0; padding: .3rem .7rem;
+      border: 0; background: transparent; color: inherit;
+      font: inherit; font-size: .75rem; font-weight: 500; line-height: 1rem;
+      text-align: left; cursor: pointer; touch-action: manipulation;
+    }
+    .search-testament-check { width: .8em; opacity: 0; font-size: .75rem; }
+    .search-testament-option.is-selected .search-testament-check { opacity: 1; }
+    @media (hover: hover) and (pointer: fine) {
+      .search-testament-option.is-active { background: #f5f5f4; }
+      html[data-theme="dark"] .search-testament-option.is-active { background: #292524; }
+    }
+    .search-testament-option:active { background: #f5f5f4; }
+    html[data-theme="dark"] .search-testament-option:active { background: #292524; }
+    .search-fab { display: none; }
+    @media (max-width: 767px) {
+      .search-fab {
+        display: inline-flex; align-items: center; justify-content: center;
+        position: fixed; z-index: 51;
+        width: 3.4rem; height: 3.4rem; padding: 0;
+        border: 0; border-radius: 999px; cursor: pointer;
+        background: #292524; color: #e7e5e4;
+        right: calc(14px + env(safe-area-inset-right, 0px));
+        bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+        box-shadow: 0 .35rem 1rem color-mix(in srgb, #000 28%, transparent);
+        transition: opacity 160ms ease, visibility 0s linear;
+      }
+      .search-fab svg { display: block; width: 28px; height: 28px; }
+      html.search-modal-open .search-fab,
+      html.spotlight-on:has(.verse:is(.is-open, .is-span)) .search-fab {
+        opacity: 0; visibility: hidden; pointer-events: none;
+        transition: opacity 160ms ease, visibility 0s linear 160ms;
+      }
+    }
+    @media (max-width: 640px) {
+      .search-modal {
+        align-items: stretch; justify-content: flex-start;
+        padding: 0;
+      }
+      .search-modal-panel {
+        position: absolute; inset: 0;
+        width: auto; height: auto; max-height: none;
+        border-radius: 0;
+      }
+      .search-modal-form { height: 100%; max-height: none; }
+      .search-modal-bar {
+        touch-action: none;
+        padding:
+          calc(12px + env(safe-area-inset-top, 0px))
+          calc(14px + env(safe-area-inset-right, 0px))
+          12px
+          calc(14px + env(safe-area-inset-left, 0px));
+        background: var(--paper-raised);
+      }
+      html[data-theme="dark"] .search-modal-bar { background: #1b1917; }
+      .search-modal-results {
+        overflow-x: hidden; overflow-y: auto;
+        overscroll-behavior: contain;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+        padding-bottom: env(safe-area-inset-bottom, 0px);
+      }
+      .search-modal-results::-webkit-scrollbar { display: none; width: 0; height: 0; }
+      .search-modal-list { flex: none; overflow: visible; }
+      .search-suggest {
+        padding:
+          0
+          calc(14px + env(safe-area-inset-right, 0px))
+          12px
+          calc(14px + env(safe-area-inset-left, 0px));
+      }
+      .search-suggest-chips {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        scrollbar-width: none;
+        -webkit-overflow-scrolling: touch;
+      }
+      .search-suggest-chips::-webkit-scrollbar { display: none; width: 0; height: 0; }
+      .search-suggest-chip { flex: 0 0 auto; }
+      .search-testament-desktop { display: none; }
+      .search-testament-more { display: inline-flex; }
+      .search-testament-sheet:not([hidden]) {
+        display: flex; align-items: center; justify-content: space-between;
+        flex: 0 0 auto;
+        padding: .5rem .75rem;
+        background: #f5f5f4;
+        border-top: 1px solid #e7e5e4;
+      }
+      html[data-theme="dark"] .search-testament-sheet:not([hidden]) {
+        background: #292524;
+        border-top-color: #44403c;
+      }
+      .search-testament-sheet-label {
+        color: #57534e;
+        font-size: .75rem; font-weight: 500; line-height: 1rem;
+      }
+      html[data-theme="dark"] .search-testament-sheet-label { color: #a8a29e; }
+      .search-testament-sheet .search-testament-btn {
+        height: auto;
+        padding: .25rem 1.75rem .25rem .5rem;
+        border: 1px solid #e7e5e4;
+        background-color: #fff;
+        color: #44403c;
+      }
+      html[data-theme="dark"] .search-testament-sheet .search-testament-btn {
+        border-color: #44403c;
+        background-color: #1c1917;
+        color: #d6d3d1;
+      }
+      .search-testament-sheet .search-testament-btn:focus-visible {
+        outline: 1px solid #a8a29e;
+        outline-offset: 1px;
+      }
     }
     .section-head {
       margin: 1.4rem 0 .55rem calc(var(--verse-gutter) + var(--verse-gutter-gap));
@@ -483,11 +886,12 @@ export function page(title: string, body: string): string {
     }
     .reader-verse-rail.is-native-scroll { pointer-events: none; }
     .reader-verse-rail.is-selection-hidden { opacity: 0; pointer-events: none; }
-    /* Coarse pointers: a finger pan on the rail still scrolls the chapter.
-       Desktop (fine pointer) keeps touch-action: none so mouse scrubbing is unchanged. */
-    @media (hover: none), (pointer: coarse) {
-      .reader-verse-rail { touch-action: manipulation; }
-    }
+    /* touch-action stays none on phones too. manipulation lets the browser take the
+       pan and then drop it on this fixed rail, so the chapter never moves. The touch
+       handler scrolls by the finger delta instead. Mouse scrubbing is unchanged. */
+    /* An open search list paints with the jump field and covers this rail.
+       Nested :has() is split so one unsupported selector cannot drop the rule. */
+    main:has(.jump.is-open) .reader-verse-rail { z-index: 4; }
     .reader-verse-rail-checkpoints {
       position: absolute;
       inset: 20px -1px;
@@ -573,6 +977,25 @@ export function page(title: string, body: string): string {
     .reader-verse-modal[hidden] { display: none; }
     #reader:has(.reader-verse-rail) .chapter,
     #reader:has(.reader-verse-rail) .pager { padding-right: 1.15rem; }
+    /* Phone rail is a leaner strip. Desktop scrub width stays 32px. The hit target stays wide enough to tap. */
+    @media (max-width: 767px) {
+      .reader-verse-rail { width: 28px; padding-left: 16px; }
+      .reader-verse-rail.visible,
+      .reader-verse-rail:hover,
+      .reader-verse-rail:focus-visible { width: 30px; padding-left: 12px; }
+      .reader-verse-rail.dragging { width: 32px; padding-left: 8px; }
+      .reader-verse-rail-dot { width: 8px; }
+      .reader-verse-rail-dot.current,
+      .reader-verse-rail.dragging .reader-verse-rail-dot.current { width: 14px; }
+      .reader-verse-rail-dot.wave-3,
+      .reader-verse-rail.dragging .reader-verse-rail-dot.wave-3 { width: 9px; }
+      .reader-verse-rail-dot.wave-2,
+      .reader-verse-rail.dragging .reader-verse-rail-dot.wave-2 { width: 10px; }
+      .reader-verse-rail-dot.wave-1,
+      .reader-verse-rail.dragging .reader-verse-rail-dot.wave-1 { width: 12px; }
+      #reader:has(.reader-verse-rail) .chapter,
+      #reader:has(.reader-verse-rail) .pager { padding-right: .85rem; }
+    }
     .note-tray, .chapter-tray {
       position: relative;
       margin-left: calc(var(--verse-gutter) + var(--verse-gutter-gap));

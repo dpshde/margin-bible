@@ -64,3 +64,27 @@ export function testamentCodes(): { ot: string[]; nt: string[] } {
     nt: books.codes.slice(split),
   };
 }
+
+export type SearchTestament = "all" | "nt" | "ot";
+
+/** All, NT, or OT. Anything else is the whole Bible. */
+export function normalizeSearchTestament(value: unknown): SearchTestament {
+  const next = String(value ?? "").trim().toLowerCase();
+  return next === "nt" || next === "ot" ? next : "all";
+}
+
+/** `/gen.2.9` → `GEN`. Hidden Arrow has no testament field, so Margin filters these paths. */
+export function bookCodeFromMarginPath(path: string): string | null {
+  const slug = String(path || "").replace(/^\/+/, "").split(".")[0]?.toLowerCase() ?? "";
+  if (!slug) return null;
+  const code = slug.toUpperCase();
+  return isBookCode(code) ? code : null;
+}
+
+export function marginPathInTestament(path: string, testament: SearchTestament): boolean {
+  if (testament === "all") return true;
+  const code = bookCodeFromMarginPath(path);
+  if (!code) return false;
+  const sets = testamentCodes();
+  return (testament === "nt" ? sets.nt : sets.ot).includes(code);
+}
