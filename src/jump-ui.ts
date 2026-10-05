@@ -1,4 +1,5 @@
 import { testamentCodes } from "./books";
+import { passageHelpersClientSource } from "./passage-helpers";
 
 export type SearchChordEvent = {
   key?: string;
@@ -212,11 +213,10 @@ export function jumpScript(): string {
 
   const OT_BOOKS = ${otBooks};
   const NT_BOOKS = ${ntBooks};
+  ${passageHelpersClientSource()}
   let hits = [];
   let selected = -1;
   let seq = 0;
-  let suggestSeq = 0;
-  let timer = null;
   let submittedQuery = "";
   let searchTestament = "all";
   let scriptureSearchActive = false;
@@ -471,8 +471,6 @@ export function jumpScript(): string {
       panel.style.transform = "";
       panel.style.transition = "";
     }
-    if (timer) clearTimeout(timer);
-    suggestSeq += 1;
     suggestToken += 1;
     suggestAttempted = false;
     suggestTopics = [];
@@ -863,8 +861,6 @@ export function jumpScript(): string {
         suggest();
         return;
       }
-      if (timer) clearTimeout(timer);
-      suggestSeq += 1;
       seq += 1;
       close();
       loadTopicSuggestions();
@@ -1092,7 +1088,7 @@ export function jumpScript(): string {
 
   function passageHit(hit) {
     const kind = hit && hit.kind;
-    return kind === "book" || kind === "chapter" || kind === "verse";
+    return kind === "book" || kind === "chapter" || kind === "verse" || kind === "range";
   }
 
   function showingPassageHelpers() {
@@ -1367,39 +1363,25 @@ export function jumpScript(): string {
     }
   }
 
-  async function suggestNow() {
+  function suggestNow() {
     const input = searchInput();
     const q = input ? input.value : "";
-    const my = ++suggestSeq;
-    const searchSeq = seq;
     if (!String(q).trim()) {
-      if (my === suggestSeq) close();
+      close();
       return;
     }
-    try {
-      const res = await fetch("/api/jump-suggest?q=" + encodeURIComponent(q), {
-        headers: { accept: "application/json" },
-      });
-      if (!res.ok || my !== suggestSeq || searchSeq !== seq) return;
-      const data = await res.json();
-      if (my !== suggestSeq || searchSeq !== seq || !modalIsOpen()) return;
-      const typed = searchInput();
-      if (!typed || String(typed.value || "") !== String(q)) return;
-      const nextHits = Array.isArray(data.hits) ? data.hits : [];
-      const hint = data.hint ? String(data.hint) : "";
-      if (nextHits.length || hint) {
-        render(data);
-        return;
-      }
-      if (showingPassageHelpers()) close();
-    } catch (_) {
-      /* ignore transient network blips */
+    if (!modalIsOpen()) return;
+    const data = passageHelpers(q);
+    const nextHits = Array.isArray(data.hits) ? data.hits : [];
+    const hint = data.hint ? String(data.hint) : "";
+    if (nextHits.length || hint) {
+      render(data);
+      return;
     }
+    if (showingPassageHelpers()) close();
   }
 
   async function submitJump(q) {
-    if (timer) clearTimeout(timer);
-    suggestSeq += 1;
     const my = ++seq;
     let data = null;
     try {
@@ -1434,8 +1416,7 @@ export function jumpScript(): string {
   }
 
   function suggest() {
-    if (timer) clearTimeout(timer);
-    timer = setTimeout(suggestNow, 40);
+    suggestNow();
   }
 
   function moveHighlight(delta) {
@@ -1451,17 +1432,9 @@ export function jumpScript(): string {
     syncActive();
   }
 
-  async function canGo(value) {
-    try {
-      const res = await fetch("/api/jump-suggest?q=" + encodeURIComponent(value), {
-        headers: { accept: "application/json" },
-      });
-      if (!res.ok) return false;
-      const data = await res.json();
-      return Boolean(data.canGo);
-    } catch (_) {
-      return false;
-    }
+  function canGo(value) {
+    const state = passageHelpers(value);
+    return Boolean(state && state.canGo);
   }
 
   function goToInput() {
@@ -1486,7 +1459,7 @@ export function jumpScript(): string {
     if (!input) return;
     const next = insertTextFor(hit);
     const current = input.value;
-    if (sameEntry(current, next) && (await canGo(current))) {
+    if (sameEntry(current, next) && canGo(current)) {
       goToInput();
       return;
     }

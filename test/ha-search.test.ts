@@ -56,11 +56,14 @@ describe("Hidden Arrow hrefs open inside Margin", () => {
     expect(source).not.toContain("hidden-arrow");
     expect(source).not.toContain("scheduleScripture");
     expect(source).not.toContain(", 280)");
-    const suggestNow = source.slice(source.indexOf("async function suggestNow"), source.indexOf("async function submitJump"));
-    expect(suggestNow).toContain("/api/jump-suggest");
+    const suggestNow = source.slice(source.indexOf("function suggestNow"), source.indexOf("async function submitJump"));
+    expect(suggestNow).toContain("passageHelpers(q)");
+    expect(suggestNow).not.toContain("/api/jump-suggest");
+    expect(suggestNow).not.toContain("fetch(");
     expect(suggestNow).not.toContain("/api/ha-search");
     expect(suggestNow).not.toContain("showSearchSkeletons");
-    const searching = source.slice(source.indexOf("async function searchScripture"), source.indexOf("async function suggestNow"));
+    expect(suggestNow).not.toContain("setTimeout");
+    const searching = source.slice(source.indexOf("async function searchScripture"), source.indexOf("function suggestNow"));
     expect(searching).toContain('fetch("/api/ha-search"');
     expect(searching).not.toContain("keepKeyword");
     expect(searching).toContain("writeSearchCache(q, next, true)");
@@ -456,7 +459,7 @@ describe("clearing the modal input", () => {
     expect(submit).toContain("writeSearchCache(q, data.hits || [])");
     expect(submit).toContain("searchScripture(q, my)");
     expect(submit).not.toContain("keywordHits");
-    const searching = source.slice(source.indexOf("async function searchScripture"), source.indexOf("async function suggestNow"));
+    const searching = source.slice(source.indexOf("async function searchScripture"), source.indexOf("function suggestNow"));
     expect(searching).toContain("writeSearchCache(q, next, true)");
     const writing = source.slice(source.indexOf("function writeSearchCache"), source.indexOf("function clearSearchCache"));
     expect(writing).toContain('sessionStorage.setItem("margin-search-cache"');
@@ -748,7 +751,7 @@ describe("testament filter", () => {
     expect(source).not.toContain("search-modal-translation");
     expect(source).toContain(JSON.stringify(testamentCodes().ot.map((code) => code.toLowerCase())));
     expect(source).toContain(JSON.stringify(testamentCodes().nt.map((code) => code.toLowerCase())));
-    const search = source.slice(source.indexOf("async function searchScripture"), source.indexOf("async function suggestNow"));
+    const search = source.slice(source.indexOf("async function searchScripture"), source.indexOf("function suggestNow"));
     expect(search).toContain("JSON.stringify({ query: q })");
     expect(search).not.toContain("testament");
     expect(search.match(/fetch\("\/api\/ha-search"/g)?.length).toBe(1);
@@ -799,32 +802,36 @@ describe("testament filter", () => {
 });
 
 describe("passage helpers while typing", () => {
-  test("book, chapter, and verse suggestions stay on jump-suggest and free text still waits for submit", () => {
+  test("book, chapter, and verse suggestions paint from memory and free text still waits for submit", () => {
     const source = jumpScript();
     const modal = source.slice(source.indexOf("function ensureSearchModal"), source.indexOf("function ensureSearchFab"));
     const onInput = modal.slice(modal.indexOf('input.addEventListener("input"'), modal.indexOf("topicChips.addEventListener"));
-    const typing = onInput.slice(0, onInput.indexOf("if (timer)"));
+    const typing = onInput.slice(0, onInput.indexOf("seq += 1"));
     expect(typing).toContain("hideTopicChips()");
     expect(typing).toContain("suggest()");
     expect(typing).not.toContain("searchScripture");
     expect(typing).not.toContain("/api/ha-search");
     expect(typing).not.toContain("writeSearchCache");
-    expect(onInput).toContain("suggestSeq += 1");
+    expect(typing).not.toContain("setTimeout");
     expect(onInput).toContain("seq += 1");
     expect(onInput).toContain("close()");
     expect(onInput).toContain("loadTopicSuggestions()");
     expect(onInput).not.toContain("fetch(");
     expect(onInput).not.toContain("clearSearchCache");
 
-    const live = source.slice(source.indexOf("async function suggestNow"), source.indexOf("async function submitJump"));
-    expect(live).toContain('fetch("/api/jump-suggest?q="');
+    const live = source.slice(source.indexOf("function suggestNow"), source.indexOf("async function submitJump"));
+    expect(live).toContain("passageHelpers(q)");
     expect(live).toContain("render(data)");
     expect(live).toContain("if (showingPassageHelpers()) close()");
+    expect(live).not.toContain("/api/jump-suggest");
+    expect(live).not.toContain("fetch(");
     expect(live).not.toContain("/api/ha-search");
     expect(live).not.toContain("searchScripture");
     expect(live).not.toContain("writeSearchCache");
     expect(live).not.toContain("showSearchSkeletons");
-    expect(live.indexOf("my !== suggestSeq || searchSeq !== seq")).toBeLessThan(live.indexOf("render(data)"));
+    expect(live).not.toContain("setTimeout");
+    expect(source).toContain("function suggest() {\n    suggestNow();\n  }");
+    expect(source).not.toContain("setTimeout(suggestNow");
 
     const keys = modal.slice(modal.indexOf('input.addEventListener("keydown"'), modal.indexOf('input.addEventListener("input"'));
     expect(keys).toContain('event.key === "Tab"');
@@ -832,14 +839,14 @@ describe("passage helpers while typing", () => {
     expect(keys.indexOf("applyHit(passage)")).toBeLessThan(keys.indexOf("q === submittedQuery"));
 
     const submit = source.slice(source.indexOf("async function submitJump"), source.indexOf("function suggest()"));
-    expect(submit.indexOf("suggestSeq += 1")).toBeLessThan(submit.indexOf('fetch("/api/jump-suggest?q="'));
+    expect(submit).toContain('fetch("/api/jump-suggest?q="');
     expect(submit.indexOf("showSearchSkeletons()")).toBeLessThan(submit.indexOf("searchScripture(q, my)"));
     const freeText = submit.slice(submit.lastIndexOf("submittedQuery = q"));
     expect(freeText).toContain("searchScripture(q, my)");
     expect(freeText).not.toContain('fetch("/api/jump-suggest');
 
     expect(source).toContain("search-result-passage");
-    expect(source).toContain('kind === "book" || kind === "chapter" || kind === "verse"');
+    expect(source).toContain('kind === "book" || kind === "chapter" || kind === "verse" || kind === "range"');
     const css = readFileSync(path.join(import.meta.dir, "../src/html.ts"), "utf8");
     const passage = css.slice(css.indexOf(".search-result-passage {"), css.indexOf(".search-mark {"));
     expect(passage).toContain("font-size: .92rem");
@@ -868,7 +875,7 @@ describe("recent query history", () => {
     expect(load.indexOf("paintHistory()")).toBeLessThan(load.indexOf("recent.length < 2"));
     expect(load.indexOf("recent.length < 2")).toBeLessThan(load.indexOf('fetch("/api/ha-suggest"'));
     const inputAt = source.indexOf('input.addEventListener("input"');
-    const typing = source.slice(inputAt, source.indexOf("if (timer)", inputAt));
+    const typing = source.slice(inputAt, source.indexOf("seq += 1", inputAt));
     expect(typing).toContain("hideHistory()");
     expect(typing).not.toContain("fetch(");
     expect(typing).not.toContain("/api/ha-search");
