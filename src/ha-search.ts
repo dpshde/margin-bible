@@ -1,7 +1,8 @@
 /**
  * Same-origin proxy for Hidden Arrow search.
- * The browser posts here; the worker forwards {"query"} to the public
- * Hidden Arrow API and returns that JSON with no-store. No secret.
+ * The browser posts here. The worker forwards {"query"} and adds x-api-key
+ * from HIDDEN_ARROW_SEARCH_KEY. That value is never written into the response.
+ * If the key is unset, Hidden Arrow is not called.
  * Passage hrefs stay route.bible pathnames; Margin opens them on its own reader route.
  */
 import { parsePassage, passageSlug } from "./passage";
@@ -83,18 +84,29 @@ const NO_STORE = { "cache-control": "no-store" };
 
 export async function proxyHiddenArrowSearch(
   query: string,
-  options: { origin?: string | null; fetchImpl?: typeof fetch } = {},
+  options: { origin?: string | null; apiKey?: string | null; fetchImpl?: typeof fetch } = {},
 ): Promise<Response> {
   const trimmed = String(query ?? "").trim();
   if (!trimmed || trimmed.length > 400) {
     return Response.json({ ok: false }, { status: 400, headers: NO_STORE });
+  }
+  const apiKey = String(options.apiKey ?? "").trim();
+  if (!apiKey) {
+    return Response.json(
+      { ok: false, error: "Scripture search is not configured." },
+      { status: 503, headers: NO_STORE },
+    );
   }
   const request = hiddenArrowSearchRequest(trimmed, options.origin);
   const fetchImpl = options.fetchImpl ?? fetch;
   try {
     const upstream = await fetchImpl(request.url, {
       method: request.method,
-      headers: { "content-type": "application/json", accept: "application/json" },
+      headers: {
+        "content-type": "application/json",
+        accept: "application/json",
+        "x-api-key": apiKey,
+      },
       body: request.body,
       signal: AbortSignal.timeout(8000),
     });
@@ -102,11 +114,13 @@ export async function proxyHiddenArrowSearch(
     if (!upstream.ok) return Response.json({ ok: false }, { status: 502, headers: NO_STORE });
     let parsed: unknown;
     try {
-      parsed = JSON.parse(text);
+      parsed = JSON.parse(text.split(apiKey).join(""));
     } catch {
       return Response.json({ ok: false }, { status: 502, headers: NO_STORE });
     }
-    return Response.json(parsed, { status: 200, headers: NO_STORE });
+    const response = Response.json(parsed, { status: 200, headers: NO_STORE });
+    if (response.headers.get("x-api-key")) response.headers.delete("x-api-key");
+    return response;
   } catch {
     return Response.json({ ok: false }, { status: 502, headers: NO_STORE });
   }

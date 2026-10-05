@@ -70,7 +70,7 @@ Wrangler prints a `*.workers.dev` URL. That host is the spike. Leave `margin.bib
 | Share-out | `https://route.bible/{slug}` only. Chapter HTML is not loaded from route.bible. |
 | API | `GET /api/notes`, `GET /api/notes?chapter=jhn.3`, `GET /api/notes?verse=jhn.3.16`, `PUT /api/notes/:slug` with `{ "text" }` or `{ "blocks" }` plus optional `bookmarked` and `attachments`. No path version. |
 
-`POST /api/search` is not implemented. Scripture search is `POST /api/ha-search`, a no-store proxy to Hidden Arrow. Margin does not host that corpus.
+`POST /api/search` is not implemented. Scripture search is `POST /api/ha-search`, a no-store proxy to Hidden Arrow. The worker sends `x-api-key` from `HIDDEN_ARROW_SEARCH_KEY` and does not call Hidden Arrow when that value is unset. The key is not part of the page or the proxy response. Margin does not host that corpus.
 
 ## Auth (passphrase, then passkey)
 

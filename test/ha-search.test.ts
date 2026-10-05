@@ -211,23 +211,56 @@ describe("Hidden Arrow proxy request", () => {
     }) as typeof fetch;
     const res = await proxyHiddenArrowSearch("love your neighbor", {
       origin: "https://arrow.test",
+      apiKey: "test-search-key",
       fetchImpl,
     });
     expect(res.status).toBe(200);
     expect(res.headers.get("cache-control")).toBe("no-store");
-    expect(await res.json()).toEqual(upstream);
+    expect(res.headers.get("x-api-key")).toBeNull();
+    const body = await res.json();
+    expect(body).toEqual(upstream);
+    expect(JSON.stringify(body)).not.toContain("test-search-key");
     expect(seen).toHaveLength(1);
     expect(seen[0]?.url).toBe("https://arrow.test/api/search");
     expect(seen[0]?.init.method).toBe("POST");
-    expect(new Headers(seen[0]?.init.headers).get("content-type")).toBe("application/json");
+    const sent = new Headers(seen[0]?.init.headers);
+    expect(sent.get("content-type")).toBe("application/json");
+    expect(sent.get("x-api-key")).toBe("test-search-key");
     expect(JSON.parse(String(seen[0]?.init.body))).toEqual({ query: "love your neighbor" });
+  });
+
+  test("a missing search key does not call Hidden Arrow", async () => {
+    let called = 0;
+    const fetchImpl = (async () => {
+      called += 1;
+      return new Response("{}", { status: 200 });
+    }) as typeof fetch;
+    const res = await proxyHiddenArrowSearch("love your neighbor", { apiKey: "  ", fetchImpl });
+    expect(called).toBe(0);
+    expect(res.status).toBe(503);
+    expect(res.headers.get("cache-control")).toBe("no-store");
+    expect(res.headers.get("x-api-key")).toBeNull();
+    expect(await res.json()).toEqual({ ok: false, error: "Scripture search is not configured." });
+  });
+
+  test("an upstream echo of the key is removed before the browser sees it", async () => {
+    const fetchImpl = (async () => {
+      return new Response(JSON.stringify({ evidence: [], echo: "test-search-key" }), {
+        status: 200,
+        headers: { "content-type": "application/json", "x-api-key": "test-search-key" },
+      });
+    }) as typeof fetch;
+    const res = await proxyHiddenArrowSearch("neighbor", { apiKey: "test-search-key", fetchImpl });
+    expect(res.headers.get("x-api-key")).toBeNull();
+    const raw = JSON.stringify(await res.json());
+    expect(raw).not.toContain("test-search-key");
   });
 
   test("a down upstream fails quietly", async () => {
     const fetchImpl = (async () => {
       throw new Error("offline");
     }) as typeof fetch;
-    const res = await proxyHiddenArrowSearch("love your neighbor", { fetchImpl });
+    const res = await proxyHiddenArrowSearch("love your neighbor", { apiKey: "test-search-key", fetchImpl });
     expect(res.status).toBe(502);
     expect(res.headers.get("cache-control")).toBe("no-store");
     expect(await res.json()).toEqual({ ok: false });
@@ -253,17 +286,25 @@ describe("POST /api/ha-search", () => {
       );
     }) as typeof fetch;
     try {
-      const res = await app.request("http://margin.test/api/ha-search", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ query: " love your neighbor " }),
-      });
+      const env = { HIDDEN_ARROW_SEARCH_KEY: "test-search-key" } as Env;
+      const res = await app.request(
+        "http://margin.test/api/ha-search",
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ query: " love your neighbor " }),
+        },
+        env,
+      );
       expect(res.status).toBe(200);
       expect(res.headers.get("cache-control")).toBe("no-store");
+      expect(res.headers.get("x-api-key")).toBeNull();
       const data = await res.json();
       expect(data.query).toBe("love your neighbor");
+      expect(JSON.stringify(data)).not.toContain("test-search-key");
       expect(seen[0]?.url).toBe(`${HIDDEN_ARROW_ORIGIN}/api/search`);
       expect(JSON.parse(String(seen[0]?.init.body))).toEqual({ query: "love your neighbor" });
+      expect(new Headers(seen[0]?.init.headers).get("x-api-key")).toBe("test-search-key");
       expect(res.headers.get("set-cookie")).toBeNull();
     } finally {
       globalThis.fetch = real;
@@ -281,7 +322,10 @@ describe("POST /api/ha-search", () => {
       });
     }) as typeof fetch;
     try {
-      const env = { HIDDEN_ARROW_ORIGIN: "https://preview.arrow.test/nope" } as Env;
+      const env = {
+        HIDDEN_ARROW_ORIGIN: "https://preview.arrow.test/nope",
+        HIDDEN_ARROW_SEARCH_KEY: "test-search-key",
+      } as Env;
       const res = await app.request(
         "http://margin.test/api/ha-search",
         {
@@ -293,6 +337,35 @@ describe("POST /api/ha-search", () => {
       );
       expect(res.status).toBe(200);
       expect(seen).toEqual(["https://preview.arrow.test/api/search"]);
+      expect(JSON.stringify(await res.json())).not.toContain("test-search-key");
+    } finally {
+      globalThis.fetch = real;
+    }
+  });
+
+  test("an unset search key returns an error and does not call upstream", async () => {
+    let called = 0;
+    const real = globalThis.fetch;
+    globalThis.fetch = (async () => {
+      called += 1;
+      return new Response("{}", { status: 200 });
+    }) as typeof fetch;
+    try {
+      const res = await app.request(
+        "http://margin.test/api/ha-search",
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ query: "neighbor" }),
+        },
+        {} as Env,
+      );
+      expect(called).toBe(0);
+      expect(res.status).toBe(503);
+      expect(res.headers.get("x-api-key")).toBeNull();
+      expect(await res.json()).toEqual({ ok: false, error: "Scripture search is not configured." });
+      expect(jumpScript()).not.toContain("x-api-key");
+      expect(jumpScript()).not.toContain("HIDDEN_ARROW_SEARCH_KEY");
     } finally {
       globalThis.fetch = real;
     }

@@ -57,6 +57,8 @@ export type Env = {
   MCP_LIBRARY_ID?: string;
   /** Optional Hidden Arrow origin. Defaults to the public Railway app. */
   HIDDEN_ARROW_ORIGIN?: string;
+  /** Server-only Hidden Arrow search key. Never sent to the browser. */
+  HIDDEN_ARROW_SEARCH_KEY?: string;
 };
 
 type Variables = {
@@ -341,7 +343,10 @@ app.post("/api/ha-search", async (c) => {
   } catch {
     return c.json({ ok: false }, 400, { "cache-control": "no-store" });
   }
-  return proxyHiddenArrowSearch(query, { origin: c.env?.HIDDEN_ARROW_ORIGIN });
+  return proxyHiddenArrowSearch(query, {
+    origin: c.env?.HIDDEN_ARROW_ORIGIN,
+    apiKey: c.env?.HIDDEN_ARROW_SEARCH_KEY,
+  });
 });
 
 app.get("/jump", (c) => {
