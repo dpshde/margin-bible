@@ -124,6 +124,7 @@ export function jumpScript(): string {
     function close() {
       list.hidden = true;
       list.innerHTML = "";
+      list.removeAttribute("aria-busy");
       form.classList.remove("is-open");
       input.setAttribute("aria-expanded", "false");
       input.removeAttribute("aria-activedescendant");
@@ -131,7 +132,27 @@ export function jumpScript(): string {
       hits = [];
     }
 
+    function showSearchSkeletons() {
+      hits = [];
+      selected = -1;
+      list.hidden = false;
+      form.classList.add("is-open");
+      input.setAttribute("aria-expanded", "true");
+      list.setAttribute("aria-busy", "true");
+      input.removeAttribute("aria-activedescendant");
+      let rows = "";
+      for (let i = 0; i < 4; i++) {
+        rows +=
+          '<li class="suggest-skeleton" aria-hidden="true">' +
+          '<span class="suggest-skeleton-ref"></span>' +
+          '<span class="suggest-skeleton-text"></span>' +
+          "</li>";
+      }
+      list.innerHTML = rows;
+    }
+
     function render(state) {
+      list.removeAttribute("aria-busy");
       hits = state.hits || [];
       const open = hits.length > 0 || Boolean(state.hint);
       selected = open && hits.length ? 0 : -1;
@@ -203,13 +224,18 @@ export function jumpScript(): string {
     }
 
     async function searchScripture(q, my) {
+      showSearchSkeletons();
       try {
         const res = await fetch("/api/ha-search", {
           method: "POST",
           headers: { "content-type": "application/json", accept: "application/json" },
           body: JSON.stringify({ query: q }),
         });
-        if (!res.ok || my !== seq) return;
+        if (my !== seq) return;
+        if (!res.ok) {
+          close();
+          return;
+        }
         const data = await res.json();
         if (my !== seq) return;
         const next = scriptureHits(data);

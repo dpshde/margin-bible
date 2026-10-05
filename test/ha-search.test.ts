@@ -56,6 +56,17 @@ describe("Hidden Arrow hrefs open inside Margin", () => {
     const suggestNow = source.slice(source.indexOf("async function suggestNow"), source.indexOf("async function submitJump"));
     expect(suggestNow).toContain("/api/jump-suggest");
     expect(suggestNow).not.toContain("/api/ha-search");
+    expect(suggestNow).not.toContain("showSearchSkeletons");
+    const searching = source.slice(source.indexOf("async function searchScripture"), source.indexOf("async function suggestNow"));
+    expect(searching.indexOf("showSearchSkeletons()")).toBeLessThan(searching.indexOf('fetch("/api/ha-search"'));
+    expect(searching).toContain("close()");
+    expect(searching).not.toContain("Loading");
+    const skeletons = source.slice(source.indexOf("function showSearchSkeletons"), source.indexOf("function render"));
+    expect(skeletons).toContain("suggest-skeleton");
+    expect(skeletons).toContain("suggest-skeleton-ref");
+    expect(skeletons).toContain("suggest-skeleton-text");
+    expect(skeletons).toContain("i < 4");
+    expect(skeletons).toContain('aria-busy", "true"');
     const submit = source.slice(source.indexOf("async function submitJump"), source.indexOf("function suggest()"));
     expect(submit).toContain("searchScripture(q, my)");
     expect(submit).toContain('location.assign("/jump?q=" + encodeURIComponent(q))');
@@ -269,6 +280,9 @@ describe("search list stays on screen", () => {
     const css = readFileSync(path.join(import.meta.dir, "../src/html.ts"), "utf8");
     expect(css).toContain(".suggest-scripture");
     expect(css).toContain(".suggest-text");
+    expect(css).toContain(".suggest-skeleton");
+    expect(css).toContain(".suggest-skeleton-ref");
+    expect(css).toContain(".suggest-skeleton-text");
     expect(css).toContain("overflow-wrap: anywhere");
     expect(css).toContain("max-height: calc(1.35em * 3)");
     expect(css).toContain("var(--keyboard-inset, 0px)");

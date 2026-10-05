@@ -316,6 +316,30 @@ export function page(title: string, body: string): string {
       color: var(--faint); font-size: .78rem; line-height: 1.35;
       overflow-wrap: anywhere;
     }
+    .suggest-skeleton {
+      margin: 0; padding: .5rem .8rem; pointer-events: none;
+    }
+    .suggest-skeleton + .suggest-skeleton { box-shadow: inset 0 1px var(--line); }
+    .suggest-skeleton-ref,
+    .suggest-skeleton-text {
+      display: block; border-radius: .2rem;
+      background: color-mix(in srgb, var(--ink) 12%, transparent);
+    }
+    .suggest-skeleton-ref { height: .72rem; width: 4.6rem; }
+    .suggest-skeleton-text { height: .62rem; width: 88%; margin-top: .4rem; }
+    .suggest-skeleton:nth-child(2) .suggest-skeleton-ref { width: 6.2rem; }
+    .suggest-skeleton:nth-child(2) .suggest-skeleton-text { width: 74%; }
+    .suggest-skeleton:nth-child(3) .suggest-skeleton-ref { width: 3.8rem; }
+    .suggest-skeleton:nth-child(3) .suggest-skeleton-text { width: 92%; }
+    .suggest-skeleton:nth-child(4) .suggest-skeleton-ref { width: 5.4rem; }
+    .suggest-skeleton:nth-child(4) .suggest-skeleton-text { width: 66%; }
+    @media (prefers-reduced-motion: no-preference) {
+      .suggest-skeleton-ref,
+      .suggest-skeleton-text { animation: suggest-skeleton 1.1s ease-in-out infinite; }
+    }
+    @keyframes suggest-skeleton {
+      50% { opacity: .45; }
+    }
     .suggest[hidden] { display: none; }
     .suggest li { margin: 0; }
     .suggest-hint {
