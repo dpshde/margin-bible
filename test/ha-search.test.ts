@@ -99,7 +99,9 @@ describe("Hidden Arrow hrefs open inside Margin", () => {
     expect(submit.indexOf("showSearchSkeletons()")).toBeGreaterThan(-1);
     expect(submit.indexOf("showSearchSkeletons()")).toBeLessThan(submit.indexOf("searchScripture(q, my, keepKeyword)"));
     expect(submit).toContain("searchKeywordIndex");
-    expect(submit).toContain('location.assign("/jump?q=" + encodeURIComponent(q))');
+    expect(submit).toContain('"/jump?q=" + encodeURIComponent(q)');
+    expect(submit).toContain("location.assign(jumpUrl)");
+    expect(submit).toContain("location.replace(jumpUrl)");
     expect(submit).toContain("data.canGo");
     const fromScript = browserMarginPath();
     expect(fromScript("https://route.bible/mrk.12.31?src=hidden-arrow")).toBe("/mrk.12.31");
@@ -499,9 +501,13 @@ describe("search list stays on screen", () => {
     expect(source).toContain('footer.textContent = "BSB"');
     expect(source).toContain("search-modal-footer");
     expect(source).toContain("search-modal-icon");
-    expect(source).toContain("search-modal-cancel");
-    expect(source).toContain('cancel.textContent = "Cancel"');
-    expect(source).toContain('cancel.addEventListener("click", () => closeSearchModal())');
+    expect(source).not.toContain("search-modal-cancel");
+    expect(source).not.toContain("Cancel");
+    expect(source).toContain("function bindSheetSwipe");
+    expect(source).toContain("const limit = 80");
+    expect(source).toContain("history.pushState");
+    expect(source).toContain("history.back()");
+    expect(source).toContain('addEventListener("popstate"');
     expect(source).toContain("search-modal-results");
     expect(source).not.toContain("search-modal-translation");
     const footer = css.slice(css.indexOf(".search-modal-footer {"), css.indexOf("html[data-theme=\"dark\"] .search-modal-footer"));
@@ -525,7 +531,8 @@ describe("search list stays on screen", () => {
     expect(list).toContain("overflow-y: auto");
     expect(list).toContain("scrollbar-width: none");
     expect(css).toContain(".search-modal-list::-webkit-scrollbar");
-    const sheet = css.slice(css.indexOf(".search-modal-cancel {"), css.indexOf(".section-head {"));
+    expect(css).not.toContain("search-modal-cancel");
+    const sheet = css.slice(css.indexOf("@media (max-width: 640px)"), css.indexOf(".section-head {"));
     expect(sheet).toContain("@media (max-width: 640px)");
     expect(sheet).toContain("padding: 0");
     expect(sheet).toContain("border-radius: 0");

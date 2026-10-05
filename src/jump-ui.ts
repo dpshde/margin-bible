@@ -59,6 +59,9 @@ export function jumpScript(): string {
   let timer = null;
   let submittedQuery = "";
   let cachedSearch = null;
+  let searchState = false;
+  let closeViaPop = false;
+  let restoreQueryOnPop = false;
 
   function marginPathFromRouteHref(href) {
     if (href == null) return null;
@@ -120,18 +123,121 @@ export function jumpScript(): string {
 
   function openSearchModal() {
     const modal = ensureSearchModal();
+    const opening = modal.hidden;
     modal.hidden = false;
     document.documentElement.classList.add("search-modal-open");
     document.querySelectorAll("form.jump").forEach((form) => form.classList.add("is-open"));
+    const panel = modal.querySelector(".search-modal-panel");
+    if (panel) {
+      panel.style.transform = "";
+      panel.style.transition = "";
+    }
+    if (opening && !searchState) {
+      const prev = history.state && typeof history.state === "object" ? history.state : {};
+      history.pushState(Object.assign({}, prev, { marginSearch: 1 }), "");
+      searchState = true;
+    }
   }
 
   function closeSearchModal() {
     const modal = searchRoot();
+    const wasOpen = Boolean(modal && !modal.hidden);
     if (modal) modal.hidden = true;
     document.documentElement.classList.remove("search-modal-open");
     document.querySelectorAll("form.jump").forEach((form) => form.classList.remove("is-open"));
+    const panel = modal && modal.querySelector(".search-modal-panel");
+    if (panel) {
+      panel.style.transform = "";
+      panel.style.transition = "";
+    }
     const cache = readSearchCache();
     if (cache && cache.query) mirrorHeader(cache.query);
+    if (wasOpen && searchState && !closeViaPop) {
+      searchState = false;
+      restoreQueryOnPop = true;
+      history.back();
+    } else if (closeViaPop) {
+      searchState = false;
+    }
+  }
+
+  function bindSheetSwipe(bar, results, panel) {
+    const limit = 80;
+    let active = false;
+    let kind = "";
+    let startY = 0;
+    let dy = 0;
+    let pointerId = 0;
+
+    function phoneSheet() {
+      return window.matchMedia("(max-width: 640px)").matches;
+    }
+    function shift(y) {
+      const next = Math.max(0, y);
+      panel.style.transition = "none";
+      panel.style.transform = next ? "translate3d(0," + next + "px,0)" : "";
+    }
+    function endDrag(distance) {
+      active = false;
+      kind = "";
+      if (distance >= limit) {
+        panel.style.transition = "";
+        panel.style.transform = "";
+        closeSearchModal();
+        return;
+      }
+      panel.style.transition = "transform 180ms ease";
+      panel.style.transform = "";
+    }
+
+    bar.addEventListener("pointerdown", (event) => {
+      if (!phoneSheet() || event.button) return;
+      active = true;
+      kind = "bar";
+      startY = event.clientY;
+      dy = 0;
+      pointerId = event.pointerId;
+      bar.setPointerCapture(event.pointerId);
+    });
+    bar.addEventListener("pointermove", (event) => {
+      if (!active || kind !== "bar" || event.pointerId !== pointerId) return;
+      dy = event.clientY - startY;
+      if (dy > 0) shift(dy);
+    });
+    bar.addEventListener("pointerup", (event) => {
+      if (!active || kind !== "bar" || event.pointerId !== pointerId) return;
+      endDrag(event.clientY - startY);
+    });
+    bar.addEventListener("pointercancel", () => {
+      if (active && kind === "bar") endDrag(0);
+    });
+
+    results.addEventListener("touchstart", (event) => {
+      if (!phoneSheet() || event.touches.length !== 1 || results.scrollTop > 0) return;
+      active = true;
+      kind = "results";
+      startY = event.touches[0].clientY;
+      dy = 0;
+    }, { passive: true });
+    results.addEventListener("touchmove", (event) => {
+      if (!active || kind !== "results" || event.touches.length !== 1) return;
+      if (results.scrollTop > 0) {
+        endDrag(0);
+        return;
+      }
+      dy = event.touches[0].clientY - startY;
+      if (dy > 0) {
+        event.preventDefault();
+        shift(dy);
+      }
+    }, { passive: false });
+    results.addEventListener("touchend", () => {
+      if (!active || kind !== "results") return;
+      endDrag(dy);
+    });
+    results.addEventListener("touchcancel", () => {
+      if (active && kind === "results") endDrag(0);
+    });
   }
 
   function revealCachedSearch() {
@@ -200,10 +306,6 @@ export function jumpScript(): string {
     input.setAttribute("aria-autocomplete", "list");
     input.setAttribute("aria-expanded", "false");
     input.setAttribute("aria-controls", "search-modal-list");
-    const cancel = document.createElement("button");
-    cancel.type = "button";
-    cancel.className = "search-modal-cancel";
-    cancel.textContent = "Cancel";
     const list = document.createElement("ul");
     list.className = "search-modal-list";
     list.id = "search-modal-list";
@@ -216,7 +318,6 @@ export function jumpScript(): string {
     results.className = "search-modal-results";
     bar.appendChild(icon);
     bar.appendChild(input);
-    bar.appendChild(cancel);
     results.appendChild(list);
     results.appendChild(footer);
     searchForm.appendChild(bar);
@@ -226,7 +327,7 @@ export function jumpScript(): string {
     modal.appendChild(panel);
     document.body.appendChild(modal);
     backdrop.addEventListener("click", () => closeSearchModal());
-    cancel.addEventListener("click", () => closeSearchModal());
+    bindSheetSwipe(bar, results, panel);
     searchForm.addEventListener("submit", (event) => {
       const q = input.value.trim();
       event.preventDefault();
@@ -552,7 +653,11 @@ export function jumpScript(): string {
     }
     if (my !== seq) return;
     if (!data || data.canGo) {
-      location.assign("/jump?q=" + encodeURIComponent(q));
+      const jumpUrl = "/jump?q=" + encodeURIComponent(q);
+      if (searchState) {
+        searchState = false;
+        location.replace(jumpUrl);
+      } else location.assign(jumpUrl);
       return;
     }
     if ((data.hits && data.hits.length) || data.hint) {
@@ -620,7 +725,10 @@ export function jumpScript(): string {
     if (hit.kind === "scripture" && hit.path) {
       const input = searchInput();
       if (input) input.blur();
-      location.assign(hit.path);
+      if (searchState) {
+        searchState = false;
+        location.replace(hit.path);
+      } else location.assign(hit.path);
       return;
     }
     const input = searchInput();
@@ -788,6 +896,20 @@ export function jumpScript(): string {
       event.stopPropagation();
       closeSearchModal();
     }, true);
+    window.addEventListener("popstate", () => {
+      const modal = document.querySelector(".search-modal");
+      const sheetOpen = Boolean(modal && !modal.hidden);
+      const shouldRestore = restoreQueryOnPop || sheetOpen;
+      restoreQueryOnPop = false;
+      if (sheetOpen) {
+        closeViaPop = true;
+        closeSearchModal();
+        closeViaPop = false;
+      }
+      if (!shouldRestore) return;
+      const cache = readSearchCache();
+      if (cache && cache.query) syncSearchQuery(cache.query);
+    });
   }
 
   window.__marginBindJump = bindAll;

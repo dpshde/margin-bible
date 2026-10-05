@@ -432,15 +432,6 @@ export function page(title: string, body: string): string {
     }
     .search-modal-icon svg { display: block; width: 18px; height: 18px; }
     html[data-theme="dark"] .search-modal-icon { color: #78716c; }
-    .search-modal-cancel {
-      display: none;
-      flex: 0 0 auto; align-self: center;
-      margin: 0; padding: .4rem .15rem .4rem .35rem;
-      border: 0; background: transparent; cursor: pointer;
-      color: #ea580c;
-      font: inherit; font-size: 1.0625rem; font-weight: 400; line-height: 1.2;
-    }
-    html[data-theme="dark"] .search-modal-cancel { color: #fb923c; }
     .search-modal-results {
       display: flex; flex-direction: column;
       flex: 1 1 auto; min-height: 0; width: 100%;
@@ -553,15 +544,15 @@ export function page(title: string, body: string): string {
       }
       .search-modal-form { height: 100%; max-height: none; }
       .search-modal-bar {
+        touch-action: none;
         padding:
           calc(12px + env(safe-area-inset-top, 0px))
-          calc(10px + env(safe-area-inset-right, 0px))
+          calc(14px + env(safe-area-inset-right, 0px))
           12px
           calc(14px + env(safe-area-inset-left, 0px));
         background: var(--paper-raised);
       }
       html[data-theme="dark"] .search-modal-bar { background: #1b1917; }
-      .search-modal-cancel { display: inline-flex; align-items: center; }
       .search-modal-results {
         overflow-x: hidden; overflow-y: auto;
         overscroll-behavior: contain;
