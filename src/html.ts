@@ -483,11 +483,9 @@ export function page(title: string, body: string): string {
     }
     .reader-verse-rail.is-native-scroll { pointer-events: none; }
     .reader-verse-rail.is-selection-hidden { opacity: 0; pointer-events: none; }
-    /* Coarse pointers: a finger pan on the rail still scrolls the chapter.
-       Desktop (fine pointer) keeps touch-action: none so mouse scrubbing is unchanged. */
-    @media (hover: none), (pointer: coarse) {
-      .reader-verse-rail { touch-action: manipulation; }
-    }
+    /* touch-action stays none on phones too. manipulation lets the browser take the
+       pan and then drop it on this fixed rail, so the chapter never moves. The touch
+       handler scrolls by the finger delta instead. Mouse scrubbing is unchanged. */
     .reader-verse-rail-checkpoints {
       position: absolute;
       inset: 20px -1px;
