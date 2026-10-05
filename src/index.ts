@@ -23,7 +23,7 @@ import {
 import { renderLoginPage } from "./login-page";
 import { buildLibrarySnapshot, snapshotFilename } from "./library-snapshot";
 import { draftNote } from "./notes";
-import { proxyHiddenArrowSearch } from "./ha-search";
+import { proxyHiddenArrowSearch, proxyHiddenArrowSuggest } from "./ha-search";
 import { collectKeywordVerses, keywordBookSpecs } from "./keyword-search";
 import { canGo, jumpState } from "./jump-suggest";
 import { performLogin, performPassphraseChange } from "./perform-login";
@@ -57,6 +57,10 @@ export type Env = {
   MCP_LIBRARY_ID?: string;
   /** Optional Hidden Arrow origin. Defaults to the public Railway app. */
   HIDDEN_ARROW_ORIGIN?: string;
+  /** Optional suggest-topics origin. Wins over HIDDEN_ARROW_BASE_URL. */
+  HIDDEN_ARROW_SUGGEST_BASE_URL?: string;
+  /** Optional Hidden Arrow base when suggest and search share a host other than the default. */
+  HIDDEN_ARROW_BASE_URL?: string;
   /** Server-only Hidden Arrow search key. Never sent to the browser. */
   HIDDEN_ARROW_SEARCH_KEY?: string;
 };
@@ -95,6 +99,7 @@ app.use("*", async (c, next) => {
     c.req.path === "/health" ||
     c.req.path === "/mcp" ||
     c.req.path === "/api/ha-search" ||
+    c.req.path === "/api/ha-suggest" ||
     c.req.path === "/api/keyword-corpus" ||
     c.req.path.startsWith("/bsb/") ||
     c.req.path.startsWith("/vendor/") ||
@@ -344,6 +349,22 @@ app.post("/api/ha-search", async (c) => {
     return c.json({ ok: false }, 400, { "cache-control": "no-store" });
   }
   return proxyHiddenArrowSearch(query, {
+    origin: c.env?.HIDDEN_ARROW_ORIGIN,
+    apiKey: c.env?.HIDDEN_ARROW_SEARCH_KEY,
+  });
+});
+
+app.post("/api/ha-suggest", async (c) => {
+  let recent: unknown;
+  try {
+    const body = await c.req.json<{ recent?: unknown }>();
+    recent = body?.recent;
+  } catch {
+    return c.json({ ok: false }, 400, { "cache-control": "no-store" });
+  }
+  return proxyHiddenArrowSuggest(recent, {
+    suggestBase: c.env?.HIDDEN_ARROW_SUGGEST_BASE_URL,
+    base: c.env?.HIDDEN_ARROW_BASE_URL,
     origin: c.env?.HIDDEN_ARROW_ORIGIN,
     apiKey: c.env?.HIDDEN_ARROW_SEARCH_KEY,
   });

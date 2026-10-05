@@ -82,6 +82,103 @@ export function shouldQueryHiddenArrow(input: {
 
 const NO_STORE = { "cache-control": "no-store" };
 
+export type HiddenArrowSuggestOptions = {
+  suggestBase?: string | null;
+  base?: string | null;
+  origin?: string | null;
+  apiKey?: string | null;
+  fetchImpl?: typeof fetch;
+};
+
+function usableSuggestBase(raw: string | null | undefined): string | null {
+  const trimmed = String(raw ?? "").trim().replace(/\/+$/, "");
+  if (!trimmed) return null;
+  try {
+    const url = new URL(trimmed);
+    if (url.protocol !== "https:" && url.protocol !== "http:") return null;
+    return trimmed;
+  } catch {
+    return null;
+  }
+}
+
+/** Newest-first, case-insensitive, at most 10 non-empty strings. */
+export function normalizeRecentSearches(recent: unknown): string[] {
+  if (!Array.isArray(recent)) return [];
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const item of recent) {
+    if (typeof item !== "string") continue;
+    const trimmed = item.trim();
+    if (!trimmed || trimmed.length > 400) continue;
+    const key = trimmed.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(trimmed);
+    if (out.length >= 10) break;
+  }
+  return out;
+}
+
+/**
+ * Suggest topics live on the same host as search unless a base URL is set.
+ * HIDDEN_ARROW_SUGGEST_BASE_URL wins, then HIDDEN_ARROW_BASE_URL, then the search origin.
+ */
+export function hiddenArrowSuggestUrl(options: HiddenArrowSuggestOptions = {}): string {
+  const explicit = usableSuggestBase(options.suggestBase) || usableSuggestBase(options.base);
+  const root = explicit || hiddenArrowOrigin(options.origin);
+  return `${root}/api/suggest-topics`;
+}
+
+export async function proxyHiddenArrowSuggest(
+  recent: unknown,
+  options: HiddenArrowSuggestOptions = {},
+): Promise<Response> {
+  if (!Array.isArray(recent)) {
+    return Response.json({ ok: false }, { status: 400, headers: NO_STORE });
+  }
+  const list = normalizeRecentSearches(recent);
+  if (!list.length) {
+    return Response.json({ ok: false }, { status: 400, headers: NO_STORE });
+  }
+  const apiKey = String(options.apiKey ?? "").trim();
+  if (!apiKey) {
+    return Response.json(
+      { ok: false, error: "Scripture search is not configured." },
+      { status: 503, headers: NO_STORE },
+    );
+  }
+  const fetchImpl = options.fetchImpl ?? fetch;
+  try {
+    const upstream = await fetchImpl(hiddenArrowSuggestUrl(options), {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        accept: "application/json",
+        "x-api-key": apiKey,
+      },
+      body: JSON.stringify({ recent: list }),
+      signal: AbortSignal.timeout(8000),
+    });
+    if (upstream.status === 404) {
+      return Response.json({ topics: [] }, { status: 404, headers: NO_STORE });
+    }
+    const text = await upstream.text();
+    if (!upstream.ok) return Response.json({ ok: false }, { status: 502, headers: NO_STORE });
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(text.split(apiKey).join(""));
+    } catch {
+      return Response.json({ ok: false }, { status: 502, headers: NO_STORE });
+    }
+    const response = Response.json(parsed, { status: 200, headers: NO_STORE });
+    if (response.headers.get("x-api-key")) response.headers.delete("x-api-key");
+    return response;
+  } catch {
+    return Response.json({ ok: false }, { status: 502, headers: NO_STORE });
+  }
+}
+
 export async function proxyHiddenArrowSearch(
   query: string,
   options: { origin?: string | null; apiKey?: string | null; fetchImpl?: typeof fetch } = {},

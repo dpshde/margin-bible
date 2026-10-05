@@ -58,6 +58,9 @@ export function jumpScript(): string {
   let searchState = false;
   let closeViaPop = false;
   let restoreQueryOnPop = false;
+  let suggestTopics = [];
+  let suggestAttempted = false;
+  let suggestToken = 0;
 
   function marginPathFromRouteHref(href) {
     if (href == null) return null;
@@ -133,6 +136,10 @@ export function jumpScript(): string {
       history.pushState(Object.assign({}, prev, { marginSearch: 1 }), "");
       searchState = true;
     }
+    if (opening) {
+      suggestAttempted = false;
+      loadTopicSuggestions();
+    }
   }
 
   function closeSearchModal() {
@@ -146,6 +153,10 @@ export function jumpScript(): string {
       panel.style.transform = "";
       panel.style.transition = "";
     }
+    suggestToken += 1;
+    suggestAttempted = false;
+    suggestTopics = [];
+    hideTopicChips();
     const cache = readSearchCache();
     if (cache && cache.query) mirrorHeader(cache.query);
     if (wasOpen && searchState && !closeViaPop) {
@@ -312,11 +323,24 @@ export function jumpScript(): string {
     footer.textContent = "BSB";
     const results = document.createElement("div");
     results.className = "search-modal-results";
+    const topics = document.createElement("div");
+    topics.className = "search-suggest";
+    topics.hidden = true;
+    const topicLabel = document.createElement("p");
+    topicLabel.className = "search-suggest-label";
+    topicLabel.textContent = "Suggested";
+    const topicChips = document.createElement("div");
+    topicChips.className = "search-suggest-chips";
+    topicChips.setAttribute("role", "group");
+    topicChips.setAttribute("aria-label", "Suggested");
+    topics.appendChild(topicLabel);
+    topics.appendChild(topicChips);
     bar.appendChild(icon);
     bar.appendChild(input);
     results.appendChild(list);
     results.appendChild(footer);
     searchForm.appendChild(bar);
+    searchForm.appendChild(topics);
     searchForm.appendChild(results);
     panel.appendChild(searchForm);
     modal.appendChild(backdrop);
@@ -363,9 +387,24 @@ export function jumpScript(): string {
       }
     });
     input.addEventListener("input", () => {
-      if (String(input.value || "").trim()) return;
+      if (String(input.value || "").trim()) {
+        hideTopicChips();
+        return;
+      }
       seq += 1;
       close();
+    });
+    topicChips.addEventListener("click", (event) => {
+      const chip = event.target.closest("button.search-suggest-chip");
+      if (!chip) return;
+      event.preventDefault();
+      const q = String(chip.getAttribute("data-query") || "").trim();
+      if (!q) return;
+      input.value = q;
+      mirrorHeader(q);
+      syncSearchQuery(q);
+      hideTopicChips();
+      submitJump(q);
     });
     list.addEventListener("click", (event) => {
       const btn = event.target.closest("button[data-index]");
@@ -463,6 +502,7 @@ export function jumpScript(): string {
     }
     selected = -1;
     hits = [];
+    syncTopicChips();
   }
 
   function showSearchSkeletons() {
@@ -485,6 +525,7 @@ export function jumpScript(): string {
         "</li>";
     }
     list.innerHTML = rows;
+    syncTopicChips();
   }
 
   function showSearchUnavailable() {
@@ -499,6 +540,7 @@ export function jumpScript(): string {
     input.setAttribute("aria-expanded", "true");
     input.removeAttribute("aria-activedescendant");
     list.innerHTML = '<li class="search-unavailable" role="status">Search unavailable</li>';
+    syncTopicChips();
   }
 
   function highlightQuery(text, query) {
@@ -546,6 +588,7 @@ export function jumpScript(): string {
       .join("");
     list.innerHTML = options + hint;
     syncActive();
+    syncTopicChips();
   }
 
   function insertTextFor(hit) {
@@ -572,6 +615,162 @@ export function jumpScript(): string {
       });
     }
     return next;
+  }
+
+  function readRecentSearches() {
+    try {
+      const raw = localStorage.getItem("margin-recent-searches");
+      const data = raw ? JSON.parse(raw) : [];
+      if (!Array.isArray(data)) return [];
+      const out = [];
+      const seen = {};
+      for (const item of data) {
+        const text = String(item || "").trim();
+        if (!text) continue;
+        const key = text.toLowerCase();
+        if (seen[key]) continue;
+        seen[key] = 1;
+        out.push(text);
+        if (out.length >= 10) break;
+      }
+      return out;
+    } catch (_) {
+      return [];
+    }
+  }
+
+  function rememberRecentSearch(query) {
+    const next = String(query || "").trim();
+    if (!next) return;
+    const key = next.toLowerCase();
+    const prev = readRecentSearches().filter((item) => item.toLowerCase() !== key);
+    const packed = [next].concat(prev).slice(0, 10);
+    try { localStorage.setItem("margin-recent-searches", JSON.stringify(packed)); }
+    catch (_) {}
+  }
+
+  function cleanTopics(raw) {
+    const out = [];
+    const list = Array.isArray(raw) ? raw : [];
+    for (const item of list) {
+      if (!item || typeof item !== "object") continue;
+      const label = String(item.label || "").trim();
+      const query = String(item.query || "").trim();
+      if (!label || !query) continue;
+      out.push({ label: label, query: query });
+      if (out.length >= 5) break;
+    }
+    return out;
+  }
+
+  function readTopicCache(recent) {
+    try {
+      const raw = sessionStorage.getItem("margin-suggest-cache");
+      if (!raw) return null;
+      const data = JSON.parse(raw);
+      if (!data || data.key !== JSON.stringify(recent) || !Array.isArray(data.topics)) return null;
+      const topics = cleanTopics(data.topics);
+      return topics.length ? topics : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  function writeTopicCache(recent, topics) {
+    try {
+      sessionStorage.setItem("margin-suggest-cache", JSON.stringify({ key: JSON.stringify(recent), topics: topics }));
+    } catch (_) {}
+  }
+
+  function topicRow() {
+    const modal = searchRoot();
+    return modal ? modal.querySelector(".search-suggest") : null;
+  }
+
+  function resultsOpen() {
+    const list = searchList();
+    return Boolean(list && !list.hidden);
+  }
+
+  function hideTopicChips() {
+    const row = topicRow();
+    if (row) row.hidden = true;
+  }
+
+  function canOfferTopics() {
+    const input = searchInput();
+    return Boolean(modalIsOpen() && input && !String(input.value || "").trim() && !resultsOpen());
+  }
+
+  function paintTopicChips(topics) {
+    const row = topicRow();
+    const chips = row && row.querySelector(".search-suggest-chips");
+    if (!row || !chips || !canOfferTopics() || !topics.length) {
+      hideTopicChips();
+      return;
+    }
+    chips.replaceChildren();
+    for (const topic of topics) {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "search-suggest-chip";
+      btn.textContent = topic.label;
+      btn.setAttribute("data-query", topic.query);
+      chips.appendChild(btn);
+    }
+    row.hidden = false;
+  }
+
+  function syncTopicChips() {
+    if (!canOfferTopics()) hideTopicChips();
+    else paintTopicChips(suggestTopics);
+  }
+
+  async function loadTopicSuggestions() {
+    if (!canOfferTopics()) {
+      hideTopicChips();
+      return;
+    }
+    const recent = readRecentSearches();
+    if (recent.length < 2) {
+      hideTopicChips();
+      return;
+    }
+    const cached = readTopicCache(recent);
+    if (cached) {
+      suggestTopics = cached;
+      suggestAttempted = true;
+      paintTopicChips(cached);
+      return;
+    }
+    if (suggestAttempted) return;
+    suggestAttempted = true;
+    const token = ++suggestToken;
+    try {
+      const res = await fetch("/api/ha-suggest", {
+        method: "POST",
+        headers: { "content-type": "application/json", accept: "application/json" },
+        body: JSON.stringify({ recent: recent }),
+      });
+      if (token !== suggestToken) return;
+      if (!res.ok) {
+        hideTopicChips();
+        return;
+      }
+      const data = await res.json();
+      if (token !== suggestToken) return;
+      const topics = cleanTopics(data && data.topics);
+      if (!topics.length || !canOfferTopics()) {
+        hideTopicChips();
+        return;
+      }
+      suggestTopics = topics;
+      writeTopicCache(recent, topics);
+      paintTopicChips(topics);
+    } catch (_) {
+      if (token !== suggestToken) return;
+      hideTopicChips();
+    }
   }
 
   async function searchScripture(q, my) {
@@ -654,6 +853,7 @@ export function jumpScript(): string {
       return;
     }
     submittedQuery = q;
+    rememberRecentSearch(q);
     showSearchSkeletons();
     searchScripture(q, my);
   }

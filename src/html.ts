@@ -485,6 +485,40 @@ export function page(title: string, body: string): string {
     }
     html[data-theme="dark"] .search-modal-footer { color: #78716c; }
     .search-modal-form:has(.search-modal-list:not([hidden])) .search-modal-footer { display: block; }
+    .search-suggest {
+      display: flex; flex-direction: column; gap: .35rem;
+      flex: 0 0 auto; min-width: 0;
+      padding: 0 14px 12px;
+    }
+    .search-suggest[hidden] { display: none; }
+    .search-suggest-label {
+      margin: 0;
+      color: #a8a29e;
+      font-size: .72rem; font-weight: 500; line-height: 1.2;
+      letter-spacing: .04em; text-transform: uppercase;
+    }
+    html[data-theme="dark"] .search-suggest-label { color: #78716c; }
+    .search-suggest-chips {
+      display: flex; flex-wrap: wrap; gap: .4rem;
+      min-width: 0;
+    }
+    .search-suggest-chip {
+      margin: 0; padding: .28rem .65rem;
+      border: 1px solid color-mix(in srgb, var(--ink) 14%, transparent);
+      border-radius: 999px;
+      background: transparent;
+      box-shadow: none; outline: none;
+      color: #a8a29e;
+      font: inherit; font-size: .82rem; line-height: 1.2;
+      cursor: pointer;
+    }
+    html[data-theme="dark"] .search-suggest-chip { color: #78716c; }
+    .search-suggest-chip:hover,
+    .search-suggest-chip:focus-visible {
+      color: var(--ink-soft);
+      background: color-mix(in srgb, var(--ink) 6%, transparent);
+      box-shadow: none; outline: none;
+    }
     .search-result {
       display: block; width: 100%; margin: 0; text-align: left;
       padding: .85rem 1rem; border: 0; border-radius: 0;
@@ -563,6 +597,21 @@ export function page(title: string, body: string): string {
       }
       .search-modal-results::-webkit-scrollbar { display: none; width: 0; height: 0; }
       .search-modal-list { flex: none; overflow: visible; }
+      .search-suggest {
+        padding:
+          0
+          calc(14px + env(safe-area-inset-right, 0px))
+          12px
+          calc(14px + env(safe-area-inset-left, 0px));
+      }
+      .search-suggest-chips {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        scrollbar-width: none;
+        -webkit-overflow-scrolling: touch;
+      }
+      .search-suggest-chips::-webkit-scrollbar { display: none; width: 0; height: 0; }
+      .search-suggest-chip { flex: 0 0 auto; }
     }
     .section-head {
       margin: 1.4rem 0 .55rem calc(var(--verse-gutter) + var(--verse-gutter-gap));

@@ -6,8 +6,11 @@ import {
   HIDDEN_ARROW_ORIGIN,
   hiddenArrowOrigin,
   hiddenArrowSearchRequest,
+  hiddenArrowSuggestUrl,
   marginPathFromRouteHref,
+  normalizeRecentSearches,
   proxyHiddenArrowSearch,
+  proxyHiddenArrowSuggest,
   shouldQueryHiddenArrow,
 } from "../src/ha-search";
 import { canGo, jumpState } from "../src/jump-suggest";
@@ -552,5 +555,181 @@ describe("search list stays on screen", () => {
     expect(css).toContain("html.search-modal-open .search-fab");
     expect(css).toContain("visibility: hidden");
     expect(css).toContain("pointer-events: none");
+  });
+});
+
+describe("topic suggestion chips", () => {
+  test("recent searches are newest-first, deduped, and capped at 10", () => {
+    const source = jumpScript();
+    const start = source.indexOf("function readRecentSearches");
+    const end = source.indexOf("function cleanTopics");
+    const store = new Map<string, string>();
+    const localStorage = {
+      getItem: (key: string) => (store.has(key) ? store.get(key)! : null),
+      setItem: (key: string, value: string) => {
+        store.set(key, value);
+      },
+    };
+    const api = new Function(
+      "localStorage",
+      `${source.slice(start, end)}; return { readRecentSearches, rememberRecentSearch };`,
+    )(localStorage) as {
+      readRecentSearches: () => string[];
+      rememberRecentSearch: (query: string) => void;
+    };
+    api.rememberRecentSearch("  Tree of life ");
+    api.rememberRecentSearch("love");
+    api.rememberRecentSearch("tree of life");
+    expect(api.readRecentSearches()).toEqual(["tree of life", "love"]);
+    for (let i = 0; i < 12; i++) api.rememberRecentSearch("q" + i);
+    const recent = api.readRecentSearches();
+    expect(recent).toHaveLength(10);
+    expect(recent[0]).toBe("q11");
+    expect(recent).not.toContain("love");
+    expect(store.get("margin-recent-searches")).toContain("q11");
+  });
+
+  test("chips load once per open from the session cache and stay quiet on failure", () => {
+    const source = jumpScript();
+    const load = source.slice(source.indexOf("async function loadTopicSuggestions"), source.indexOf("async function searchScripture"));
+    expect(load.indexOf("recent.length < 2")).toBeGreaterThan(-1);
+    expect(load.indexOf("readTopicCache(recent)")).toBeLessThan(load.indexOf('fetch("/api/ha-suggest"'));
+    expect(load.indexOf("if (suggestAttempted) return")).toBeLessThan(load.indexOf('fetch("/api/ha-suggest"'));
+    expect(load.indexOf("suggestAttempted = true")).toBeLessThan(load.indexOf('fetch("/api/ha-suggest"'));
+    expect(load.match(/fetch\("\/api\/ha-suggest"/g)?.length).toBe(1);
+    expect(load).toContain('JSON.stringify({ recent: recent })');
+    expect(load).toContain("if (!res.ok)");
+    const failed = load.slice(load.indexOf("if (!res.ok)"), load.indexOf("const data = await res.json()"));
+    expect(failed).toContain("hideTopicChips()");
+    expect(failed).not.toContain("writeTopicCache");
+    expect(failed).not.toContain("Search unavailable");
+    expect(source).toContain('sessionStorage.getItem("margin-suggest-cache")');
+    expect(source).toContain('sessionStorage.setItem("margin-suggest-cache"');
+    expect(source).toContain('localStorage.getItem("margin-recent-searches")');
+    expect(source).toContain('localStorage.setItem("margin-recent-searches"');
+    expect(source).toContain('topicLabel.textContent = "Suggested"');
+    expect(source).toContain("search-suggest-chip");
+    expect(source).toContain('btn.setAttribute("data-query", topic.query)');
+    expect(source).not.toContain("x-api-key");
+    expect(source).not.toContain("HIDDEN_ARROW_SEARCH_KEY");
+    const open = source.slice(source.indexOf("function openSearchModal"), source.indexOf("function closeSearchModal"));
+    expect(open).toContain("if (opening)");
+    expect(open).toContain("suggestAttempted = false");
+    expect(open).toContain("loadTopicSuggestions()");
+    const submit = source.slice(source.indexOf("async function submitJump"), source.indexOf("function suggest()"));
+    const passage = submit.slice(0, submit.indexOf("if ((data.hits"));
+    expect(passage).not.toContain("rememberRecentSearch");
+    const freeText = submit.slice(submit.lastIndexOf("submittedQuery = q"));
+    expect(freeText.indexOf("rememberRecentSearch(q)")).toBeLessThan(freeText.indexOf("showSearchSkeletons()"));
+    expect(freeText.indexOf("showSearchSkeletons()")).toBeLessThan(freeText.indexOf("searchScripture(q, my)"));
+    const typed = source.slice(source.indexOf('input.addEventListener("input"'), source.indexOf("topicChips.addEventListener"));
+    expect(typed).toContain("hideTopicChips()");
+    expect(typed).not.toContain("fetch(");
+    expect(typed).not.toContain("/api/ha-suggest");
+    const css = readFileSync(path.join(import.meta.dir, "../src/html.ts"), "utf8");
+    const chips = css.slice(css.indexOf(".search-suggest {"), css.indexOf(".search-result {"));
+    expect(chips).toContain(".search-suggest[hidden] { display: none; }");
+    expect(chips).toContain("color: #a8a29e");
+    expect(chips).toContain("color: #78716c");
+    expect(chips).toContain("box-shadow: none");
+    expect(chips).not.toContain("text-shadow");
+    const sheet = css.slice(css.indexOf("@media (max-width: 640px)"), css.indexOf(".section-head {"));
+    expect(sheet).toContain(".search-suggest-chips");
+    expect(sheet).toContain("overflow-x: auto");
+    expect(sheet).toContain("scrollbar-width: none");
+    expect(sheet).toContain(".search-suggest-chips::-webkit-scrollbar { display: none; width: 0; height: 0; }");
+  });
+});
+
+describe("POST /api/ha-suggest", () => {
+  test("the upstream url prefers the suggest base, then the shared base, then the search origin", () => {
+    expect(hiddenArrowSuggestUrl({ suggestBase: "https://suggest.arrow.test/", base: "https://base.arrow.test" })).toBe(
+      "https://suggest.arrow.test/api/suggest-topics",
+    );
+    expect(hiddenArrowSuggestUrl({ base: "https://base.arrow.test/root/" })).toBe(
+      "https://base.arrow.test/root/api/suggest-topics",
+    );
+    expect(hiddenArrowSuggestUrl({ origin: "https://preview.arrow.test/ignored" })).toBe(
+      "https://preview.arrow.test/api/suggest-topics",
+    );
+    expect(hiddenArrowSuggestUrl()).toBe(`${HIDDEN_ARROW_ORIGIN}/api/suggest-topics`);
+    expect(normalizeRecentSearches([" Tree ", "tree", "love", 4, "", "love"])).toEqual(["Tree", "love"]);
+  });
+
+  test("same-origin route forwards {recent} with the search key and does not require a session", async () => {
+    const seen: Array<{ url: string; init: RequestInit }> = [];
+    const real = globalThis.fetch;
+    globalThis.fetch = (async (url: string | URL | Request, init?: RequestInit) => {
+      seen.push({ url: String(url), init: init ?? {} });
+      return new Response(
+        JSON.stringify({
+          topics: [{ label: "The tree", query: "tree of life", why: "test-search-key" }],
+        }),
+        { status: 200, headers: { "content-type": "application/json", "x-api-key": "test-search-key" } },
+      );
+    }) as typeof fetch;
+    try {
+      const env = {
+        HIDDEN_ARROW_SUGGEST_BASE_URL: "https://suggest.arrow.test/",
+        HIDDEN_ARROW_BASE_URL: "https://base.arrow.test",
+        HIDDEN_ARROW_SEARCH_KEY: "test-search-key",
+      } as Env;
+      const recent = ["tree of life", "love", "tree of life", "a", "b", "c", "d", "e", "f", "g", "h", "i"];
+      const res = await app.request(
+        "http://margin.test/api/ha-suggest",
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ recent }),
+        },
+        env,
+      );
+      expect(res.status).toBe(200);
+      expect(res.headers.get("cache-control")).toBe("no-store");
+      expect(res.headers.get("x-api-key")).toBeNull();
+      expect(res.headers.get("set-cookie")).toBeNull();
+      const raw = JSON.stringify(await res.json());
+      expect(raw).not.toContain("test-search-key");
+      expect(raw).toContain("The tree");
+      expect(seen[0]?.url).toBe("https://suggest.arrow.test/api/suggest-topics");
+      expect(JSON.parse(String(seen[0]?.init.body))).toEqual({
+        recent: ["tree of life", "love", "a", "b", "c", "d", "e", "f", "g", "h"],
+      });
+      expect(new Headers(seen[0]?.init.headers).get("x-api-key")).toBe("test-search-key");
+    } finally {
+      globalThis.fetch = real;
+    }
+  });
+
+  test("a missing endpoint is forwarded as 404 and a missing key never calls upstream", async () => {
+    let called = 0;
+    const real = globalThis.fetch;
+    globalThis.fetch = (async () => {
+      called += 1;
+      return new Response("missing", { status: 404 });
+    }) as typeof fetch;
+    try {
+      const missing = await proxyHiddenArrowSuggest(["tree of life", "love"], { apiKey: "test-search-key" });
+      expect(called).toBe(1);
+      expect(missing.status).toBe(404);
+      expect(missing.headers.get("x-api-key")).toBeNull();
+      expect(await missing.json()).toEqual({ topics: [] });
+
+      const unset = await app.request(
+        "http://margin.test/api/ha-suggest",
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ recent: ["tree of life", "love"] }),
+        },
+        {} as Env,
+      );
+      expect(called).toBe(1);
+      expect(unset.status).toBe(503);
+      expect(unset.headers.get("x-api-key")).toBeNull();
+      expect(await unset.json()).toEqual({ ok: false, error: "Scripture search is not configured." });
+    } finally {
+      globalThis.fetch = real;
+    }
   });
 });
