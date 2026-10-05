@@ -11,7 +11,7 @@
 | Prod Worker URL | https://margin-bible.dpshade.workers.dev |
 | Worker name | `margin-bible` |
 | Code (box checkout) | `/workspace/margin-spike-deploy/prod/workers` |
-| Wrangler | `wrangler.jsonc` → `name: margin-bible` |
+| Worker config | `cloudflare.config.ts` → `name: margin-bible` |
 | D1 database name | `margin-bible` |
 | D1 database id | `0f48d232-f2d8-46c2-a8a3-3b36c4279feb` |
 | CF account id (from prior migration) | `91ff2c2b757414041aeaa00896a8a43f` |
