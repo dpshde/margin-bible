@@ -124,7 +124,7 @@ export function page(title: string, body: string): string {
     @media (pointer: fine) {
       html, body { overscroll-behavior: none; }
     }
-    button, a, .icon-btn, .expand-btn, .tray-bookmark, .tray-attach, .tray-clear, .tray-close, .att-remove, .obullet, .verse-press, .suggest button, .topbar-title-btn, .chapter-grid-cell {
+    button, a, .icon-btn, .expand-btn, .tray-bookmark, .tray-attach, .tray-clear, .tray-close, .att-remove, .obullet, .verse-press, .suggest button, .search-result, .search-fab, .topbar-title-btn, .chapter-grid-cell {
       touch-action: manipulation;
       -webkit-tap-highlight-color: transparent;
     }
@@ -371,6 +371,90 @@ export function page(title: string, body: string): string {
     }
     .suggest li:last-child button {
       border-radius: 0 0 var(--list-radius) var(--list-radius);
+    }
+    .search-modal {
+      position: fixed; inset: 0; z-index: 50;
+      display: flex; align-items: flex-start; justify-content: center;
+      padding:
+        calc(.75rem + var(--safe-top))
+        calc(.75rem + env(safe-area-inset-right, 0px))
+        calc(.75rem + var(--safe-bottom))
+        calc(.75rem + env(safe-area-inset-left, 0px));
+    }
+    .search-modal[hidden] { display: none; }
+    .search-modal-backdrop {
+      position: absolute; inset: 0;
+      margin: 0; padding: 0; border: 0; cursor: pointer;
+      background: color-mix(in srgb, var(--ink) 28%, transparent);
+      backdrop-filter: blur(6px);
+    }
+    .search-modal-panel {
+      position: relative; z-index: 1;
+      width: min(36rem, 100%);
+      max-height: calc(100dvh - var(--safe-top) - var(--safe-bottom) - 1.5rem);
+      display: flex; flex-direction: column; min-height: 0;
+      background: var(--paper-raised);
+      border-radius: .85rem; overflow: hidden;
+      box-shadow: 0 1rem 2.5rem color-mix(in srgb, var(--ink) 22%, transparent);
+    }
+    .search-modal-form {
+      display: flex; flex-direction: column; min-height: 0;
+      max-height: calc(100dvh - var(--safe-top) - var(--safe-bottom) - 1.5rem);
+    }
+    .search-modal-form input[type="search"] {
+      width: 100%; font: inherit; font-size: 16px;
+      padding: .9rem 1rem; border: 0; border-bottom: 1px solid var(--line);
+      border-radius: 0; background: transparent; outline: none;
+      -webkit-appearance: none; appearance: none;
+    }
+    .search-modal-list {
+      list-style: none; margin: 0; padding: 0; min-height: 0;
+      overflow-x: hidden; overflow-y: auto;
+      overscroll-behavior: contain;
+      -webkit-overflow-scrolling: touch;
+    }
+    .search-modal-list[hidden] { display: none; }
+    .search-result {
+      display: block; width: 100%; margin: 0; text-align: left;
+      padding: .85rem 1rem; border: 0; border-radius: 0;
+      background: transparent; cursor: pointer; color: var(--ink);
+    }
+    .search-modal-list li + li .search-result { box-shadow: inset 0 1px var(--line); }
+    .search-result.is-selected,
+    .search-result:hover,
+    .search-result:focus-visible {
+      background: color-mix(in srgb, var(--ink) 8%, var(--paper-raised));
+      outline: none;
+    }
+    .search-result-ref {
+      display: block;
+      font-size: .78rem; font-weight: 650; letter-spacing: .04em;
+      text-transform: uppercase; color: var(--ink-soft);
+    }
+    .search-result-text {
+      display: block; max-height: calc(1.35em * 3); overflow: hidden;
+      margin-top: .28rem;
+      font-family: var(--read); font-size: 1.02rem; line-height: 1.35;
+      color: var(--ink); overflow-wrap: anywhere;
+    }
+    .search-mark {
+      background: transparent; color: #c2410c; font-weight: 650;
+    }
+    html[data-theme="dark"] .search-mark { color: #fdba74; }
+    html.search-modal-open { overflow: hidden; }
+    .search-fab { display: none; }
+    @media (max-width: 767px) {
+      .search-fab {
+        display: inline-flex; align-items: center; justify-content: center;
+        position: fixed; z-index: 51;
+        width: 3.4rem; height: 3.4rem; padding: 0;
+        border: 0; border-radius: 999px; cursor: pointer;
+        background: #292524; color: #e7e5e4;
+        right: calc(2.5rem + env(safe-area-inset-right, 0px));
+        bottom: calc(1rem + var(--safe-bottom));
+        box-shadow: 0 .35rem 1rem color-mix(in srgb, #000 28%, transparent);
+      }
+      .search-fab svg { display: block; width: 28px; height: 28px; }
     }
     .section-head {
       margin: 1.4rem 0 .55rem calc(var(--verse-gutter) + var(--verse-gutter-gap));

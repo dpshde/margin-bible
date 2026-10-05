@@ -1,3 +1,5 @@
+import { keywordSearchClientSource } from "./keyword-search";
+
 export type SearchChordEvent = {
   key?: string;
   code?: string;
@@ -48,6 +50,16 @@ export function jumpFormHtml(): string {
 /** Browser jump combobox (string). Idempotent — safe to call after SPA injects a new form.jump. */
 export function jumpScript(): string {
   return `(() => {
+  ${keywordSearchClientSource()}
+
+  let keywordIndex = null;
+  let hits = [];
+  let selected = -1;
+  let seq = 0;
+  let timer = null;
+  let submittedQuery = "";
+  let cachedSearch = null;
+
   function marginPathFromRouteHref(href) {
     if (href == null) return null;
     const raw = String(href).trim();
@@ -79,274 +91,128 @@ export function jumpScript(): string {
     return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   }
 
-  function bindJump(form) {
-    if (!form || form.dataset.jumpBound === "1") return;
-    form.dataset.jumpBound = "1";
-    const input = form.querySelector('input[type="search"]');
-    const list = form.querySelector("ul.suggest");
-    const clearBtn = form.querySelector("button.jump-clear");
-    if (!input || !list) return;
+  function searchRoot() {
+    return document.querySelector(".search-modal");
+  }
 
-    // Unique ids so aria-controls stays valid when multiple forms exist (reader + SPA inbox).
-    const uid = "jump-" + Math.random().toString(36).slice(2, 9);
-    input.id = uid + "-q";
-    list.id = uid + "-suggest";
-    input.setAttribute("aria-controls", list.id);
-    const label = form.querySelector("label.sr-only");
-    if (label) label.setAttribute("for", input.id);
+  function searchInput() {
+    const modal = searchRoot();
+    return modal ? modal.querySelector('input[type="search"]') : null;
+  }
 
-    let hits = [];
-    let selected = -1;
-    let timer = null;
-    let seq = 0;
+  function searchList() {
+    const modal = searchRoot();
+    return modal ? modal.querySelector("ul.search-modal-list") : null;
+  }
 
-    function syncClear() {
-      if (!clearBtn) return;
-      clearBtn.hidden = !String(input.value || "").length;
+  function mirrorHeader(value) {
+    const forms = [...document.querySelectorAll("form.jump")];
+    const visible = forms.find((f) => f.offsetParent !== null) || forms[0];
+    if (!visible) return;
+    const header = visible.querySelector('input[type="search"]');
+    if (header) header.value = value;
+    const clearBtn = visible.querySelector("button.jump-clear");
+    if (clearBtn) clearBtn.hidden = !String(value || "").length;
+  }
+
+  function openSearchModal() {
+    const modal = ensureSearchModal();
+    modal.hidden = false;
+    document.documentElement.classList.add("search-modal-open");
+    document.querySelectorAll("form.jump").forEach((form) => form.classList.add("is-open"));
+  }
+
+  function closeSearchModal() {
+    const modal = searchRoot();
+    if (modal) modal.hidden = true;
+    document.documentElement.classList.remove("search-modal-open");
+    document.querySelectorAll("form.jump").forEach((form) => form.classList.remove("is-open"));
+    const cache = readSearchCache();
+    if (cache && cache.query) mirrorHeader(cache.query);
+  }
+
+  function revealCachedSearch() {
+    const cache = readSearchCache();
+    if (!cache || !cache.query) return false;
+    const input = searchInput();
+    if (!input) return false;
+    input.value = cache.query;
+    mirrorHeader(cache.query);
+    submittedQuery = cache.query;
+    const list = searchList();
+    const waiting = list && list.querySelector(".suggest-skeleton");
+    const painted = list && list.querySelector("button.search-result");
+    if (waiting || (painted && cache.hits.length)) openSearchModal();
+    else render({ hits: cache.hits });
+    return true;
+  }
+
+  function openFromHeader(header) {
+    ensureSearchModal();
+    const input = searchInput();
+    if (!input) return;
+    if (!revealCachedSearch()) {
+      const value = header ? String(header.value || "") : "";
+      if (value) input.value = value;
+      openSearchModal();
     }
-
-    function optionItems() {
-      return [...list.querySelectorAll("li[role='option']")];
+    if (document.activeElement !== input) {
+      input.focus();
+      input.select();
     }
+  }
 
-    function syncActive() {
-      const items = optionItems();
-      const active = items[selected];
-      if (active) {
-        input.setAttribute("aria-activedescendant", active.id);
-        const listRect = list.getBoundingClientRect();
-        const itemRect = active.getBoundingClientRect();
-        if (itemRect.top < listRect.top) list.scrollTop -= listRect.top - itemRect.top;
-        else if (itemRect.bottom > listRect.bottom) list.scrollTop += itemRect.bottom - listRect.bottom;
-      } else input.removeAttribute("aria-activedescendant");
-    }
-
-    function close() {
-      list.hidden = true;
-      list.innerHTML = "";
-      list.removeAttribute("aria-busy");
-      form.classList.remove("is-open");
-      input.setAttribute("aria-expanded", "false");
-      input.removeAttribute("aria-activedescendant");
-      selected = -1;
-      hits = [];
-    }
-
-    function showSearchSkeletons() {
-      hits = [];
-      selected = -1;
-      list.hidden = false;
-      form.classList.add("is-open");
-      input.setAttribute("aria-expanded", "true");
-      list.setAttribute("aria-busy", "true");
-      input.removeAttribute("aria-activedescendant");
-      let rows = "";
-      for (let i = 0; i < 4; i++) {
-        rows +=
-          '<li class="suggest-skeleton" aria-hidden="true">' +
-          '<span class="suggest-skeleton-ref"></span>' +
-          '<span class="suggest-skeleton-text"></span>' +
-          "</li>";
-      }
-      list.innerHTML = rows;
-    }
-
-    function render(state) {
-      list.removeAttribute("aria-busy");
-      hits = state.hits || [];
-      const open = hits.length > 0 || Boolean(state.hint);
-      selected = open && hits.length ? 0 : -1;
-      list.hidden = !open;
-      form.classList.toggle("is-open", open);
-      input.setAttribute("aria-expanded", open ? "true" : "false");
-      const hint = state.hint
-        ? '<li class="suggest-hint" role="note">' + escape(state.hint) + "</li>"
-        : "";
-      const options = hits
-        .map((hit, index) => {
-          const id = uid + "-opt-" + index;
-          const sel = index === selected;
-          const body = hit.kind === "scripture"
-            ? '<span class="suggest-ref">' + escape(hit.label) + "</span>" +
-              (hit.text ? '<span class="suggest-text">' + escape(hit.text) + "</span>" : "")
-            : escape(hit.label);
-          const klass = hit.kind === "scripture" ? ' class="suggest-scripture"' : "";
-          return (
-            '<li id="' +
-            id +
-            '" role="option" aria-selected="' +
-            (sel ? "true" : "false") +
-            '"><button type="button" data-index="' +
-            index +
-            '"' +
-            klass +
-            ">" +
-            body +
-            "</button></li>"
-          );
-        })
-        .join("");
-      list.innerHTML = options + hint;
-      syncActive();
-    }
-
-    function insertTextFor(hit) {
-      const text = String(hit?.insertText || hit?.label || "");
-      if (hit?.kind === "book" && text && !text.endsWith(" ")) return text + " ";
-      return text;
-    }
-
-    function sameEntry(current, next) {
-      return current.trim().toLowerCase() === String(next || "").trim().toLowerCase();
-    }
-
-    function scriptureHits(data) {
-      const evidence = Array.isArray(data && data.evidence) ? data.evidence : [];
-      const next = [];
-      for (const item of evidence) {
-        const path = marginPathFromRouteHref(item && item.href);
-        if (!path) continue;
-        next.push({
-          kind: "scripture",
-          label: String((item && item.displayRef) || path.slice(1)),
-          text: String((item && item.text) || ""),
-          path,
-        });
-      }
-      return next;
-    }
-
-    function attributionHint(data) {
-      const lines = Array.isArray(data && data.attribution)
-        ? data.attribution.filter((line) => typeof line === "string" && line.trim())
-        : [];
-      return lines.length ? lines.join(" ") : null;
-    }
-
-    async function searchScripture(q, my) {
-      showSearchSkeletons();
-      try {
-        const res = await fetch("/api/ha-search", {
-          method: "POST",
-          headers: { "content-type": "application/json", accept: "application/json" },
-          body: JSON.stringify({ query: q }),
-        });
-        if (my !== seq) return;
-        if (!res.ok) {
-          close();
-          return;
-        }
-        const data = await res.json();
-        if (my !== seq) return;
-        const next = scriptureHits(data);
-        if (!next.length) {
-          close();
-          return;
-        }
-        render({ hits: next, hint: attributionHint(data) });
-      } catch (_) {
-        if (my === seq) close();
-      }
-    }
-
-    async function suggestNow() {
-      const q = input.value;
-      const my = ++seq;
-      if (!String(q).trim()) {
+  function ensureSearchModal() {
+    const existing = searchRoot();
+    if (existing) return existing;
+    const modal = document.createElement("div");
+    modal.className = "search-modal";
+    modal.hidden = true;
+    const backdrop = document.createElement("button");
+    backdrop.type = "button";
+    backdrop.className = "search-modal-backdrop";
+    backdrop.setAttribute("aria-label", "Close search");
+    const panel = document.createElement("div");
+    panel.className = "search-modal-panel";
+    panel.setAttribute("role", "dialog");
+    panel.setAttribute("aria-modal", "true");
+    panel.setAttribute("aria-label", "Search scripture");
+    const searchForm = document.createElement("form");
+    searchForm.className = "search-modal-form";
+    searchForm.setAttribute("role", "search");
+    const input = document.createElement("input");
+    input.id = "search-modal-q";
+    input.name = "q";
+    input.type = "search";
+    input.placeholder = "Search or verse reference";
+    input.autocomplete = "off";
+    input.spellcheck = false;
+    input.setAttribute("role", "combobox");
+    input.setAttribute("aria-autocomplete", "list");
+    input.setAttribute("aria-expanded", "false");
+    input.setAttribute("aria-controls", "search-modal-list");
+    const list = document.createElement("ul");
+    list.className = "search-modal-list";
+    list.id = "search-modal-list";
+    list.setAttribute("role", "listbox");
+    list.hidden = true;
+    searchForm.appendChild(input);
+    searchForm.appendChild(list);
+    panel.appendChild(searchForm);
+    modal.appendChild(backdrop);
+    modal.appendChild(panel);
+    document.body.appendChild(modal);
+    backdrop.addEventListener("click", () => closeSearchModal());
+    searchForm.addEventListener("submit", (event) => {
+      const q = input.value.trim();
+      event.preventDefault();
+      mirrorHeader(q);
+      syncSearchQuery(q);
+      if (!q) {
         close();
         return;
       }
-      try {
-        const res = await fetch("/api/jump-suggest?q=" + encodeURIComponent(q), {
-          headers: { accept: "application/json" },
-        });
-        if (!res.ok || my !== seq) return;
-        const data = await res.json();
-        if (my !== seq) return;
-        render(data);
-      } catch (_) {
-        /* ignore transient network blips */
-      }
-    }
-
-    async function submitJump(q) {
-      const my = ++seq;
-      let data = null;
-      try {
-        const res = await fetch("/api/jump-suggest?q=" + encodeURIComponent(q), {
-          headers: { accept: "application/json" },
-        });
-        if (res.ok) data = await res.json();
-      } catch (_) {
-        data = null;
-      }
-      if (my !== seq) return;
-      if (!data || data.canGo) {
-        location.assign("/jump?q=" + encodeURIComponent(q));
-        return;
-      }
-      if ((data.hits && data.hits.length) || data.hint) {
-        render(data);
-        return;
-      }
-      searchScripture(q, my);
-    }
-
-    function suggest() {
-      if (timer) clearTimeout(timer);
-      timer = setTimeout(suggestNow, 40);
-    }
-
-    function moveHighlight(delta) {
-      const items = optionItems();
-      if (!items.length) return;
-      selected = (selected + delta + items.length) % items.length;
-      items.forEach((item, i) => item.setAttribute("aria-selected", i === selected ? "true" : "false"));
-      syncActive();
-    }
-
-    async function canGo(value) {
-      try {
-        const res = await fetch("/api/jump-suggest?q=" + encodeURIComponent(value), {
-          headers: { accept: "application/json" },
-        });
-        if (!res.ok) return false;
-        const data = await res.json();
-        return Boolean(data.canGo);
-      } catch (_) {
-        return false;
-      }
-    }
-
-    function goToInput() {
-      const q = input.value.trim();
-      if (!q) return;
-      form.requestSubmit();
-    }
-
-    async function applyHit(hit) {
-      if (!hit) return;
-      if (hit.kind === "scripture" && hit.path) {
-        input.blur();
-        location.assign(hit.path);
-        return;
-      }
-      const next = insertTextFor(hit);
-      const current = input.value;
-      if (sameEntry(current, next) && (await canGo(current))) {
-        goToInput();
-        return;
-      }
-      input.value = next;
-      syncClear();
-      input.focus();
-      input.setSelectionRange(next.length, next.length);
-      suggestNow();
-    }
-
-    input.addEventListener("input", () => {
-      syncClear();
-      suggest();
+      submitJump(q);
     });
     input.addEventListener("keydown", (event) => {
       const items = optionItems();
@@ -363,31 +229,18 @@ export function jumpScript(): string {
         return;
       }
       if (event.key === "Enter") {
-        if (selected >= 0 && items.length) {
+        const q = input.value.trim();
+        if (hits.length && selected >= 0 && q === submittedQuery) {
           event.preventDefault();
           applyHit(hits[selected]);
         }
         return;
       }
-      if (event.key === "Tab" && selected >= 0 && items.length) {
+      if (event.key === "Escape") {
         event.preventDefault();
-        applyHit(hits[selected]);
-        return;
+        closeSearchModal();
       }
-      if (event.key === "Escape") close();
     });
-
-    if (clearBtn) {
-      clearBtn.addEventListener("mousedown", (event) => event.preventDefault());
-      clearBtn.addEventListener("click", () => {
-        input.value = "";
-        syncClear();
-        close();
-        input.focus();
-      });
-    }
-    syncClear();
-
     list.addEventListener("click", (event) => {
       const btn = event.target.closest("button[data-index]");
       if (!btn) return;
@@ -396,12 +249,407 @@ export function jumpScript(): string {
       if (!Number.isFinite(index) || !hits[index]) return;
       applyHit(hits[index]);
     });
+    return modal;
+  }
+
+  function ensureSearchFab() {
+    if (document.querySelector(".search-fab")) return;
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "search-fab";
+    btn.setAttribute("aria-label", "Search scripture");
+    btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="28" height="28" aria-hidden="true"><path fill="currentColor" d="M9 6V8H2V6H9M9 11V13H2V11H9M18 16V18H2V16H18M19.31 11.5C19.75 10.82 20 10 20 9.11C20 6.61 18 4.61 15.5 4.61S11 6.61 11 9.11 13 13.61 15.5 13.61C16.37 13.61 17.19 13.36 17.88 12.93L21 16L22.39 14.61L19.31 11.5M15.5 11.61C14.12 11.61 13 10.5 13 9.11S14.12 6.61 15.5 6.61 18 7.73 18 9.11 16.88 11.61 15.5 11.61Z"/></svg>';
+    btn.addEventListener("click", () => focusVisibleJump());
+    document.body.appendChild(btn);
+  }
+
+  function scheduleKeywordIndex() {
+    const start = () => {
+      const run = () => {
+        fetch("/api/keyword-corpus", { headers: { accept: "application/json" } })
+          .then((res) => (res.ok ? res.json() : null))
+          .then((rows) => {
+            if (Array.isArray(rows) && rows.length) keywordIndex = buildKeywordIndex(rows);
+          })
+          .catch(() => {});
+      };
+      if (window.requestIdleCallback) window.requestIdleCallback(run, { timeout: 1500 });
+      else setTimeout(run, 1);
+    };
+    if (document.readyState === "complete") start();
+    else window.addEventListener("load", start, { once: true });
+  }
+
+  function readSearchCache() {
+    if (cachedSearch && cachedSearch.query) return cachedSearch;
+    try {
+      const raw = sessionStorage.getItem("margin-search-cache");
+      if (!raw) return null;
+      const data = JSON.parse(raw);
+      if (!data || typeof data.query !== "string" || !Array.isArray(data.hits)) return null;
+      cachedSearch = { query: data.query, hits: data.hits };
+      return cachedSearch;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  function writeSearchCache(query, nextHits) {
+    const packed = (nextHits || []).map((hit) => ({
+      kind: hit && hit.kind ? String(hit.kind) : "scripture",
+      label: String((hit && (hit.label || hit.insertText)) || ""),
+      text: String((hit && hit.text) || ""),
+      path: hit && hit.path ? String(hit.path) : "",
+      insertText: hit && hit.insertText ? String(hit.insertText) : "",
+    }));
+    cachedSearch = { query: String(query || ""), hits: packed };
+    try { sessionStorage.setItem("margin-search-cache", JSON.stringify(cachedSearch)); }
+    catch (_) {}
+    mirrorHeader(cachedSearch.query);
+  }
+
+  function clearSearchCache() {
+    cachedSearch = null;
+    submittedQuery = "";
+    try { sessionStorage.removeItem("margin-search-cache"); } catch (_) {}
+  }
+
+  function modalIsOpen() {
+    const modal = searchRoot();
+    return Boolean(modal && !modal.hidden);
+  }
+
+  function optionItems() {
+    const list = searchList();
+    if (!list) return [];
+    return [...list.querySelectorAll("li[role='option']")];
+  }
+
+  function syncActive() {
+    const list = searchList();
+    const input = searchInput();
+    if (!list || !input) return;
+    const items = optionItems();
+    const active = items[selected];
+    if (active) {
+      input.setAttribute("aria-activedescendant", active.id);
+      const listRect = list.getBoundingClientRect();
+      const itemRect = active.getBoundingClientRect();
+      if (itemRect.top < listRect.top) list.scrollTop -= listRect.top - itemRect.top;
+      else if (itemRect.bottom > listRect.bottom) list.scrollTop += itemRect.bottom - listRect.bottom;
+    } else input.removeAttribute("aria-activedescendant");
+  }
+
+  function close() {
+    const list = searchList();
+    const input = searchInput();
+    if (list) {
+      list.hidden = true;
+      list.innerHTML = "";
+      list.removeAttribute("aria-busy");
+    }
+    if (input) {
+      input.setAttribute("aria-expanded", "false");
+      input.removeAttribute("aria-activedescendant");
+    }
+    selected = -1;
+    hits = [];
+  }
+
+  function showSearchSkeletons() {
+    hits = [];
+    selected = -1;
+    openSearchModal();
+    const list = searchList();
+    const input = searchInput();
+    if (!list || !input) return;
+    list.hidden = false;
+    input.setAttribute("aria-expanded", "true");
+    list.setAttribute("aria-busy", "true");
+    input.removeAttribute("aria-activedescendant");
+    let rows = "";
+    for (let i = 0; i < 4; i++) {
+      rows +=
+        '<li class="suggest-skeleton" aria-hidden="true">' +
+        '<span class="suggest-skeleton-ref"></span>' +
+        '<span class="suggest-skeleton-text"></span>' +
+        "</li>";
+    }
+    list.innerHTML = rows;
+  }
+
+  function render(state) {
+    openSearchModal();
+    const list = searchList();
+    const input = searchInput();
+    if (!list || !input) return;
+    list.removeAttribute("aria-busy");
+    hits = state.hits || [];
+    const rawHint = state.hint ? String(state.hint) : "";
+    const hintText = rawHint.indexOf("CC BY") === -1 ? rawHint : "";
+    const open = hits.length > 0 || Boolean(hintText);
+    selected = open && hits.length ? 0 : -1;
+    list.hidden = !open;
+    input.setAttribute("aria-expanded", open ? "true" : "false");
+    const hint = hintText
+      ? '<li class="suggest-hint" role="note">' + escape(hintText) + "</li>"
+      : "";
+    const options = hits
+      .map((hit, index) => {
+        const id = "search-result-" + index;
+        const sel = index === selected;
+        const body = hit.kind === "scripture"
+          ? '<span class="search-result-ref">' + escape(hit.label) + "</span>" +
+            (hit.text ? '<span class="search-result-text">' + highlightQuery(hit.text, submittedQuery) + "</span>" : "")
+          : '<span class="search-result-ref">' + escape(hit.label) + "</span>";
+        return (
+          '<li id="' + id + '" role="option" aria-selected="' + (sel ? "true" : "false") + '">' +
+          '<button type="button" class="search-result' + (sel ? " is-selected" : "") + '" data-index="' + index + '">' +
+          body +
+          "</button></li>"
+        );
+      })
+      .join("");
+    list.innerHTML = options + hint;
+    syncActive();
+  }
+
+  function insertTextFor(hit) {
+    const text = String(hit?.insertText || hit?.label || "");
+    if (hit?.kind === "book" && text && !text.endsWith(" ")) return text + " ";
+    return text;
+  }
+
+  function sameEntry(current, next) {
+    return current.trim().toLowerCase() === String(next || "").trim().toLowerCase();
+  }
+
+  function scriptureHits(data) {
+    const evidence = Array.isArray(data && data.evidence) ? data.evidence : [];
+    const next = [];
+    for (const item of evidence) {
+      const path = marginPathFromRouteHref(item && item.href);
+      if (!path) continue;
+      next.push({
+        kind: "scripture",
+        label: String((item && item.displayRef) || path.slice(1)),
+        text: String((item && item.text) || ""),
+        path,
+      });
+    }
+    return next;
+  }
+
+  async function searchScripture(q, my, keepKeyword) {
+    try {
+      const res = await fetch("/api/ha-search", {
+        method: "POST",
+        headers: { "content-type": "application/json", accept: "application/json" },
+        body: JSON.stringify({ query: q }),
+      });
+      if (my !== seq) return;
+      if (!res.ok) {
+        if (keepKeyword) return;
+        writeSearchCache(q, []);
+        if (modalIsOpen()) close();
+        return;
+      }
+      const data = await res.json();
+      if (my !== seq) return;
+      const next = scriptureHits(data);
+      if (!next.length) {
+        if (keepKeyword) return;
+        writeSearchCache(q, []);
+        if (modalIsOpen()) close();
+        return;
+      }
+      writeSearchCache(q, next);
+      if (modalIsOpen()) render({ hits: next });
+    } catch (_) {
+      if (my === seq && !keepKeyword) {
+        writeSearchCache(q, []);
+        if (modalIsOpen()) close();
+      }
+    }
+  }
+
+  async function suggestNow() {
+    const input = searchInput();
+    const q = input ? input.value : "";
+    const my = ++seq;
+    if (!String(q).trim()) {
+      close();
+      return;
+    }
+    try {
+      const res = await fetch("/api/jump-suggest?q=" + encodeURIComponent(q), {
+        headers: { accept: "application/json" },
+      });
+      if (!res.ok || my !== seq) return;
+      const data = await res.json();
+      if (my !== seq) return;
+      submittedQuery = String(q).trim();
+      writeSearchCache(submittedQuery, data.hits || []);
+      render(data);
+    } catch (_) {
+      /* ignore transient network blips */
+    }
+  }
+
+  async function submitJump(q) {
+    const my = ++seq;
+    let data = null;
+    try {
+      const res = await fetch("/api/jump-suggest?q=" + encodeURIComponent(q), {
+        headers: { accept: "application/json" },
+      });
+      if (res.ok) data = await res.json();
+    } catch (_) {
+      data = null;
+    }
+    if (my !== seq) return;
+    if (!data || data.canGo) {
+      location.assign("/jump?q=" + encodeURIComponent(q));
+      return;
+    }
+    if ((data.hits && data.hits.length) || data.hint) {
+      submittedQuery = q;
+      writeSearchCache(q, data.hits || []);
+      render(data);
+      return;
+    }
+    submittedQuery = q;
+    const found = keywordIndex ? searchKeywordIndex(keywordIndex, q, 8) : [];
+    const keywordHits = found.map((verse) => ({
+      kind: "scripture",
+      label: verse.label,
+      text: verse.text,
+      path: verse.path,
+    }));
+    const keepKeyword = keywordHits.length > 0;
+    if (keepKeyword) {
+      writeSearchCache(q, keywordHits);
+      render({ hits: keywordHits });
+    } else showSearchSkeletons();
+    searchScripture(q, my, keepKeyword);
+  }
+
+  function suggest() {
+    if (timer) clearTimeout(timer);
+    timer = setTimeout(suggestNow, 40);
+  }
+
+  function moveHighlight(delta) {
+    const items = optionItems();
+    if (!items.length) return;
+    selected = (selected + delta + items.length) % items.length;
+    items.forEach((item, i) => {
+      const on = i === selected;
+      item.setAttribute("aria-selected", on ? "true" : "false");
+      const btn = item.querySelector("button");
+      if (btn) btn.classList.toggle("is-selected", on);
+    });
+    syncActive();
+  }
+
+  async function canGo(value) {
+    try {
+      const res = await fetch("/api/jump-suggest?q=" + encodeURIComponent(value), {
+        headers: { accept: "application/json" },
+      });
+      if (!res.ok) return false;
+      const data = await res.json();
+      return Boolean(data.canGo);
+    } catch (_) {
+      return false;
+    }
+  }
+
+  function goToInput() {
+    const input = searchInput();
+    const q = input ? input.value.trim() : "";
+    if (!q || !input || !input.form) return;
+    input.form.requestSubmit();
+  }
+
+  async function applyHit(hit) {
+    if (!hit) return;
+    if (hit.kind === "scripture" && hit.path) {
+      const input = searchInput();
+      if (input) input.blur();
+      location.assign(hit.path);
+      return;
+    }
+    const input = searchInput();
+    if (!input) return;
+    const next = insertTextFor(hit);
+    const current = input.value;
+    if (sameEntry(current, next) && (await canGo(current))) {
+      goToInput();
+      return;
+    }
+    input.value = next;
+    mirrorHeader(next);
+    input.focus();
+    input.setSelectionRange(next.length, next.length);
+    suggestNow();
+  }
+
+  function bindJump(form) {
+    if (!form || form.dataset.jumpBound === "1") return;
+    form.dataset.jumpBound = "1";
+    const input = form.querySelector('input[type="search"]');
+    const list = form.querySelector("ul.suggest");
+    const clearBtn = form.querySelector("button.jump-clear");
+    if (!input || !list) return;
+
+    // Unique ids so aria-controls stays valid when multiple forms exist (reader + SPA inbox).
+    const uid = "jump-" + Math.random().toString(36).slice(2, 9);
+    input.id = uid + "-q";
+    list.id = uid + "-suggest";
+    input.setAttribute("aria-controls", list.id);
+    const label = form.querySelector("label.sr-only");
+    if (label) label.setAttribute("for", input.id);
+
+    function syncClear() {
+      if (!clearBtn) return;
+      clearBtn.hidden = !String(input.value || "").length;
+    }
+
+    input.addEventListener("input", () => {
+      syncClear();
+    });
+    input.addEventListener("focus", () => {
+      openFromHeader(input);
+    });
+    input.addEventListener("pointerdown", (event) => {
+      event.preventDefault();
+      openFromHeader(input);
+    });
+
+    if (clearBtn) {
+      clearBtn.addEventListener("mousedown", (event) => event.preventDefault());
+      clearBtn.addEventListener("click", () => {
+        input.value = "";
+        syncClear();
+        const modalInput = searchInput();
+        if (modalInput) modalInput.value = "";
+        clearSearchCache();
+        close();
+        closeSearchModal();
+      });
+    }
+    syncClear();
 
     form.addEventListener("submit", (event) => {
       const q = input.value.trim();
       event.preventDefault();
       syncSearchQuery(q);
       if (!q) return;
+      ensureSearchModal();
+      const modalInput = searchInput();
+      if (modalInput) modalInput.value = q;
+      openSearchModal();
       submitJump(q);
     });
   }
@@ -422,6 +670,11 @@ export function jumpScript(): string {
     let q = "";
     try { q = new URL(location.href).searchParams.get("q") || ""; } catch (_) { return; }
     q = q.trim();
+    const cache = readSearchCache();
+    if (!q && cache && cache.query) {
+      mirrorHeader(cache.query);
+      return;
+    }
     if (!q) return;
     const forms = [...document.querySelectorAll("form.jump")];
     const visible = forms.find((f) => f.offsetParent !== null) || forms[0];
@@ -431,6 +684,7 @@ export function jumpScript(): string {
     input.value = q;
     const clearBtn = visible.querySelector("button.jump-clear");
     if (clearBtn) clearBtn.hidden = false;
+    if (cache && cache.query === q) return;
     if (typeof visible.requestSubmit === "function") visible.requestSubmit();
   }
 
@@ -441,8 +695,14 @@ export function jumpScript(): string {
   function focusVisibleJump() {
     const forms = [...document.querySelectorAll("form.jump")];
     const visible = forms.find((f) => f.offsetParent !== null) || forms[0];
-    const input = visible && visible.querySelector('input[type="search"]');
+    const header = visible && visible.querySelector('input[type="search"]');
+    ensureSearchModal();
+    const input = searchInput();
     if (!input) return false;
+    if (!revealCachedSearch()) {
+      if (header && String(header.value || "").length) input.value = header.value;
+      openSearchModal();
+    }
     input.focus();
     input.select();
     return true;
@@ -477,10 +737,23 @@ export function jumpScript(): string {
       if (!focusVisibleJump()) return;
       event.preventDefault();
     });
+    document.addEventListener("keydown", (event) => {
+      if (event.key !== "Escape") return;
+      const modal = document.querySelector(".search-modal");
+      if (!modal || modal.hidden) return;
+      event.preventDefault();
+      event.stopPropagation();
+      closeSearchModal();
+    }, true);
   }
 
   window.__marginBindJump = bindAll;
   bindAll();
+  ensureSearchFab();
+  if (!window.__marginKeywordScheduled) {
+    window.__marginKeywordScheduled = true;
+    scheduleKeywordIndex();
+  }
   if (!window.__marginSearchQueryBoot) {
     window.__marginSearchQueryBoot = true;
     bootSearchQuery();

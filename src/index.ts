@@ -24,6 +24,7 @@ import { renderLoginPage } from "./login-page";
 import { buildLibrarySnapshot, snapshotFilename } from "./library-snapshot";
 import { draftNote } from "./notes";
 import { proxyHiddenArrowSearch } from "./ha-search";
+import { collectKeywordVerses, keywordBookSpecs } from "./keyword-search";
 import { canGo, jumpState } from "./jump-suggest";
 import { performLogin, performPassphraseChange } from "./perform-login";
 import {
@@ -37,7 +38,7 @@ import {
   verifyAuthentication,
   verifyRegistration,
 } from "./passkeys";
-import { chapterSlug, lazyChapterNotes, parsePassage, passageLabel, passageSlug, type Passage } from "./passage";
+import { chapterSlug, createPassage, lazyChapterNotes, parsePassage, passageLabel, passageSlug, type Passage } from "./passage";
 import { renderChapterPage, renderMissing, renderNotesIndex } from "./reader-page";
 import type { ChapterPack } from "./usj";
 import { ensureBidirectionalXrefs, syncBidirectionalXrefs } from "./xref-sync";
@@ -92,6 +93,7 @@ app.use("*", async (c, next) => {
     c.req.path === "/health" ||
     c.req.path === "/mcp" ||
     c.req.path === "/api/ha-search" ||
+    c.req.path === "/api/keyword-corpus" ||
     c.req.path.startsWith("/bsb/") ||
     c.req.path.startsWith("/vendor/") ||
     isPwaAssetPath(c.req.path)
@@ -305,6 +307,29 @@ app.get("/api/jump-suggest", (c) => {
     hits: state.hits,
     hint: state.hint,
     canGo: canGo(q),
+  });
+});
+
+let keywordCorpusJson: Promise<string> | null = null;
+
+app.get("/api/keyword-corpus", async (c) => {
+  if (!keywordCorpusJson) {
+    keywordCorpusJson = collectKeywordVerses(keywordBookSpecs(), async (code, chapter) => {
+      const pack = await loadChapter(c.env.ASSETS, createPassage(code, chapter));
+      return pack ? { verses: pack.verses } : null;
+    })
+      .then((rows) => JSON.stringify(rows))
+      .catch((error) => {
+        keywordCorpusJson = null;
+        throw error;
+      });
+  }
+  const body = await keywordCorpusJson;
+  return new Response(body, {
+    headers: {
+      "content-type": "application/json; charset=utf-8",
+      "cache-control": "public, max-age=86400",
+    },
   });
 });
 
