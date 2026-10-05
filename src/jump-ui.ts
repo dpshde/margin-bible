@@ -205,14 +205,14 @@ export function jumpScript(): string {
     list.id = "search-modal-list";
     list.setAttribute("role", "listbox");
     list.hidden = true;
-    const translation = document.createElement("span");
-    translation.className = "search-modal-translation";
-    translation.textContent = "BSB";
+    const footer = document.createElement("p");
+    footer.className = "search-modal-footer";
+    footer.textContent = "BSB";
     bar.appendChild(icon);
     bar.appendChild(input);
-    bar.appendChild(translation);
     searchForm.appendChild(bar);
     searchForm.appendChild(list);
+    searchForm.appendChild(footer);
     panel.appendChild(searchForm);
     modal.appendChild(backdrop);
     modal.appendChild(panel);
