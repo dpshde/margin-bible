@@ -9,7 +9,7 @@
  */
 import { nearestVerseTopic } from "./jev";
 import { listNotes } from "./library";
-import { canonSlug, cleanGroupTitle, type VerseGroupView } from "./verse-groups";
+import { canonSlug, cleanGroupTitle, NOT_A_VERSE_GROUP, type VerseGroupView } from "./verse-groups";
 import { claimOpenTitle, loadVerseGroups, markVerseGroupAutoTitled, saveAutoTitle } from "./verse-groups-store";
 import { bsbLinesForSlugs, type AssetFetch } from "./verse-text";
 
@@ -33,7 +33,7 @@ export async function suggestVerseGroupTopic(input: {
   if (!hub) return { ok: false, status: 422, error: "unresolvable hub" };
   const notes = await listNotesSafe(input.db, input.libraryId);
   const group = notes.groups.find((row) => row.hub === hub);
-  if (!group) return { ok: false, status: 422, error: "That verse is not a hub yet." };
+  if (!group) return { ok: false, status: 422, error: NOT_A_VERSE_GROUP };
   if (group.autoTitled) {
     return { ok: true, topic: group.title, group, skipped: "already" };
   }

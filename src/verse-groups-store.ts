@@ -25,6 +25,7 @@ import {
   canonSlug,
   cleanGroupDescription,
   cleanGroupTitle,
+  NOT_A_VERSE_GROUP,
   realVerseGroups,
   verseGroupsFromNotes,
   verseMemberFromInput,
@@ -63,7 +64,15 @@ type MetaRow = {
 };
 
 export type VerseGroupActionResult =
-  | { ok: true; statusText: string; group: VerseGroupView }
+  | {
+      ok: true;
+      statusText: string;
+      group: VerseGroupView;
+      /** This action dropped the acted-on group under the link minimum. */
+      dissolved?: boolean;
+      /** A move dropped the group the chip left. */
+      sourceDissolved?: boolean;
+    }
   | { ok: false; status: 422 | 500; error: string };
 
 export async function loadVerseGroups(
@@ -145,7 +154,7 @@ async function saveVerseGroup(
   if (!ready.ok) return ready;
   await upsertVerseGroupText(db, libraryId, hub, text.title, text.description);
   const group = await groupForHub(db, libraryId, hub);
-  if (!group) return { ok: false, status: 422, error: "That verse is not a hub yet." };
+  if (!group) return { ok: false, status: 422, error: NOT_A_VERSE_GROUP };
   return { ok: true, statusText: "Saved.", group };
 }
 
@@ -166,7 +175,7 @@ async function addVerseMember(
   if (!ready.ok) return ready;
   await addUserLink(db, libraryId, parsed.slug, hub);
   const group = await groupForHub(db, libraryId, hub);
-  if (!group) return { ok: false, status: 422, error: "That verse is not a hub yet." };
+  if (!group) return { ok: false, status: 422, error: NOT_A_VERSE_GROUP };
   return { ok: true, statusText: `Attached ${parsed.label}.`, group };
 }
 
@@ -181,13 +190,13 @@ async function setVerseStar(
   const ready = await ensureHub(db, libraryId, hub);
   if (!ready.ok) return ready;
   const seen = await groupForHub(db, libraryId, hub);
-  if (!seen) return { ok: false, status: 422, error: "That verse is not a hub yet." };
+  if (!seen) return { ok: false, status: 422, error: NOT_A_VERSE_GROUP };
   if (!seen.members.some((member) => member.slug === slug)) {
     return { ok: false, status: 422, error: "That verse is not in this group." };
   }
   await upsertStar(db, libraryId, hub, seen.star === slug ? "" : slug);
   const group = await groupForHub(db, libraryId, hub);
-  if (!group) return { ok: false, status: 422, error: "That verse is not a hub yet." };
+  if (!group) return { ok: false, status: 422, error: NOT_A_VERSE_GROUP };
   return { ok: true, statusText: "", group };
 }
 
@@ -211,8 +220,8 @@ async function moveVerseMember(
   const shelf = await loadMemberShelf(db, libraryId);
   const source = shelf.groups.find((group) => group.hub === from);
   const target = shelf.groups.find((group) => group.hub === targetHub);
-  if (!source) return { ok: false, status: 422, error: "That verse is not a hub yet." };
-  if (!target) return { ok: false, status: 422, error: "That verse is not a hub yet." };
+  if (!source) return { ok: false, status: 422, error: NOT_A_VERSE_GROUP };
+  if (!target) return { ok: false, status: 422, error: NOT_A_VERSE_GROUP };
   if (!source.members.some((member) => member.slug === slug)) {
     return { ok: false, status: 422, error: "That verse is not in this group." };
   }
@@ -231,11 +240,13 @@ async function moveVerseMember(
   if (!already) rewriteUserLink(shelf.notes, slug, targetHub, "add");
   await commitMemberShelf(db, libraryId, shelf, writes);
 
-  const group = verseGroupsFromNotes(liveNotes(shelf.notes), metas).find((row) => row.hub === targetHub);
+  const groups = verseGroupsFromNotes(liveNotes(shelf.notes), metas);
+  const group = groups.find((row) => row.hub === targetHub);
   if (!group || !group.members.some((member) => member.slug === slug)) {
     return { ok: false, status: 422, error: "Could not move that verse." };
   }
-  return { ok: true, statusText: "Moved.", group };
+  const sourceDissolved = slug !== from && !groups.some((row) => row.hub === from);
+  return { ok: true, statusText: "Moved.", group, sourceDissolved };
 }
 
 /** Drop a member. Same single-read, batched-write path as a move. */
@@ -250,7 +261,7 @@ async function removeVerseMember(
   if (slug === hub) return { ok: false, status: 422, error: "That verse stays." };
   const shelf = await loadMemberShelf(db, libraryId);
   const before = shelf.groups.find((group) => group.hub === hub);
-  if (!before) return { ok: false, status: 422, error: "That verse is not a hub yet." };
+  if (!before) return { ok: false, status: 422, error: NOT_A_VERSE_GROUP };
 
   rewriteUserLink(shelf.notes, slug, hub, "remove");
   rewriteUserLink(shelf.notes, hub, slug, "remove");
@@ -268,6 +279,7 @@ async function removeVerseMember(
     return {
       ok: true,
       statusText: "Removed.",
+      dissolved: true,
       group: {
         ...before,
         members: before.members.filter((member) => member.slug !== slug),
@@ -420,7 +432,7 @@ async function addVerseGroupLinks(
   const ready = await ensureHub(db, libraryId, hub);
   if (!ready.ok) return ready;
   const before = await groupForHub(db, libraryId, hub);
-  if (!before) return { ok: false, status: 422, error: "That verse is not a hub yet." };
+  if (!before) return { ok: false, status: 422, error: NOT_A_VERSE_GROUP };
   const added: { from: string; to: string }[] = [];
   for (const pair of before.missingPairs) {
     const did = await addUserLink(db, libraryId, pair.from, pair.to);
@@ -428,7 +440,7 @@ async function addVerseGroupLinks(
   }
   if (added.length) await setUndoPairs(db, libraryId, hub, added);
   const group = await groupForHub(db, libraryId, hub);
-  if (!group) return { ok: false, status: 422, error: "That verse is not a hub yet." };
+  if (!group) return { ok: false, status: 422, error: NOT_A_VERSE_GROUP };
   const statusText =
     added.length === 0
       ? "No missing cross-links."
@@ -450,7 +462,7 @@ async function undoVerseGroupLinks(
   const meta = metas.find((row) => row.hub === hub);
   const pairs = meta?.undoPairs ?? [];
   const group = await groupForHub(db, libraryId, hub);
-  if (!group) return { ok: false, status: 422, error: "That verse is not a hub yet." };
+  if (!group) return { ok: false, status: 422, error: NOT_A_VERSE_GROUP };
   const members = new Set(group.members.map((member) => member.slug));
   let removed = 0;
   for (const pair of pairs) {
@@ -460,7 +472,7 @@ async function undoVerseGroupLinks(
   }
   await setUndoPairs(db, libraryId, hub, []);
   const next = await groupForHub(db, libraryId, hub);
-  if (!next) return { ok: false, status: 422, error: "That verse is not a hub yet." };
+  if (!next) return { ok: false, status: 422, error: NOT_A_VERSE_GROUP };
   const statusText = removed === 0 ? "Nothing to undo." : "Removed the cross-links from the last add.";
   return { ok: true, statusText, group: next };
 }
@@ -474,7 +486,7 @@ async function ensureHub(
   const notes = await listNotes(db, libraryId);
   const real = realVerseGroups(notes);
   if (real.some((group) => group.hub === hub)) return { ok: true };
-  return { ok: false, status: 422, error: "That verse is not a hub yet." };
+  return { ok: false, status: 422, error: NOT_A_VERSE_GROUP };
 }
 
 async function addUserLink(db: D1Database, libraryId: string, origin: string, target: string): Promise<boolean> {

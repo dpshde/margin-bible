@@ -17,6 +17,9 @@ import { slugLabel } from "./xref";
 
 export const FAN_IN_MIN = 2;
 export const STAR_MIN = 2;
+
+/** A verse the reader can see stopped qualifying as a verse group, or never was one. */
+export const NOT_A_VERSE_GROUP = "That verse group changed. Refresh and try again.";
 export const PAIR_FILL_CAP = 48;
 export const GROUP_TITLE_MAX = 120;
 export const GROUP_DESCRIPTION_MAX = 2_000;

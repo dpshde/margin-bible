@@ -343,6 +343,9 @@ describe("verse groups inbox", () => {
     expect(verseGroupsScript()).toContain("move-member");
     expect(verseGroupsScript()).toContain("function applyMemberMove");
     expect(verseGroupsScript()).toContain("function applyMemberRemove");
+    expect(verseGroupsScript()).toContain("function dropCard");
+    expect(verseGroupsScript()).toContain("payload.dissolved");
+    expect(verseGroupsScript()).toContain("payload.sourceDissolved");
     expect(verseGroupsScript()).toContain("opts.member");
     expect(verseGroupsScript()).not.toContain("Moving…");
     expect(verseGroupsScript()).not.toContain("Removing…");
@@ -964,11 +967,48 @@ describe("move a verse between groups", () => {
     expect(removed.ok).toBe(true);
     if (!removed.ok) return;
     expect(removed.statusText).toBe("Removed.");
+    expect(removed.dissolved).toBe(true);
     expect(removed.group.members.map((member) => member.slug)).not.toContain("jhn.1.14");
     const notes = await listNotes(db, "lib");
     const source = notes.find((note) => note.slug === "jhn.1.1");
     expect(source?.attachments.some((row) => row.slug === "jhn.1.14")).toBe(false);
     expect(source?.attachments.some((row) => row.slug === "jhn.1.3")).toBe(true);
+  });
+
+  test("moving the last extra link retires the source group", async () => {
+    const db = webLibrary();
+    const trimmed = await handleVerseGroupAction(db, "lib", {
+      action: "remove-member",
+      hub: "jhn.1.1",
+      slug: "jhn.1.4",
+    });
+    expect(trimmed.ok).toBe(true);
+    if (!trimmed.ok) return;
+    expect(trimmed.dissolved).toBeUndefined();
+    const moved = await handleVerseGroupAction(db, "lib", {
+      action: "move-member",
+      hub: "rom.8.28",
+      from: "jhn.1.1",
+      slug: "jhn.1.3",
+    });
+    expect(moved.ok).toBe(true);
+    if (!moved.ok) return;
+    expect(moved.sourceDissolved).toBe(true);
+    const groups = await loadVerseGroups(db, "lib", await listNotes(db, "lib"));
+    expect(groups.some((group) => group.hub === "jhn.1.1")).toBe(false);
+    expect(groups.find((group) => group.hub === "rom.8.28")?.members.map((member) => member.slug)).toContain("jhn.1.3");
+  });
+
+  test("a missing group tells the reader to refresh, without the word hub", async () => {
+    const db = webLibrary();
+    const missed = await handleVerseGroupAction(db, "lib", {
+      action: "set-star",
+      hub: "gen.1.1",
+      slug: "gen.1.2",
+    });
+    expect(missed.ok).toBe(false);
+    if (missed.ok) return;
+    expect(missed.error).toBe("That verse group changed. Refresh and try again.");
   });
 
   test("a warm move or remove reads the library once and writes in one wave", async () => {

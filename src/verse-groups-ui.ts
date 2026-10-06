@@ -307,6 +307,13 @@ export function verseGroupsScript(): string {
     list.appendChild(item);
   }
 
+  function dropCard(card) {
+    if (!card) return;
+    var li = card.parentNode;
+    if (li && li.tagName === "LI" && li.parentNode) li.parentNode.removeChild(li);
+    else card.remove();
+  }
+
   function cardByHub(hub) {
     var cards = panel.querySelectorAll(".verse-group");
     for (var i = 0; i < cards.length; i += 1) {
@@ -884,6 +891,8 @@ export function verseGroupsScript(): string {
         return;
       }
       if (opts && opts.member) {
+        if (payload.sourceDissolved && extra && extra.from) dropCard(cardByHub(extra.from));
+        if (payload.dissolved) dropCard(card);
         if (status) status.textContent = "";
         return;
       }
