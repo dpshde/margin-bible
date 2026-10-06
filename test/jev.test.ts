@@ -3,6 +3,7 @@ import {
   JEV_MODEL,
   TYPESAFE_SYSTEMONE_URL,
   VERSE_TOPIC_CRITERIA,
+  VERSE_TOPIC_INSTRUCTIONS,
   jevTopicRequest,
   nearestVerseTopic,
   topicFromJevBody,
@@ -19,6 +20,19 @@ describe("Jev verse topic", () => {
     expect(body.state.verses.map((verse) => verse.ref)).toEqual(["Romans 8:28", "Romans 8:39"]);
     expect(body.questions.topic.type).toBe("choice");
     expect(body.questions.topic.criteria).toBe(VERSE_TOPIC_CRITERIA);
+    expect(body.questions.topic.instructions).toBe(VERSE_TOPIC_INSTRUCTIONS);
+    expect(VERSE_TOPIC_INSTRUCTIONS).toContain("narrower");
+    const titles = Object.keys(VERSE_TOPIC_CRITERIA);
+    expect(titles.length).toBeGreaterThan(60);
+    expect(titles.length).toBeLessThanOrEqual(255);
+    expect(titles).toContain("Nothing can separate");
+    expect(titles).toContain("The Lord is my shepherd");
+    expect(titles).toContain("Poor in spirit");
+    expect(titles).toContain("Saved by grace through faith");
+    expect(titles).toContain("The Word made flesh");
+    expect(titles).not.toContain("Grace");
+    expect(titles).not.toContain("Faith");
+    expect(titles.every((title) => title.length > 0 && title.length <= 120)).toBe(true);
     expect(JSON.stringify(body)).not.toContain("pharaoh");
     expect(JSON.stringify(body)).not.toContain("jev-topics");
   });

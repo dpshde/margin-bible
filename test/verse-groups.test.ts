@@ -23,6 +23,7 @@ import {
 } from "../src/verse-groups";
 import { closestJevTopic, DEMO_VERSE_TEXTS, JEV_TOPICS } from "../src/jev-topics";
 import { previewSeedNeeded, previewSeedNotes } from "../src/preview-seed";
+import { notesInboxScript } from "../src/inbox-ui";
 import { verseGroupCardHtml, verseGroupsScript } from "../src/verse-groups-ui";
 
 function xref(slug: string, source: "manual" | "scan" | "backlink" = "manual"): Attachment {
@@ -213,6 +214,8 @@ describe("preview worker publish", () => {
     expect(workflow).not.toContain("refs/heads/main");
     expect(config).toContain('name: "margin-bible"');
     expect(config).not.toContain("margin-bible-verse-groups");
+    expect(config).not.toContain("PREVIEW_SEED");
+    expect(script).toContain('PREVIEW_SEED: bindings.text("1")');
     expect(script).not.toContain("railway");
     expect(workflow).not.toContain("railway");
     expect(existsSync(new URL("../Dockerfile", import.meta.url))).toBe(false);
@@ -300,11 +303,21 @@ describe("verse groups inbox", () => {
     expect(controls).toContain('.verse-group .verse-star[aria-pressed="true"] {\n        visibility: visible;\n        opacity: 1;');
     expect(controls).toContain("width: 1.35rem;\n      height: 1.35rem;\n      min-width: 1.35rem;");
     expect(controls).toContain("@media (hover: none), (pointer: coarse)");
+    expect(css).toContain('font-family: "Phosphor-Fill"');
+    expect(css).toContain('.ph-fill.ph-sparkle:before { content: "\\e6a2"; }');
+    expect(css).toContain(".verse-group-topic.is-set { color: var(--ink); cursor: default; }");
     expect(css).not.toContain(".att-chip.is-star");
     expect(css).toContain("outline: none;");
     expect(css).toContain("background: transparent;");
     expect(verseGroupsScript()).toContain("is-collapsed-hover");
     expect(verseGroupsScript()).toContain("set-star");
+    expect(verseGroupsScript()).toContain("ph-fill ph-sparkle");
+    expect(verseGroupsScript()).toContain('data-topic-set');
+    expect(verseGroupsScript()).toContain("setTopicLocked(card, false)");
+    expect(verseGroupsScript()).toContain("preloadMembers");
+    expect(verseGroupsScript()).toContain("__marginPreloadHrefs");
+    expect(notesInboxScript()).toContain("window.__marginPreloadHrefs = preloadHrefs");
+    expect(notesInboxScript()).toContain('a.classList?.contains("att-chip") && a.classList?.contains("wiki")');
     expect(verseGroupsScript()).toContain('typeof payload.star === "string"');
     expect(verseGroupsScript()).toContain("items[j] !== starred");
     expect(verseGroupsScript()).toContain("suggest-title");

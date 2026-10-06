@@ -239,6 +239,7 @@ export function verseGroupsScript(): string {
     if (!card || card.getAttribute("data-busy") === "1") return;
     if (target.closest("[data-vg-topic]")) {
       event.preventDefault();
+      if (card.getAttribute("data-topic-set") === "1") return;
       post(card, "suggest-title", null, { topic: true });
       return;
     }
@@ -270,6 +271,7 @@ export function verseGroupsScript(): string {
     if (!card || !card.classList || !card.classList.contains("verse-group")) return;
     if (card.open) {
       card.classList.remove("is-collapsed-hover");
+      preloadMembers(card);
       return;
     }
     var summary = card.querySelector("summary");
@@ -281,12 +283,17 @@ export function verseGroupsScript(): string {
     }, { once: true });
   }, true);
 
+  var openGroups = panel.querySelectorAll(".verse-group[open]");
+  for (var openIndex = 0; openIndex < openGroups.length; openIndex += 1) preloadMembers(openGroups[openIndex]);
+
   panel.addEventListener("input", function (event) {
     var target = event.target;
     if (!target || !target.closest) return;
     if (target.name !== "title" && target.name !== "description") return;
     var card = target.closest(".verse-group");
-    if (card) scheduleSave(card);
+    if (!card) return;
+    if (target.name === "title") setTopicLocked(card, false);
+    scheduleSave(card);
   });
 
   panel.addEventListener("focusout", function (event) {
@@ -309,6 +316,37 @@ export function verseGroupsScript(): string {
     if (card._saveTimer) { clearTimeout(card._saveTimer); card._saveTimer = 0; }
     post(card, "save", null, { quiet: true });
   });
+
+  function setTopicLocked(card, locked) {
+    if (!card) return;
+    var button = card.querySelector("[data-vg-topic]");
+    if (!button) return;
+    var icon = button.querySelector("i");
+    if (locked) {
+      card.setAttribute("data-topic-set", "1");
+      button.classList.add("is-set");
+      button.setAttribute("aria-disabled", "true");
+      if (icon) icon.className = "ph-fill ph-sparkle";
+    } else {
+      card.removeAttribute("data-topic-set");
+      button.classList.remove("is-set");
+      button.removeAttribute("aria-disabled");
+      if (icon) icon.className = "ph ph-sparkle";
+    }
+  }
+
+  function preloadMembers(card) {
+    if (!card || !card.open) return;
+    var preload = window.__marginPreloadHrefs;
+    if (typeof preload !== "function") return;
+    var links = card.querySelectorAll("a.att-chip.wiki[href]");
+    var hrefs = [];
+    for (var i = 0; i < links.length; i += 1) {
+      var href = links[i].getAttribute("href");
+      if (href) hrefs.push(href);
+    }
+    if (hrefs.length) preload(hrefs);
+  }
 
   function scheduleSave(card) {
     if (card._saveTimer) clearTimeout(card._saveTimer);
@@ -520,7 +558,10 @@ export function verseGroupsScript(): string {
       }
       if (opts && opts.topic) {
         var titleInput = card.querySelector("input[name=title]");
-        if (titleInput && payload.topic) titleInput.value = payload.topic;
+        if (titleInput && payload.topic) {
+          titleInput.value = payload.topic;
+          setTopicLocked(card, true);
+        }
         paintTitle(card);
         card.removeAttribute("data-busy");
         if (status) status.textContent = "";

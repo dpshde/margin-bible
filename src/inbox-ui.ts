@@ -748,13 +748,19 @@ export function notesInboxScript(): string {
       location.href = href;
     }
   }
+  function preloadHrefs(hrefs) {
+    if (!hrefs || !hrefs.forEach) return;
+    hrefs.forEach((href) => prefetchChapter(href, { priority: "low" }));
+  }
   window.__marginPrefetchChapter = prefetchSearchChapter;
   window.__marginSoftNav = softNavTo;
+  window.__marginPreloadHrefs = preloadHrefs;
 
   function isInboxChapterLink(a) {
     if (!a || !a.href) return false;
     // note-row (recent + Older chapter rows), starter chips, chapter-grid cells, reader back icon.
     if (a.classList?.contains("note-row")) return true;
+    if (a.classList?.contains("att-chip") && a.classList?.contains("wiki") && a.closest?.(".verse-group")) return true;
     if (a.classList?.contains("note-bundle-name") || a.classList?.contains("note-bundle-verse") || a.classList?.contains("note-bundle-open")) return true;
     if (a.classList?.contains("starter-chip")) return true;
     if (a.classList?.contains("chapter-grid-cell") || a.hasAttribute("data-chapter-nav")) return true;
