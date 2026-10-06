@@ -563,6 +563,9 @@ describe("search list stays on screen", () => {
     expect(sheet).toContain("@media (max-width: 767px)");
     expect(sheet).toContain("padding: 0");
     expect(sheet).toContain("border-radius: 0");
+    expect(sheet).toContain("top: 0; right: 0; bottom: 0; left: 0;");
+    expect(sheet).toContain(".search-modal-bar::after");
+    expect(sheet).toContain("content: none");
     expect(sheet).toContain("env(safe-area-inset-top, 0px)");
     expect(sheet).toContain("env(safe-area-inset-bottom, 0px)");
     expect(sheet).toContain(".search-modal-results");

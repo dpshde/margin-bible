@@ -738,13 +738,18 @@ export function page(title: string, body: string): string {
     }
     @media (max-width: 767px) {
       .search-modal {
+        top: 0; right: 0; bottom: 0; left: 0;
+        width: auto; height: auto; margin: 0;
         align-items: stretch; justify-content: flex-start;
         padding: 0;
       }
       .search-modal-panel {
         position: absolute; inset: 0;
-        width: auto; height: auto; max-height: none;
-        border-radius: 0;
+        width: auto; height: auto; max-width: none; max-height: none;
+        margin: 0; border: 0; border-radius: 0;
+      }
+      .search-modal-form:has(.search-modal-list:not([hidden])) .search-modal-bar::after {
+        content: none;
       }
       .search-modal-form { height: 100%; max-height: none; }
       .search-modal-bar {
@@ -1378,7 +1383,13 @@ export function page(title: string, body: string): string {
       html:has(.bookmarks-view[open]) { overflow: hidden; }
       .bookmarks-view[open] > .notes-sheet {
         position: fixed;
-        inset: 0;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        left: 0;
+        width: auto;
+        height: auto;
+        margin: 0;
         z-index: 70;
       }
       .notes-sheet-backdrop {
@@ -1396,15 +1407,18 @@ export function page(title: string, body: string): string {
         left: 0;
         right: 0;
         bottom: 0;
+        width: auto;
+        margin: 0;
         display: flex;
         flex-direction: column;
         max-height: min(78dvh, calc(100dvh - var(--safe-top) - .5rem));
         overflow: auto;
         overscroll-behavior: contain;
         background: var(--paper);
-        border-radius: 1rem 1rem 0 0;
+        border: 0;
+        border-radius: 0;
         padding: 0 .9rem calc(1rem + var(--safe-bottom));
-        box-shadow: 0 -.4rem 1.4rem rgb(0 0 0 / .16);
+        box-shadow: none;
       }
       .notes-sheet-handle {
         display: flex;

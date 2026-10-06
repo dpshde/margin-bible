@@ -79,6 +79,10 @@ describe("phone chapter sheet and verse-group description", () => {
     expect(notes).toContain("dy >= 72");
     const css = notes;
     expect(css).toContain(".bookmarks-view[open] > .notes-sheet");
+    const notesSheet = css.slice(css.indexOf(".bookmarks-view[open] > .notes-sheet"), css.indexOf(".notes-sheet-handle {"));
+    expect(notesSheet).toContain("top: 0;");
+    expect(notesSheet).toContain("bottom: 0;");
+    expect(notesSheet).toContain("border-radius: 0;");
     expect(css).toContain("html:has(.bookmarks-view[open]) .search-fab");
     expect(css).toContain("html:has(.bookmarks-view[open]) { overflow: hidden; }");
   });
