@@ -1741,7 +1741,8 @@ export function page(title: string, body: string): string {
     .verse-group .att-chip {
       border: 0;
       background: transparent;
-      padding: .1rem .12rem .1rem .38rem;
+      /* Even side padding while the star and remove mark are collapsed. */
+      padding: .1rem .42rem .1rem .38rem;
       font-size: .78rem;
       font-weight: 600;
     }
@@ -1753,9 +1754,10 @@ export function page(title: string, body: string): string {
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      width: 1.35rem;
+      /* Collapsed until a star is on, or the chip is hovered. Empty icon slots stay out of the pill. */
+      width: 0;
+      min-width: 0;
       height: 1.35rem;
-      min-width: 1.35rem;
       min-height: 1.35rem;
       margin: 0;
       padding: 0;
@@ -1763,14 +1765,23 @@ export function page(title: string, body: string): string {
       border-radius: 999px;
       background: transparent;
       color: var(--faint);
+      overflow: hidden;
       visibility: hidden;
       opacity: 0;
       cursor: pointer;
-      /* Width stays put. Hover only fades the controls, so siblings and the paperclip do not reflow. */
+      /* Width snaps to the reserved size. Only the icon fades, so the row does not ease-shove. */
       transition: opacity .12s ease, color .12s ease;
     }
     @media (hover: hover) and (pointer: fine) {
+      .verse-group .att-item:has(.verse-star[aria-pressed="true"]) .att-chip,
+      .verse-group .att-item:hover .att-chip,
+      .verse-group .att-item:focus-within .att-chip {
+        padding-right: .12rem;
+      }
       .verse-group .verse-star[aria-pressed="true"] {
+        width: 1.35rem;
+        min-width: 1.35rem;
+        overflow: visible;
         visibility: visible;
         opacity: 1;
       }
@@ -1780,6 +1791,9 @@ export function page(title: string, body: string): string {
       .verse-group .att-item:focus-within .att-remove,
       .verse-group .verse-star:focus-visible,
       .verse-group .att-remove:focus-visible {
+        width: 1.35rem;
+        min-width: 1.35rem;
+        overflow: visible;
         visibility: visible;
         opacity: 1;
       }
@@ -1863,6 +1877,9 @@ export function page(title: string, body: string): string {
       .verse-group .att-remove {
         visibility: visible;
         opacity: 1;
+        width: 1.7rem;
+        min-width: 1.7rem;
+        overflow: visible;
       }
       .verse-group-verses .tray-attach {
         align-self: flex-start;
