@@ -272,7 +272,9 @@ describe("verse groups inbox", () => {
     );
     expect(titleRule).not.toContain("paper-raised");
     expect(css).toContain("background: color-mix(in srgb, var(--ink) 8%, transparent);");
-    expect(css).toContain(".verse-group-description > summary {\n      cursor: pointer;\n      color: var(--faint);");
+    expect(css).toContain("textarea.verse-group-description::placeholder {\n      color: var(--faint);");
+    expect(css).toContain("textarea.verse-group-description:focus,\n    .verse-group-form textarea.verse-group-description:not(:placeholder-shown)");
+    expect(css).not.toContain(".verse-group-description > summary");
     expect(css).not.toContain(".verse-group-optional");
     const coarse = css.slice(css.indexOf("@media (hover: none), (pointer: coarse)"));
     const verseChip = coarse.slice(coarse.indexOf(".verse-group .att-chip"));
@@ -314,7 +316,8 @@ describe("verse groups inbox", () => {
     expect(html).toContain(">Romans 8:28</span>");
     expect(html).toContain('value=""');
     expect(html).toContain('placeholder="Title"');
-    expect(html).toContain(">Description</summary>");
+    expect(html).toContain('placeholder="Description"');
+    expect(html).not.toContain(">Description</summary>");
     expect(html).toContain('class="verse-group-hub">Romans 8:28</span>');
     expect(html).not.toContain("verse-group-optional");
     expect(html).not.toContain(">optional<");
@@ -357,7 +360,9 @@ describe("verse groups inbox", () => {
     expect(html).toContain("data-sample=\"0\"");
     expect(html).not.toContain("<script>alert");
     expect(html).toContain("&lt;script&gt;");
-    expect(html).toContain('class="verse-group-description" open');
+    expect(html).toContain('class="verse-group-description"');
+    expect(html).toContain(">purpose</textarea>");
+    expect(html).not.toContain(">Description</summary>");
     expect(html).not.toContain("verse-group-save");
     expect(html).not.toContain(">Save</button>");
     expect(html).not.toContain("Save sample");

@@ -1325,19 +1325,6 @@ export function page(title: string, body: string): string {
       padding: .05rem 0 .05rem .55rem;
       border-left: 1px solid color-mix(in srgb, var(--ink) 15%, transparent);
     }
-    .verse-group-description {
-      margin: 0;
-      border-radius: .35rem;
-      background: color-mix(in srgb, var(--ink) 8%, transparent);
-    }
-    .verse-group-description > summary {
-      cursor: pointer;
-      color: var(--faint);
-      font: 400 .78rem/1.3 var(--sans);
-      list-style: none;
-      padding: .4rem .55rem;
-    }
-    .verse-group-description > summary::-webkit-details-marker { display: none; }
     .verse-group-form input,
     .verse-group-form textarea {
       width: 100%;
@@ -1358,11 +1345,25 @@ export function page(title: string, body: string): string {
       color: var(--ink-soft);
       font-weight: 500;
     }
-    .verse-group-form textarea {
-      resize: vertical;
-      font-size: .92rem;
-      font-weight: 400;
+    .verse-group-form textarea.verse-group-description {
+      display: block;
+      resize: none;
+      overflow: hidden;
+      border-radius: .35rem;
+      background: color-mix(in srgb, var(--ink) 8%, transparent);
       color: var(--ink-soft);
+      font: 400 .92rem/1.4 var(--sans);
+      padding: .35rem .55rem;
+      min-height: 1.85rem;
+    }
+    .verse-group-form textarea.verse-group-description::placeholder {
+      color: var(--faint);
+      font-weight: 400;
+      font-size: .78rem;
+    }
+    .verse-group-form textarea.verse-group-description:focus,
+    .verse-group-form textarea.verse-group-description:not(:placeholder-shown) {
+      min-height: 4.2rem;
     }
     .verse-group-verses {
       display: flex;

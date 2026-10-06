@@ -19,16 +19,12 @@ export function verseGroupCardHtml(group: VerseGroupView, status = ""): string {
   const saved = group.title.trim();
   const rowTitle = saved || group.hubLabel;
   const excerpt = saved && saved !== group.hubLabel ? group.hubLabel : "";
-  const descriptionOpen = group.description.trim() ? " open" : "";
   return `<details class="verse-group" data-hub="${escapeHtml(group.hub)}" data-hub-label="${escapeHtml(group.hubLabel)}" data-sample="${group.sample ? "1" : "0"}" data-seed="${group.seed ? "1" : "0"}">
   <summary class="note-row"><span class="note-row-title">${escapeHtml(rowTitle)}</span>${excerpt ? `<span class="note-row-excerpt">${escapeHtml(excerpt)}</span>` : ""}<span class="verse-group-hub">${escapeHtml(group.hubLabel)}</span></summary>
   <form class="verse-group-form">
     <div class="verse-group-fields">
       <input id="vg-title-${field}" name="title" value="${escapeHtml(saved)}" placeholder="Title" maxlength="120" autocomplete="off" aria-label="Title">
-      <details class="verse-group-description"${descriptionOpen}>
-        <summary>Description</summary>
-        <textarea id="vg-description-${field}" name="description" rows="2" maxlength="2000" aria-label="Description">${escapeHtml(group.description)}</textarea>
-      </details>
+      <textarea id="vg-description-${field}" class="verse-group-description" name="description" rows="1" maxlength="2000" placeholder="Description" aria-label="Description">${escapeHtml(group.description)}</textarea>
     </div>
     <div class="verse-group-verses">
       <ul class="att-board">${chips}</ul>
@@ -256,14 +252,27 @@ export function verseGroupsScript(): string {
     var target = event.target;
     if (!target || !target.closest) return;
     if (target.name !== "title" && target.name !== "description") return;
+    if (target.name === "description") fitDescription(target);
     var card = target.closest(".verse-group");
     if (card) scheduleSave(card);
   });
+
+  panel.addEventListener("focusin", function (event) {
+    var target = event.target;
+    if (target && target.name === "description") fitDescription(target);
+  });
+
+  panel.addEventListener("toggle", function (event) {
+    var card = event.target;
+    if (!card || !card.classList || !card.classList.contains("verse-group") || !card.open) return;
+    fitDescription(card.querySelector("textarea[name=description]"));
+  }, true);
 
   panel.addEventListener("focusout", function (event) {
     var target = event.target;
     if (!target || !target.closest) return;
     if (target.name !== "title" && target.name !== "description") return;
+    if (target.name === "description") fitDescription(target);
     var card = target.closest(".verse-group");
     if (!card || !card._saveTimer) return;
     clearTimeout(card._saveTimer);
@@ -280,6 +289,19 @@ export function verseGroupsScript(): string {
     if (card._saveTimer) { clearTimeout(card._saveTimer); card._saveTimer = 0; }
     post(card, "save", null, { quiet: true });
   });
+
+  function fitDescription(el) {
+    if (!el || el.name !== "description") return;
+    var open = document.activeElement === el || String(el.value || "").length > 0;
+    if (!open) {
+      el.style.height = "";
+      return;
+    }
+    if (!el.offsetParent) return;
+    el.style.height = "auto";
+    var next = el.scrollHeight;
+    if (next > 0) el.style.height = next + "px";
+  }
 
   function scheduleSave(card) {
     if (card._saveTimer) clearTimeout(card._saveTimer);
