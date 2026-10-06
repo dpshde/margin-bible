@@ -26,6 +26,7 @@ describe("inbox side rails", () => {
   test("keeps week sections and bookmark rows lightly encapsulated", () => {
     expect(css).toContain("border-left: 1px solid color-mix(in srgb, var(--ink) 15%, transparent);");
     expect(css).toContain("border-right: 1px solid color-mix(in srgb, var(--ink) 15%, transparent);");
+    expect(css).toContain(".note-week {\n      margin: 0;\n      border-left: 1px solid color-mix(in srgb, var(--ink) 15%, transparent);\n      border-right: 1px solid color-mix(in srgb, var(--ink) 15%, transparent);\n      border-bottom: 1px solid color-mix(in srgb, var(--ink) 15%, transparent);");
     expect(css).toContain(".note-week {");
     expect(css).toContain("not a stack of cards");
     expect(css).not.toContain(".bookmarks-panel .note-list {\n      padding-inline: .45rem;");

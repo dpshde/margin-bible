@@ -1431,6 +1431,7 @@ export function page(title: string, body: string): string {
       margin: 0;
       border-left: 1px solid color-mix(in srgb, var(--ink) 15%, transparent);
       border-right: 1px solid color-mix(in srgb, var(--ink) 15%, transparent);
+      border-bottom: 1px solid color-mix(in srgb, var(--ink) 15%, transparent);
     }
     .note-week:last-child { margin-bottom: 1.5rem; }
     /* Filled inverted bars make THIS WEEK / LAST WEEK / OLDER read as dividers. */
@@ -1782,6 +1783,7 @@ export function page(title: string, body: string): string {
     }
     @media (hover: hover) and (pointer: fine) {
       .verse-group .att-chip { padding-right: .42rem; }
+      .verse-group .att-item:has(.verse-star[aria-pressed="true"]) .att-chip,
       .verse-group .att-item:hover .att-chip,
       .verse-group .att-item:focus-within .att-chip { padding-right: .12rem; }
       .verse-group .verse-star,
@@ -1789,6 +1791,13 @@ export function page(title: string, body: string): string {
         width: 0;
         min-width: 0;
         overflow: hidden;
+      }
+      .verse-group .verse-star[aria-pressed="true"] {
+        width: 1.35rem;
+        min-width: 1.35rem;
+        overflow: visible;
+        visibility: visible;
+        opacity: 1;
       }
       .verse-group .att-item:hover .verse-star,
       .verse-group .att-item:hover .att-remove,
