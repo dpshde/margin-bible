@@ -1279,12 +1279,159 @@ export function page(title: string, body: string): string {
         background: var(--paper-raised);
       }
     }
+    /* Verse groups use the same soft-wash control as Bookmarks.
+       A web collapses to a bookmark row and opens onto its chips. */
+    .verse-group { margin: 0; }
+    .verse-group > summary.note-row {
+      width: 100%;
+      cursor: pointer;
+      list-style: none;
+    }
+    .verse-group > summary.note-row::-webkit-details-marker { display: none; }
+    .verse-group > summary.note-row::marker { content: ""; }
+    /* Closed, the row stays a bookmark. Open, the same indent inverts ink
+       and paper, with less vertical padding than the tap-height row. */
+    .verse-group-hub { display: none; }
+    .verse-group[open] > summary.note-row {
+      background: var(--ink);
+      color: var(--paper);
+      align-items: center;
+      min-height: 0;
+      padding: .42rem .7rem;
+    }
+    .verse-group[open] > summary .note-row-title,
+    .verse-group[open] > summary .note-row-excerpt {
+      color: var(--paper);
+    }
+    /* Open fill wins over bookmark hover, focus, and the collapse wash. */
+    .bookmarks-panel .note-list .verse-group[open] > summary.note-row,
+    .bookmarks-panel .note-list .verse-group[open] > summary.note-row:hover,
+    .bookmarks-panel .note-list .verse-group[open] > summary.note-row:focus,
+    .bookmarks-panel .note-list .verse-group[open] > summary.note-row:focus-visible {
+      background: var(--ink);
+      color: var(--paper);
+      outline: none;
+    }
+    .bookmarks-panel .note-list .verse-group[open] > summary .note-row-title,
+    .bookmarks-panel .note-list .verse-group[open] > summary .note-row-excerpt {
+      color: var(--paper);
+    }
+    /* Collapse leaves the pointer on the summary. Hold the closed look
+       until the pointer actually leaves and comes back. Never while open. */
+    .bookmarks-panel .note-list .verse-group.is-collapsed-hover:not([open]) > summary.note-row,
+    .bookmarks-panel .note-list .verse-group.is-collapsed-hover:not([open]) > summary.note-row:hover,
+    .bookmarks-panel .note-list .verse-group.is-collapsed-hover:not([open]) > summary.note-row:focus,
+    .bookmarks-panel .note-list .verse-group.is-collapsed-hover:not([open]) > summary.note-row:focus-visible {
+      background: transparent;
+      outline: none;
+    }
+    .verse-group-form { display: flex; flex-direction: column; gap: .4rem; margin: 0; padding: .4rem .55rem .25rem; }
+    .verse-group-fields {
+      display: flex;
+      flex-direction: column;
+      gap: .15rem;
+      margin: 0 0 0 .2rem;
+      padding: 0 0 .05rem .5rem;
+      border-left: 1px solid color-mix(in srgb, var(--ink) 15%, transparent);
+    }
+    .verse-group-form input,
+    .verse-group-form textarea {
+      width: 100%;
+      margin: 0;
+      padding: .45rem .55rem;
+      border: 0;
+      border-radius: .4rem;
+      background: transparent;
+      color: var(--ink);
+      font: 400 1rem/1.4 var(--sans);
+    }
+    .verse-group-title-field { position: relative; }
+    .verse-group-form input[name="title"] {
+      font-weight: 600;
+      font-size: 1.02rem;
+      line-height: 1.3;
+      padding: .2rem 1.7rem .2rem .15rem;
+    }
+    @font-face {
+      font-family: "Phosphor";
+      src: url("data:font/woff2;base64,d09GMgABAAAAAAIYAA0AAAAABFQAAAHJAAIZmgAAAAAAAAAAAAAAAAAAAAAAAAAAGxAcGgZgADQRCAqCWIJTATYCJAMGCwYABCAFgSoHIBtiAyCeBc55i6jIlUzoqpMf/IJH3cfDf/u1+2ZmdxHzJNbwSttMo3IoYRuRbKlaiGSieCKk///vN+/DPeKJ1EjiyT2RiOKedXL6figrfavkF89DA/wvDZy8xcOJfiYTHOlstJ4Pw6IPnxc0ocCyn/IoDCTtAku36ZLYF4uleLUr0KFLD5DXjBgTF85MDCgAcq5QHWqka9wPruyw+LMTVGL1Ucefyx3cd99wnHkbEJCfwJwZJGQMyQJDijkURfC5LD5+HCAQonoLJFBQcAncAVAAZVmiUuXM5uGxo3gbGzIa13uty/KwyTQ4dJaek6MWy+4U+evKiLHdHgqjudsdCbOl1xsNi6nTGQ6TPX/qRJ0RqHQQUGvfgTpQ8RgoOpzVjMmJrbMXdi3m+hcKSDrwLnZ1nD0cQmhE/svOglrz5fJFAyf8pukciEqw74p9zrrlTDg+PnmXnH0Rzs3lxXkAgTQ+LN8fPmP/R6EX8KphDOzBd9UTAeUntEkg+GdPUYlTkPCbKHAMIcU5MEGivYZTeFHaMcWThj5TNOmxWs+tegGtGbEr6kg3BcSlJez7KVIn3OJi0u0xPS+/rAhnAZhDKWlBAx+X2rZuSyY=") format("woff2");
+      font-weight: normal;
+      font-style: normal;
+      font-display: block;
+    }
+    .ph {
+      font-family: "Phosphor" !important;
+      font-style: normal;
+      font-weight: normal;
+      line-height: 1;
+      letter-spacing: 0;
+      -webkit-font-smoothing: antialiased;
+    }
+    .ph.ph-sparkle:before { content: "\\e6a2"; }
+    .verse-group-topic .ph { font-size: 1.05rem; }
+    .verse-group-topic {
+      position: absolute;
+      right: 0;
+      top: 0;
+      bottom: 0;
+      width: 1.6rem;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0;
+      padding: 0;
+      border: 0;
+      background: transparent;
+      color: var(--faint);
+      cursor: pointer;
+    }
+    .verse-group-topic:hover,
+    .verse-group-topic:focus-visible { color: var(--ink); }
+    .verse-group[data-busy] .verse-group-topic { opacity: .45; }
+    .verse-group-form input[name="title"]::placeholder {
+      color: var(--ink-soft);
+      font-weight: 500;
+    }
+    .verse-group-form textarea.verse-group-description {
+      display: block;
+      resize: vertical;
+      overflow: auto;
+      border-radius: .35rem;
+      background: color-mix(in srgb, var(--ink) 8%, transparent);
+      color: var(--ink-soft);
+      font: 400 .88rem/1.35 var(--sans);
+      padding: .32rem .5rem;
+      min-height: 1.85rem;
+    }
+    .verse-group-form textarea.verse-group-description::placeholder {
+      color: var(--faint);
+      font-weight: 400;
+      font-size: .78rem;
+    }
+    .verse-group-verses {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: .25rem .3rem;
+      padding-left: .15rem;
+    }
+    .verse-group-verses .att-board { flex: 1 1 auto; margin: 0; gap: .28rem; }
+    .verse-group-verses .tray-attach {
+      color: var(--ink-soft);
+      width: 2rem;
+      height: 2rem;
+      min-width: 2rem;
+      min-height: 2rem;
+    }
+    .verse-group-status { margin: 0; color: var(--muted); font-size: .8rem; font-weight: 400; }
+    .verse-group-status:empty { display: none; }
     /* Light side rails make each week one frame, not a stack of cards.
        Weeks stack flush so the rails do not break into a borderless gap. */
     .note-week {
       margin: 0;
       border-left: 1px solid color-mix(in srgb, var(--ink) 15%, transparent);
       border-right: 1px solid color-mix(in srgb, var(--ink) 15%, transparent);
+      border-bottom: 1px solid color-mix(in srgb, var(--ink) 15%, transparent);
     }
     .note-week:last-child { margin-bottom: 1.5rem; }
     /* Filled inverted bars make THIS WEEK / LAST WEEK / OLDER read as dividers. */
@@ -1292,13 +1439,12 @@ export function page(title: string, body: string): string {
       display: flex; align-items: center;
       margin: 0; padding: .35rem .55rem;
       border-radius: 0;
+      border-bottom: 1px solid color-mix(in srgb, var(--paper) 28%, transparent);
       background: var(--ink); color: var(--paper);
       font: 700 .7rem/1.3 var(--sans);
       letter-spacing: .08em; text-transform: uppercase;
     }
     .note-list { list-style: none; padding: 0; margin: 0; }
-    .note-list li { border-top: 1px solid var(--line); }
-    .note-week .note-list li:first-child { border-top: 0; }
     .note-list .note-row {
       display: flex; align-items: baseline; gap: .5rem; min-width: 0;
       padding: .95rem .7rem; overflow: hidden; text-decoration: none;
@@ -1590,24 +1736,116 @@ export function page(title: string, body: string): string {
     @media (hover: none), (pointer: coarse) {
       /* Touch still gets a tap target, but it stays quiet inside the pill. */
       .att-remove { visibility: visible; opacity: .72; }
+      .verse-group .att-chip {
+        max-width: none;
+        font-size: .84rem;
+      }
     }
     .att-remove:focus-visible { visibility: visible; opacity: 1; color: var(--ink); background: var(--paper-raised); }
     .att-remove svg { display: block; width: .7rem; height: .7rem; }
+    /* Star and remove share the trailing edge of one quiet pill. */
+    .verse-group .att-item {
+      gap: 0;
+      padding: .06rem .1rem .06rem .08rem;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: var(--paper-raised);
+    }
+    .verse-group .att-item:hover { border-color: color-mix(in srgb, var(--ink) 28%, transparent); }
+    .verse-group .att-chip {
+      border: 0;
+      background: transparent;
+      padding: .1rem .12rem .1rem .38rem;
+      font-size: .78rem;
+      font-weight: 600;
+    }
+    .verse-group .att-chip:hover { border-color: transparent; background: transparent; }
+    .verse-group .verse-star,
+    .verse-group .att-remove {
+      position: static;
+      transform: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 1.35rem;
+      height: 1.35rem;
+      min-width: 1.35rem;
+      min-height: 1.35rem;
+      margin: 0;
+      padding: 0;
+      border: 0;
+      border-radius: 999px;
+      background: transparent;
+      color: var(--faint);
+      visibility: hidden;
+      opacity: 0;
+      cursor: pointer;
+      transition: width .12s ease, min-width .12s ease, opacity .12s ease, color .12s ease;
+    }
+    @media (hover: hover) and (pointer: fine) {
+      .verse-group .att-chip { padding-right: .42rem; }
+      .verse-group .att-item:has(.verse-star[aria-pressed="true"]) .att-chip,
+      .verse-group .att-item:hover .att-chip,
+      .verse-group .att-item:focus-within .att-chip { padding-right: .12rem; }
+      .verse-group .verse-star,
+      .verse-group .att-remove {
+        width: 0;
+        min-width: 0;
+        overflow: hidden;
+      }
+      .verse-group .verse-star[aria-pressed="true"] {
+        width: 1.35rem;
+        min-width: 1.35rem;
+        overflow: visible;
+        visibility: visible;
+        opacity: 1;
+      }
+      .verse-group .att-item:hover .verse-star,
+      .verse-group .att-item:hover .att-remove,
+      .verse-group .att-item:focus-within .verse-star,
+      .verse-group .att-item:focus-within .att-remove,
+      .verse-group .verse-star:focus-visible,
+      .verse-group .att-remove:focus-visible {
+        width: 1.35rem;
+        min-width: 1.35rem;
+        overflow: visible;
+        visibility: visible;
+        opacity: 1;
+      }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .verse-group .verse-star,
+      .verse-group .att-remove { transition: none; }
+    }
+    .verse-group .verse-star svg,
+    .verse-group .att-remove svg { display: block; width: .72rem; height: .72rem; }
+    .verse-group .verse-star[aria-pressed="true"] { color: #b0893e; }
+    .verse-group .verse-star:hover,
+    .verse-group .att-remove:hover,
+    .verse-group .verse-star:focus-visible,
+    .verse-group .att-remove:focus-visible { color: var(--ink); background: transparent; }
+    .verse-group .verse-star[aria-pressed="true"]:hover,
+    .verse-group .verse-star[aria-pressed="true"]:focus-visible { color: #b0893e; }
+    @media (hover: none), (pointer: coarse) {
+      .verse-group .att-chip { font-size: .84rem; }
+      .verse-group .verse-star,
+      .verse-group .att-remove {
+        visibility: visible;
+        opacity: 1;
+        width: 1.7rem;
+        height: 1.7rem;
+        min-width: 1.7rem;
+        min-height: 1.7rem;
+      }
+      .verse-group .verse-star svg,
+      .verse-group .att-remove svg { width: .85rem; height: .85rem; }
+    }
     a.wiki {
       color: var(--ink-soft); text-decoration: underline;
       text-decoration-thickness: 1px; text-underline-offset: .15em;
       text-decoration-color: color-mix(in srgb, var(--ink) 28%, transparent);
     }
     a.wiki:hover { color: var(--ink); }
-    .verse.is-xref .vtext {
-      background: color-mix(in srgb, var(--ink) 7%, transparent);
-      border-radius: .08em; padding: .02em .08em;
-      box-decoration-break: clone; -webkit-box-decoration-break: clone;
-    }
-    .verse.is-xref .vnum { color: var(--ink-soft); }
-    .verse.is-xref {
-      border-left: 2px solid color-mix(in srgb, var(--ink) 32%, transparent);
-    }
     .att-drop {
       width: min(36rem, calc(100vw - 1.5rem));
       max-width: 100%; padding: 0; border: 0; background: transparent;

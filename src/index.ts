@@ -40,6 +40,10 @@ import {
 } from "./passkeys";
 import { chapterSlug, createPassage, lazyChapterNotes, parsePassage, passageLabel, passageSlug, type Passage } from "./passage";
 import { renderChapterPage, renderMissing, renderNotesIndex } from "./reader-page";
+import { seedPreviewVerseGroups } from "./preview-seed";
+import { handleVerseGroupAction, loadVerseGroups } from "./verse-groups-store";
+import { suggestVerseGroupTopic } from "./verse-topic";
+import { verseGroupCardHtml } from "./verse-groups-ui";
 import type { ChapterPack } from "./usj";
 import { ensureBidirectionalXrefs, syncBidirectionalXrefs } from "./xref-sync";
 import { handleMcpDelete, handleMcpGet, handleMcpOptions, handleMcpPost } from "./mcp";
@@ -63,6 +67,10 @@ export type Env = {
   HIDDEN_ARROW_BASE_URL?: string;
   /** Server-only Hidden Arrow search key. Never sent to the browser. */
   HIDDEN_ARROW_SEARCH_KEY?: string;
+  /** Server-only TypeSafe Jev key. Bearer token for POST /v1/systemone. Never sent to the browser. */
+  TYPESAFE_API_KEY?: string;
+  /** Preview worker only. Guest libraries with no web get a few real hubs. */
+  PREVIEW_SEED?: string;
 };
 
 type Variables = {
@@ -131,7 +139,7 @@ app.use("*", async (c, next) => {
   }
 });
 
-app.get("/health", (c) => c.json({ ok: true, app: "margin-bible", version: "2026.10.02.26" }));
+app.get("/health", (c) => c.json({ ok: true, app: "margin-bible", version: "2026.10.06.21" }));
 
 app.get("/manifest.webmanifest", () => manifestResponse());
 app.get("/manifest.json", () => manifestResponse());
@@ -421,15 +429,50 @@ app.get("/notes", async (c) => {
       .prepare("SELECT last_read_slug FROM libraries WHERE id = ?")
       .bind(libraryId)
       .first<{ last_read_slug: string | null }>(),
-    listNotes(c.env.DB, libraryId),
+    notesForInbox(c),
   ]);
+  const verseGroups = await loadVerseGroups(c.env.DB, libraryId, notes);
   return c.html(
     renderNotesIndex(notes, safeBack(library?.last_read_slug || "jhn.1"), {
       signedIn: c.get("signedIn"),
+      verseGroups,
     }),
     200,
     { "cache-control": "private, no-store" },
   );
+});
+
+app.get("/api/verse-groups", async (c) => {
+  const libraryId = c.get("libraryId");
+  const notes = await notesForInbox(c);
+  const groups = await loadVerseGroups(c.env.DB, libraryId, notes);
+  c.header("cache-control", "private, no-store");
+  return c.json({ ok: true, groups });
+});
+
+app.post("/api/verse-groups", async (c) => {
+  const body = await c.req.json().catch(() => null);
+  const record = body && typeof body === "object" ? (body as Record<string, unknown>) : null;
+  c.header("cache-control", "private, no-store");
+  if (record?.action === "suggest-title") {
+    const suggested = await suggestVerseGroupTopic({
+      db: c.env.DB,
+      assets: c.env.ASSETS,
+      libraryId: c.get("libraryId"),
+      hub: typeof record.hub === "string" ? record.hub : "",
+      apiKey: c.env.TYPESAFE_API_KEY,
+    });
+    if (!suggested.ok) return c.json({ ok: false, error: suggested.error }, suggested.status);
+    return c.json({ ok: true, status: "", topic: suggested.topic, star: suggested.group.star });
+  }
+  const result = await handleVerseGroupAction(c.env.DB, c.get("libraryId"), body);
+  if (!result.ok) return c.json({ ok: false, error: result.error }, result.status);
+  return c.json({
+    ok: true,
+    status: result.statusText,
+    star: result.group.star,
+    cardHtml: verseGroupCardHtml(result.group, result.statusText),
+  });
 });
 
 app.get("/api/notes", async (c) => {
@@ -449,6 +492,7 @@ app.get("/:slug", async (c) => {
   // Chapters paint scripture first and hydrate notes. A verse or range waits for that note.
   // ?chapter_note=1 is the exception: the note has to be in the first HTML, already open.
   const chapterNoteOpen = c.req.query("chapter_note") === "1";
+  const xrefArrival = c.req.query("xref") === "1";
   const eagerNotes = !lazyChapterNotes(passage) || chapterNoteOpen;
   const packPromise = loadChapter(c.env.ASSETS, passage);
   const notesPromise = eagerNotes
@@ -465,6 +509,7 @@ app.get("/:slug", async (c) => {
       notes,
       notesPending: !eagerNotes,
       chapterNoteOpen,
+      xrefArrival,
       signedIn: c.get("signedIn"),
     }),
     200,
@@ -613,6 +658,16 @@ async function servePwaIcon(c: AppContext): Promise<Response> {
       "cache-control": "public, max-age=86400",
     },
   });
+}
+
+async function notesForInbox(c: AppContext): Promise<Awaited<ReturnType<typeof listNotes>>> {
+  const libraryId = c.get("libraryId");
+  let notes = await listNotes(c.env.DB, libraryId);
+  if (c.env.PREVIEW_SEED === "1" && !c.get("signedIn")) {
+    const seeded = await seedPreviewVerseGroups(c.env.DB, libraryId, notes);
+    if (seeded) notes = await listNotes(c.env.DB, libraryId);
+  }
+  return notes;
 }
 
 async function loadChapter(assets: Fetcher, passage: Passage): Promise<ChapterPack | null> {

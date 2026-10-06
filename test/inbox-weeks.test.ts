@@ -26,6 +26,7 @@ describe("inbox side rails", () => {
   test("keeps week sections and bookmark rows lightly encapsulated", () => {
     expect(css).toContain("border-left: 1px solid color-mix(in srgb, var(--ink) 15%, transparent);");
     expect(css).toContain("border-right: 1px solid color-mix(in srgb, var(--ink) 15%, transparent);");
+    expect(css).toContain(".note-week {\n      margin: 0;\n      border-left: 1px solid color-mix(in srgb, var(--ink) 15%, transparent);\n      border-right: 1px solid color-mix(in srgb, var(--ink) 15%, transparent);\n      border-bottom: 1px solid color-mix(in srgb, var(--ink) 15%, transparent);");
     expect(css).toContain(".note-week {");
     expect(css).toContain("not a stack of cards");
     expect(css).not.toContain(".bookmarks-panel .note-list {\n      padding-inline: .45rem;");
@@ -107,8 +108,9 @@ describe("bookmark card polish", () => {
     expect(css).not.toContain(".bookmarks-view {\n      margin: 0 0 1rem;\n    }");
     expect(css).not.toContain("border-left: 2px solid color-mix(in srgb, var(--ink-soft) 22%, transparent)");
     expect(css).toContain(".note-week-label {\n      display: flex; align-items: center;\n      margin: 0; padding: .35rem .55rem;");
+    expect(css).toContain(".note-week-label {\n      display: flex; align-items: center;\n      margin: 0; padding: .35rem .55rem;\n      border-radius: 0;\n      border-bottom: 1px solid color-mix(in srgb, var(--paper) 28%, transparent);");
     expect(css).toContain("border-radius: 0;");
-    expect(css).toContain(".note-week .note-list li:first-child { border-top: 0; }");
+    expect(css).not.toContain(".note-list li { border-top:");
     expect(css).toContain("display: flex; align-items: baseline; gap: .5rem; min-width: 0;");
     expect(css).toContain(".note-row-title {\n      flex: none; max-width: 100%;\n      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;");
     expect(css).toContain(".note-row-excerpt {\n      min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;");

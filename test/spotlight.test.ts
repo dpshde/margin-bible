@@ -189,4 +189,39 @@ describe("verse spotlight", () => {
     expect(range).not.toMatch(/class="[^"]*is-span[^"]*" id="v15"/);
     expect(range).not.toMatch(/class="[^"]*is-open[^"]*" id="v19"/);
   });
+
+  test("an xref landing paints the verse like the chapter, and keeps a real note mark", () => {
+    const landed = renderChapterPage({
+      passage: parsePassage("jhn.3.16")!,
+      pack,
+      notes: [],
+      xrefArrival: true,
+    });
+    expect(landed).toMatch(/class="verse" id="v16"/);
+    expect(landed).not.toMatch(/class="[^"]*is-open[^"]*" id="v16"/);
+    expect(landed).toContain('data-boot-verse="16"');
+    expect(landed).toContain('document.getElementById("v16")');
+    const withNote = renderChapterPage({
+      passage: parsePassage("jhn.3.16")!,
+      pack,
+      notes: [{
+        slug: "jhn.3.16",
+        osis: "John.3.16",
+        kind: "verse",
+        book: "JHN",
+        chapter: 3,
+        verseStart: 16,
+        verseEnd: 16,
+        blocks: [{ id: "b1", indent: 0, text: "loved", bullet: true }],
+        bookmarked: false,
+        attachments: [],
+      }],
+      xrefArrival: true,
+    });
+    expect(withNote).toMatch(/class="verse has-note" id="v16"/);
+    expect(withNote).not.toMatch(/id="v16"[^>]*is-open/);
+    expect(css).not.toContain(".verse.is-xref");
+    expect(source).not.toContain('classList.toggle("is-xref"');
+    expect(source).toContain('querySelectorAll(".verse.is-xref")');
+  });
 });
