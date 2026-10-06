@@ -3,6 +3,7 @@
  * Each web is a bookmark row that opens onto its member chips.
  */
 import { escapeHtml } from "./html";
+import { notesCollectionHtml } from "./inbox-ui";
 import type { ExternalRef, VerseGroupMember, VerseGroupView } from "./verse-groups";
 import { hrefForXref } from "./xref";
 
@@ -10,7 +11,13 @@ export function verseGroupsViewHtml(groups: readonly VerseGroupView[]): string {
   const body = groups.length
     ? `<ul class="note-list">${groups.map((group) => `<li>${verseGroupCardHtml(group)}</li>`).join("")}</ul>`
     : `<p class="empty">No verse groups yet — link 2+ notes to a hub</p>`;
-  return `<details class="bookmarks-view" id="verse-groups-view"><summary><span class="bookmarks-summary-label">${verseGroupsIcon()}<span>Verse groups</span></span></summary><div class="bookmarks-panel" id="verse-groups-panel">${body}</div></details>${attachDialogHtml()}`;
+  return `${notesCollectionHtml({
+    id: "verse-groups-view",
+    label: "Verse groups",
+    icon: verseGroupsIcon(),
+    panelId: "verse-groups-panel",
+    body,
+  })}${attachDialogHtml()}`;
 }
 
 export function verseGroupCardHtml(group: VerseGroupView, status = ""): string {
@@ -1202,7 +1209,7 @@ function verseChipHtml(member: VerseGroupMember, starred: boolean, order: number
   const id = `vg_${member.slug.replaceAll(".", "_")}`;
   const title = escapeHtml(member.label);
   const starLabel = starred ? "Clear star" : "Star this verse";
-  return `<li class="att-item" data-order="${order}"><a class="att-chip wiki" draggable="false" href="${escapeHtml(hrefForXref(member.slug))}" data-att-id="${escapeHtml(id)}" data-att-kind="xref" data-att-slug="${escapeHtml(member.slug)}" data-att-title="${title}" data-att-source="manual">${title}</a><span class="verse-group-member-actions"><button type="button" class="verse-star" data-vg-star data-att-slug="${escapeHtml(member.slug)}" aria-pressed="${starred ? "true" : "false"}" aria-label="${starLabel}" title="${starLabel}">${iconStar()}</button><button type="button" class="att-remove" data-att-id="${escapeHtml(id)}" aria-label="Remove attachment" title="Remove attachment">${iconX(12)}</button></span></li>`;
+  return `<li class="att-item" data-order="${order}"><a class="att-chip wiki" draggable="false" href="${escapeHtml(hrefForXref(member.slug))}" data-att-id="${escapeHtml(id)}" data-att-kind="xref" data-att-slug="${escapeHtml(member.slug)}" data-att-title="${title}" data-att-source="manual">${title}</a><button type="button" class="verse-star" data-vg-star data-att-slug="${escapeHtml(member.slug)}" aria-pressed="${starred ? "true" : "false"}" aria-label="${starLabel}" title="${starLabel}">${iconStar()}</button><button type="button" class="att-remove" data-att-id="${escapeHtml(id)}" aria-label="Remove attachment" title="Remove attachment">${iconX(12)}</button></li>`;
 }
 
 function iconStar(): string {

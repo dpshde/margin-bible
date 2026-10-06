@@ -69,6 +69,18 @@ describe("phone chapter sheet and verse-group description", () => {
     expect(html).toContain('class="chapter-grid-handle"');
     expect(html).toContain("max-width: 767px");
     expect(html).toContain("is-grid-open");
+    const notes = renderNotesIndex([], "jhn.1");
+    expect(notes).toContain('id="bookmarks-view"');
+    expect(notes).toContain('id="verse-groups-view"');
+    expect(notes).toContain('class="notes-sheet"');
+    expect(notes).toContain("data-notes-sheet-close");
+    expect(notes).toContain("notes-sheet-handle");
+    expect(notes).toContain("bindNotesSheets");
+    expect(notes).toContain("dy >= 72");
+    const css = notes;
+    expect(css).toContain(".bookmarks-view[open] > .notes-sheet");
+    expect(css).toContain("html:has(.bookmarks-view[open]) .search-fab");
+    expect(css).toContain("html:has(.bookmarks-view[open]) { overflow: hidden; }");
   });
 
   test("description blur saves the typed value even after the debounce already fired", () => {

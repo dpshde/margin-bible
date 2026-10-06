@@ -330,6 +330,19 @@ function bookmarkSimpleIcon(): string {
   return `<svg class="bookmarks-summary-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="15" height="15" fill="currentColor" aria-hidden="true"><path d="M184 32H72a16 16 0 0 0-16 16v176a8 8 0 0 0 12.24 6.78L128 193.43l59.77 37.35A8 8 0 0 0 200 224V48a16 16 0 0 0-16-16m0 177.57l-51.77-32.35a8 8 0 0 0-8.48 0L72 209.57V48h112Z"/></svg>`;
 }
 
+/** Bookmarks and verse groups share this shell. Desktop expands inline; phone CSS turns it into a sheet. */
+export function notesCollectionHtml(opts: {
+  id: string;
+  label: string;
+  icon: string;
+  body: string;
+  panelId?: string;
+}): string {
+  const panelId = opts.panelId ? ` id="${opts.panelId}"` : "";
+  const titleId = `${opts.id}-sheet-title`;
+  return `<details class="bookmarks-view" id="${opts.id}"><summary><span class="bookmarks-summary-label">${opts.icon}<span>${opts.label}</span></span></summary><div class="notes-sheet"><button type="button" class="notes-sheet-backdrop" data-notes-sheet-close aria-label="Close"></button><div class="notes-sheet-panel"><div class="notes-sheet-handle" aria-hidden="true"></div><p class="notes-sheet-title" id="${titleId}">${opts.label}</p><div class="bookmarks-panel"${panelId}>${opts.body}</div></div></div></details>`;
+}
+
 export function bookmarksViewHtml(notes: InboxNote[]): string {
   const bookmarked = [...notes]
     .filter((note) => Boolean(note.bookmarked))
@@ -339,7 +352,12 @@ export function bookmarksViewHtml(notes: InboxNote[]): string {
   const body = rows
     ? `<ul class="note-list">${rows}</ul>`
     : `<p class="empty">No bookmarks yet.</p>`;
-  return `<details class="bookmarks-view" id="bookmarks-view"><summary><span class="bookmarks-summary-label">${bookmarkSimpleIcon()}<span>Bookmarks</span></span></summary><div class="bookmarks-panel">${body}</div></details>`;
+  return notesCollectionHtml({
+    id: "bookmarks-view",
+    label: "Bookmarks",
+    icon: bookmarkSimpleIcon(),
+    body,
+  });
 }
 
 /** SSR + shared list markup: recent weeks, then Older chapter bundles. */
@@ -879,11 +897,78 @@ export function notesInboxScript(): string {
     if (!btn) return;
     showChapterPane(btn.dataset.book);
   });
+  function bindNotesSheets() {
+    var phoneQuery = window.matchMedia("(max-width: 767px)");
+    function phone() { return phoneQuery.matches; }
+    function sync() {
+      var open = phone() && document.querySelector(".bookmarks-view[open]");
+      document.documentElement.classList.toggle("notes-sheet-open", Boolean(open));
+    }
+    document.addEventListener("toggle", function (event) {
+      var target = event.target;
+      if (!target || !target.classList || !target.classList.contains("bookmarks-view")) return;
+      sync();
+    }, true);
+    document.addEventListener("click", function (event) {
+      var btn = event.target && event.target.closest && event.target.closest("[data-notes-sheet-close]");
+      if (!btn || !phone()) return;
+      var details = btn.closest("details");
+      if (details) details.open = false;
+    });
+    document.addEventListener("keydown", function (event) {
+      if (event.key !== "Escape" || !phone()) return;
+      var openSheet = document.querySelector(".bookmarks-view[open]");
+      if (openSheet) openSheet.open = false;
+    });
+    var handles = document.querySelectorAll(".notes-sheet-handle");
+    for (var h = 0; h < handles.length; h += 1) {
+      (function (handle) {
+        var panel = handle.parentElement;
+        var details = handle.closest("details");
+        var startY = 0;
+        var dy = 0;
+        var active = false;
+        function shift(y) {
+          panel.style.transition = "none";
+          panel.style.transform = y ? "translate3d(0," + y + "px,0)" : "";
+        }
+        function finish() {
+          if (!active) return;
+          active = false;
+          if (dy >= 72 && details) {
+            panel.style.transition = "";
+            panel.style.transform = "";
+            details.open = false;
+            return;
+          }
+          panel.style.transition = "transform 180ms ease";
+          panel.style.transform = "";
+        }
+        handle.addEventListener("pointerdown", function (event) {
+          if (!phone() || event.button) return;
+          active = true;
+          startY = event.clientY;
+          dy = 0;
+          if (handle.setPointerCapture) handle.setPointerCapture(event.pointerId);
+        });
+        handle.addEventListener("pointermove", function (event) {
+          if (!active) return;
+          dy = Math.max(0, event.clientY - startY);
+          if (dy) shift(dy);
+        });
+        handle.addEventListener("pointerup", finish);
+        handle.addEventListener("pointercancel", function () { dy = 0; finish(); });
+      })(handles[h]);
+    }
+    if (phoneQuery.addEventListener) phoneQuery.addEventListener("change", sync);
+    sync();
+  }
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape" && grid && !grid.hidden) {
       setGridOpen(false);
       showChapterPane(currentBook);
     }
   });
+  bindNotesSheets();
 })();`;
 }
