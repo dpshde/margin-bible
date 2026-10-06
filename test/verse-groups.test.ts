@@ -318,6 +318,14 @@ describe("verse groups inbox", () => {
     expect(verseGroupsScript()).toContain("__marginPreloadHrefs");
     expect(notesInboxScript()).toContain("window.__marginPreloadHrefs = preloadHrefs");
     expect(notesInboxScript()).toContain('a.classList?.contains("att-chip") && a.classList?.contains("wiki")');
+    const inbox = notesInboxScript();
+    const preload = inbox.slice(inbox.indexOf("function preloadHrefs"));
+    expect(preload).toContain('const chapterKey = documentHref("/" + slug);');
+    expect(preload).toContain("prefetchChapter(chapterKey, { priority: \"low\" });");
+    expect(preload).not.toContain("searchPrefetch.controller.abort");
+    expect(inbox).toContain("useChapterCache: verseChip");
+    expect(inbox).toContain("const chapterPromise = htmlCache.get(chapterKey);");
+    nodeCheck(inbox);
     expect(verseGroupsScript()).toContain('typeof payload.star === "string"');
     expect(verseGroupsScript()).toContain("items[j] !== starred");
     expect(verseGroupsScript()).toContain("suggest-title");

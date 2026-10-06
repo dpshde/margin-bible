@@ -727,17 +727,23 @@ export function notesInboxScript(): string {
     const slug = chapterSlugFromHref(exactKey);
     if (slug) prefetchChapterNotes(slug);
     const chapterKey = slug ? documentHref("/" + slug) : "";
-    let htmlPromise = htmlCache.get(exactKey);
-    if (!htmlPromise && useChapterCache && chapterKey && chapterKey !== exactKey) htmlPromise = htmlCache.get(chapterKey);
-    if (!htmlPromise) {
-      htmlPromise = fetch(exactKey, { credentials: "same-origin", headers: { accept: "text/html" } }).then((r) => {
-        if (!r.ok) throw new Error("nav");
-        return r.text();
-      });
-      htmlCache.set(exactKey, htmlPromise);
-    }
     try {
-      const html = await htmlPromise;
+      let html = null;
+      const exactPromise = htmlCache.get(exactKey);
+      if (exactPromise) html = await exactPromise;
+      // A verse URL can miss while its chapter document is already warm (search resolve stores that key).
+      if (!html && useChapterCache && chapterKey && chapterKey !== exactKey) {
+        const chapterPromise = htmlCache.get(chapterKey);
+        if (chapterPromise) html = await chapterPromise;
+      }
+      if (!html) {
+        const htmlPromise = fetch(exactKey, { credentials: "same-origin", headers: { accept: "text/html" } }).then((r) => {
+          if (!r.ok) throw new Error("nav");
+          return r.text();
+        });
+        htmlCache.set(exactKey, htmlPromise);
+        html = await htmlPromise;
+      }
       if (!html) { location.href = href; return; }
       if (push) history.pushState({ soft: 1 }, "", url.pathname + url.search + url.hash);
       else history.replaceState({ soft: 1 }, "", url.pathname + url.search + url.hash);
@@ -750,7 +756,15 @@ export function notesInboxScript(): string {
   }
   function preloadHrefs(hrefs) {
     if (!hrefs || !hrefs.forEach) return;
-    hrefs.forEach((href) => prefetchChapter(href, { priority: "low" }));
+    hrefs.forEach((href) => {
+      const key = documentHref(href);
+      const slug = chapterSlugFromHref(key);
+      if (!slug) return;
+      const chapterKey = documentHref("/" + slug);
+      // Same chapter document search resolve stores. Sibling chapters are kept; nothing is aborted.
+      prefetchChapter(chapterKey, { priority: "low" });
+      if (key && key !== chapterKey) prefetchChapter(key, { priority: "low" });
+    });
   }
   window.__marginPrefetchChapter = prefetchSearchChapter;
   window.__marginSoftNav = softNavTo;
@@ -777,8 +791,10 @@ export function notesInboxScript(): string {
     const slug = chapterSlugFromHref(a.href);
     if (!slug) return;
     // Preserve Older hrefs like /rom.6 — soft-nav fetches that exact path.
+    // Verse chips reuse a warm chapter document the way search resolve does.
+    const verseChip = Boolean(a.classList?.contains("att-chip") && a.classList?.contains("wiki") && a.closest?.(".verse-group"));
     event.preventDefault();
-    softNavTo(a.href, { push: true });
+    softNavTo(a.href, { push: true, useChapterCache: verseChip });
   });
 
   document.addEventListener("pointerenter", (event) => {

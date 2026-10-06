@@ -3250,7 +3250,7 @@ export function clientScript(): string {
     const start = Number(match[1]);
     const end = match[2] ? Number(match[2]) : start;
     if (!start || !end) return null;
-    return { boot: end, range: Boolean(match[2]) && end !== start };
+    return { boot: end, start, end, range: Boolean(match[2]) && end !== start };
   }
   const located = verseTargetFromLocation();
   const boot = root.dataset.bootVerse || (located ? String(located.boot) : "");
@@ -3258,15 +3258,19 @@ export function clientScript(): string {
   const bootPreferRange = passageSlug.includes("-") || Boolean(located && located.range);
   const xrefParam = new URLSearchParams(location.search).get("xref") === "1";
   if (boot && xrefParam) {
-    const endMatch = /-(\\d+)$/.exec(passageSlug);
-    const start = Number(boot);
-    // For range URLs boot is the end verse; recover start from slug.
-    const startFromSlug = (() => {
-      const m = /\\.(\\d+)(?:-(\\d+))?$/.exec(passageSlug);
-      return m ? Number(m[1]) : start;
-    })();
-    const end = endMatch ? Number(endMatch[1]) : startFromSlug;
-    applyXref({ start: startFromSlug, end });
+    // Chapter HTML (search-style cache) has a chapter passage slug. The URL still names the verse.
+    if (located && located.start) {
+      applyXref({ start: located.start, end: located.end });
+    } else {
+      const endMatch = /-(\\d+)$/.exec(passageSlug);
+      const start = Number(boot);
+      const startFromSlug = (() => {
+        const m = /\\.(\\d+)(?:-(\\d+))?$/.exec(passageSlug);
+        return m ? Number(m[1]) : start;
+      })();
+      const end = endMatch ? Number(endMatch[1]) : startFromSlug;
+      applyXref({ start: startFromSlug, end });
+    }
   } else if (boot) {
     // Place the verse immediately. Spotlight follows the caret later, without a second glide on arrival.
     openVerse(Number(boot), { push: false, autofocus: true, preferRange: bootPreferRange, scroll: true });
@@ -3439,18 +3443,23 @@ export function clientScript(): string {
     // Chapters hydrate notes beside the HTML. An exact verse or range does not.
     if (slug && !hrefIsExactNote(url.href)) prefetchChapterNotes(slug);
     const chapterKey = slug ? documentHref("/" + slug) : "";
-    let htmlPromise = htmlCache.get(exactKey);
-    if (!htmlPromise && useChapterCache && chapterKey && chapterKey !== exactKey) htmlPromise = htmlCache.get(chapterKey);
-    if (!htmlPromise) {
-      htmlPromise = fetch(exactKey, { credentials: "same-origin", headers: { accept: "text/html" } }).then((r) => {
-        if (!r.ok) throw new Error("nav");
-        return r.text();
-      }).then((html) => { seedNotesFromHtml(slug, html); return html; });
-      htmlCache.set(exactKey, htmlPromise);
-    }
     try {
+      let html = null;
+      const exactPromise = htmlCache.get(exactKey);
+      if (exactPromise) html = await exactPromise;
+      if (!html && useChapterCache && chapterKey && chapterKey !== exactKey) {
+        const chapterPromise = htmlCache.get(chapterKey);
+        if (chapterPromise) html = await chapterPromise;
+      }
+      if (!html) {
+        const htmlPromise = fetch(exactKey, { credentials: "same-origin", headers: { accept: "text/html" } }).then((r) => {
+          if (!r.ok) throw new Error("nav");
+          return r.text();
+        }).then((html) => { seedNotesFromHtml(slug, html); return html; });
+        htmlCache.set(exactKey, htmlPromise);
+        html = await htmlPromise;
+      }
       // VBV HTML first; destination page hydrates notes via /api/notes?chapter= (and session cache).
-      const html = await htmlPromise;
       if (!html) { location.href = href; return; }
       seedNotesFromHtml(slug, html);
       if (push) history.pushState({ soft: 1 }, "", url.pathname + url.search + url.hash);
