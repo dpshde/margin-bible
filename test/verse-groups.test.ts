@@ -609,8 +609,10 @@ describe("Jev title lock", () => {
     const db = starLibrary();
     await saveJevTitle(db, "lib", "jhn.1.1", "The Word");
     let calls = 0;
-    const fetchImpl = (async () => {
+    let sent = "";
+    const fetchImpl = (async (_url: unknown, init?: { body?: unknown }) => {
       calls += 1;
+      sent = String(init?.body ?? "");
       return new Response(JSON.stringify({ answers: { topic: { choice: "The Word made flesh" } } }), { status: 200 });
     }) as typeof fetch;
     const held = await suggestVerseGroupTopic({
@@ -650,6 +652,9 @@ describe("Jev title lock", () => {
     if (!next.ok) return;
     expect(next.topic).toBe("The Word made flesh");
     expect(calls).toBe(1);
+    expect(sent).toContain("already used");
+    expect(sent).toContain("The Word");
+    expect(sent).toContain("My title");
     const again = await loadVerseGroups(db, "lib", [note("jhn.1.1", [xref("jhn.1.14"), xref("jhn.1.3")])])
     expect(again[0]?.titleFromJev).toBe(true);
     expect(again[0]?.title).toBe("The Word made flesh");

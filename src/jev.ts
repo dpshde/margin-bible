@@ -22,7 +22,6 @@ export const VERSE_TOPIC_CRITERIA: Record<string, string> = {
   "Made in God's image": "People created to reflect God.",
   "God saw that it was good": "Creation finished and called good.",
   "The heavens declare": "The sky telling the glory of God.",
-  "The Word": "The Word who was with God and was God.",
   "The Word was God": "The Word's deity, with God in the beginning.",
   "All things made through him": "Creation coming into being through the Word.",
   "Light shines in the darkness": "Light that the darkness does not overcome.",
@@ -35,7 +34,6 @@ export const VERSE_TOPIC_CRITERIA: Record<string, string> = {
   "I am the resurrection": "Jesus as resurrection and life.",
   "I am the way": "Jesus as the way, the truth, and the life.",
   "Come to me": "Jesus calling the weary to rest.",
-  "The cross": "Christ's death itself, the crucifixion.",
   "It is finished": "Jesus' word that the work of the cross is done.",
   "Christ died for sins": "Jesus dying in the place of sinners.",
   "He bore our sins": "Jesus carrying sins in his body.",
@@ -52,7 +50,6 @@ export const VERSE_TOPIC_CRITERIA: Record<string, string> = {
   "The Spirit intercedes": "The Spirit groaning and praying for the saints.",
   "If God is for us": "God on the side of his people, against every charge.",
   "No condemnation": "No condemnation for those in Christ Jesus.",
-  "The love of God": "God's love holding his people to the end.",
   "Groaning for redemption": "Creation and the saints groaning for the redemption of the body.",
   "Saved by grace through faith": "Salvation as a gift, received by faith.",
   "Not by works": "Salvation that is not earned by works.",
@@ -70,15 +67,15 @@ export const VERSE_TOPIC_CRITERIA: Record<string, string> = {
   "Hunger and thirst for righteousness": "Those who hunger and thirst to be made right.",
   "Blessed are the peacemakers": "Peacemakers called children of God.",
   "Salt and light": "Disciples as salt of the earth and light of the world.",
-  "The kingdom of heaven": "The kingdom of heaven drawn near or given.",
   "Your kingdom come": "Praying for God's kingdom to come.",
   "Seek first the kingdom": "Seeking God's kingdom ahead of other needs.",
   "The Lord reigns": "God reigning as king.",
-  "Sovereignty of God": "God ruling, raising up, and disposing as he wills.",
-  Providence: "God governing particular events toward his purpose.",
+  "I raised you up": "God raising a ruler so his name is proclaimed.",
+  "The potter and the clay": "The potter's right over the clay.",
+  "He has mercy on whom he wills": "Mercy and hardening as God wills.",
+  "For such a time as this": "A person placed where they are for this moment.",
   "I will be their God": "God binding himself to a people: I will be their God.",
   "A new covenant": "The new covenant written on the heart.",
-  "The Spirit": "The Holy Spirit's presence and work in general.",
   "Born of the Spirit": "New birth by the Spirit.",
   "The fruit of the Spirit": "Love, joy, peace, and the rest of the Spirit's fruit.",
   "Filled with the Spirit": "Being filled with the Spirit.",
@@ -102,6 +99,48 @@ export const VERSE_TOPIC_CRITERIA: Record<string, string> = {
   "Love one another": "The command to love one another.",
   "Bear one another's burdens": "Carrying each other's burdens.",
   "The household of God": "The church as God's household.",
+  "Run with endurance": "Laying aside every weight and running the race set before us.",
+  "Cloud of witnesses": "The crowd of faithful witnesses surrounding the race.",
+  "The Lord disciplines those he loves": "The Lord's discipline of the children he loves.",
+  "Discipline yields a harvest": "Discipline training people into a harvest of righteousness.",
+  "Rejoice in suffering": "Rejoicing in suffering because it produces endurance.",
+  "Suffering produces perseverance": "Suffering producing perseverance, character, and hope.",
+  "The rich man and Lazarus": "The rich man and the poor man at his gate.",
+  "A great chasm fixed": "A chasm fixed so no one can cross.",
+  "Content in every circumstance": "Learning contentment in plenty and in need.",
+  "I can do all things through him": "Strength for every circumstance through Christ.",
+  "The peace of God": "The peace of God guarding heart and mind.",
+  "Do not be anxious": "Refusing anxiety and making requests known to God.",
+  "Rejoice in the Lord always": "The call to rejoice in the Lord always.",
+  "The assurance of faith": "Faith as assurance of what is hoped for.",
+  "By faith Abraham obeyed": "Abraham obeying when he was called, by faith.",
+  "Faith without works": "Faith that is dead when it has no works.",
+  "We walk by faith": "Walking by faith and not by sight.",
+  "Fight the good fight": "Fighting the good fight and keeping the faith.",
+  "The lost sheep": "The shepherd leaving the ninety-nine for the one.",
+  "The prodigal son": "A son who was lost and then found.",
+  "A house built on the rock": "Hearing Jesus' words and doing them.",
+  "The narrow gate": "The narrow gate that leads to life.",
+  "Take up your cross": "Denying oneself and taking up the cross.",
+  "Abide in me": "Remaining in Christ as a branch in the vine.",
+  "I am the vine": "Jesus the vine, his people the branches.",
+  "Crucified with Christ": "No longer I who live, but Christ who lives in me.",
+  "A new creation": "Anyone in Christ being a new creation.",
+  "The armor of God": "Putting on the armor of God to stand.",
+  "The tongue is a fire": "The tongue as a fire that sets a life ablaze.",
+  "Store up treasures in heaven": "Treasures in heaven rather than on earth.",
+  "You cannot serve two masters": "No one serving both God and money.",
+  "The least of these": "Serving Jesus by serving the least of his brothers.",
+  "Love your enemies": "Loving enemies and praying for those who persecute.",
+  "The Lord is my light": "The Lord as light and salvation, whom shall I fear.",
+  "Be still and know": "Being still and knowing that the Lord is God.",
+  "Create in me a clean heart": "Asking God for a clean heart and a right spirit.",
+  "The Lord is near the brokenhearted": "The Lord staying near the brokenhearted.",
+  "How long, O Lord": "A cry of how long in the midst of trouble.",
+  "By his wounds we are healed": "Healing through the wounds of the servant.",
+  "A bruised reed": "A bruised reed he will not break.",
+  "He will wipe every tear": "God wiping every tear from their eyes.",
+  "Worthy is the Lamb": "The Lamb who was slain, worthy of worship.",
   "Go and make disciples": "The commission to make disciples of all nations.",
   "You are a chosen people": "A people chosen, royal, and holy.",
   "Repent and believe": "The call to repent and believe the good news.",
@@ -119,9 +158,51 @@ export const VERSE_TOPIC_CRITERIA: Record<string, string> = {
 };
 
 export const VERSE_TOPIC_INSTRUCTIONS =
-  "Which one title best names what these verses say together? Prefer the narrower title when a broad one and a specific one both fit. Do not default to a single doctrine word. Choose None only when no title is close.";
+  "Which one short title best names what these verses say together? Prefer a specific pastoral title over a broad umbrella. Prefer the narrower title when a broad one and a specific one both fit. Do not default to a single doctrine word. Choose None only when no title is close.";
 
 const NONE_TOPIC = "None";
+
+function normalizedTitle(value: unknown): string {
+  return String(value ?? "").replace(/\s+/g, " ").trim();
+}
+
+/** Titles already on other groups, compared without case. */
+export function takenTitleKeys(takenTitles: readonly string[]): Set<string> {
+  const taken = new Set<string>();
+  for (const raw of takenTitles) {
+    const title = normalizedTitle(raw).toLowerCase();
+    if (title && title !== "none") taken.add(title);
+  }
+  return taken;
+}
+
+/** Drop titles the library already uses so the next group cannot repeat them. */
+export function criteriaAvoiding(takenTitles: readonly string[] = []): Record<string, string> {
+  const taken = takenTitleKeys(takenTitles);
+  if (taken.size === 0) return VERSE_TOPIC_CRITERIA;
+  const criteria: Record<string, string> = {};
+  for (const [key, value] of Object.entries(VERSE_TOPIC_CRITERIA)) {
+    if (key !== NONE_TOPIC && taken.has(key.toLowerCase())) continue;
+    criteria[key] = value;
+  }
+  criteria[NONE_TOPIC] = VERSE_TOPIC_CRITERIA[NONE_TOPIC];
+  return criteria;
+}
+
+export function verseTopicInstructions(takenTitles: readonly string[] = []): string {
+  const taken = takenTitleKeys(takenTitles);
+  if (taken.size === 0) return VERSE_TOPIC_INSTRUCTIONS;
+  const labels: string[] = [];
+  const seen = new Set<string>();
+  for (const raw of takenTitles) {
+    const title = normalizedTitle(raw);
+    const key = title.toLowerCase();
+    if (!title || !taken.has(key) || seen.has(key)) continue;
+    seen.add(key);
+    labels.push(title);
+  }
+  return `${VERSE_TOPIC_INSTRUCTIONS} These titles are already used and must not be chosen: ${labels.join("; ")}.`;
+}
 
 export type VerseLine = { label: string; text: string };
 
@@ -137,7 +218,10 @@ export function verseTopicState(lines: readonly VerseLine[]): { verses: { ref: s
   };
 }
 
-export function jevTopicRequest(lines: readonly VerseLine[]): {
+export function jevTopicRequest(
+  lines: readonly VerseLine[],
+  takenTitles: readonly string[] = [],
+): {
   model: string;
   state: { verses: { ref: string; text: string }[] };
   questions: {
@@ -150,14 +234,14 @@ export function jevTopicRequest(lines: readonly VerseLine[]): {
     questions: {
       topic: {
         type: "choice",
-        instructions: VERSE_TOPIC_INSTRUCTIONS,
-        criteria: VERSE_TOPIC_CRITERIA,
+        instructions: verseTopicInstructions(takenTitles),
+        criteria: criteriaAvoiding(takenTitles),
       },
     },
   };
 }
 
-export function topicFromJevBody(body: unknown): string | null {
+export function topicFromJevBody(body: unknown, criteria: Record<string, string> = VERSE_TOPIC_CRITERIA): string | null {
   if (!body || typeof body !== "object") return null;
   const answers = (body as { answers?: unknown }).answers;
   if (!answers || typeof answers !== "object") return null;
@@ -166,13 +250,13 @@ export function topicFromJevBody(body: unknown): string | null {
   const choice = (topic as { choice?: unknown }).choice;
   if (typeof choice !== "string") return null;
   const title = choice.trim();
-  if (!title || title === NONE_TOPIC || !Object.hasOwn(VERSE_TOPIC_CRITERIA, title)) return null;
+  if (!title || title === NONE_TOPIC || !Object.hasOwn(criteria, title)) return null;
   return title;
 }
 
 export async function nearestVerseTopic(
   lines: readonly VerseLine[],
-  options: { apiKey?: string | null; fetchImpl?: typeof fetch } = {},
+  options: { apiKey?: string | null; fetchImpl?: typeof fetch; takenTitles?: readonly string[] } = {},
 ): Promise<JevTopicResult> {
   const state = verseTopicState(lines);
   if (!state.verses.length) return { ok: false, status: 502, error: "Those verses have no text to read." };
@@ -181,6 +265,7 @@ export async function nearestVerseTopic(
     return { ok: false, status: 503, error: "Topic suggestions need TYPESAFE_API_KEY on the worker." };
   }
   const fetchImpl = options.fetchImpl ?? fetch;
+  const request = jevTopicRequest(lines, options.takenTitles ?? []);
   try {
     const upstream = await fetchImpl(TYPESAFE_SYSTEMONE_URL, {
       method: "POST",
@@ -189,7 +274,7 @@ export async function nearestVerseTopic(
         "content-type": "application/json",
         accept: "application/json",
       },
-      body: JSON.stringify(jevTopicRequest(lines)),
+      body: JSON.stringify(request),
       signal: AbortSignal.timeout(8000),
     });
     const text = await upstream.text();
@@ -200,7 +285,7 @@ export async function nearestVerseTopic(
     } catch {
       return { ok: false, status: 502, error: "Could not read Jev." };
     }
-    const topic = topicFromJevBody(parsed);
+    const topic = topicFromJevBody(parsed, request.questions.topic.criteria);
     if (!topic) return { ok: false, status: 502, error: "No close topic for these verses." };
     return { ok: true, topic };
   } catch {

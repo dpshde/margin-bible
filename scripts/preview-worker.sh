@@ -55,7 +55,7 @@ mise exec -- cf deploy
 
 prod=$(curl -fsS -H "cache-control: no-cache" "https://margin-bible.dpshade.workers.dev/health" || true)
 printf '%s\n' "$prod"
-if printf '%s' "$prod" | grep -q '2026.10.06.25'; then
+if printf '%s' "$prod" | grep -q '2026.10.06.26'; then
   echo "production worker is serving this preview build" >&2
   exit 1
 fi
@@ -65,13 +65,13 @@ body=""
 while [ "$i" -lt 12 ]; do
   body=$(curl -fsS -H "cache-control: no-cache" "$preview_url/health" || true)
   printf '%s\n' "$body"
-  if printf '%s' "$body" | grep -q '2026.10.06.25'; then
+  if printf '%s' "$body" | grep -q '2026.10.06.26'; then
     break
   fi
   i=$((i + 1))
   sleep 3
 done
-printf '%s' "$body" | grep -q '2026.10.06.25'
+printf '%s' "$body" | grep -q '2026.10.06.26'
 
 notes=$(curl -fsS -A "Mozilla/5.0" -H "cache-control: no-cache" "$preview_url/notes")
 printf '%s' "$notes" | grep -q 'id="verse-groups-view"'

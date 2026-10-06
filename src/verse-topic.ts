@@ -36,7 +36,16 @@ export async function suggestVerseGroupTopic(input: {
     group.members.map((member) => member.slug),
   );
   if (!lines.length) return { ok: false, status: 422, error: "Those verses have no text to read." };
-  const topic = await nearestVerseTopic(lines, { apiKey: input.apiKey, fetchImpl: input.fetchImpl });
+  const takenTitles = notes.groups
+    .filter((row) => row.hub !== hub)
+    .map((row) => row.title);
+  if (group.title.trim()) takenTitles.push(group.title);
+  if (posted && posted !== group.title) takenTitles.push(posted);
+  const topic = await nearestVerseTopic(lines, {
+    apiKey: input.apiKey,
+    fetchImpl: input.fetchImpl,
+    takenTitles,
+  });
   if (!topic.ok) return topic;
   await saveJevTitle(input.db, input.libraryId, hub, topic.topic);
   return { ok: true, topic: topic.topic, group: { ...group, title: topic.topic, titleFromJev: true } };
