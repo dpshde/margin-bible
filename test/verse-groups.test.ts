@@ -341,6 +341,11 @@ describe("verse groups inbox", () => {
     expect(verseGroupsScript()).not.toContain("syncTopicLock");
     expect(verseGroupsScript()).toContain("autoTitlePass");
     expect(verseGroupsScript()).toContain("move-member");
+    expect(verseGroupsScript()).toContain("function applyMemberMove");
+    expect(verseGroupsScript()).toContain("function applyMemberRemove");
+    expect(verseGroupsScript()).toContain("opts.member");
+    expect(verseGroupsScript()).not.toContain("Moving…");
+    expect(verseGroupsScript()).not.toContain("Removing…");
     expect(verseGroupsScript()).toContain("verse-group-drag-ghost");
     expect(verseGroupsScript()).toContain("syncTitleEdit");
     expect(verseGroupsScript()).toContain('getAttribute("data-title")');
@@ -531,13 +536,14 @@ describe("verse groups inbox", () => {
 
 function memoryD1(sqlite: Database): D1Database {
   const statement = (sql: string, args: unknown[]) => ({
+    sql,
     bind(...next: unknown[]) {
       return statement(sql, next);
     },
     async run() {
       if (args.length) sqlite.run(sql, args as never[]);
       else sqlite.run(sql);
-      return { success: true };
+      return { success: true, results: [] as unknown[] };
     },
     async all<T>() {
       const query = sqlite.query(sql);
@@ -553,6 +559,16 @@ function memoryD1(sqlite: Database): D1Database {
   return {
     prepare(sql: string) {
       return statement(sql, []);
+    },
+    async batch(
+      statements: Array<{ sql?: string; all: () => Promise<{ results: unknown[]; success: boolean }>; run: () => Promise<unknown> }>,
+    ) {
+      const out = [];
+      for (const stmt of statements) {
+        if (/^\s*select/i.test(stmt.sql ?? "")) out.push(await stmt.all());
+        else out.push(await stmt.run());
+      }
+      return out;
     },
   } as unknown as D1Database;
 }
@@ -936,5 +952,58 @@ describe("move a verse between groups", () => {
     const source = notes.find((note) => note.slug === "jhn.1.1");
     expect(source?.attachments.some((row) => row.slug === "jhn.1.14" && row.source === "manual")).toBe(true);
     expect(source?.attachments.some((row) => row.slug === "rom.8.28" && row.source === "manual")).toBe(true);
+  });
+
+  test("removing the link that drops a web under the minimum still stays removed", async () => {
+    const db = starLibrary();
+    const removed = await handleVerseGroupAction(db, "lib", {
+      action: "remove-member",
+      hub: "jhn.1.1",
+      slug: "jhn.1.14",
+    });
+    expect(removed.ok).toBe(true);
+    if (!removed.ok) return;
+    expect(removed.statusText).toBe("Removed.");
+    expect(removed.group.members.map((member) => member.slug)).not.toContain("jhn.1.14");
+    const notes = await listNotes(db, "lib");
+    const source = notes.find((note) => note.slug === "jhn.1.1");
+    expect(source?.attachments.some((row) => row.slug === "jhn.1.14")).toBe(false);
+    expect(source?.attachments.some((row) => row.slug === "jhn.1.3")).toBe(true);
+  });
+
+  test("a warm move or remove reads the library once and writes in one wave", async () => {
+    const inner = webLibrary();
+    let queries = 0;
+    const db = {
+      prepare(sql: string) {
+        queries += 1;
+        return inner.prepare(sql);
+      },
+      batch(statements: D1PreparedStatement[]) {
+        return inner.batch(statements);
+      },
+    } as D1Database;
+    await handleVerseGroupAction(db, "lib", { action: "set-star", hub: "jhn.1.1", slug: "jhn.1.3" });
+    queries = 0;
+    const removed = await handleVerseGroupAction(db, "lib", {
+      action: "remove-member",
+      hub: "jhn.1.1",
+      slug: "jhn.1.4",
+    });
+    expect(removed.ok).toBe(true);
+    const removeQueries = queries;
+    queries = 0;
+    const moved = await handleVerseGroupAction(db, "lib", {
+      action: "move-member",
+      hub: "rom.8.28",
+      from: "jhn.1.1",
+      slug: "jhn.1.3",
+    });
+    expect(moved.ok).toBe(true);
+    const moveQueries = queries;
+    // Two D1 batches: notes+meta, then the title backfill with the xref writes.
+    // The old path listed the library again for every hub check and every xref.
+    expect(removeQueries).toBeLessThanOrEqual(8);
+    expect(moveQueries).toBeLessThanOrEqual(9);
   });
 });

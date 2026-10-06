@@ -230,6 +230,90 @@ export function verseGroupsScript(): string {
 
   var drag = null;
   var suppressClick = false;
+  var memberRev = 0;
+
+  function memberItem(card, slug) {
+    var items = card.querySelectorAll(".att-item");
+    for (var i = 0; i < items.length; i += 1) {
+      var chip = items[i].querySelector(".att-chip");
+      if (chip && chip.getAttribute("data-att-slug") === slug) return items[i];
+    }
+    return null;
+  }
+
+  function memberSnapshot(cards) {
+    var snaps = [];
+    for (var i = 0; i < cards.length; i += 1) {
+      var list = cards[i].querySelector(".verse-group-members");
+      snaps.push({
+        card: cards[i],
+        html: list ? list.innerHTML : "",
+        star: cards[i].getAttribute("data-star") || "",
+      });
+    }
+    return snaps;
+  }
+
+  function beginMemberChange(cards) {
+    memberRev += 1;
+    return { rev: memberRev, snaps: memberSnapshot(cards) };
+  }
+
+  function undoMemberChange(token) {
+    if (!token || token.rev !== memberRev) {
+      location.reload();
+      return;
+    }
+    var snaps = token.snaps;
+    for (var i = 0; i < snaps.length; i += 1) {
+      var list = snaps[i].card.querySelector(".verse-group-members");
+      if (list) list.innerHTML = snaps[i].html;
+      paintStar(snaps[i].card, snaps[i].star);
+    }
+  }
+
+  function clearPressed(item) {
+    var btn = item.querySelector("[data-vg-star]");
+    if (!btn) return;
+    btn.setAttribute("aria-pressed", "false");
+    btn.setAttribute("aria-label", "Star this verse");
+    btn.setAttribute("title", "Star this verse");
+  }
+
+  function applyMemberRemove(card, slug) {
+    var item = memberItem(card, slug);
+    if (!item) return;
+    item.remove();
+    if ((card.getAttribute("data-star") || "") === slug) paintStar(card, "");
+  }
+
+  function applyMemberMove(fromCard, toCard, slug) {
+    var item = memberItem(fromCard, slug);
+    var list = toCard.querySelector(".verse-group-members");
+    if (!item || !list) return;
+    if (slug === fromCard.getAttribute("data-hub")) {
+      if (memberItem(toCard, slug)) return;
+      var copy = item.cloneNode(true);
+      clearPressed(copy);
+      list.appendChild(copy);
+      return;
+    }
+    if ((fromCard.getAttribute("data-star") || "") === slug) paintStar(fromCard, "");
+    if (memberItem(toCard, slug)) {
+      item.remove();
+      return;
+    }
+    clearPressed(item);
+    list.appendChild(item);
+  }
+
+  function cardByHub(hub) {
+    var cards = panel.querySelectorAll(".verse-group");
+    for (var i = 0; i < cards.length; i += 1) {
+      if (cards[i].getAttribute("data-hub") === hub) return cards[i];
+    }
+    return null;
+  }
 
   function clearDrop() {
     var marked = panel.querySelectorAll(".verse-group.is-drop");
@@ -258,7 +342,15 @@ export function verseGroupsScript(): string {
     var target = groupAt(x, y);
     var to = target && target.getAttribute("data-hub");
     if (!target || !to || to === state.hub) return;
-    post(target, "move-member", { slug: state.slug, from: state.hub });
+    var fromCard = cardByHub(state.hub);
+    if (!fromCard) return;
+    var token = beginMemberChange([fromCard, target]);
+    applyMemberMove(fromCard, target, state.slug);
+    post(target, "move-member", { slug: state.slug, from: state.hub }, {
+      member: true,
+      rev: token.rev,
+      undo: function () { undoMemberChange(token); },
+    });
   }
 
   panel.addEventListener("pointerdown", function (event) {
@@ -350,7 +442,14 @@ export function verseGroupsScript(): string {
       var item = remove.closest(".att-item");
       var chip = item && item.querySelector(".att-chip");
       var slug = chip && chip.getAttribute("data-att-slug");
-      if (slug) post(card, "remove-member", { slug: slug });
+      if (!slug) return;
+      var token = beginMemberChange([card]);
+      applyMemberRemove(card, slug);
+      post(card, "remove-member", { slug: slug }, {
+        member: true,
+        rev: token.rev,
+        undo: function () { undoMemberChange(token); },
+      });
     }
   });
 
@@ -722,6 +821,8 @@ export function verseGroupsScript(): string {
         return;
       }
       card.setAttribute("data-save-inflight", "1");
+    } else if (opts && opts.member) {
+      /* The chip is already in its new place. Do not lock the card or reload. */
     } else if (card.getAttribute("data-busy") === "1") {
       return;
     } else {
@@ -729,8 +830,8 @@ export function verseGroupsScript(): string {
     }
     var hub = card.getAttribute("data-hub");
     var status = card.querySelector(".verse-group-status");
-    var pending = action === "add-member" ? "Attaching…" : action === "remove-member" ? "Removing…" : action === "move-member" ? "Moving…" : action === "suggest-title" ? "Finding a topic…" : "Saving…";
-    if (status && !quiet && !(opts && opts.dialog)) status.textContent = pending;
+    var pending = action === "add-member" ? "Attaching…" : action === "suggest-title" ? "Finding a topic…" : "Saving…";
+    if (status && !quiet && !(opts && opts.dialog) && !(opts && opts.member)) status.textContent = pending;
     var body = { action: action, hub: hub };
     if (action === "save") {
       body.title = storedTitle(card);
@@ -756,6 +857,7 @@ export function verseGroupsScript(): string {
         card.removeAttribute("data-busy");
         card.removeAttribute("data-save-inflight");
         var message = payload.error || "Could not save.";
+        if (opts && opts.member && typeof opts.undo === "function") opts.undo();
         if (auto) {
           if (status) status.textContent = "";
           finishAuto();
@@ -781,6 +883,10 @@ export function verseGroupsScript(): string {
         if (status) status.textContent = "";
         return;
       }
+      if (opts && opts.member) {
+        if (status) status.textContent = "";
+        return;
+      }
       if (opts && opts.topic) {
         var baseline = card._titleAtAuto == null ? "" : String(card._titleAtAuto);
         var current = storedTitle(card);
@@ -799,6 +905,7 @@ export function verseGroupsScript(): string {
     }).catch(function () {
       card.removeAttribute("data-busy");
       card.removeAttribute("data-save-inflight");
+      if (opts && opts.member && typeof opts.undo === "function") opts.undo();
       if (auto) {
         if (status) status.textContent = "";
         finishAuto();
