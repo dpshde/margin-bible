@@ -41,6 +41,7 @@ import {
 import { chapterSlug, createPassage, lazyChapterNotes, parsePassage, passageLabel, passageSlug, type Passage } from "./passage";
 import { renderChapterPage, renderMissing, renderNotesIndex } from "./reader-page";
 import { seedPreviewVerseGroups } from "./preview-seed";
+import { resolveLinkTitle } from "./link-title";
 import { handleVerseGroupAction, loadVerseGroups } from "./verse-groups-store";
 import { suggestVerseGroupTopic } from "./verse-topic";
 import { verseGroupCardHtml } from "./verse-groups-ui";
@@ -139,7 +140,7 @@ app.use("*", async (c, next) => {
   }
 });
 
-app.get("/health", (c) => c.json({ ok: true, app: "margin-bible", version: "2026.10.06.37" }));
+app.get("/health", (c) => c.json({ ok: true, app: "margin-bible", version: "2026.10.06.39" }));
 
 app.get("/manifest.webmanifest", () => manifestResponse());
 app.get("/manifest.json", () => manifestResponse());
@@ -440,6 +441,12 @@ app.get("/notes", async (c) => {
     200,
     { "cache-control": "private, no-store" },
   );
+});
+
+app.get("/api/link-title", async (c) => {
+  const result = await resolveLinkTitle(c.req.query("url") ?? "");
+  c.header("cache-control", "private, no-store");
+  return c.json({ ok: true, title: result.title, fallback: result.fallback });
 });
 
 app.get("/api/verse-groups", async (c) => {

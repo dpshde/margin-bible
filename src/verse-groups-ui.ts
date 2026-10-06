@@ -3,7 +3,7 @@
  * Each web is a bookmark row that opens onto its member chips.
  */
 import { escapeHtml } from "./html";
-import type { VerseGroupMember, VerseGroupView } from "./verse-groups";
+import type { ExternalRef, VerseGroupMember, VerseGroupView } from "./verse-groups";
 import { hrefForXref } from "./xref";
 
 export function verseGroupsViewHtml(groups: readonly VerseGroupView[]): string {
@@ -16,7 +16,13 @@ export function verseGroupsViewHtml(groups: readonly VerseGroupView[]): string {
 export function verseGroupCardHtml(group: VerseGroupView, status = ""): string {
   const field = group.hub.replaceAll(".", "-");
   const star = group.star || "";
-  const chips = group.members.map((member, index) => verseChipHtml(member, member.slug === star, member.order ?? index)).join("");
+  const memberChips = group.members
+    .map((member, index) => verseChipHtml(member, member.slug === star, member.order ?? index))
+    .join("");
+  const linkChips = (group.externalRefs ?? [])
+    .map((ref, index) => externalRefChipHtml(ref, 10_000 + index))
+    .join("");
+  const chips = memberChips + linkChips;
   const saved = group.title.trim();
   const rowTitle = saved || group.hubLabel;
   const excerpt = saved && saved !== group.hubLabel ? group.hubLabel : "";
@@ -199,11 +205,152 @@ export function verseGroupsScript(): string {
     input?.focus();
   }
 
+  function absoluteHttpUrl(value) {
+    var text = String(value || "").trim();
+    if (!text) return null;
+    var candidate = /^www\\./i.test(text) ? "https://" + text : text;
+    try {
+      var url = new URL(candidate);
+      if (url.protocol !== "http:" && url.protocol !== "https:") return null;
+      if (!url.hostname) return null;
+      return url.toString();
+    } catch (err) {
+      return null;
+    }
+  }
+
+  function hostnameLabel(url) {
+    try { return new URL(url).hostname.replace(/^www\\./, "") || url; } catch (err) { return url; }
+  }
+
+  function externalItem(card, url) {
+    var items = card.querySelectorAll(".att-item");
+    for (var i = 0; i < items.length; i += 1) {
+      var chip = items[i].querySelector(".att-chip");
+      if (chip && chip.getAttribute("data-att-kind") === "url" && chip.getAttribute("data-att-url") === url) return items[i];
+    }
+    return null;
+  }
+
+  function externalRemoveButton() {
+    var button = document.createElement("button");
+    button.type = "button";
+    button.className = "att-remove";
+    button.setAttribute("aria-label", "Remove attachment");
+    button.title = "Remove attachment";
+    var sample = panel.querySelector(".verse-group .att-remove");
+    button.innerHTML = sample ? sample.innerHTML : "×";
+    return button;
+  }
+
+  function applyExternalAdd(card, url, title) {
+    if (externalItem(card, url)) return false;
+    var list = card.querySelector(".verse-group-members");
+    if (!list) return false;
+    var item = document.createElement("li");
+    item.className = "att-item";
+    item.setAttribute("data-order", String(10000 + list.querySelectorAll(".att-chip.att-url").length));
+    var chip = document.createElement("a");
+    chip.className = "att-chip att-url";
+    chip.href = url;
+    chip.target = "_blank";
+    chip.rel = "noreferrer";
+    chip.setAttribute("data-att-id", "att_link");
+    chip.setAttribute("data-att-kind", "url");
+    chip.setAttribute("data-att-url", url);
+    chip.setAttribute("data-att-title", title);
+    chip.setAttribute("data-att-source", "manual");
+    chip.textContent = title;
+    item.appendChild(chip);
+    item.appendChild(externalRemoveButton());
+    list.appendChild(item);
+    return true;
+  }
+
+  function applyExternalRemove(card, url) {
+    var item = externalItem(card, url);
+    if (!item) return;
+    quietMemberHover(card);
+    blurRemovedMember(card, item);
+    item.remove();
+  }
+
+  function paintExternalTitle(card, url, fallback, title) {
+    if (!title || title === fallback) return;
+    var item = externalItem(card, url);
+    if (!item) return;
+    var chip = item.querySelector(".att-chip");
+    if (!chip) return;
+    if ((chip.getAttribute("data-att-title") || "") !== fallback) return;
+    chip.textContent = title;
+    chip.setAttribute("data-att-title", title);
+    post(card, "retitle-external", { url: url, title: title }, { member: true });
+  }
+
+  function attachUrl(card, url) {
+    if (externalItem(card, url)) {
+      showDialogError("Already attached.");
+      return;
+    }
+    var fallback = hostnameLabel(url);
+    var token = beginMemberChange([card]);
+    if (!applyExternalAdd(card, url, fallback)) return;
+    if (dialog && dialog.close) dialog.close();
+    var pageTitle = "";
+    var saved = false;
+    function publishTitle() {
+      if (!saved) return;
+      paintExternalTitle(card, url, fallback, pageTitle);
+    }
+    var settled;
+    var job = new Promise(function (resolve) { settled = resolve; });
+    card._linkAdds = card._linkAdds || {};
+    card._linkAdds[url] = job;
+    post(card, "add-member", { text: url }, {
+      member: true,
+      rev: token.rev,
+      undo: function () { undoMemberChange(token); },
+      onDone: function (ok) {
+        saved = Boolean(ok);
+        settled(saved);
+        if (saved) publishTitle();
+      },
+    });
+    fetch("/api/link-title?url=" + encodeURIComponent(url), { headers: { accept: "application/json" }, credentials: "same-origin" })
+      .then(function (res) { return res.ok ? res.json() : null; })
+      .then(function (data) {
+        if (!data || data.fallback || !data.title) return;
+        pageTitle = String(data.title);
+        publishTitle();
+      })
+      .catch(function () {});
+  }
+
+  function removeExternal(card, url) {
+    var token = beginMemberChange([card]);
+    applyExternalRemove(card, url);
+    var send = function () {
+      post(card, "remove-external", { url: url }, {
+        member: true,
+        rev: token.rev,
+        undo: function () { undoMemberChange(token); },
+      });
+    };
+    var job = card._linkAdds && card._linkAdds[url];
+    if (job && job.then) job.then(function (ok) { if (ok) send(); });
+    else send();
+  }
+
   function attachText(raw) {
     var text = String(raw || "").trim();
     if (!active) return;
     if (!text) {
       showDialogError("Need a passage or an http(s) link.");
+      return;
+    }
+    var url = absoluteHttpUrl(text);
+    if (url) {
+      attachUrl(active, url);
       return;
     }
     post(active, "add-member", { text: text }, { dialog: true });
@@ -489,6 +636,11 @@ export function verseGroupsScript(): string {
       event.preventDefault();
       var item = remove.closest(".att-item");
       var chip = item && item.querySelector(".att-chip");
+      if (chip && chip.getAttribute("data-att-kind") === "url") {
+        var url = chip.getAttribute("data-att-url");
+        if (url) removeExternal(card, url);
+        return;
+      }
       var slug = chip && chip.getAttribute("data-att-slug");
       if (!slug) return;
       var token = beginMemberChange([card]);
@@ -902,6 +1054,9 @@ export function verseGroupsScript(): string {
     var status = card.querySelector(".verse-group-status");
     var pending = action === "add-member" ? "Attaching…" : action === "suggest-title" ? "Finding a topic…" : "Saving…";
     if (status && !quiet && !(opts && opts.dialog) && !(opts && opts.member)) status.textContent = pending;
+    function settle(ok) {
+      if (opts && typeof opts.onDone === "function") opts.onDone(ok);
+    }
     var body = { action: action, hub: hub };
     if (action === "save") {
       body.title = storedTitle(card);
@@ -931,10 +1086,12 @@ export function verseGroupsScript(): string {
         if (auto) {
           if (status) status.textContent = "";
           finishAuto();
+          settle(false);
           return;
         }
         if (opts && opts.dialog) showDialogError(message);
         else if (status) status.textContent = message;
+        settle(false);
         return;
       }
       if (quiet) {
@@ -945,18 +1102,21 @@ export function verseGroupsScript(): string {
           card.removeAttribute("data-save-pending");
           post(card, "save", null, { quiet: true });
         }
+        settle(true);
         return;
       }
       if (opts && opts.star) {
         paintStar(card, typeof payload.star === "string" ? payload.star : "");
         card.removeAttribute("data-busy");
         if (status) status.textContent = "";
+        settle(true);
         return;
       }
       if (opts && opts.member) {
         if (payload.sourceDissolved && extra && extra.from) dropCard(cardByHub(extra.from));
         if (payload.dissolved) dropCard(card);
         if (status) status.textContent = "";
+        settle(true);
         return;
       }
       if (opts && opts.topic) {
@@ -967,6 +1127,7 @@ export function verseGroupsScript(): string {
         card.removeAttribute("data-busy");
         if (status) status.textContent = "";
         finishAuto();
+        settle(true);
         return;
       }
       try {
@@ -974,6 +1135,7 @@ export function verseGroupsScript(): string {
         sessionStorage.setItem(FLASH_KEY, JSON.stringify({ hub: hub, message: payload.status || "Saved." }));
       } catch (err) {}
       location.reload();
+      settle(true);
     }).catch(function () {
       card.removeAttribute("data-busy");
       card.removeAttribute("data-save-inflight");
@@ -981,10 +1143,12 @@ export function verseGroupsScript(): string {
       if (auto) {
         if (status) status.textContent = "";
         finishAuto();
+        settle(false);
         return;
       }
       if (opts && opts.dialog) showDialogError("Could not save.");
       else if (status) status.textContent = "Could not save.";
+      settle(false);
     });
   }
 
@@ -1010,6 +1174,13 @@ export function verseGroupsScript(): string {
 })();`;
 }
 
+function externalRefChipHtml(ref: ExternalRef, order: number): string {
+  const id = escapeHtml(ref.id);
+  const title = escapeHtml(ref.title);
+  const url = escapeHtml(ref.url);
+  return `<li class="att-item" data-order="${order}"><a class="att-chip att-url" href="${url}" target="_blank" rel="noreferrer" data-att-id="${id}" data-att-kind="url" data-att-url="${url}" data-att-title="${title}" data-att-source="manual">${title}</a><button type="button" class="att-remove" data-att-id="${id}" aria-label="Remove attachment" title="Remove attachment">${iconX(12)}</button></li>`;
+}
+
 function verseChipHtml(member: VerseGroupMember, starred: boolean, order: number): string {
   const id = `vg_${member.slug.replaceAll(".", "_")}`;
   const title = escapeHtml(member.label);
@@ -1028,7 +1199,7 @@ function attachDialogHtml(): string {
     <div class="att-drop-zone" id="vg-att-drop-zone">
       <p class="att-drop-check" id="vg-att-drop-check" hidden>✓</p>
       <p class="att-drop-title" id="vg-att-drop-title">Drop a link. Or a passage.</p>
-      <p class="att-drop-sub" id="vg-att-drop-sub">Paste a URL, or type John 3:16. It stays on this note as a chip — not mixed into the outline.</p>
+      <p class="att-drop-sub" id="vg-att-drop-sub">Paste a URL, or type John 3:16. A link stays on this group as a chip. A passage joins the verses.</p>
       <label class="sr-only" for="vg-att-drop-input">Link or passage</label>
       <div class="att-drop-field">
         <input id="vg-att-drop-input" class="att-drop-input" type="text" autocomplete="off" spellcheck="false" placeholder="https://…  or  Romans 8:28" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="vg-att-drop-suggest">

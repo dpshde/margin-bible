@@ -18,6 +18,17 @@ describe("attachments", () => {
     expect(url && url.kind === "url" && url.url).toBe("https://example.com/path");
   });
 
+  test("an http url stays an external ref when the path looks like a passage", () => {
+    const route = parseAttachmentInput("https://route.bible/jhn.3.16");
+    expect(route?.kind).toBe("url");
+    expect(route && route.kind === "url" && route.url).toBe("https://route.bible/jhn.3.16");
+    const www = parseAttachmentInput("www.example.com/note");
+    expect(www?.kind).toBe("url");
+    expect(www && www.kind === "url" && www.url.startsWith("https://www.example.com/note")).toBe(true);
+    expect(parseAttachmentInput("John 3:16")?.kind).toBe("xref");
+    expect(parseAttachmentInput("not a link")).toBeNull();
+  });
+
   test("dedupes xref and url chips", () => {
     const { list, added } = addAttachment([], { kind: "xref", slug: "jhn.3.16", title: "John 3:16", source: "manual" });
     expect(added?.slug).toBe("jhn.3.16");

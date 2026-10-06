@@ -53,6 +53,8 @@ export type VerseGroupMeta = {
   star?: string;
   /** Last title Jev wrote on the one automatic pass. */
   jevTitle?: string;
+  /** http(s) chips on the group. Not verse members and not xrefs. */
+  externalRefs?: ExternalRef[];
   /**
    * True after that pass, or when a title was already saved.
    * Once true, automatic titling does not run again. A manual edit does not clear it.
@@ -94,6 +96,8 @@ export type VerseGroupView = {
   suggestedTitle?: string;
   /** Parent id for that guess, so the picker can open on the right branch. */
   topicParent?: string;
+  /** http(s) chips. Separate from `members`, which stay passage xrefs. */
+  externalRefs?: ExternalRef[];
 };
 
 const DEMO_ORDER = new Map<string, number>(DEMO_SPOKE_SLUGS.map((slug, index) => [slug, index]));
@@ -118,13 +122,89 @@ export function cleanGroupTitle(value: unknown): string {
     .slice(0, GROUP_TITLE_MAX);
 }
 
-/** A verse-group chip is a passage, same as an xref attachment. URLs are not members. */
-export function verseMemberFromInput(raw: unknown): { ok: true; slug: string; label: string } | { ok: false; error: string } {
-  const parsed = parseAttachmentInput(raw);
-  if (!parsed || parsed.kind !== "xref") return { ok: false, error: "Need a passage." };
+const EXTERNAL_REF_ID = /^att_[A-Za-z0-9]{4,16}$/;
+
+/** A link on a verse group that is not a verse member and not an xref. */
+export type ExternalRef = {
+  id: string;
+  url: string;
+  title: string;
+};
+
+export type GroupAttach =
+  | { ok: true; kind: "xref"; slug: string; label: string }
+  | { ok: true; kind: "url"; url: string; title: string }
+  | { ok: false; error: string };
+
+/**
+ * Paperclip input for a verse group.
+ * A passage becomes an xref member. An http(s) URL becomes an external ref.
+ */
+export function groupAttachFromInput(raw: unknown): GroupAttach {
+  const text = String(raw ?? "").trim();
+  if (!text) return { ok: false, error: "Need a passage or an http(s) link." };
+  const parsed = parseAttachmentInput(text);
+  if (!parsed) return { ok: false, error: "Need a passage or an http(s) link." };
+  if (parsed.kind === "url") return { ok: true, kind: "url", url: parsed.url, title: parsed.title };
   const slug = canonSlug(parsed.slug);
   if (!slug) return { ok: false, error: "Need a passage." };
-  return { ok: true, slug, label: slugLabel(slug) };
+  return { ok: true, kind: "xref", slug, label: slugLabel(slug) };
+}
+
+/** A verse-group member is a passage. URLs are external refs, not members. */
+export function verseMemberFromInput(raw: unknown): { ok: true; slug: string; label: string } | { ok: false; error: string } {
+  const parsed = groupAttachFromInput(raw);
+  if (!parsed.ok || parsed.kind !== "xref") return { ok: false, error: "Need a passage." };
+  return { ok: true, slug: parsed.slug, label: parsed.label };
+}
+
+export function cleanRefTitle(value: unknown, fallback: string): string {
+  const title = String(value ?? "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 200);
+  return title || fallback;
+}
+
+export function normalizeExternalRefs(raw: unknown): ExternalRef[] {
+  const rows = Array.isArray(raw) ? raw : [];
+  const seen = new Set<string>();
+  const out: ExternalRef[] = [];
+  for (const row of rows) {
+    if (!row || typeof row !== "object") continue;
+    const record = row as Record<string, unknown>;
+    const parsed = groupAttachFromInput(record.url);
+    if (!parsed.ok || parsed.kind !== "url" || seen.has(parsed.url)) continue;
+    const id = typeof record.id === "string" && EXTERNAL_REF_ID.test(record.id) ? record.id : "";
+    if (!id) continue;
+    seen.add(parsed.url);
+    out.push({ id, url: parsed.url, title: cleanRefTitle(record.title, parsed.title) });
+  }
+  return out;
+}
+
+export function withExternalRef(
+  list: readonly ExternalRef[] | null | undefined,
+  ref: ExternalRef,
+): { list: ExternalRef[]; added: ExternalRef | null } {
+  const current = normalizeExternalRefs(list);
+  const parsed = groupAttachFromInput(ref.url);
+  if (!parsed.ok || parsed.kind !== "url") return { list: current, added: null };
+  if (!EXTERNAL_REF_ID.test(ref.id)) return { list: current, added: null };
+  if (current.some((row) => row.url === parsed.url)) return { list: current, added: null };
+  const added: ExternalRef = { id: ref.id, url: parsed.url, title: cleanRefTitle(ref.title, parsed.title) };
+  return { list: [...current, added], added };
+}
+
+export function withoutExternalRef(
+  list: readonly ExternalRef[] | null | undefined,
+  raw: unknown,
+): { list: ExternalRef[]; removed: boolean } {
+  const current = normalizeExternalRefs(list);
+  const parsed = groupAttachFromInput(raw);
+  if (!parsed.ok || parsed.kind !== "url") return { list: current, removed: false };
+  const next = current.filter((row) => row.url !== parsed.url);
+  return { list: next, removed: next.length !== current.length };
 }
 
 export function cleanGroupDescription(value: unknown): string {
@@ -299,6 +379,7 @@ function toView(input: {
     missingPairs: missing.pairs,
     missingCount: missing.total,
     undoReady: (input.meta?.undoPairs.length ?? 0) > 0,
+    externalRefs: normalizeExternalRefs(input.meta?.externalRefs ?? []),
   };
 }
 
@@ -351,7 +432,14 @@ function metaMap(metas: readonly VerseGroupMeta[]): Map<string, VerseGroupMeta> 
   const map = new Map<string, VerseGroupMeta>();
   for (const meta of metas) {
     const hub = canonSlug(meta.hub);
-    if (hub) map.set(hub, { ...meta, hub, star: canonSlug(meta.star) ?? "" });
+    if (hub) {
+      map.set(hub, {
+        ...meta,
+        hub,
+        star: canonSlug(meta.star) ?? "",
+        externalRefs: normalizeExternalRefs(meta.externalRefs ?? []),
+      });
+    }
   }
   return map;
 }

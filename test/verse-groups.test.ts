@@ -14,7 +14,10 @@ import {
   cleanGroupDescription,
   cleanGroupTitle,
   titleStillFromJev,
+  groupAttachFromInput,
   verseMemberFromInput,
+  withExternalRef,
+  withoutExternalRef,
   missingPairwise,
   realVerseGroups,
   userEdges,
@@ -209,6 +212,25 @@ describe("verse group detection", () => {
     expect(verseMemberFromInput("https://example.com/note")).toEqual({ ok: false, error: "Need a passage." });
     expect(verseMemberFromInput("")).toEqual({ ok: false, error: "Need a passage." });
   });
+
+  test("a url is an external ref and a passage is still a member", () => {
+    expect(groupAttachFromInput("John 9:3")).toEqual({ ok: true, kind: "xref", slug: "jhn.9.3", label: "John 9:3" });
+    expect(groupAttachFromInput("https://route.bible/jhn.3.16")).toMatchObject({
+      ok: true,
+      kind: "url",
+      url: "https://route.bible/jhn.3.16",
+      title: "route.bible",
+    });
+    expect(groupAttachFromInput("notaurl")).toEqual({ ok: false, error: "Need a passage or an http(s) link." });
+    const added = withExternalRef([], { id: "att_abcd1234", url: "https://example.com/note", title: "Example" });
+    expect(added.added).toMatchObject({ id: "att_abcd1234", url: "https://example.com/note", title: "Example" });
+    expect(withExternalRef(added.list, added.added!).added).toBeNull();
+    expect(withExternalRef(added.list, { id: "nope", url: "https://other.test", title: "Other" }).added).toBeNull();
+    const removed = withoutExternalRef(added.list, "https://example.com/note");
+    expect(removed.removed).toBe(true);
+    expect(removed.list).toEqual([]);
+    expect(withoutExternalRef(added.list, "John 9:3").removed).toBe(false);
+  });
 });
 
 describe("preview worker publish", () => {
@@ -292,6 +314,7 @@ describe("verse groups inbox", () => {
     expect(html).not.toContain("Save sample");
     expect(html).not.toContain('data-hub="rom.9.17"');
     expect(html).toContain("John 3:16");
+    expect(html).toContain("A link stays on this group as a chip. A passage joins the verses.");
     const css = page("t", "<p>x</p>");
     expect(css).toContain(".bookmarks-view");
     expect(css).not.toContain(".verse-groups-btn");
@@ -519,6 +542,64 @@ describe("verse groups inbox", () => {
     expect(html).not.toContain("data-vg-topic");
     expect(html).toContain('data-auto-titled="1"');
     expect(html).not.toContain("data-topic-set");
+  });
+
+  test("a url chip sits with the verses and is not a member xref", () => {
+    const html = verseGroupCardHtml({
+      hub: "rom.9.17",
+      hubLabel: "Romans 9:17",
+      star: "",
+      title: "",
+      autoTitled: false,
+      description: "",
+      members: [
+        { slug: "rom.9.17", label: "Romans 9:17", role: "hub" },
+        { slug: "1pe.5.6", label: "1 Peter 5:6", role: "member" },
+      ],
+      externalRefs: [{ id: "att_abcd1234", url: "https://example.com/study", title: "example.com" }],
+      trigger: "fan-in",
+      inboundCount: 2,
+      outboundCount: 0,
+      why: "2 notes point at Romans 9:17.",
+      sample: false,
+      seed: true,
+      missingPairs: [],
+      missingCount: 0,
+      undoReady: false,
+    });
+    expect(html).toContain('class="att-chip wiki"');
+    expect(html).toContain('class="att-chip att-url"');
+    expect(html).toContain('href="https://example.com/study"');
+    expect(html).toContain('target="_blank"');
+    expect(html).toContain('data-att-kind="url"');
+    expect(html).toContain('data-att-url="https://example.com/study"');
+    expect(html.indexOf('data-att-slug="1pe.5.6"')).toBeLessThan(html.indexOf('class="att-chip att-url"'));
+    const urlAt = html.indexOf('class="att-chip att-url"');
+    const urlItem = html.slice(html.lastIndexOf("<li", urlAt), html.indexOf("</li>", urlAt));
+    expect(urlItem).not.toContain("verse-star");
+    expect(urlItem).toContain("att-remove");
+    expect(verseGroupsScript()).toContain("remove-external");
+    expect(verseGroupsScript()).toContain('data-att-kind") === "url"');
+    expect(verseGroupsScript()).toContain("function applyExternalAdd");
+    expect(verseGroupsScript()).toContain("function applyExternalRemove");
+    expect(verseGroupsScript()).toContain("retitle-external");
+    expect(verseGroupsScript()).toContain("/api/link-title");
+    const urlRemove = verseGroupsScript().slice(
+      verseGroupsScript().indexOf("function removeExternal"),
+      verseGroupsScript().indexOf("function attachText"),
+    );
+    expect(urlRemove).toContain("applyExternalRemove");
+    expect(urlRemove).toContain("member: true");
+    expect(urlRemove).not.toContain("location.reload");
+    expect(verseGroupsScript()).toContain("if (url) removeExternal(card, url);");
+    const urlAdd = verseGroupsScript().slice(
+      verseGroupsScript().indexOf("function attachUrl"),
+      verseGroupsScript().indexOf("function removeExternal"),
+    );
+    expect(urlAdd.indexOf("applyExternalAdd")).toBeGreaterThan(-1);
+    expect(urlAdd.indexOf("dialog.close")).toBeGreaterThan(urlAdd.indexOf("applyExternalAdd"));
+    expect(urlAdd.indexOf("member: true")).toBeGreaterThan(urlAdd.indexOf("dialog.close"));
+    expect(urlAdd).not.toContain("location.reload");
   });
 
   test("a saved title is locked without a sparkle button", () => {
@@ -907,6 +988,78 @@ describe("automatic verse group titles", () => {
     if (!repeat.ok) return;
     expect(repeat.skipped).toBe("already");
     expect(calls).toBe(1);
+  });
+
+  test("a url attaches as an external ref and a passage still adds an xref member", async () => {
+    const db = starLibrary();
+    const linked = await handleVerseGroupAction(db, "lib", {
+      action: "add-member",
+      hub: "jhn.1.1",
+      text: "https://example.com/study",
+    });
+    expect(linked.ok).toBe(true);
+    if (!linked.ok) return;
+    expect(linked.statusText).toBe("Attached example.com.");
+    expect(linked.group.externalRefs?.map((ref) => ref.url)).toEqual(["https://example.com/study"]);
+    expect(linked.group.members.some((member) => member.slug === "https://example.com/study")).toBe(false);
+    const notes = await loadVerseGroups(db, "lib", [note("jhn.1.1", [xref("jhn.1.14"), xref("jhn.1.3")])]);
+    expect(notes[0]?.externalRefs?.map((ref) => ref.title)).toEqual(["example.com"]);
+
+    const again = await handleVerseGroupAction(db, "lib", {
+      action: "add-member",
+      hub: "jhn.1.1",
+      text: "https://example.com/study",
+    });
+    expect(again.ok).toBe(false);
+    if (again.ok) return;
+    expect(again.error).toBe("Already attached.");
+
+    const passage = await handleVerseGroupAction(db, "lib", {
+      action: "add-member",
+      hub: "jhn.1.1",
+      text: "John 1:5",
+    });
+    expect(passage.ok).toBe(true);
+    if (!passage.ok) return;
+    expect(passage.group.members.some((member) => member.slug === "jhn.1.5")).toBe(true);
+    expect(passage.group.externalRefs).toHaveLength(1);
+
+    const removed = await handleVerseGroupAction(db, "lib", {
+      action: "remove-external",
+      hub: "jhn.1.1",
+      url: "https://example.com/study",
+    });
+    expect(removed.ok).toBe(true);
+    if (!removed.ok) return;
+    expect(removed.group.externalRefs).toEqual([]);
+    expect(removed.group.members.some((member) => member.slug === "jhn.1.5")).toBe(true);
+
+    const missing = await handleVerseGroupAction(db, "lib", {
+      action: "remove-external",
+      hub: "jhn.1.1",
+      url: "https://example.com/study",
+    });
+    expect(missing.ok).toBe(false);
+    if (missing.ok) return;
+    expect(missing.error).toBe("That link is not in this group.");
+
+    const againLinked = await handleVerseGroupAction(db, "lib", {
+      action: "add-member",
+      hub: "jhn.1.1",
+      text: "https://example.com/study",
+    });
+    expect(againLinked.ok).toBe(true);
+    const titled = await handleVerseGroupAction(db, "lib", {
+      action: "retitle-external",
+      hub: "jhn.1.1",
+      url: "https://example.com/study",
+      title: "Grace Abounding",
+    });
+    expect(titled.ok).toBe(true);
+    if (!titled.ok) return;
+    expect(titled.group.externalRefs?.map((ref) => ref.title)).toEqual(["Grace Abounding"]);
+    const kept = await loadVerseGroups(db, "lib", [note("jhn.1.1", [xref("jhn.1.14"), xref("jhn.1.3")])]);
+    expect(kept[0]?.externalRefs?.map((ref) => ref.title)).toEqual(["Grace Abounding"]);
   });
 });
 

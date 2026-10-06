@@ -5,9 +5,16 @@ import { jumpFormHtml } from "./jump-ui";
 export function clientScript(): string {
   // Language: JavaScript (browser). Loads grab-bcv for wiki/attachment parsing (Rails parity).
   return `(async () => {
+  if (history.scrollRestoration) history.scrollRestoration = "manual";
+  // Chapter arrival starts at the top. A verse address keeps its placement.
+  var arrivalPath = location.pathname.replace(/^\\/+/, "");
+  if (!/^[a-z0-9]+\\.\\d+\\.\\d+/i.test(arrivalPath)) window.scrollTo(0, 0);
   const { tryParseAnyPassage } = await import("/vendor/grab-bcv/parse.js");
   const root = document.querySelector("#reader");
   if (!root) return;
+  if (history.scrollRestoration) history.scrollRestoration = "manual";
+  // Chapter arrival starts at the top. A verse address keeps its placement.
+  if (!/^[a-z0-9]+\\.\\d+\\.\\d+/i.test(arrivalPath)) window.scrollTo(0, 0);
   const chapterSlug = root.dataset.chapterSlug;
   const notesPending = root.dataset.notesPending === "1";
   const notes = JSON.parse(document.querySelector("#notes-data").textContent || "[]");
@@ -524,6 +531,28 @@ export function clientScript(): string {
   function urlTitle(url) {
     try { return new URL(url).hostname.replace(/^www\\./, "") || url; } catch { return url; }
   }
+  function requestLinkTitle(url) {
+    return fetch("/api/link-title?url=" + encodeURIComponent(url), { headers: { accept: "application/json" }, credentials: "same-origin" })
+      .then((res) => res.ok ? res.json() : null)
+      .then((data) => (data && !data.fallback && data.title ? String(data.title) : ""))
+      .catch(() => "");
+  }
+  function applySavedUrlTitle(tray, url, fallbackTitle, pageTitle) {
+    if (!tray || !pageTitle || pageTitle === fallbackTitle) return;
+    const chip = [...tray.querySelectorAll(".att-chip")].find((node) => node.dataset.attKind === "url" && node.dataset.attUrl === url);
+    if (!chip || (chip.dataset.attTitle || "") !== fallbackTitle) return;
+    chip.dataset.attTitle = pageTitle;
+    chip.textContent = pageTitle;
+    const outliner = tray.querySelector(".outliner");
+    if (!outliner) return;
+    const slug = outliner.dataset.slug;
+    const blocks = clampIndent(readBlocks(outliner));
+    const next = readAttachments(tray);
+    const bookmarked = isBookmarked(tray);
+    const prev = noteMap.get(slug) || { slug, kind: slug === chapterSlug ? "chapter" : "verse" };
+    noteMap.set(slug, { ...prev, blocks, bookmarked, attachments: next });
+    saveSlug(slug, blocks, { bookmarked, attachments: next, tray });
+  }
   function newId() {
     const bytes = new Uint8Array(6);
     crypto.getRandomValues(bytes);
@@ -537,18 +566,11 @@ export function clientScript(): string {
   function parseAttachmentInput(raw) {
     const text = String(raw || "").trim();
     if (!text) return null;
-    if (/\\d/.test(text) || /^https?:\\/\\//i.test(text)) {
+    const url = absoluteHttpUrl(text);
+    if (url) return { id: newAttId(), kind: "url", url, title: urlTitle(url), source: "manual" };
+    if (/\\d/.test(text)) {
       const resolved = resolveWikiTarget(text);
       if (resolved) return { id: newAttId(), kind: "xref", slug: resolved.slug, title: resolved.label, source: "manual" };
-    }
-    const url = absoluteHttpUrl(text);
-    if (url) {
-      try {
-        const path = new URL(url).pathname.replace(/^\\/+/, "");
-        const fromPath = resolveWikiTarget(path);
-        if (fromPath && /\\d/.test(path)) return { id: newAttId(), kind: "xref", slug: fromPath.slug, title: fromPath.label, source: "manual" };
-      } catch {}
-      return { id: newAttId(), kind: "url", url, title: urlTitle(url), source: "manual" };
     }
     return null;
   }
@@ -2336,11 +2358,17 @@ export function clientScript(): string {
       notesPrefetch.delete(chapterSlug);
       writeChapterNotesCache(chapterSlug, [...noteMap.values()]);
       // Flush-on-attach: await PUT so leave/visibility cannot race the write.
+      const titleWait = parsed.kind === "url" ? requestLinkTitle(parsed.url) : null;
       await saveSlug(slug, blocks, {
         bookmarked,
         attachments: next,
         tray: attTray,
       });
+      if (titleWait) {
+        titleWait.then((pageTitle) => {
+          if (pageTitle) applySavedUrlTitle(attTray, parsed.url, parsed.title, pageTitle);
+        });
+      }
     }
     const zone = document.querySelector("#att-drop-zone");
     zone?.classList.remove("is-bad");
@@ -3464,6 +3492,10 @@ export function clientScript(): string {
       seedNotesFromHtml(slug, html);
       if (push) history.pushState({ soft: 1 }, "", url.pathname + url.search + url.hash);
       else history.replaceState({ soft: 1 }, "", url.pathname + url.search + url.hash);
+      if (history.scrollRestoration) history.scrollRestoration = "manual";
+      // Chapter arrival starts at the top. A verse address keeps its placement.
+      const navPath = url.pathname.replace(/^\\/+/, "");
+      if (!/^[a-z0-9]+\\.\\d+\\.\\d+/i.test(navPath)) window.scrollTo(0, 0);
       document.open();
       document.write(html);
       document.close();
