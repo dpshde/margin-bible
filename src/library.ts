@@ -51,13 +51,15 @@ export async function rememberRead(db: D1Database, libraryId: string, slug: stri
     .run();
 }
 
+const NOTE_COLUMNS =
+  "slug, osis, kind, book, chapter, verse_start, verse_end, blocks, bookmarked, attachments, created_at, updated_at";
+
 export async function listNotes(
   db: D1Database,
   libraryId: string,
   filter?: { book?: string; chapter?: number; verse?: number },
 ): Promise<NoteRecord[]> {
-  let sql =
-    "SELECT slug, osis, kind, book, chapter, verse_start, verse_end, blocks, bookmarked, attachments, created_at, updated_at FROM notes WHERE library_id = ?";
+  let sql = `SELECT ${NOTE_COLUMNS} FROM notes WHERE library_id = ?`;
   const binds: Array<string | number> = [libraryId];
   if (filter?.book && filter.chapter != null) {
     sql += " AND book = ? AND chapter = ?";
@@ -65,27 +67,39 @@ export async function listNotes(
   }
   sql += " ORDER BY book, chapter, verse_start IS NULL, verse_start, slug LIMIT 500";
   const result = await db.prepare(sql).bind(...binds).all<NoteSqlRow>();
-  const notes = (result.results ?? []).map(rowToNote);
+  const notes = notesFromRows(result.results);
   if (filter?.verse == null) return notes;
   return notes.filter((note) => noteCoversVerse(note, filter.verse as number));
 }
 
+/** One library read, ready to share a D1 batch with the verse-group meta read. */
+export function libraryNotesStatement(db: D1Database, libraryId: string): D1PreparedStatement {
+  return db
+    .prepare(
+      `SELECT ${NOTE_COLUMNS} FROM notes WHERE library_id = ? ORDER BY book, chapter, verse_start IS NULL, verse_start, slug LIMIT 500`,
+    )
+    .bind(libraryId);
+}
+
+export function notesFromRows(rows: readonly NoteSqlRow[] | null | undefined): NoteRecord[] {
+  return (rows ?? []).map(rowToNote);
+}
+
 export async function findNote(db: D1Database, libraryId: string, slug: string): Promise<NoteRecord | null> {
   const row = await db
-    .prepare(
-      "SELECT slug, osis, kind, book, chapter, verse_start, verse_end, blocks, bookmarked, attachments, created_at, updated_at FROM notes WHERE library_id = ? AND slug = ?",
-    )
+    .prepare(`SELECT ${NOTE_COLUMNS} FROM notes WHERE library_id = ? AND slug = ?`)
     .bind(libraryId, slug)
     .first<NoteSqlRow>();
   return row ? rowToNote(row) : null;
 }
 
-export async function saveNote(db: D1Database, libraryId: string, note: NoteDraft): Promise<NoteRecord> {
-  const now = new Date().toISOString();
-  const blocks = JSON.stringify(note.blocks);
-  const attachments = JSON.stringify(note.attachments);
-  const bookmarked = note.bookmarked ? 1 : 0;
-  await db
+export function putNoteStatement(
+  db: D1Database,
+  libraryId: string,
+  note: NoteDraft,
+  now = new Date().toISOString(),
+): D1PreparedStatement {
+  return db
     .prepare(
       `INSERT INTO notes (
         library_id, slug, osis, kind, book, chapter, verse_start, verse_end, blocks, bookmarked, attachments, created_at, updated_at
@@ -111,20 +125,27 @@ export async function saveNote(db: D1Database, libraryId: string, note: NoteDraf
       note.chapter,
       note.verseStart,
       note.verseEnd,
-      blocks,
-      bookmarked,
-      attachments,
+      JSON.stringify(note.blocks),
+      note.bookmarked ? 1 : 0,
+      JSON.stringify(note.attachments),
       now,
       now,
-    )
-    .run();
+    );
+}
+
+export function deleteNoteStatement(db: D1Database, libraryId: string, slug: string): D1PreparedStatement {
+  return db.prepare("DELETE FROM notes WHERE library_id = ? AND slug = ?").bind(libraryId, slug);
+}
+
+export async function saveNote(db: D1Database, libraryId: string, note: NoteDraft): Promise<NoteRecord> {
+  await putNoteStatement(db, libraryId, note).run();
   const saved = await findNote(db, libraryId, note.slug);
   if (!saved) throw new Error("note disappeared after save");
   return saved;
 }
 
 export async function deleteNote(db: D1Database, libraryId: string, slug: string): Promise<void> {
-  await db.prepare("DELETE FROM notes WHERE library_id = ? AND slug = ?").bind(libraryId, slug).run();
+  await deleteNoteStatement(db, libraryId, slug).run();
 }
 
 export function noteJson(note: NoteRecord) {

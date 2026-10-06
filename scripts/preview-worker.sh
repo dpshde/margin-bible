@@ -1,7 +1,8 @@
 #!/bin/sh
 # Publish this checkout as a separate Worker. Does not deploy `margin-bible`.
 # The D1 binding stays the production database. The worker creates `verse_groups`
-# on first use (CREATE TABLE IF NOT EXISTS) and adds star_slug and external_refs when missing.
+# on first use (CREATE TABLE IF NOT EXISTS) and adds star_slug, jev_title,
+# auto_titled, and external_refs when missing. A non-empty title is flagged so it is not renamed.
 set -eu
 
 preview_name="margin-bible-verse-groups"
@@ -55,7 +56,7 @@ mise exec -- cf deploy
 
 prod=$(curl -fsS -H "cache-control: no-cache" "https://margin-bible.dpshade.workers.dev/health" || true)
 printf '%s\n' "$prod"
-if printf '%s' "$prod" | grep -q '2026.10.06.26'; then
+if printf '%s' "$prod" | grep -q '2026.10.06.38'; then
   echo "production worker is serving this preview build" >&2
   exit 1
 fi
@@ -65,13 +66,13 @@ body=""
 while [ "$i" -lt 12 ]; do
   body=$(curl -fsS -H "cache-control: no-cache" "$preview_url/health" || true)
   printf '%s\n' "$body"
-  if printf '%s' "$body" | grep -q '2026.10.06.26'; then
+  if printf '%s' "$body" | grep -q '2026.10.06.38'; then
     break
   fi
   i=$((i + 1))
   sleep 3
 done
-printf '%s' "$body" | grep -q '2026.10.06.26'
+printf '%s' "$body" | grep -q '2026.10.06.38'
 
 notes=$(curl -fsS -A "Mozilla/5.0" -H "cache-control: no-cache" "$preview_url/notes")
 printf '%s' "$notes" | grep -q 'id="verse-groups-view"'
@@ -107,5 +108,11 @@ if printf '%s' "$notes" | grep -q 'data-hub="rom.9.17"'; then
   echo "empty library is still showing the sample web" >&2
   exit 1
 fi
+if printf '%s' "$notes" | grep -q 'data-vg-topic'; then
+  echo "sparkle title button is still in the preview" >&2
+  exit 1
+fi
+printf '%s' "$notes" | grep -q 'verse-group-members'
+printf '%s' "$notes" | grep -q 'autoTitlePass'
 
 echo "PREVIEW_URL=$preview_url/notes"

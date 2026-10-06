@@ -29,7 +29,8 @@ import {
 import { closestJevTopic, DEMO_VERSE_TEXTS, JEV_TOPICS } from "../src/jev-topics";
 import { previewSeedNeeded, previewSeedNotes } from "../src/preview-seed";
 import { notesInboxScript } from "../src/inbox-ui";
-import { handleVerseGroupAction, loadVerseGroups, saveJevTitle } from "../src/verse-groups-store";
+import { listNotes } from "../src/library";
+import { handleVerseGroupAction, loadVerseGroups } from "../src/verse-groups-store";
 import { suggestVerseGroupTopic } from "../src/verse-topic";
 import { verseGroupCardHtml, verseGroupsScript } from "../src/verse-groups-ui";
 
@@ -140,6 +141,8 @@ describe("verse group detection", () => {
     ]);
     expect(groups.map((group) => group.hub)).toEqual(["rom.9.17", "rom.8.28"]);
     expect(groups[0]?.title).toBe("Raised up");
+    expect(groups[0]?.autoTitled).toBe(true);
+    expect(groups[1]?.autoTitled).toBe(false);
     expect(groups[0]?.description).toBe("For this purpose");
     expect(groups[0]?.undoReady).toBe(true);
     expect(groups[1]?.title).toBe("");
@@ -318,36 +321,75 @@ describe("verse groups inbox", () => {
     expect(css).not.toContain(".inbox-tool-row");
     expect(css).toContain(".verse-group .att-chip");
     expect(css).toContain(".verse-group .att-remove");
-    expect(css).toContain('.verse-group-form input[name="title"] {\n      font-weight: 600;');
+    expect(css).not.toContain('.verse-group-form input[name="title"]');
+    expect(css).not.toContain(".verse-group-title-field");
+    expect(css).toContain('.verse-group > summary .note-row-title[contenteditable="true"] {\n      cursor: text;');
+    expect(css).toContain('.verse-group > summary .note-row-title[contenteditable="true"]:empty::before {\n      content: "Title";');
     expect(css).toContain(".verse-group-fields {\n      display: flex;\n      flex-direction: column;");
-    expect(css).toContain(".verse-group[open] > summary.note-row {\n      background: var(--ink);\n      color: var(--paper);\n      align-items: center;\n      min-height: 0;\n      padding: .42rem .7rem;");
+    expect(css).toContain(".verse-group[open] > summary.note-row {\n      background: var(--ink);\n      color: var(--paper);\n    }");
+    expect(css).not.toContain("padding: .42rem .7rem;");
+    expect(css).toContain(".verse-group.is-drop");
+    expect(css).toContain(".verse-group-drag-ghost");
     expect(css).toContain(".verse-group.is-collapsed-hover:not([open]) > summary.note-row:hover");
     expect(css).toContain(".verse-group[open] > summary.note-row:focus");
     expect(css).toContain('.verse-group .verse-star[aria-pressed="true"] { color: #b0893e; }');
     expect(css).toContain(".verse-group .verse-star,\n    .verse-group .att-remove {");
     const controls = css.slice(css.indexOf(".verse-group .verse-star,\n    .verse-group .att-remove {"));
-    expect(controls.slice(0, 700)).toContain("visibility: hidden");
+    expect(controls.slice(0, 900)).toContain("visibility: hidden");
+    expect(controls.slice(0, 900)).toContain("width: 0;");
+    expect(controls.slice(0, 900)).toContain("min-width: 0;");
     expect(controls).toContain(".verse-group .att-item:hover .verse-star");
     expect(controls).toContain(".verse-group .att-item:hover .att-remove");
     expect(controls).toContain("transition: opacity .12s ease, color .12s ease;");
     expect(controls).not.toContain("transition: width");
-    expect(controls).not.toContain("width: 0;");
-    expect(controls).toContain('.verse-group .verse-star[aria-pressed="true"] {\n        visibility: visible;\n        opacity: 1;');
-    expect(controls).toContain("width: 1.35rem;\n      height: 1.35rem;\n      min-width: 1.35rem;");
+    expect(controls).not.toContain("linear .16s");
+    expect(controls).toContain(".verse-group.is-member-quiet .att-item:hover:not(:focus-within) .verse-star:not([aria-pressed=\"true\"])");
+    expect(controls).toContain('.verse-group .verse-star[aria-pressed="true"] {\n        width: 1.35rem;\n        min-width: 1.35rem;');
+    expect(controls).toContain(".verse-group .att-item:hover .verse-star,\n      .verse-group .att-item:hover .att-remove");
+    expect(controls).toContain("padding-right: .12rem;");
     expect(controls).toContain("@media (hover: none), (pointer: coarse)");
-    expect(css).toContain('font-family: "Phosphor-Fill"');
-    expect(css).toContain('.ph-fill.ph-sparkle:before { content: "\\e6a2"; }');
-    expect(css).toContain(".verse-group-topic.is-set { color: var(--ink); cursor: default; }");
+    expect(css).not.toContain("ph-sparkle");
+    expect(css).not.toContain(".verse-group-topic");
+    expect(css).toContain(".verse-group-member-actions { display: contents; }");
+    expect(css).toContain(".verse-group-members {\n        flex-direction: column;");
+    const phoneMembers = css.slice(css.indexOf("@media (max-width: 767px) {\n      .verse-group-verses {"));
+    expect(phoneMembers.slice(0, 1800)).toContain("flex-direction: column;");
+    expect(phoneMembers).toContain(".verse-group-member-actions {\n        display: inline-flex;");
+    expect(phoneMembers).toContain("margin-left: auto;");
     expect(css).not.toContain(".att-chip.is-star");
     expect(css).toContain("outline: none;");
     expect(css).toContain("background: transparent;");
     expect(verseGroupsScript()).toContain("is-collapsed-hover");
     expect(verseGroupsScript()).toContain("set-star");
-    expect(verseGroupsScript()).toContain("ph-fill ph-sparkle");
-    expect(verseGroupsScript()).toContain('data-topic-set');
-    expect(verseGroupsScript()).toContain("syncTopicLock(card)");
-    expect(verseGroupsScript()).toContain("data-jev-title");
-    expect(verseGroupsScript()).toContain("next === jev");
+    expect(verseGroupsScript()).not.toContain("ph-sparkle");
+    expect(verseGroupsScript()).not.toContain("data-vg-topic");
+    expect(verseGroupsScript()).not.toContain("syncTopicLock");
+    expect(verseGroupsScript()).toContain("autoTitlePass");
+    expect(verseGroupsScript()).toContain("move-member");
+    expect(verseGroupsScript()).toContain("function applyMemberMove");
+    expect(verseGroupsScript()).toContain("function applyMemberRemove");
+    expect(verseGroupsScript()).toContain("function quietMemberHover");
+    expect(verseGroupsScript()).toContain("is-member-quiet");
+    expect(verseGroupsScript()).toContain("function blurRemovedMember");
+    expect(verseGroupsScript()).toContain("function dropCard");
+    expect(verseGroupsScript()).toContain("payload.dissolved");
+    expect(verseGroupsScript()).toContain("payload.sourceDissolved");
+    expect(verseGroupsScript()).toContain("opts.member");
+    expect(verseGroupsScript()).not.toContain("Moving…");
+    expect(verseGroupsScript()).not.toContain("Removing…");
+    expect(verseGroupsScript()).toContain("verse-group-drag-ghost");
+    expect(verseGroupsScript()).toContain("syncTitleEdit");
+    expect(verseGroupsScript()).toContain("function beginTitleEdit");
+    expect(verseGroupsScript()).toContain("verse-group-title-edit");
+    const syncTitle = verseGroupsScript().slice(
+      verseGroupsScript().indexOf("function syncTitleEdit"),
+      verseGroupsScript().indexOf("function storedTitle"),
+    );
+    expect(syncTitle).not.toContain('setAttribute("contenteditable", "true")');
+    expect(verseGroupsScript()).toContain('getAttribute("data-title")');
+    expect(verseGroupsScript()).not.toContain("input[name=title]");
+    expect(verseGroupsScript()).toContain('data-auto-titled');
+    expect(verseGroupsScript()).toContain("data-auto-title-started");
     expect(verseGroupsScript()).toContain("preloadMembers");
     expect(verseGroupsScript()).toContain("__marginPreloadHrefs");
     expect(notesInboxScript()).toContain("window.__marginPreloadHrefs = preloadHrefs");
@@ -364,11 +406,8 @@ describe("verse groups inbox", () => {
     expect(verseGroupsScript()).toContain("items[j] !== starred");
     expect(verseGroupsScript()).toContain("suggest-title");
     expect(css).not.toContain(".verse-group[open] > summary .note-row-title,\n    .verse-group[open] > summary .note-row-excerpt { display: none; }");
-    const titleRule = css.slice(
-      css.indexOf('.verse-group-form input[name="title"] {'),
-      css.indexOf('.verse-group-form input[name="title"]::placeholder'),
-    );
-    expect(titleRule).not.toContain("paper-raised");
+    const titleRule = css.slice(css.indexOf('.verse-group > summary .note-row-title[contenteditable="true"] {'));
+    expect(titleRule.slice(0, 700)).not.toContain("paper-raised");
     expect(css).toContain("background: color-mix(in srgb, var(--ink) 8%, transparent);");
     expect(css).toContain("textarea.verse-group-description::placeholder {\n      color: var(--faint);");
     expect(css).toContain("textarea.verse-group-description {\n      display: block;\n      resize: vertical;");
@@ -414,8 +453,13 @@ describe("verse groups inbox", () => {
     expect(html).toContain('class="verse-group"');
     expect(html).toContain('<summary class="note-row">');
     expect(html).toContain(">Romans 8:28</span>");
-    expect(html).toContain('value=""');
-    expect(html).toContain('placeholder="Title"');
+    expect(html).toContain('class="note-row-title" data-title="" contenteditable="false"');
+    expect(html).toContain('class="verse-group-title-edit"');
+    expect(html).toContain('aria-label="Edit title"');
+    expect(html).toContain("m229.66 58.34l-32-32a8 8 0 0 0-11.32 0l-96 96");
+    expect(html.indexOf('class="note-row-title"')).toBeLessThan(html.indexOf('class="verse-group-title-edit"'));
+    expect(html).not.toContain('name="title"');
+    expect(html).not.toContain('placeholder="Title"');
     expect(html).toContain('placeholder="Description"');
     expect(html).not.toContain(">Description</summary>");
     expect(html).toContain('class="verse-group-hub">Romans 8:28</span>');
@@ -436,8 +480,11 @@ describe("verse groups inbox", () => {
     expect(html).toContain('data-hub="rom.8.28"');
     expect(html).toContain('data-star=""');
     expect(html).toContain('data-vg-star');
-    expect(html).toContain('data-vg-topic');
-    expect(html).toContain('<i class="ph ph-sparkle"></i>');
+    expect(html).not.toContain("data-vg-topic");
+    expect(html).not.toContain("ph-sparkle");
+    expect(html).toContain('data-auto-titled="0"');
+    expect(html).toContain('class="att-board verse-group-members"');
+    expect(html).toContain('class="verse-group-member-actions"');
     const verseCard = html.slice(html.indexOf('id="verse-groups-view"'), html.indexOf('id="vg-att-drop"'));
     expect(verseCard).not.toContain('aria-pressed="true"');
     expect(verseCard).toContain('aria-pressed="false"');
@@ -472,6 +519,7 @@ describe("verse groups inbox", () => {
       missingPairs: [],
       missingCount: 0,
       undoReady: false,
+      autoTitled: true,
     });
     expect(html).toContain("data-sample=\"0\"");
     expect(html).not.toContain("<script>alert");
@@ -483,14 +531,16 @@ describe("verse groups inbox", () => {
     expect(html).not.toContain(">Save</button>");
     expect(html).not.toContain("Save sample");
     expect(html).toContain('<summary class="note-row">');
-    expect(html).toContain('value="&lt;script&gt;alert(&quot;x&quot;)&lt;/script&gt;"');
+    expect(html).toContain('data-title="&lt;script&gt;alert(&quot;x&quot;)&lt;/script&gt;"');
+    expect(html).not.toContain('name="title"');
     expect(html).not.toContain("local topic guess");
     expect(html).toContain('class="att-chip wiki"');
     expect(html).toContain("1 Peter 5:6");
     expect(html).not.toContain("verse-group-preview");
     expect(html).not.toContain("border-left");
-    expect(html).toContain('<i class="ph ph-sparkle"></i>');
-    expect(html).not.toContain("ph-fill ph-sparkle");
+    expect(html).not.toContain("ph-sparkle");
+    expect(html).not.toContain("data-vg-topic");
+    expect(html).toContain('data-auto-titled="1"');
     expect(html).not.toContain("data-topic-set");
   });
 
@@ -500,6 +550,7 @@ describe("verse groups inbox", () => {
       hubLabel: "Romans 9:17",
       star: "",
       title: "",
+      autoTitled: false,
       description: "",
       members: [
         { slug: "rom.9.17", label: "Romans 9:17", role: "hub" },
@@ -531,13 +582,14 @@ describe("verse groups inbox", () => {
     expect(verseGroupsScript()).toContain('data-att-kind") === "url"');
   });
 
-  test("a title Jev already wrote keeps the filled sparkle", () => {
+  test("a saved title is locked without a sparkle button", () => {
     const html = verseGroupCardHtml({
       hub: "jhn.1.1",
       hubLabel: "John 1:1",
       star: "",
       title: "The Word made flesh",
       titleFromJev: true,
+      autoTitled: true,
       description: "",
       members: [
         { slug: "jhn.1.1", label: "John 1:1", role: "hub" },
@@ -553,24 +605,25 @@ describe("verse groups inbox", () => {
       missingCount: 0,
       undoReady: false,
     });
-    expect(html).toContain('data-topic-set="1"');
-    expect(html).toContain('data-jev-title="The Word made flesh"');
-    expect(html).toContain('class="verse-group-topic is-set"');
-    expect(html).toContain('aria-disabled="true"');
-    expect(html).toContain('<i class="ph-fill ph-sparkle"></i>');
-    expect(html).not.toContain('<i class="ph ph-sparkle"></i>');
+    expect(html).toContain('data-auto-titled="1"');
+    expect(html).not.toContain("data-vg-topic");
+    expect(html).not.toContain("ph-sparkle");
+    expect(html).toContain('data-title="The Word made flesh"');
+    expect(html).toContain(">The Word made flesh</span>");
+    expect(html).not.toContain('name="title"');
   });
 });
 
 function memoryD1(sqlite: Database): D1Database {
   const statement = (sql: string, args: unknown[]) => ({
+    sql,
     bind(...next: unknown[]) {
       return statement(sql, next);
     },
     async run() {
       if (args.length) sqlite.run(sql, args as never[]);
       else sqlite.run(sql);
-      return { success: true };
+      return { success: true, results: [] as unknown[] };
     },
     async all<T>() {
       const query = sqlite.query(sql);
@@ -586,6 +639,16 @@ function memoryD1(sqlite: Database): D1Database {
   return {
     prepare(sql: string) {
       return statement(sql, []);
+    },
+    async batch(
+      statements: Array<{ sql?: string; all: () => Promise<{ results: unknown[]; success: boolean }>; run: () => Promise<unknown> }>,
+    ) {
+      const out = [];
+      for (const stmt of statements) {
+        if (/^\s*select/i.test(stmt.sql ?? "")) out.push(await stmt.all());
+        else out.push(await stmt.run());
+      }
+      return out;
     },
   } as unknown as D1Database;
 }
@@ -633,14 +696,136 @@ function starLibrary(): D1Database {
   return memoryD1(sqlite);
 }
 
-describe("Jev title lock", () => {
-  test("a saved Jev title stays filled until the title text changes, then locks again when it matches", async () => {
+function webLibrary(): D1Database {
+  const sqlite = new Database(":memory:");
+  sqlite.run(`CREATE TABLE notes (
+    library_id TEXT NOT NULL,
+    slug TEXT NOT NULL,
+    osis TEXT NOT NULL,
+    kind TEXT NOT NULL,
+    book TEXT NOT NULL,
+    chapter INTEGER NOT NULL,
+    verse_start INTEGER,
+    verse_end INTEGER,
+    blocks TEXT NOT NULL,
+    bookmarked INTEGER NOT NULL DEFAULT 0,
+    attachments TEXT NOT NULL DEFAULT '[]',
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    PRIMARY KEY (library_id, slug)
+  )`);
+  const stamp = "2026-10-06T00:00:00.000Z";
+  const insert = (slug: string, osis: string, book: string, chapter: number, verse: number, attachments: unknown[]) => {
+    sqlite.run(
+      `INSERT INTO notes (library_id, slug, osis, kind, book, chapter, verse_start, verse_end, blocks, bookmarked, attachments, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      ["lib", slug, osis, "verse", book, chapter, verse, verse, "[]", 0, JSON.stringify(attachments), stamp, stamp],
+    );
+  };
+  insert("jhn.1.1", "John.1.1", "jhn", 1, 1, [
+    { id: "att_abcd1234", kind: "xref", slug: "jhn.1.14", title: "John 1:14", source: "manual" },
+    { id: "att_abcd1235", kind: "xref", slug: "jhn.1.3", title: "John 1:3", source: "manual" },
+    { id: "att_abcd1236", kind: "xref", slug: "jhn.1.4", title: "John 1:4", source: "manual" },
+  ]);
+  insert("rom.8.28", "Romans.8.28", "rom", 8, 28, [
+    { id: "att_abcd2231", kind: "xref", slug: "rom.8.31", title: "Romans 8:31", source: "manual" },
+    { id: "att_abcd2238", kind: "xref", slug: "rom.8.38", title: "Romans 8:38", source: "manual" },
+  ]);
+  return memoryD1(sqlite);
+}
+
+const johnAssets = {
+  fetch: async () =>
+    new Response(
+      JSON.stringify({
+        verses: [
+          { v: 1, text: "In the beginning was the Word." },
+          { v: 3, text: "Through him all things were made." },
+          { v: 14, text: "The Word became flesh." },
+        ],
+      }),
+      { status: 200 },
+    ),
+};
+
+describe("automatic verse group titles", () => {
+  test("an existing title is flagged and is not sent to Jev", async () => {
     const db = starLibrary();
-    await saveJevTitle(db, "lib", "jhn.1.1", "The Word made flesh");
+    const saved = await handleVerseGroupAction(db, "lib", {
+      action: "save",
+      hub: "jhn.1.1",
+      title: "The Word made flesh",
+      description: "notes",
+    });
+    expect(saved.ok).toBe(true);
+    if (!saved.ok) return;
+    expect(saved.group.autoTitled).toBe(true);
+    await db.prepare("UPDATE verse_groups SET auto_titled = 0 WHERE library_id = ? AND hub_slug = ?").bind("lib", "jhn.1.1").run();
     const notes = [note("jhn.1.1", [xref("jhn.1.14"), xref("jhn.1.3")])];
     const named = await loadVerseGroups(db, "lib", notes);
     expect(named[0]?.title).toBe("The Word made flesh");
-    expect(named[0]?.titleFromJev).toBe(true);
+    expect(named[0]?.autoTitled).toBe(true);
+
+    let calls = 0;
+    const fetchImpl = (async () => {
+      calls += 1;
+      return new Response(JSON.stringify({ answers: { topic: { choice: "In the beginning" } } }), { status: 200 });
+    }) as typeof fetch;
+    const held = await suggestVerseGroupTopic({
+      db,
+      assets: johnAssets,
+      libraryId: "lib",
+      hub: "jhn.1.1",
+      apiKey: "test-key",
+      fetchImpl,
+    });
+    expect(held.ok).toBe(true);
+    if (!held.ok) return;
+    expect(held.skipped).toBe("already");
+    expect(held.topic).toBe("The Word made flesh");
+    expect(calls).toBe(0);
+  });
+
+  test("the first pass names an empty group once, and a later edit does not re-arm it", async () => {
+    const db = starLibrary();
+    let calls = 0;
+    let sent = "";
+    const fetchImpl = (async (_url: unknown, init?: { body?: unknown }) => {
+      calls += 1;
+      sent = String(init?.body ?? "");
+      return new Response(JSON.stringify({ answers: { topic: { choice: "The Word made flesh" } } }), { status: 200 });
+    }) as typeof fetch;
+    const named = await suggestVerseGroupTopic({
+      db,
+      assets: johnAssets,
+      libraryId: "lib",
+      hub: "jhn.1.1",
+      apiKey: "test-key",
+      fetchImpl,
+    });
+    expect(named.ok).toBe(true);
+    if (!named.ok) return;
+    expect(named.topic).toBe("The Word made flesh");
+    expect(named.group.autoTitled).toBe(true);
+    expect(named.group.titleFromJev).toBe(true);
+    expect(named.skipped).toBeUndefined();
+    expect(calls).toBe(1);
+    expect(sent).toContain("Prefer a specific pastoral title");
+    expect(sent).toContain("The Word made flesh");
+
+    const again = await suggestVerseGroupTopic({
+      db,
+      assets: johnAssets,
+      libraryId: "lib",
+      hub: "jhn.1.1",
+      postedTitle: "",
+      apiKey: "test-key",
+      fetchImpl,
+    });
+    expect(again.ok).toBe(true);
+    if (!again.ok) return;
+    expect(again.skipped).toBe("already");
+    expect(calls).toBe(1);
 
     const edited = await handleVerseGroupAction(db, "lib", {
       action: "save",
@@ -651,83 +836,137 @@ describe("Jev title lock", () => {
     expect(edited.ok).toBe(true);
     if (!edited.ok) return;
     expect(edited.group.title).toBe("My title");
+    expect(edited.group.autoTitled).toBe(true);
     expect(edited.group.titleFromJev).toBe(false);
-    expect(edited.group.description).toBe("notes");
 
-    const restored = await handleVerseGroupAction(db, "lib", {
+    const cleared = await handleVerseGroupAction(db, "lib", {
       action: "save",
       hub: "jhn.1.1",
-      title: "The Word made flesh",
+      title: "",
       description: "notes",
     });
-    expect(restored.ok).toBe(true);
-    if (!restored.ok) return;
-    expect(restored.group.titleFromJev).toBe(true);
-  });
+    expect(cleared.ok).toBe(true);
+    if (!cleared.ok) return;
+    expect(cleared.group.title).toBe("");
+    expect(cleared.group.autoTitled).toBe(true);
 
-  test("suggest skips TypeSafe while the title is still Jev's, and calls once after an edit", async () => {
-    const db = starLibrary();
-    await saveJevTitle(db, "lib", "jhn.1.1", "The Word");
-    let calls = 0;
-    let sent = "";
-    const fetchImpl = (async (_url: unknown, init?: { body?: unknown }) => {
-      calls += 1;
-      sent = String(init?.body ?? "");
-      return new Response(JSON.stringify({ answers: { topic: { choice: "The Word made flesh" } } }), { status: 200 });
-    }) as typeof fetch;
-    const held = await suggestVerseGroupTopic({
+    const added = await handleVerseGroupAction(db, "lib", {
+      action: "add-member",
+      hub: "jhn.1.1",
+      text: "John 1:4",
+    });
+    expect(added.ok).toBe(true);
+    if (!added.ok) return;
+    expect(added.group.autoTitled).toBe(true);
+
+    const removed = await handleVerseGroupAction(db, "lib", {
+      action: "remove-member",
+      hub: "jhn.1.1",
+      slug: "jhn.1.4",
+    });
+    expect(removed.ok).toBe(true);
+    if (!removed.ok) return;
+    expect(removed.group.autoTitled).toBe(true);
+
+    const afterEdit = await suggestVerseGroupTopic({
       db,
-      assets: { fetch: async () => new Response("no", { status: 404 }) },
+      assets: johnAssets,
       libraryId: "lib",
       hub: "jhn.1.1",
-      postedTitle: "The Word",
+      postedTitle: "Something else",
       apiKey: "test-key",
       fetchImpl,
     });
-    expect(held).toEqual({ ok: true, topic: "The Word", group: expect.objectContaining({ titleFromJev: true }) });
-    expect(calls).toBe(0);
+    expect(afterEdit.ok).toBe(true);
+    if (!afterEdit.ok) return;
+    expect(afterEdit.skipped).toBe("already");
+    expect(afterEdit.topic).toBe("");
+    expect(calls).toBe(1);
+  });
 
-    const next = await suggestVerseGroupTopic({
+  test("a title already in the field is kept and Jev is not called", async () => {
+    const db = starLibrary();
+    let calls = 0;
+    const fetchImpl = (async () => {
+      calls += 1;
+      return new Response(JSON.stringify({ answers: { topic: { choice: "In the beginning" } } }), { status: 200 });
+    }) as typeof fetch;
+    const claimed = await suggestVerseGroupTopic({
       db,
-      assets: {
-        fetch: async () =>
-          new Response(
-            JSON.stringify({
-              verses: [
-                { v: 1, text: "In the beginning was the Word." },
-                { v: 3, text: "All things were made through him." },
-                { v: 14, text: "The Word became flesh." },
-              ],
-            }),
-            { status: 200 },
-          ),
-      },
+      assets: johnAssets,
       libraryId: "lib",
       hub: "jhn.1.1",
       postedTitle: "My title",
       apiKey: "test-key",
       fetchImpl,
     });
-    expect(next.ok).toBe(true);
-    if (!next.ok) return;
-    expect(next.topic).toBe("The Word made flesh");
-    expect(calls).toBe(1);
-    expect(sent).toContain("already used");
-    expect(sent).toContain("The Word");
-    expect(sent).toContain("My title");
-    const again = await loadVerseGroups(db, "lib", [note("jhn.1.1", [xref("jhn.1.14"), xref("jhn.1.3")])])
-    expect(again[0]?.titleFromJev).toBe(true);
-    expect(again[0]?.title).toBe("The Word made flesh");
-    const repeat = await suggestVerseGroupTopic({
+    expect(claimed.ok).toBe(true);
+    if (!claimed.ok) return;
+    expect(claimed.topic).toBe("My title");
+    expect(claimed.group.autoTitled).toBe(true);
+    expect(claimed.group.titleFromJev).toBe(false);
+    expect(calls).toBe(0);
+  });
+
+  test("a missing API key leaves the placeholder and does not lock the group", async () => {
+    const db = starLibrary();
+    let calls = 0;
+    const fetchImpl = (async () => {
+      calls += 1;
+      return new Response("no", { status: 500 });
+    }) as typeof fetch;
+    const skipped = await suggestVerseGroupTopic({
       db,
-      assets: { fetch: async () => new Response("no", { status: 404 }) },
+      assets: johnAssets,
       libraryId: "lib",
       hub: "jhn.1.1",
-      postedTitle: "The Word made flesh",
+      apiKey: "",
+      fetchImpl,
+    });
+    expect(skipped).toEqual({
+      ok: true,
+      topic: "",
+      skipped: "no-key",
+      group: expect.objectContaining({ title: "", autoTitled: false }),
+    });
+    expect(calls).toBe(0);
+    const loaded = await loadVerseGroups(db, "lib", [note("jhn.1.1", [xref("jhn.1.14"), xref("jhn.1.3")])]);
+    expect(loaded[0]?.title).toBe("");
+    expect(loaded[0]?.autoTitled).toBe(false);
+  });
+
+  test("Jev answering None locks the group and leaves the placeholder", async () => {
+    const db = starLibrary();
+    let calls = 0;
+    const fetchImpl = (async () => {
+      calls += 1;
+      return new Response(JSON.stringify({ answers: { topic: { choice: "None" } } }), { status: 200 });
+    }) as typeof fetch;
+    const none = await suggestVerseGroupTopic({
+      db,
+      assets: johnAssets,
+      libraryId: "lib",
+      hub: "jhn.1.1",
+      apiKey: "test-key",
+      fetchImpl,
+    });
+    expect(none.ok).toBe(true);
+    if (!none.ok) return;
+    expect(none.skipped).toBe("no-topic");
+    expect(none.topic).toBe("");
+    expect(none.group.autoTitled).toBe(true);
+    expect(calls).toBe(1);
+    const repeat = await suggestVerseGroupTopic({
+      db,
+      assets: johnAssets,
+      libraryId: "lib",
+      hub: "jhn.1.1",
       apiKey: "test-key",
       fetchImpl,
     });
     expect(repeat.ok).toBe(true);
+    if (!repeat.ok) return;
+    expect(repeat.skipped).toBe("already");
     expect(calls).toBe(1);
   });
 
@@ -783,5 +1022,159 @@ describe("Jev title lock", () => {
     expect(missing.ok).toBe(false);
     if (missing.ok) return;
     expect(missing.error).toBe("That link is not in this group.");
+  });
+});
+
+describe("move a verse between groups", () => {
+  test("a drop removes the source xref and adds the target xref", async () => {
+    const db = webLibrary();
+    const starred = await handleVerseGroupAction(db, "lib", { action: "set-star", hub: "jhn.1.1", slug: "jhn.1.3" });
+    expect(starred.ok).toBe(true);
+
+    const moved = await handleVerseGroupAction(db, "lib", {
+      action: "move-member",
+      hub: "rom.8.28",
+      from: "jhn.1.1",
+      slug: "jhn.1.3",
+    });
+    expect(moved.ok).toBe(true);
+    if (!moved.ok) return;
+    expect(moved.statusText).toBe("Moved.");
+    expect(moved.group.members.map((member) => member.slug)).toContain("jhn.1.3");
+
+    const notes = await listNotes(db, "lib");
+    const groups = await loadVerseGroups(db, "lib", notes);
+    const john = groups.find((group) => group.hub === "jhn.1.1");
+    const romans = groups.find((group) => group.hub === "rom.8.28");
+    expect(john?.members.map((member) => member.slug)).toEqual(expect.arrayContaining(["jhn.1.1", "jhn.1.14", "jhn.1.4"]));
+    expect(john?.members.map((member) => member.slug)).not.toContain("jhn.1.3");
+    expect(john?.star).toBe("");
+    expect(romans?.members.map((member) => member.slug)).toContain("jhn.1.3");
+
+    const source = notes.find((note) => note.slug === "jhn.1.1");
+    const carried = notes.find((note) => note.slug === "jhn.1.3");
+    expect(source?.attachments.some((row) => row.kind === "xref" && row.slug === "jhn.1.3" && row.source !== "backlink")).toBe(false);
+    expect(carried?.attachments.some((row) => row.kind === "xref" && row.slug === "rom.8.28" && row.source === "manual")).toBe(true);
+
+    const same = await handleVerseGroupAction(db, "lib", {
+      action: "move-member",
+      hub: "rom.8.28",
+      from: "rom.8.28",
+      slug: "jhn.1.3",
+    });
+    expect(same.ok).toBe(false);
+    if (same.ok) return;
+    expect(same.error).toBe("Already in this group.");
+  });
+
+  test("dragging the hub verse adds it to the other group and leaves the hub", async () => {
+    const db = webLibrary();
+    const moved = await handleVerseGroupAction(db, "lib", {
+      action: "move-member",
+      hub: "rom.8.28",
+      from: "jhn.1.1",
+      slug: "jhn.1.1",
+    });
+    expect(moved.ok).toBe(true);
+    if (!moved.ok) return;
+    const notes = await listNotes(db, "lib");
+    const groups = await loadVerseGroups(db, "lib", notes);
+    const john = groups.find((group) => group.hub === "jhn.1.1");
+    const romans = groups.find((group) => group.hub === "rom.8.28");
+    expect(john?.members.map((member) => member.slug)).toEqual(expect.arrayContaining(["jhn.1.1", "jhn.1.14", "jhn.1.3", "jhn.1.4"]));
+    expect(romans?.members.map((member) => member.slug)).toContain("jhn.1.1");
+    const source = notes.find((note) => note.slug === "jhn.1.1");
+    expect(source?.attachments.some((row) => row.slug === "jhn.1.14" && row.source === "manual")).toBe(true);
+    expect(source?.attachments.some((row) => row.slug === "rom.8.28" && row.source === "manual")).toBe(true);
+  });
+
+  test("removing the link that drops a web under the minimum still stays removed", async () => {
+    const db = starLibrary();
+    const removed = await handleVerseGroupAction(db, "lib", {
+      action: "remove-member",
+      hub: "jhn.1.1",
+      slug: "jhn.1.14",
+    });
+    expect(removed.ok).toBe(true);
+    if (!removed.ok) return;
+    expect(removed.statusText).toBe("Removed.");
+    expect(removed.dissolved).toBe(true);
+    expect(removed.group.members.map((member) => member.slug)).not.toContain("jhn.1.14");
+    const notes = await listNotes(db, "lib");
+    const source = notes.find((note) => note.slug === "jhn.1.1");
+    expect(source?.attachments.some((row) => row.slug === "jhn.1.14")).toBe(false);
+    expect(source?.attachments.some((row) => row.slug === "jhn.1.3")).toBe(true);
+  });
+
+  test("moving the last extra link retires the source group", async () => {
+    const db = webLibrary();
+    const trimmed = await handleVerseGroupAction(db, "lib", {
+      action: "remove-member",
+      hub: "jhn.1.1",
+      slug: "jhn.1.4",
+    });
+    expect(trimmed.ok).toBe(true);
+    if (!trimmed.ok) return;
+    expect(trimmed.dissolved).toBeUndefined();
+    const moved = await handleVerseGroupAction(db, "lib", {
+      action: "move-member",
+      hub: "rom.8.28",
+      from: "jhn.1.1",
+      slug: "jhn.1.3",
+    });
+    expect(moved.ok).toBe(true);
+    if (!moved.ok) return;
+    expect(moved.sourceDissolved).toBe(true);
+    const groups = await loadVerseGroups(db, "lib", await listNotes(db, "lib"));
+    expect(groups.some((group) => group.hub === "jhn.1.1")).toBe(false);
+    expect(groups.find((group) => group.hub === "rom.8.28")?.members.map((member) => member.slug)).toContain("jhn.1.3");
+  });
+
+  test("a missing group tells the reader to refresh, without the word hub", async () => {
+    const db = webLibrary();
+    const missed = await handleVerseGroupAction(db, "lib", {
+      action: "set-star",
+      hub: "gen.1.1",
+      slug: "gen.1.2",
+    });
+    expect(missed.ok).toBe(false);
+    if (missed.ok) return;
+    expect(missed.error).toBe("That verse group changed. Refresh and try again.");
+  });
+
+  test("a warm move or remove reads the library once and writes in one wave", async () => {
+    const inner = webLibrary();
+    let queries = 0;
+    const db = {
+      prepare(sql: string) {
+        queries += 1;
+        return inner.prepare(sql);
+      },
+      batch(statements: D1PreparedStatement[]) {
+        return inner.batch(statements);
+      },
+    } as D1Database;
+    await handleVerseGroupAction(db, "lib", { action: "set-star", hub: "jhn.1.1", slug: "jhn.1.3" });
+    queries = 0;
+    const removed = await handleVerseGroupAction(db, "lib", {
+      action: "remove-member",
+      hub: "jhn.1.1",
+      slug: "jhn.1.4",
+    });
+    expect(removed.ok).toBe(true);
+    const removeQueries = queries;
+    queries = 0;
+    const moved = await handleVerseGroupAction(db, "lib", {
+      action: "move-member",
+      hub: "rom.8.28",
+      from: "jhn.1.1",
+      slug: "jhn.1.3",
+    });
+    expect(moved.ok).toBe(true);
+    const moveQueries = queries;
+    // Two D1 batches: notes+meta, then the title backfill with the xref writes.
+    // The old path listed the library again for every hub check and every xref.
+    expect(removeQueries).toBeLessThanOrEqual(8);
+    expect(moveQueries).toBeLessThanOrEqual(9);
   });
 });

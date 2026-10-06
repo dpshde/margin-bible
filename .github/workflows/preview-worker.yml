@@ -5,6 +5,7 @@ on:
     branches:
       - cursor/verse-groups-preview-ff97
       - cursor/url-external-refs-d392
+      - cursor/verse-group-auto-title-f072
   workflow_dispatch:
 
 permissions:

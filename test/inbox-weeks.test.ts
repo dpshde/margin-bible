@@ -100,12 +100,12 @@ describe("bookmark card polish", () => {
 
   test("Bookmarks uses icon + soft wash, not THIS WEEK twin / heavy card", () => {
     const css = page("t", "<p>x</p>");
-    expect(css).toContain(".bookmarks-view {\n      margin: 0 0 1rem;\n      padding: .35rem .45rem .4rem;\n      border-radius: .55rem;\n      background: var(--fill);");
+    expect(css).toContain(".bookmarks-view {\n      margin: 0 0 0.5rem;\n      padding: .35rem .45rem .4rem;\n      border-radius: .55rem;\n      background: var(--fill);");
     expect(css).toContain(".bookmarks-summary-icon");
     expect(css).toContain(".bookmarks-view > summary::after { content: \"＋\"; display: inline-flex; align-items: center; justify-content: center; min-width: 1.35rem; min-height: 1.35rem; padding: .1rem .2rem;");
     expect(css).toContain("color: var(--ink-soft);");
     // Week sections use inverted filled bars as clear dividers.
-    expect(css).not.toContain(".bookmarks-view {\n      margin: 0 0 1rem;\n    }");
+    expect(css).not.toContain(".bookmarks-view {\n      margin: 0 0 0.5rem;\n    }");
     expect(css).not.toContain("border-left: 2px solid color-mix(in srgb, var(--ink-soft) 22%, transparent)");
     expect(css).toContain(".note-week-label {\n      display: flex; align-items: center;\n      margin: 0; padding: .35rem .55rem;");
     expect(css).toContain(".note-week-label {\n      display: flex; align-items: center;\n      margin: 0; padding: .35rem .55rem;\n      border-radius: 0;\n      border-bottom: 1px solid color-mix(in srgb, var(--paper) 28%, transparent);");
