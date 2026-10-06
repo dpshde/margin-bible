@@ -1439,6 +1439,7 @@ export function page(title: string, body: string): string {
       display: flex; align-items: center;
       margin: 0; padding: .35rem .55rem;
       border-radius: 0;
+      border-bottom: 1px solid color-mix(in srgb, var(--paper) 28%, transparent);
       background: var(--ink); color: var(--paper);
       font: 700 .7rem/1.3 var(--sans);
       letter-spacing: .08em; text-transform: uppercase;

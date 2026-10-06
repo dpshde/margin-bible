@@ -108,6 +108,7 @@ describe("bookmark card polish", () => {
     expect(css).not.toContain(".bookmarks-view {\n      margin: 0 0 1rem;\n    }");
     expect(css).not.toContain("border-left: 2px solid color-mix(in srgb, var(--ink-soft) 22%, transparent)");
     expect(css).toContain(".note-week-label {\n      display: flex; align-items: center;\n      margin: 0; padding: .35rem .55rem;");
+    expect(css).toContain(".note-week-label {\n      display: flex; align-items: center;\n      margin: 0; padding: .35rem .55rem;\n      border-radius: 0;\n      border-bottom: 1px solid color-mix(in srgb, var(--paper) 28%, transparent);");
     expect(css).toContain("border-radius: 0;");
     expect(css).not.toContain(".note-list li { border-top:");
     expect(css).toContain("display: flex; align-items: baseline; gap: .5rem; min-width: 0;");
