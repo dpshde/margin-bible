@@ -46,6 +46,8 @@ export type VerseGroupMeta = {
   title: string;
   description: string;
   undoPairs: { from: string; to: string }[];
+  /** Member marked as the one star. Empty means the detected hub. */
+  star?: string;
 };
 
 export type VerseGroupMember = {
@@ -57,6 +59,8 @@ export type VerseGroupMember = {
 export type VerseGroupView = {
   hub: string;
   hubLabel: string;
+  /** The one starred member. Defaults to the detected hub. */
+  star: string;
   title: string;
   description: string;
   members: VerseGroupMember[];
@@ -241,10 +245,11 @@ function toView(input: {
 }): VerseGroupView {
   const hubLabel = slugLabel(input.hub);
   const fanIn = input.inboundCount >= FAN_IN_MIN;
-  const star = input.outboundCount >= STAR_MIN;
-  const trigger: VerseGroupTrigger = fanIn && star ? "both" : fanIn ? "fan-in" : "star";
+  const starTrigger = input.outboundCount >= STAR_MIN;
+  const trigger: VerseGroupTrigger = fanIn && starTrigger ? "both" : fanIn ? "fan-in" : "star";
   const missing = missingPairwise(input.members, input.edges);
-  const members = sortMembers(input.hub, input.members).map((slug) => ({
+  const star = resolveStar(input.hub, input.members, input.meta?.star);
+  const members = sortMembers(star, input.members).map((slug) => ({
     slug,
     label: slugLabel(slug),
     role: slug === input.hub ? ("hub" as const) : ("member" as const),
@@ -252,6 +257,7 @@ function toView(input: {
   return {
     hub: input.hub,
     hubLabel,
+    star,
     title: input.meta?.title ?? "",
     description: input.meta?.description ?? "",
     members,
@@ -282,15 +288,22 @@ function compareGroups(a: VerseGroupView, b: VerseGroupView): number {
   return a.hub < b.hub ? -1 : a.hub > b.hub ? 1 : 0;
 }
 
-function sortMembers(hub: string, slugs: readonly string[]): string[] {
-  const rest = uniqueSlugs(slugs).filter((slug) => slug !== hub);
+function resolveStar(hub: string, members: readonly string[], stored: string | undefined): string {
+  const star = stored ? canonSlug(stored) : null;
+  if (!star) return hub;
+  const known = new Set(members.map((slug) => canonSlug(slug) ?? slug));
+  return known.has(star) ? star : hub;
+}
+
+function sortMembers(first: string, slugs: readonly string[]): string[] {
+  const rest = uniqueSlugs(slugs).filter((slug) => slug !== first);
   rest.sort((a, b) => {
     const ai = DEMO_ORDER.get(a) ?? 1_000;
     const bi = DEMO_ORDER.get(b) ?? 1_000;
     if (ai !== bi) return ai - bi;
     return a < b ? -1 : a > b ? 1 : 0;
   });
-  return [hub, ...rest];
+  return [first, ...rest];
 }
 
 function uniqueSlugs(slugs: readonly string[]): string[] {
@@ -309,7 +322,7 @@ function metaMap(metas: readonly VerseGroupMeta[]): Map<string, VerseGroupMeta> 
   const map = new Map<string, VerseGroupMeta>();
   for (const meta of metas) {
     const hub = canonSlug(meta.hub);
-    if (hub) map.set(hub, { ...meta, hub });
+    if (hub) map.set(hub, { ...meta, hub, star: canonSlug(meta.star) ?? "" });
   }
   return map;
 }

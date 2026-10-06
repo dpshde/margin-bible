@@ -1345,12 +1345,32 @@ export function page(title: string, body: string): string {
       color: var(--ink);
       font: 400 1rem/1.4 var(--sans);
     }
+    .verse-group-title-field { position: relative; }
     .verse-group-form input[name="title"] {
       font-weight: 600;
       font-size: 1.02rem;
       line-height: 1.3;
-      padding: .2rem .15rem;
+      padding: .2rem 1.7rem .2rem .15rem;
     }
+    .verse-group-topic {
+      position: absolute;
+      right: 0;
+      top: 0;
+      bottom: 0;
+      width: 1.6rem;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0;
+      padding: 0;
+      border: 0;
+      background: transparent;
+      color: var(--faint);
+      cursor: pointer;
+    }
+    .verse-group-topic:hover,
+    .verse-group-topic:focus-visible { color: var(--ink); }
+    .verse-group[data-busy] .verse-group-topic { opacity: .45; }
     .verse-group-form input[name="title"]::placeholder {
       color: var(--ink-soft);
       font-weight: 500;
@@ -1378,6 +1398,30 @@ export function page(title: string, body: string): string {
       gap: .25rem .3rem;
       padding-left: .15rem;
     }
+    .verse-group .verse-star {
+      position: static;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 1.25rem;
+      height: 1.25rem;
+      min-width: 1.25rem;
+      margin: 0 .12rem 0 0;
+      padding: 0;
+      border: 0;
+      border-radius: 999px;
+      background: transparent;
+      color: var(--faint);
+      cursor: pointer;
+    }
+    .verse-group .att-item.is-star .verse-star { color: var(--ink); }
+    .verse-group .att-chip.is-star {
+      color: var(--ink);
+      border-color: color-mix(in srgb, var(--ink) 45%, transparent);
+      background: color-mix(in srgb, var(--ink) 12%, var(--paper));
+      font-weight: 650;
+    }
+    .verse-group .att-chip.is-star:hover { color: var(--ink); }
     .verse-group-verses .att-board { flex: 1 1 auto; margin: 0; gap: .28rem; }
     .verse-group-verses .tray-attach {
       color: var(--ink-soft);
@@ -1704,6 +1748,11 @@ export function page(title: string, body: string): string {
         font-size: .84rem;
         font-weight: 600;
         line-height: 1.25;
+      }
+      .verse-group .verse-star {
+        width: 1.65rem;
+        height: 1.65rem;
+        min-width: 1.65rem;
       }
       .verse-group .att-item { gap: .05rem; }
       .verse-group .att-remove {

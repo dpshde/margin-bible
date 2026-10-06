@@ -6,11 +6,9 @@
  * inbox can show webs on first open. Signed-in libraries are left alone.
  * There is no "Save sample" control.
  *
- * Title suggestions are not filled in. Margin has no verse-to-topic matcher
- * here: src/jev-topics.ts is a local keyword list, and Hidden Arrow
- * /api/suggest-topics scores recent searches and needs HIDDEN_ARROW_SEARCH_KEY,
- * which this preview does not carry. A real matcher would take the hub and
- * member verse texts and return a topic from that service.
+ * Titles stay empty until typed. The title field's trailing button asks
+ * TypeSafe Jev (TYPESAFE_API_KEY) for the nearest topic from the verse
+ * texts. It does not use src/jev-topics.ts.
  */
 import type { Attachment } from "./attachments";
 import { saveNote } from "./library";

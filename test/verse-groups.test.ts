@@ -137,6 +137,22 @@ describe("verse group detection", () => {
     expect(groups[1]?.title).toBe("");
   });
 
+  test("a stored star moves that member to the front and a stranger falls back to the hub", () => {
+    const notes = [note(DEMO_HUB, [xref("1pe.5.6"), xref("est.4.14")])];
+    const starred = realVerseGroups(notes, [
+      { hub: DEMO_HUB, title: "", description: "", undoPairs: [], star: "est.4.14" },
+    ]);
+    expect(starred[0]?.hub).toBe(DEMO_HUB);
+    expect(starred[0]?.star).toBe("est.4.14");
+    expect(starred[0]?.members.map((member) => member.slug)[0]).toBe("est.4.14");
+    expect(starred[0]?.members.filter((member) => member.slug === "est.4.14")).toHaveLength(1);
+    const fallback = realVerseGroups(notes, [
+      { hub: DEMO_HUB, title: "", description: "", undoPairs: [], star: "jhn.3.16" },
+    ]);
+    expect(fallback[0]?.star).toBe(DEMO_HUB);
+    expect(fallback[0]?.members[0]?.slug).toBe(DEMO_HUB);
+  });
+
   test("pairwise preview is capped and does not mutate the notes", () => {
     const spokes = Array.from({ length: 12 }, (_, index) => note(`jhn.1.${index + 1}`, [xref("rom.8.28")]));
     const notes = spokes.map((row) => ({ ...row, attachments: [...(row.attachments ?? [])] }));
@@ -216,6 +232,8 @@ describe("preview guest seed", () => {
     ]);
     expect(groups.every((group) => group.sample === false)).toBe(true);
     expect(groups.find((group) => group.hub === "rom.8.28")?.members.length).toBeGreaterThanOrEqual(3);
+    expect(groups.every((group) => group.star === group.hub)).toBe(true);
+    expect(groups.every((group) => group.members[0]?.slug === group.star)).toBe(true);
     expect(previewSeedNeeded(notes)).toBe(false);
     expect(previewSeedNeeded([])).toBe(true);
   });
@@ -270,6 +288,8 @@ describe("verse groups inbox", () => {
     expect(css).toContain("outline: none;");
     expect(css).toContain("background: transparent;");
     expect(verseGroupsScript()).toContain("is-collapsed-hover");
+    expect(verseGroupsScript()).toContain("set-star");
+    expect(verseGroupsScript()).toContain("suggest-title");
     expect(css).not.toContain(".verse-group[open] > summary .note-row-title,\n    .verse-group[open] > summary .note-row-excerpt { display: none; }");
     const titleRule = css.slice(
       css.indexOf('.verse-group-form input[name="title"] {'),
@@ -296,6 +316,7 @@ describe("verse groups inbox", () => {
         {
           hub: "rom.8.28",
           hubLabel: "Romans 8:28",
+          star: "rom.8.28",
           title: "",
           description: "",
           members: [
@@ -340,6 +361,11 @@ describe("verse groups inbox", () => {
     expect(html).toContain('data-vg-attach');
     expect(html).toContain("Romans 8:31");
     expect(html).toContain('data-hub="rom.8.28"');
+    expect(html).toContain('data-star="rom.8.28"');
+    expect(html).toContain('data-vg-star');
+    expect(html).toContain('data-vg-topic');
+    expect(html).toContain('aria-pressed="true"');
+    expect(html.indexOf('data-att-slug="rom.8.28"')).toBeLessThan(html.indexOf('data-att-slug="rom.8.31"'));
     expect(html).not.toMatch(/<details class="verse-group"[^>]*open/);
   });
 
@@ -347,6 +373,7 @@ describe("verse groups inbox", () => {
     const html = verseGroupCardHtml({
       hub: "rom.9.17",
       hubLabel: "Romans 9:17",
+      star: "rom.9.17",
       title: `<script>alert("x")</script>`,
       description: "purpose",
       members: [

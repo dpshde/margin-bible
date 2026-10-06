@@ -30,6 +30,7 @@ const CREATE_VERSE_GROUPS = `CREATE TABLE IF NOT EXISTS verse_groups (
   title TEXT NOT NULL DEFAULT '',
   description TEXT NOT NULL DEFAULT '',
   undo_json TEXT NOT NULL DEFAULT '[]',
+  star_slug TEXT NOT NULL DEFAULT '',
   updated_at TEXT NOT NULL,
   PRIMARY KEY (library_id, hub_slug)
 )`;
@@ -39,6 +40,7 @@ type MetaRow = {
   title: string;
   description: string;
   undo_json: string | null;
+  star_slug?: string | null;
 };
 
 export type VerseGroupActionResult =
@@ -80,7 +82,8 @@ export async function handleVerseGroupAction(
     action !== "add-links" &&
     action !== "undo-links" &&
     action !== "add-member" &&
-    action !== "remove-member"
+    action !== "remove-member" &&
+    action !== "set-star"
   ) {
     return { ok: false, status: 422, error: "unknown action" };
   }
@@ -94,6 +97,7 @@ export async function handleVerseGroupAction(
     }
     if (action === "add-member") return await addVerseMember(db, libraryId, hub, record.text);
     if (action === "remove-member") return await removeVerseMember(db, libraryId, hub, record.slug);
+    if (action === "set-star") return await setVerseStar(db, libraryId, hub, record.slug);
     if (action === "add-links") return await addVerseGroupLinks(db, libraryId, hub);
     return await undoVerseGroupLinks(db, libraryId, hub);
   } catch (err) {
@@ -144,6 +148,27 @@ async function addVerseMember(
   return { ok: true, statusText: `Attached ${parsed.label}.`, group };
 }
 
+async function setVerseStar(
+  db: D1Database,
+  libraryId: string,
+  hub: string,
+  raw: unknown,
+): Promise<VerseGroupActionResult> {
+  const slug = canonSlug(typeof raw === "string" ? raw : "");
+  if (!slug) return { ok: false, status: 422, error: "Need a passage." };
+  const ready = await ensureHub(db, libraryId, hub);
+  if (!ready.ok) return ready;
+  const seen = await groupForHub(db, libraryId, hub);
+  if (!seen) return { ok: false, status: 422, error: "That verse is not a hub yet." };
+  if (!seen.members.some((member) => member.slug === slug)) {
+    return { ok: false, status: 422, error: "That verse is not in this group." };
+  }
+  await upsertStar(db, libraryId, hub, slug === hub ? "" : slug);
+  const group = await groupForHub(db, libraryId, hub);
+  if (!group) return { ok: false, status: 422, error: "That verse is not a hub yet." };
+  return { ok: true, statusText: "", group };
+}
+
 async function removeVerseMember(
   db: D1Database,
   libraryId: string,
@@ -155,8 +180,10 @@ async function removeVerseMember(
   if (slug === hub) return { ok: false, status: 422, error: "That verse stays." };
   const ready = await ensureHub(db, libraryId, hub);
   if (!ready.ok) return ready;
+  const before = await groupForHub(db, libraryId, hub);
   await removeUserLink(db, libraryId, slug, hub);
   await removeUserLink(db, libraryId, hub, slug);
+  if (before && before.star === slug) await upsertStar(db, libraryId, hub, "");
   const group = await groupForHub(db, libraryId, hub);
   if (!group) return { ok: false, status: 422, error: "That verse is not a hub yet." };
   return { ok: true, statusText: "Removed.", group };
@@ -267,11 +294,17 @@ async function groupForHub(db: D1Database, libraryId: string, hub: string): Prom
 
 export async function ensureVerseGroupsTable(db: D1Database): Promise<void> {
   await db.prepare(CREATE_VERSE_GROUPS).run();
+  try {
+    await db.prepare("ALTER TABLE verse_groups ADD COLUMN star_slug TEXT NOT NULL DEFAULT ''").run();
+  } catch (err) {
+    const message = err instanceof Error ? `${err.message} ${String(err.cause ?? "")}` : String(err);
+    if (!/duplicate column/i.test(message)) throw err;
+  }
 }
 
 export async function listVerseGroupMeta(db: D1Database, libraryId: string): Promise<VerseGroupMeta[]> {
   const result = await db
-    .prepare("SELECT hub_slug, title, description, undo_json FROM verse_groups WHERE library_id = ?")
+    .prepare("SELECT hub_slug, title, description, undo_json, star_slug FROM verse_groups WHERE library_id = ?")
     .bind(libraryId)
     .all<MetaRow>();
   const metas: VerseGroupMeta[] = [];
@@ -283,6 +316,7 @@ export async function listVerseGroupMeta(db: D1Database, libraryId: string): Pro
       title: row.title ?? "",
       description: row.description ?? "",
       undoPairs: parseUndoPairs(row.undo_json),
+      star: row.star_slug ?? "",
     });
   }
   return metas;
@@ -306,6 +340,20 @@ async function upsertVerseGroupText(
          updated_at = excluded.updated_at`,
     )
     .bind(libraryId, hub, title, description, now)
+    .run();
+}
+
+async function upsertStar(db: D1Database, libraryId: string, hub: string, star: string): Promise<void> {
+  const now = new Date().toISOString();
+  await db
+    .prepare(
+      `INSERT INTO verse_groups (library_id, hub_slug, title, description, undo_json, star_slug, updated_at)
+       VALUES (?, ?, '', '', '[]', ?, ?)
+       ON CONFLICT(library_id, hub_slug) DO UPDATE SET
+         star_slug = excluded.star_slug,
+         updated_at = excluded.updated_at`,
+    )
+    .bind(libraryId, hub, star, now)
     .run();
 }
 

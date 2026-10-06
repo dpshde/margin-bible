@@ -42,6 +42,7 @@ import { chapterSlug, createPassage, lazyChapterNotes, parsePassage, passageLabe
 import { renderChapterPage, renderMissing, renderNotesIndex } from "./reader-page";
 import { seedPreviewVerseGroups } from "./preview-seed";
 import { handleVerseGroupAction, loadVerseGroups } from "./verse-groups-store";
+import { suggestVerseGroupTopic } from "./verse-topic";
 import { verseGroupCardHtml } from "./verse-groups-ui";
 import type { ChapterPack } from "./usj";
 import { ensureBidirectionalXrefs, syncBidirectionalXrefs } from "./xref-sync";
@@ -66,6 +67,8 @@ export type Env = {
   HIDDEN_ARROW_BASE_URL?: string;
   /** Server-only Hidden Arrow search key. Never sent to the browser. */
   HIDDEN_ARROW_SEARCH_KEY?: string;
+  /** Server-only TypeSafe Jev key. Bearer token for POST /v1/systemone. Never sent to the browser. */
+  TYPESAFE_API_KEY?: string;
   /** Preview worker only. Guest libraries with no web get a few real hubs. */
   PREVIEW_SEED?: string;
 };
@@ -136,7 +139,7 @@ app.use("*", async (c, next) => {
   }
 });
 
-app.get("/health", (c) => c.json({ ok: true, app: "margin-bible", version: "2026.10.06.11" }));
+app.get("/health", (c) => c.json({ ok: true, app: "margin-bible", version: "2026.10.06.12" }));
 
 app.get("/manifest.webmanifest", () => manifestResponse());
 app.get("/manifest.json", () => manifestResponse());
@@ -449,12 +452,25 @@ app.get("/api/verse-groups", async (c) => {
 
 app.post("/api/verse-groups", async (c) => {
   const body = await c.req.json().catch(() => null);
-  const result = await handleVerseGroupAction(c.env.DB, c.get("libraryId"), body);
+  const record = body && typeof body === "object" ? (body as Record<string, unknown>) : null;
   c.header("cache-control", "private, no-store");
+  if (record?.action === "suggest-title") {
+    const suggested = await suggestVerseGroupTopic({
+      db: c.env.DB,
+      assets: c.env.ASSETS,
+      libraryId: c.get("libraryId"),
+      hub: typeof record.hub === "string" ? record.hub : "",
+      apiKey: c.env.TYPESAFE_API_KEY,
+    });
+    if (!suggested.ok) return c.json({ ok: false, error: suggested.error }, suggested.status);
+    return c.json({ ok: true, status: "", topic: suggested.topic, star: suggested.group.star });
+  }
+  const result = await handleVerseGroupAction(c.env.DB, c.get("libraryId"), body);
   if (!result.ok) return c.json({ ok: false, error: result.error }, result.status);
   return c.json({
     ok: true,
     status: result.statusText,
+    star: result.group.star,
     cardHtml: verseGroupCardHtml(result.group, result.statusText),
   });
 });
