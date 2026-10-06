@@ -580,6 +580,26 @@ describe("verse groups inbox", () => {
     expect(urlItem).toContain("att-remove");
     expect(verseGroupsScript()).toContain("remove-external");
     expect(verseGroupsScript()).toContain('data-att-kind") === "url"');
+    expect(verseGroupsScript()).toContain("function applyExternalAdd");
+    expect(verseGroupsScript()).toContain("function applyExternalRemove");
+    expect(verseGroupsScript()).toContain("retitle-external");
+    expect(verseGroupsScript()).toContain("/api/link-title");
+    const urlRemove = verseGroupsScript().slice(
+      verseGroupsScript().indexOf("function removeExternal"),
+      verseGroupsScript().indexOf("function attachText"),
+    );
+    expect(urlRemove).toContain("applyExternalRemove");
+    expect(urlRemove).toContain("member: true");
+    expect(urlRemove).not.toContain("location.reload");
+    expect(verseGroupsScript()).toContain("if (url) removeExternal(card, url);");
+    const urlAdd = verseGroupsScript().slice(
+      verseGroupsScript().indexOf("function attachUrl"),
+      verseGroupsScript().indexOf("function removeExternal"),
+    );
+    expect(urlAdd.indexOf("applyExternalAdd")).toBeGreaterThan(-1);
+    expect(urlAdd.indexOf("dialog.close")).toBeGreaterThan(urlAdd.indexOf("applyExternalAdd"));
+    expect(urlAdd.indexOf("member: true")).toBeGreaterThan(urlAdd.indexOf("dialog.close"));
+    expect(urlAdd).not.toContain("location.reload");
   });
 
   test("a saved title is locked without a sparkle button", () => {
@@ -1022,6 +1042,24 @@ describe("automatic verse group titles", () => {
     expect(missing.ok).toBe(false);
     if (missing.ok) return;
     expect(missing.error).toBe("That link is not in this group.");
+
+    const againLinked = await handleVerseGroupAction(db, "lib", {
+      action: "add-member",
+      hub: "jhn.1.1",
+      text: "https://example.com/study",
+    });
+    expect(againLinked.ok).toBe(true);
+    const titled = await handleVerseGroupAction(db, "lib", {
+      action: "retitle-external",
+      hub: "jhn.1.1",
+      url: "https://example.com/study",
+      title: "Grace Abounding",
+    });
+    expect(titled.ok).toBe(true);
+    if (!titled.ok) return;
+    expect(titled.group.externalRefs?.map((ref) => ref.title)).toEqual(["Grace Abounding"]);
+    const kept = await loadVerseGroups(db, "lib", [note("jhn.1.1", [xref("jhn.1.14"), xref("jhn.1.3")])]);
+    expect(kept[0]?.externalRefs?.map((ref) => ref.title)).toEqual(["Grace Abounding"]);
   });
 });
 

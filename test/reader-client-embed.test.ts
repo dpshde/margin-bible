@@ -312,6 +312,11 @@ describe("attachment xref UX", () => {
     expect(fn.indexOf("absoluteHttpUrl")).toBeLessThan(fn.indexOf("resolveWikiTarget"));
     expect(fn).toContain('kind: "url"');
     expect(fn).not.toContain("fromPath");
+    const attach = source.slice(source.indexOf("async function attachFromInput"), source.indexOf("const attInput"));
+    expect(attach.indexOf("paintAttBoard")).toBeLessThan(attach.indexOf("requestLinkTitle"));
+    expect(attach).toContain("applySavedUrlTitle");
+    expect(attach).not.toContain("location.reload");
+    expect(source).toContain('fetch("/api/link-title?url="');
   });
 
   test("chapter soft-nav pins the window before write unless the address is a verse", () => {

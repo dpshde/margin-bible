@@ -25,6 +25,7 @@ import {
   canonSlug,
   cleanGroupDescription,
   cleanGroupTitle,
+  cleanRefTitle,
   NOT_A_VERSE_GROUP,
   realVerseGroups,
   verseGroupsFromNotes,
@@ -118,6 +119,7 @@ export async function handleVerseGroupAction(
     action !== "add-member" &&
     action !== "remove-member" &&
     action !== "remove-external" &&
+    action !== "retitle-external" &&
     action !== "move-member" &&
     action !== "set-star"
   ) {
@@ -136,6 +138,7 @@ export async function handleVerseGroupAction(
     }
     if (action === "add-member") return await addVerseMember(db, libraryId, hub, record.text);
     if (action === "remove-external") return await removeExternalRef(db, libraryId, hub, record.url);
+    if (action === "retitle-external") return await retitleExternalRef(db, libraryId, hub, record.url, record.title);
     if (action === "set-star") return await setVerseStar(db, libraryId, hub, record.slug);
     if (action === "add-links") return await addVerseGroupLinks(db, libraryId, hub);
     return await undoVerseGroupLinks(db, libraryId, hub);
@@ -205,6 +208,37 @@ async function addExternalRef(
   const group = await groupForHub(db, libraryId, hub);
   if (!group) return { ok: false, status: 422, error: "That verse is not a hub yet." };
   return { ok: true, statusText: `Attached ${next.added.title}.`, group };
+}
+
+async function retitleExternalRef(
+  db: D1Database,
+  libraryId: string,
+  hub: string,
+  rawUrl: unknown,
+  rawTitle: unknown,
+): Promise<VerseGroupActionResult> {
+  const parsed = groupAttachFromInput(rawUrl);
+  if (!parsed.ok || parsed.kind !== "url") return { ok: false, status: 422, error: "Need an http(s) link." };
+  const title = cleanRefTitle(rawTitle, "");
+  if (!title) return { ok: false, status: 422, error: "Need a title." };
+  const ready = await ensureHub(db, libraryId, hub);
+  if (!ready.ok) return ready;
+  const metas = await listVerseGroupMeta(db, libraryId);
+  const current = metas.find((row) => row.hub === hub)?.externalRefs ?? [];
+  let found = false;
+  let changed = false;
+  const next = current.map((ref) => {
+    if (ref.url !== parsed.url) return ref;
+    found = true;
+    if (ref.title === title) return ref;
+    changed = true;
+    return { ...ref, title };
+  });
+  if (!found) return { ok: false, status: 422, error: "That link is not in this group." };
+  if (changed) await saveExternalRefs(db, libraryId, hub, next);
+  const group = await groupForHub(db, libraryId, hub);
+  if (!group) return { ok: false, status: 422, error: "That verse is not a hub yet." };
+  return { ok: true, statusText: "", group };
 }
 
 async function removeExternalRef(

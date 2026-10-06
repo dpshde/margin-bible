@@ -531,6 +531,28 @@ export function clientScript(): string {
   function urlTitle(url) {
     try { return new URL(url).hostname.replace(/^www\\./, "") || url; } catch { return url; }
   }
+  function requestLinkTitle(url) {
+    return fetch("/api/link-title?url=" + encodeURIComponent(url), { headers: { accept: "application/json" }, credentials: "same-origin" })
+      .then((res) => res.ok ? res.json() : null)
+      .then((data) => (data && !data.fallback && data.title ? String(data.title) : ""))
+      .catch(() => "");
+  }
+  function applySavedUrlTitle(tray, url, fallbackTitle, pageTitle) {
+    if (!tray || !pageTitle || pageTitle === fallbackTitle) return;
+    const chip = [...tray.querySelectorAll(".att-chip")].find((node) => node.dataset.attKind === "url" && node.dataset.attUrl === url);
+    if (!chip || (chip.dataset.attTitle || "") !== fallbackTitle) return;
+    chip.dataset.attTitle = pageTitle;
+    chip.textContent = pageTitle;
+    const outliner = tray.querySelector(".outliner");
+    if (!outliner) return;
+    const slug = outliner.dataset.slug;
+    const blocks = clampIndent(readBlocks(outliner));
+    const next = readAttachments(tray);
+    const bookmarked = isBookmarked(tray);
+    const prev = noteMap.get(slug) || { slug, kind: slug === chapterSlug ? "chapter" : "verse" };
+    noteMap.set(slug, { ...prev, blocks, bookmarked, attachments: next });
+    saveSlug(slug, blocks, { bookmarked, attachments: next, tray });
+  }
   function newId() {
     const bytes = new Uint8Array(6);
     crypto.getRandomValues(bytes);
@@ -2336,11 +2358,17 @@ export function clientScript(): string {
       notesPrefetch.delete(chapterSlug);
       writeChapterNotesCache(chapterSlug, [...noteMap.values()]);
       // Flush-on-attach: await PUT so leave/visibility cannot race the write.
+      const titleWait = parsed.kind === "url" ? requestLinkTitle(parsed.url) : null;
       await saveSlug(slug, blocks, {
         bookmarked,
         attachments: next,
         tray: attTray,
       });
+      if (titleWait) {
+        titleWait.then((pageTitle) => {
+          if (pageTitle) applySavedUrlTitle(attTray, parsed.url, parsed.title, pageTitle);
+        });
+      }
     }
     const zone = document.querySelector("#att-drop-zone");
     zone?.classList.remove("is-bad");
