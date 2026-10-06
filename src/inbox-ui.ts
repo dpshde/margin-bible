@@ -330,12 +330,24 @@ function bookmarkSimpleIcon(): string {
   return `<svg class="bookmarks-summary-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="15" height="15" fill="currentColor" aria-hidden="true"><path d="M184 32H72a16 16 0 0 0-16 16v176a8 8 0 0 0 12.24 6.78L128 193.43l59.77 37.35A8 8 0 0 0 200 224V48a16 16 0 0 0-16-16m0 177.57l-51.77-32.35a8 8 0 0 0-8.48 0L72 209.57V48h112Z"/></svg>`;
 }
 
-/** Scripture, the notes feed, Bookmarks, and Verse groups. Hidden from desktop layout. */
+function phoneTabIcon(kind: "book" | "notebook" | "bookmark" | "groups"): string {
+  if (kind === "groups") {
+    return `<svg class="phone-tab-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" aria-hidden="true"><circle cx="3.2" cy="8" r="1.5" fill="currentColor"/><circle cx="12.6" cy="3.4" r="1.5" fill="currentColor"/><circle cx="12.6" cy="12.6" r="1.5" fill="currentColor"/><path d="M4.6 7.3 11.1 4.1M4.6 8.7 11.1 11.8" stroke="currentColor" stroke-width="1.2" fill="none"/></svg>`;
+  }
+  const paths = {
+    book: "M208 24H72a32 32 0 0 0-32 32v168a8 8 0 0 0 8 8h144a8 8 0 0 0 0-16H56a16 16 0 0 1 16-16h136a8 8 0 0 0 8-8V32a8 8 0 0 0-8-8m-8 160H72a31.8 31.8 0 0 0-16 4.29V56a16 16 0 0 1 16-16h128Z",
+    notebook: "M184 112a8 8 0 0 1-8 8h-64a8 8 0 0 1 0-16h64a8 8 0 0 1 8 8m-8 24h-64a8 8 0 0 0 0 16h64a8 8 0 0 0 0-16m48-88v160a16 16 0 0 1-16 16H48a16 16 0 0 1-16-16V48a16 16 0 0 1 16-16h160a16 16 0 0 1 16 16M48 208h24V48H48Zm160 0V48H88v160z",
+    bookmark: "M184 32H72a16 16 0 0 0-16 16v176a8 8 0 0 0 12.24 6.78L128 193.43l59.77 37.35A8 8 0 0 0 200 224V48a16 16 0 0 0-16-16m0 177.57l-51.77-32.35a8 8 0 0 0-8.48 0L72 209.57V48h112Z",
+  };
+  return `<svg class="phone-tab-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="${paths[kind]}"/></svg>`;
+}
+
+/** Scripture, the notes feed, Bookmarks, and Verse groups. Icons only; names stay on aria-label. */
 export function phoneTabsHtml(opts: { surface: "notes" | "scripture"; readerHref: string }): string {
   const scripture = opts.surface === "scripture" ? ' aria-current="page"' : "";
   const notes = opts.surface === "notes" ? ' aria-current="page"' : "";
   const reader = escapeHtml(opts.readerHref);
-  return `<nav class="phone-tabs" aria-label="Sections"><a class="phone-tab" data-phone-tab="scripture" href="${reader}" data-reader-link${scripture}>Scripture</a><a class="phone-tab" data-phone-tab="notes" href="/notes"${notes}>Notes</a><a class="phone-tab" data-phone-tab="bookmarks" href="/notes#bookmarks">Bookmarks</a><a class="phone-tab" data-phone-tab="groups" href="/notes#groups" aria-label="Verse groups">Verse groups</a></nav>`;
+  return `<nav class="phone-tabs" aria-label="Sections"><a class="phone-tab" data-phone-tab="scripture" href="${reader}" data-reader-link aria-label="Scripture"${scripture}>${phoneTabIcon("book")}</a><a class="phone-tab" data-phone-tab="notes" href="/notes" aria-label="Notes"${notes}>${phoneTabIcon("notebook")}</a><a class="phone-tab" data-phone-tab="bookmarks" href="/notes#bookmarks" aria-label="Bookmarks">${phoneTabIcon("bookmark")}</a><a class="phone-tab" data-phone-tab="groups" href="/notes#groups" aria-label="Verse groups">${phoneTabIcon("groups")}</a></nav>`;
 }
 
 /** Bookmarks and verse groups share this shell. Desktop expands inline; phone tabs show the list full screen. */

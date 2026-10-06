@@ -728,7 +728,7 @@ export function page(title: string, body: string): string {
           0 0 0 1px color-mix(in srgb, #fafaf9 46%, transparent),
           0 .35rem 1rem rgb(0 0 0 / .5);
       }
-      html { --phone-tab-h: calc(var(--tap) + env(safe-area-inset-bottom, 0px)); }
+      html { --phone-tab-h: calc(3.35rem + env(safe-area-inset-bottom, 0px)); }
       .search-fab {
         bottom: calc(14px + var(--phone-tab-h));
       }
@@ -1375,16 +1375,15 @@ export function page(title: string, body: string): string {
         align-items: center;
         justify-content: center;
         min-width: 0;
-        min-height: var(--tap);
+        min-height: 3.35rem;
         margin: 0;
-        padding: .25rem .2rem;
+        padding: .4rem .2rem;
         border: 0;
         background: transparent;
         color: var(--faint);
-        text-align: center;
         text-decoration: none;
-        font: 650 .68rem/1.15 var(--sans);
       }
+      .phone-tab-icon { display: block; width: 1.6rem; height: 1.6rem; }
       .phone-tab[aria-current="page"] {
         color: var(--ink);
         box-shadow: inset 0 2px 0 var(--ink);

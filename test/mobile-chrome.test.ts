@@ -73,8 +73,14 @@ describe("phone chapter sheet and verse-group description", () => {
     expect(notes).toContain('id="bookmarks-view"');
     expect(notes).toContain('id="verse-groups-view"');
     expect(notes).toContain('class="phone-tabs"');
+    expect(notes).toContain('aria-label="Scripture"');
+    expect(notes).toContain('aria-label="Notes"');
+    expect(notes).toContain('aria-label="Bookmarks"');
+    expect(notes).toContain('aria-label="Verse groups"');
+    expect(notes).toContain('class="phone-tab-icon"');
     expect(notes).toContain('data-phone-tab="bookmarks"');
     expect(notes).toContain('data-phone-tab="groups"');
+    expect(notes).toContain("min-height: 3.35rem");
     expect(notes).toContain("bindPhoneTabs");
     expect(notes).toContain("dy >= 72");
     const css = notes;
