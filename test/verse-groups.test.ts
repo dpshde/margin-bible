@@ -26,6 +26,7 @@ import {
 import { closestJevTopic, DEMO_VERSE_TEXTS, JEV_TOPICS } from "../src/jev-topics";
 import { previewSeedNeeded, previewSeedNotes } from "../src/preview-seed";
 import { notesInboxScript } from "../src/inbox-ui";
+import { listNotes } from "../src/library";
 import { handleVerseGroupAction, loadVerseGroups } from "../src/verse-groups-store";
 import { suggestVerseGroupTopic } from "../src/verse-topic";
 import { verseGroupCardHtml, verseGroupsScript } from "../src/verse-groups-ui";
@@ -302,7 +303,10 @@ describe("verse groups inbox", () => {
     expect(css).toContain('.verse-group > summary .note-row-title[contenteditable="true"] {\n      cursor: text;');
     expect(css).toContain('.verse-group > summary .note-row-title[contenteditable="true"]:empty::before {\n      content: "Title";');
     expect(css).toContain(".verse-group-fields {\n      display: flex;\n      flex-direction: column;");
-    expect(css).toContain(".verse-group[open] > summary.note-row {\n      background: var(--ink);\n      color: var(--paper);\n      align-items: center;\n      min-height: 0;\n      padding: .42rem .7rem;");
+    expect(css).toContain(".verse-group[open] > summary.note-row {\n      background: var(--ink);\n      color: var(--paper);\n    }");
+    expect(css).not.toContain("padding: .42rem .7rem;");
+    expect(css).toContain(".verse-group.is-drop");
+    expect(css).toContain(".verse-group-drag-ghost");
     expect(css).toContain(".verse-group.is-collapsed-hover:not([open]) > summary.note-row:hover");
     expect(css).toContain(".verse-group[open] > summary.note-row:focus");
     expect(css).toContain('.verse-group .verse-star[aria-pressed="true"] { color: #b0893e; }');
@@ -334,6 +338,8 @@ describe("verse groups inbox", () => {
     expect(verseGroupsScript()).not.toContain("data-vg-topic");
     expect(verseGroupsScript()).not.toContain("syncTopicLock");
     expect(verseGroupsScript()).toContain("autoTitlePass");
+    expect(verseGroupsScript()).toContain("move-member");
+    expect(verseGroupsScript()).toContain("verse-group-drag-ghost");
     expect(verseGroupsScript()).toContain("syncTitleEdit");
     expect(verseGroupsScript()).toContain('getAttribute("data-title")');
     expect(verseGroupsScript()).not.toContain("input[name=title]");
@@ -592,6 +598,44 @@ function starLibrary(): D1Database {
   return memoryD1(sqlite);
 }
 
+function webLibrary(): D1Database {
+  const sqlite = new Database(":memory:");
+  sqlite.run(`CREATE TABLE notes (
+    library_id TEXT NOT NULL,
+    slug TEXT NOT NULL,
+    osis TEXT NOT NULL,
+    kind TEXT NOT NULL,
+    book TEXT NOT NULL,
+    chapter INTEGER NOT NULL,
+    verse_start INTEGER,
+    verse_end INTEGER,
+    blocks TEXT NOT NULL,
+    bookmarked INTEGER NOT NULL DEFAULT 0,
+    attachments TEXT NOT NULL DEFAULT '[]',
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    PRIMARY KEY (library_id, slug)
+  )`);
+  const stamp = "2026-10-06T00:00:00.000Z";
+  const insert = (slug: string, osis: string, book: string, chapter: number, verse: number, attachments: unknown[]) => {
+    sqlite.run(
+      `INSERT INTO notes (library_id, slug, osis, kind, book, chapter, verse_start, verse_end, blocks, bookmarked, attachments, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      ["lib", slug, osis, "verse", book, chapter, verse, verse, "[]", 0, JSON.stringify(attachments), stamp, stamp],
+    );
+  };
+  insert("jhn.1.1", "John.1.1", "jhn", 1, 1, [
+    { id: "att_abcd1234", kind: "xref", slug: "jhn.1.14", title: "John 1:14", source: "manual" },
+    { id: "att_abcd1235", kind: "xref", slug: "jhn.1.3", title: "John 1:3", source: "manual" },
+    { id: "att_abcd1236", kind: "xref", slug: "jhn.1.4", title: "John 1:4", source: "manual" },
+  ]);
+  insert("rom.8.28", "Romans.8.28", "rom", 8, 28, [
+    { id: "att_abcd2231", kind: "xref", slug: "rom.8.31", title: "Romans 8:31", source: "manual" },
+    { id: "att_abcd2238", kind: "xref", slug: "rom.8.38", title: "Romans 8:38", source: "manual" },
+  ]);
+  return memoryD1(sqlite);
+}
+
 const johnAssets = {
   fetch: async () =>
     new Response(
@@ -826,5 +870,69 @@ describe("automatic verse group titles", () => {
     if (!repeat.ok) return;
     expect(repeat.skipped).toBe("already");
     expect(calls).toBe(1);
+  });
+});
+
+describe("move a verse between groups", () => {
+  test("a drop removes the source xref and adds the target xref", async () => {
+    const db = webLibrary();
+    const starred = await handleVerseGroupAction(db, "lib", { action: "set-star", hub: "jhn.1.1", slug: "jhn.1.3" });
+    expect(starred.ok).toBe(true);
+
+    const moved = await handleVerseGroupAction(db, "lib", {
+      action: "move-member",
+      hub: "rom.8.28",
+      from: "jhn.1.1",
+      slug: "jhn.1.3",
+    });
+    expect(moved.ok).toBe(true);
+    if (!moved.ok) return;
+    expect(moved.statusText).toBe("Moved.");
+    expect(moved.group.members.map((member) => member.slug)).toContain("jhn.1.3");
+
+    const notes = await listNotes(db, "lib");
+    const groups = await loadVerseGroups(db, "lib", notes);
+    const john = groups.find((group) => group.hub === "jhn.1.1");
+    const romans = groups.find((group) => group.hub === "rom.8.28");
+    expect(john?.members.map((member) => member.slug)).toEqual(expect.arrayContaining(["jhn.1.1", "jhn.1.14", "jhn.1.4"]));
+    expect(john?.members.map((member) => member.slug)).not.toContain("jhn.1.3");
+    expect(john?.star).toBe("");
+    expect(romans?.members.map((member) => member.slug)).toContain("jhn.1.3");
+
+    const source = notes.find((note) => note.slug === "jhn.1.1");
+    const carried = notes.find((note) => note.slug === "jhn.1.3");
+    expect(source?.attachments.some((row) => row.kind === "xref" && row.slug === "jhn.1.3" && row.source !== "backlink")).toBe(false);
+    expect(carried?.attachments.some((row) => row.kind === "xref" && row.slug === "rom.8.28" && row.source === "manual")).toBe(true);
+
+    const same = await handleVerseGroupAction(db, "lib", {
+      action: "move-member",
+      hub: "rom.8.28",
+      from: "rom.8.28",
+      slug: "jhn.1.3",
+    });
+    expect(same.ok).toBe(false);
+    if (same.ok) return;
+    expect(same.error).toBe("Already in this group.");
+  });
+
+  test("dragging the hub verse adds it to the other group and leaves the hub", async () => {
+    const db = webLibrary();
+    const moved = await handleVerseGroupAction(db, "lib", {
+      action: "move-member",
+      hub: "rom.8.28",
+      from: "jhn.1.1",
+      slug: "jhn.1.1",
+    });
+    expect(moved.ok).toBe(true);
+    if (!moved.ok) return;
+    const notes = await listNotes(db, "lib");
+    const groups = await loadVerseGroups(db, "lib", notes);
+    const john = groups.find((group) => group.hub === "jhn.1.1");
+    const romans = groups.find((group) => group.hub === "rom.8.28");
+    expect(john?.members.map((member) => member.slug)).toEqual(expect.arrayContaining(["jhn.1.1", "jhn.1.14", "jhn.1.3", "jhn.1.4"]));
+    expect(romans?.members.map((member) => member.slug)).toContain("jhn.1.1");
+    const source = notes.find((note) => note.slug === "jhn.1.1");
+    expect(source?.attachments.some((row) => row.slug === "jhn.1.14" && row.source === "manual")).toBe(true);
+    expect(source?.attachments.some((row) => row.slug === "rom.8.28" && row.source === "manual")).toBe(true);
   });
 });

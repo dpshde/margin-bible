@@ -1289,15 +1289,12 @@ export function page(title: string, body: string): string {
     }
     .verse-group > summary.note-row::-webkit-details-marker { display: none; }
     .verse-group > summary.note-row::marker { content: ""; }
-    /* Closed, the row stays a bookmark. Open, the same indent inverts ink
-       and paper, with less vertical padding than the tap-height row. */
+    /* Closed, the row stays a bookmark. Open, ink and paper invert.
+       Padding and baseline stay the closed row's, so the title does not jump. */
     .verse-group-hub { display: none; }
     .verse-group[open] > summary.note-row {
       background: var(--ink);
       color: var(--paper);
-      align-items: center;
-      min-height: 0;
-      padding: .42rem .7rem;
     }
     .verse-group[open] > summary .note-row-title,
     .verse-group[open] > summary .note-row-excerpt {
@@ -1360,6 +1357,25 @@ export function page(title: string, body: string): string {
       content: "Title";
       font-weight: 500;
       color: color-mix(in srgb, var(--paper) 62%, transparent);
+    }
+    .verse-group.is-drop {
+      outline: 2px solid var(--ink);
+      outline-offset: -2px;
+    }
+    .verse-group .att-item.is-dragging { opacity: .4; }
+    .verse-group-drag-ghost {
+      position: fixed;
+      z-index: 80;
+      margin: 0;
+      padding: .15rem .55rem;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: var(--paper-raised);
+      color: var(--ink);
+      font: 600 .78rem/1.25 var(--sans);
+      pointer-events: none;
+      transform: translate(-50%, -140%);
+      box-shadow: 0 .25rem .8rem color-mix(in srgb, var(--ink) 18%, transparent);
     }
     .verse-group-form textarea.verse-group-description {
       display: block;

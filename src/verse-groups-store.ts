@@ -87,6 +87,7 @@ export async function handleVerseGroupAction(
     action !== "undo-links" &&
     action !== "add-member" &&
     action !== "remove-member" &&
+    action !== "move-member" &&
     action !== "set-star"
   ) {
     return { ok: false, status: 422, error: "unknown action" };
@@ -101,6 +102,7 @@ export async function handleVerseGroupAction(
     }
     if (action === "add-member") return await addVerseMember(db, libraryId, hub, record.text);
     if (action === "remove-member") return await removeVerseMember(db, libraryId, hub, record.slug);
+    if (action === "move-member") return await moveVerseMember(db, libraryId, hub, record.from, record.slug);
     if (action === "set-star") return await setVerseStar(db, libraryId, hub, record.slug);
     if (action === "add-links") return await addVerseGroupLinks(db, libraryId, hub);
     return await undoVerseGroupLinks(db, libraryId, hub);
@@ -171,6 +173,47 @@ async function setVerseStar(
   const group = await groupForHub(db, libraryId, hub);
   if (!group) return { ok: false, status: 422, error: "That verse is not a hub yet." };
   return { ok: true, statusText: "", group };
+}
+
+/** Move a member onto another hub. Same xref writes as remove-member, then add-member. */
+async function moveVerseMember(
+  db: D1Database,
+  libraryId: string,
+  targetHub: string,
+  fromRaw: unknown,
+  slugRaw: unknown,
+): Promise<VerseGroupActionResult> {
+  const from = canonSlug(typeof fromRaw === "string" ? fromRaw : "");
+  const slug = canonSlug(typeof slugRaw === "string" ? slugRaw : "");
+  if (!from || !slug) return { ok: false, status: 422, error: "Need a passage." };
+  if (from === targetHub) return { ok: false, status: 422, error: "Already in this group." };
+  if (slug === targetHub) return { ok: false, status: 422, error: "Already attached." };
+
+  const sourceReady = await ensureHub(db, libraryId, from);
+  if (!sourceReady.ok) return sourceReady;
+  const targetReady = await ensureHub(db, libraryId, targetHub);
+  if (!targetReady.ok) return targetReady;
+
+  const source = await groupForHub(db, libraryId, from);
+  if (!source || !source.members.some((member) => member.slug === slug)) {
+    return { ok: false, status: 422, error: "That verse is not in this group." };
+  }
+  const target = await groupForHub(db, libraryId, targetHub);
+  if (!target) return { ok: false, status: 422, error: "That verse is not a hub yet." };
+  const already = target.members.some((member) => member.slug === slug);
+
+  if (slug !== from) {
+    await removeUserLink(db, libraryId, slug, from);
+    await removeUserLink(db, libraryId, from, slug);
+    if (source.star === slug) await upsertStar(db, libraryId, from, "");
+  }
+  if (!already) await addUserLink(db, libraryId, slug, targetHub);
+
+  const group = await groupForHub(db, libraryId, targetHub);
+  if (!group || !group.members.some((member) => member.slug === slug)) {
+    return { ok: false, status: 422, error: "Could not move that verse." };
+  }
+  return { ok: true, statusText: "Moved.", group };
 }
 
 async function removeVerseMember(

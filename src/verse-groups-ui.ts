@@ -228,7 +228,105 @@ export function verseGroupsScript(): string {
       .catch(function () { suggestNow(); });
   }
 
+  var drag = null;
+  var suppressClick = false;
+
+  function clearDrop() {
+    var marked = panel.querySelectorAll(".verse-group.is-drop");
+    for (var i = 0; i < marked.length; i += 1) marked[i].classList.remove("is-drop");
+  }
+
+  function groupAt(x, y) {
+    var ghost = drag && drag.ghost;
+    if (ghost) ghost.hidden = true;
+    var el = document.elementFromPoint(x, y);
+    if (ghost) ghost.hidden = false;
+    var card = el && el.closest && el.closest(".verse-group");
+    if (!card || !panel.contains(card)) return null;
+    return card;
+  }
+
+  function endDrag(commit, x, y) {
+    if (!drag) return;
+    var state = drag;
+    drag = null;
+    clearDrop();
+    if (state.item) state.item.classList.remove("is-dragging");
+    if (state.ghost) state.ghost.remove();
+    if (!commit || !state.active) return;
+    suppressClick = true;
+    var target = groupAt(x, y);
+    var to = target && target.getAttribute("data-hub");
+    if (!target || !to || to === state.hub) return;
+    post(target, "move-member", { slug: state.slug, from: state.hub });
+  }
+
+  panel.addEventListener("pointerdown", function (event) {
+    if (event.pointerType === "mouse" && event.button !== 0) return;
+    var item = event.target && event.target.closest && event.target.closest(".verse-group .att-item");
+    if (!item || !panel.contains(item)) return;
+    if (event.target.closest("button")) return;
+    var card = item.closest(".verse-group");
+    var chip = item.querySelector(".att-chip");
+    var slug = chip && chip.getAttribute("data-att-slug");
+    var hub = card && card.getAttribute("data-hub");
+    if (!card || !slug || !hub || card.getAttribute("data-busy") === "1") return;
+    drag = {
+      id: event.pointerId,
+      x: event.clientX,
+      y: event.clientY,
+      slug: slug,
+      hub: hub,
+      label: chip.textContent || slug,
+      item: item,
+      active: false,
+      ghost: null,
+    };
+  });
+
+  window.addEventListener("pointermove", function (event) {
+    if (!drag || event.pointerId !== drag.id) return;
+    var dx = event.clientX - drag.x;
+    var dy = event.clientY - drag.y;
+    if (!drag.active) {
+      if (dx * dx + dy * dy < 36) return;
+      drag.active = true;
+      drag.item.classList.add("is-dragging");
+      var ghost = document.createElement("div");
+      ghost.className = "verse-group-drag-ghost";
+      ghost.textContent = drag.label;
+      document.body.appendChild(ghost);
+      drag.ghost = ghost;
+      if (drag.item.setPointerCapture) drag.item.setPointerCapture(event.pointerId);
+    }
+    event.preventDefault();
+    if (drag.ghost) {
+      drag.ghost.style.left = event.clientX + "px";
+      drag.ghost.style.top = event.clientY + "px";
+    }
+    clearDrop();
+    var target = groupAt(event.clientX, event.clientY);
+    var to = target && target.getAttribute("data-hub");
+    if (target && to && to !== drag.hub) target.classList.add("is-drop");
+  });
+
+  window.addEventListener("pointerup", function (event) {
+    if (!drag || event.pointerId !== drag.id) return;
+    endDrag(true, event.clientX, event.clientY);
+  });
+
+  window.addEventListener("pointercancel", function (event) {
+    if (!drag || event.pointerId !== drag.id) return;
+    endDrag(false, event.clientX, event.clientY);
+  });
+
   panel.addEventListener("click", function (event) {
+    if (suppressClick) {
+      suppressClick = false;
+      event.preventDefault();
+      event.stopPropagation();
+      return;
+    }
     var target = event.target;
     if (!target || !target.closest) return;
     var card = target.closest(".verse-group");
@@ -631,7 +729,7 @@ export function verseGroupsScript(): string {
     }
     var hub = card.getAttribute("data-hub");
     var status = card.querySelector(".verse-group-status");
-    var pending = action === "add-member" ? "Attaching…" : action === "remove-member" ? "Removing…" : action === "suggest-title" ? "Finding a topic…" : "Saving…";
+    var pending = action === "add-member" ? "Attaching…" : action === "remove-member" ? "Removing…" : action === "move-member" ? "Moving…" : action === "suggest-title" ? "Finding a topic…" : "Saving…";
     if (status && !quiet && !(opts && opts.dialog)) status.textContent = pending;
     var body = { action: action, hub: hub };
     if (action === "save") {
@@ -737,7 +835,7 @@ function verseChipHtml(member: VerseGroupMember, starred: boolean, order: number
   const id = `vg_${member.slug.replaceAll(".", "_")}`;
   const title = escapeHtml(member.label);
   const starLabel = starred ? "Clear star" : "Star this verse";
-  return `<li class="att-item" data-order="${order}"><a class="att-chip wiki" href="${escapeHtml(hrefForXref(member.slug))}" data-att-id="${escapeHtml(id)}" data-att-kind="xref" data-att-slug="${escapeHtml(member.slug)}" data-att-title="${title}" data-att-source="manual">${title}</a><span class="verse-group-member-actions"><button type="button" class="verse-star" data-vg-star data-att-slug="${escapeHtml(member.slug)}" aria-pressed="${starred ? "true" : "false"}" aria-label="${starLabel}" title="${starLabel}">${iconStar()}</button><button type="button" class="att-remove" data-att-id="${escapeHtml(id)}" aria-label="Remove attachment" title="Remove attachment">${iconX(12)}</button></span></li>`;
+  return `<li class="att-item" data-order="${order}"><a class="att-chip wiki" draggable="false" href="${escapeHtml(hrefForXref(member.slug))}" data-att-id="${escapeHtml(id)}" data-att-kind="xref" data-att-slug="${escapeHtml(member.slug)}" data-att-title="${title}" data-att-source="manual">${title}</a><span class="verse-group-member-actions"><button type="button" class="verse-star" data-vg-star data-att-slug="${escapeHtml(member.slug)}" aria-pressed="${starred ? "true" : "false"}" aria-label="${starLabel}" title="${starLabel}">${iconStar()}</button><button type="button" class="att-remove" data-att-id="${escapeHtml(id)}" aria-label="Remove attachment" title="Remove attachment">${iconX(12)}</button></span></li>`;
 }
 
 function iconStar(): string {
