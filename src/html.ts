@@ -1250,7 +1250,7 @@ export function page(title: string, body: string): string {
     .pager a:hover { color: var(--ink); }
     /* Bookmarks: icon + soft wash — distinct from THIS WEEK, not a heavy card. */
     .bookmarks-view {
-      margin: 0 0 1rem;
+      margin: 0 0 0.5rem;
       padding: .35rem .45rem .4rem;
       border-radius: .55rem;
       background: var(--fill);
@@ -1345,16 +1345,21 @@ export function page(title: string, body: string): string {
       color: var(--ink);
       font: 400 1rem/1.4 var(--sans);
     }
-    .verse-group-title-field { position: relative; }
-    .verse-group-form input[name="title"] {
-      font-weight: 600;
-      font-size: 1.02rem;
-      line-height: 1.3;
-      padding: .2rem .15rem;
+    .verse-group > summary .note-row-title[contenteditable="true"] {
+      cursor: text;
+      outline: none;
+      min-width: 1.5rem;
+      border-radius: .2rem;
     }
-    .verse-group-form input[name="title"]::placeholder {
-      color: var(--ink-soft);
+    .verse-group > summary .note-row-title[contenteditable="true"]:focus {
+      overflow: visible;
+      text-overflow: clip;
+      background: color-mix(in srgb, var(--paper) 14%, transparent);
+    }
+    .verse-group > summary .note-row-title[contenteditable="true"]:empty::before {
+      content: "Title";
       font-weight: 500;
+      color: color-mix(in srgb, var(--paper) 62%, transparent);
     }
     .verse-group-form textarea.verse-group-description {
       display: block;

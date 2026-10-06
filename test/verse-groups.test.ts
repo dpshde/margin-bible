@@ -297,7 +297,10 @@ describe("verse groups inbox", () => {
     expect(css).not.toContain(".inbox-tool-row");
     expect(css).toContain(".verse-group .att-chip");
     expect(css).toContain(".verse-group .att-remove");
-    expect(css).toContain('.verse-group-form input[name="title"] {\n      font-weight: 600;');
+    expect(css).not.toContain('.verse-group-form input[name="title"]');
+    expect(css).not.toContain(".verse-group-title-field");
+    expect(css).toContain('.verse-group > summary .note-row-title[contenteditable="true"] {\n      cursor: text;');
+    expect(css).toContain('.verse-group > summary .note-row-title[contenteditable="true"]:empty::before {\n      content: "Title";');
     expect(css).toContain(".verse-group-fields {\n      display: flex;\n      flex-direction: column;");
     expect(css).toContain(".verse-group[open] > summary.note-row {\n      background: var(--ink);\n      color: var(--paper);\n      align-items: center;\n      min-height: 0;\n      padding: .42rem .7rem;");
     expect(css).toContain(".verse-group.is-collapsed-hover:not([open]) > summary.note-row:hover");
@@ -331,6 +334,9 @@ describe("verse groups inbox", () => {
     expect(verseGroupsScript()).not.toContain("data-vg-topic");
     expect(verseGroupsScript()).not.toContain("syncTopicLock");
     expect(verseGroupsScript()).toContain("autoTitlePass");
+    expect(verseGroupsScript()).toContain("syncTitleEdit");
+    expect(verseGroupsScript()).toContain('getAttribute("data-title")');
+    expect(verseGroupsScript()).not.toContain("input[name=title]");
     expect(verseGroupsScript()).toContain('data-auto-titled');
     expect(verseGroupsScript()).toContain("data-auto-title-started");
     expect(verseGroupsScript()).toContain("preloadMembers");
@@ -349,11 +355,8 @@ describe("verse groups inbox", () => {
     expect(verseGroupsScript()).toContain("items[j] !== starred");
     expect(verseGroupsScript()).toContain("suggest-title");
     expect(css).not.toContain(".verse-group[open] > summary .note-row-title,\n    .verse-group[open] > summary .note-row-excerpt { display: none; }");
-    const titleRule = css.slice(
-      css.indexOf('.verse-group-form input[name="title"] {'),
-      css.indexOf('.verse-group-form input[name="title"]::placeholder'),
-    );
-    expect(titleRule).not.toContain("paper-raised");
+    const titleRule = css.slice(css.indexOf('.verse-group > summary .note-row-title[contenteditable="true"] {'));
+    expect(titleRule.slice(0, 700)).not.toContain("paper-raised");
     expect(css).toContain("background: color-mix(in srgb, var(--ink) 8%, transparent);");
     expect(css).toContain("textarea.verse-group-description::placeholder {\n      color: var(--faint);");
     expect(css).toContain("textarea.verse-group-description {\n      display: block;\n      resize: vertical;");
@@ -399,8 +402,9 @@ describe("verse groups inbox", () => {
     expect(html).toContain('class="verse-group"');
     expect(html).toContain('<summary class="note-row">');
     expect(html).toContain(">Romans 8:28</span>");
-    expect(html).toContain('value=""');
-    expect(html).toContain('placeholder="Title"');
+    expect(html).toContain('class="note-row-title" data-title=""');
+    expect(html).not.toContain('name="title"');
+    expect(html).not.toContain('placeholder="Title"');
     expect(html).toContain('placeholder="Description"');
     expect(html).not.toContain(">Description</summary>");
     expect(html).toContain('class="verse-group-hub">Romans 8:28</span>');
@@ -472,7 +476,8 @@ describe("verse groups inbox", () => {
     expect(html).not.toContain(">Save</button>");
     expect(html).not.toContain("Save sample");
     expect(html).toContain('<summary class="note-row">');
-    expect(html).toContain('value="&lt;script&gt;alert(&quot;x&quot;)&lt;/script&gt;"');
+    expect(html).toContain('data-title="&lt;script&gt;alert(&quot;x&quot;)&lt;/script&gt;"');
+    expect(html).not.toContain('name="title"');
     expect(html).not.toContain("local topic guess");
     expect(html).toContain('class="att-chip wiki"');
     expect(html).toContain("1 Peter 5:6");
@@ -510,7 +515,9 @@ describe("verse groups inbox", () => {
     expect(html).toContain('data-auto-titled="1"');
     expect(html).not.toContain("data-vg-topic");
     expect(html).not.toContain("ph-sparkle");
-    expect(html).toContain('value="The Word made flesh"');
+    expect(html).toContain('data-title="The Word made flesh"');
+    expect(html).toContain(">The Word made flesh</span>");
+    expect(html).not.toContain('name="title"');
   });
 });
 

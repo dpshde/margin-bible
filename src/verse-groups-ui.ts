@@ -21,12 +21,9 @@ export function verseGroupCardHtml(group: VerseGroupView, status = ""): string {
   const rowTitle = saved || group.hubLabel;
   const excerpt = saved && saved !== group.hubLabel ? group.hubLabel : "";
   return `<details class="verse-group" data-hub="${escapeHtml(group.hub)}" data-hub-label="${escapeHtml(group.hubLabel)}" data-star="${escapeHtml(star)}" data-sample="${group.sample ? "1" : "0"}" data-seed="${group.seed ? "1" : "0"}" data-auto-titled="${group.autoTitled ? "1" : "0"}">
-  <summary class="note-row"><span class="note-row-title">${escapeHtml(rowTitle)}</span>${excerpt ? `<span class="note-row-excerpt">${escapeHtml(excerpt)}</span>` : ""}<span class="verse-group-hub">${escapeHtml(group.hubLabel)}</span></summary>
+  <summary class="note-row"><span class="note-row-title" data-title="${escapeHtml(saved)}" contenteditable="false">${escapeHtml(rowTitle)}</span>${excerpt ? `<span class="note-row-excerpt">${escapeHtml(excerpt)}</span>` : ""}<span class="verse-group-hub">${escapeHtml(group.hubLabel)}</span></summary>
   <form class="verse-group-form">
     <div class="verse-group-fields">
-      <div class="verse-group-title-field">
-        <input id="vg-title-${field}" name="title" value="${escapeHtml(saved)}" placeholder="Title" maxlength="120" autocomplete="off" aria-label="Title">
-      </div>
       <textarea id="vg-description-${field}" class="verse-group-description" name="description" rows="1" maxlength="2000" placeholder="Description" aria-label="Description">${escapeHtml(group.description)}</textarea>
     </div>
     <div class="verse-group-verses">
@@ -262,6 +259,14 @@ export function verseGroupsScript(): string {
   panel.addEventListener("toggle", function (event) {
     var card = event.target;
     if (!card || !card.classList || !card.classList.contains("verse-group")) return;
+    if (!card.open && card._titlePointer) {
+      card._titlePointer = false;
+      card.open = true;
+      var title = card.querySelector(".note-row-title");
+      if (title) title.focus();
+      return;
+    }
+    syncTitleEdit(card);
     if (card.open) {
       card.classList.remove("is-collapsed-hover");
       preloadMembers(card);
@@ -276,24 +281,116 @@ export function verseGroupsScript(): string {
     }, { once: true });
   }, true);
 
+  var groups = panel.querySelectorAll(".verse-group");
+  for (var groupIndex = 0; groupIndex < groups.length; groupIndex += 1) guardTitleToggle(groups[groupIndex]);
   var openGroups = panel.querySelectorAll(".verse-group[open]");
-  for (var openIndex = 0; openIndex < openGroups.length; openIndex += 1) preloadMembers(openGroups[openIndex]);
+  for (var openIndex = 0; openIndex < openGroups.length; openIndex += 1) {
+    syncTitleEdit(openGroups[openIndex]);
+    preloadMembers(openGroups[openIndex]);
+  }
+
+  panel.addEventListener("pointerdown", function (event) {
+    var cards = panel.querySelectorAll(".verse-group");
+    for (var i = 0; i < cards.length; i += 1) cards[i]._titlePointer = false;
+    var title = event.target && event.target.closest && event.target.closest(".note-row-title");
+    var card = title && title.closest(".verse-group");
+    if (card && card.open) card._titlePointer = true;
+  }, true);
+
+  panel.addEventListener("click", function (event) {
+    var title = event.target && event.target.closest && event.target.closest(".note-row-title");
+    if (!title) return;
+    var card = title.closest(".verse-group");
+    if (!card || !card.open) return;
+    event.preventDefault();
+    if (document.activeElement !== title) title.focus();
+    if (String(title.getAttribute("data-title") || "").trim()) return;
+    requestAnimationFrame(function () {
+      var range = document.createRange();
+      range.selectNodeContents(title);
+      var selection = window.getSelection();
+      if (!selection) return;
+      selection.removeAllRanges();
+      selection.addRange(range);
+    });
+  }, true);
+
+  panel.addEventListener("keydown", function (event) {
+    var target = event.target;
+    if (!target || !target.classList || !target.classList.contains("note-row-title")) return;
+    if (event.key === "Enter") {
+      event.preventDefault();
+      target.blur();
+      return;
+    }
+    if (event.key === "Escape") {
+      event.preventDefault();
+      var card = target.closest(".verse-group");
+      var back = card && card._titleOnFocus != null ? String(card._titleOnFocus) : "";
+      target.setAttribute("data-title", back);
+      if (!card) {
+        target.blur();
+        return;
+      }
+      if (card._saveTimer) { clearTimeout(card._saveTimer); card._saveTimer = 0; }
+      scheduleSave(card);
+      target.blur();
+    }
+  });
+
+  panel.addEventListener("paste", function (event) {
+    var target = event.target;
+    if (!target || !target.classList || !target.classList.contains("note-row-title")) return;
+    event.preventDefault();
+    var text = (event.clipboardData && event.clipboardData.getData("text/plain")) || "";
+    text = String(text).replace(/\\s+/g, " ");
+    var selection = window.getSelection();
+    if (!selection || !selection.rangeCount) return;
+    selection.deleteFromDocument();
+    selection.getRangeAt(0).insertNode(document.createTextNode(text));
+    selection.collapseToEnd();
+    target.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+
+  panel.addEventListener("focusin", function (event) {
+    var target = event.target;
+    if (!target || !target.classList || !target.classList.contains("note-row-title")) return;
+    var card = target.closest(".verse-group");
+    if (!card) return;
+    card._titleOnFocus = target.getAttribute("data-title") || "";
+  });
 
   panel.addEventListener("input", function (event) {
     var target = event.target;
     if (!target || !target.closest) return;
-    if (target.name !== "title" && target.name !== "description") return;
     var card = target.closest(".verse-group");
     if (!card) return;
+    if (target.classList && target.classList.contains("note-row-title")) {
+      var raw = String(target.textContent || "").replace(/\\u00a0/g, " ").replace(/\\s+/g, " ").trim();
+      if (raw.length > 120) {
+        raw = raw.slice(0, 120);
+        target.textContent = raw;
+      }
+      var hubLabel = card.getAttribute("data-hub-label") || "";
+      if (!String(card._titleOnFocus || "").trim() && raw === hubLabel) raw = "";
+      target.setAttribute("data-title", raw);
+      paintTitle(card, true);
+      scheduleSave(card);
+      return;
+    }
+    if (target.name !== "description") return;
     scheduleSave(card);
   });
 
   panel.addEventListener("focusout", function (event) {
     var target = event.target;
     if (!target || !target.closest) return;
-    if (target.name !== "title" && target.name !== "description") return;
     var card = target.closest(".verse-group");
-    if (!card || !card._saveTimer) return;
+    if (!card) return;
+    var titleEdit = target.classList && target.classList.contains("note-row-title");
+    if (!titleEdit && target.name !== "description") return;
+    if (titleEdit) paintTitle(card);
+    if (!card._saveTimer) return;
     clearTimeout(card._saveTimer);
     card._saveTimer = 0;
     post(card, "save", null, { quiet: true });
@@ -357,24 +454,68 @@ export function verseGroupsScript(): string {
     }
   }
 
-  function paintTitle(card) {
-    var input = card.querySelector("input[name=title]");
-    var title = input ? String(input.value || "").replace(/\\s+/g, " ").trim() : "";
+  function guardTitleToggle(card) {
+    card.addEventListener("beforetoggle", function (event) {
+      if (event.newState === "closed" && card._titlePointer) event.preventDefault();
+    });
+  }
+
+  function syncTitleEdit(card) {
+    var el = card.querySelector(".note-row-title");
+    if (!el) return;
+    if (card.open) {
+      el.setAttribute("contenteditable", "true");
+      el.setAttribute("role", "textbox");
+      el.setAttribute("aria-label", "Title");
+      el.setAttribute("aria-multiline", "false");
+      el.spellcheck = false;
+      return;
+    }
+    if (document.activeElement === el) el.blur();
+    el.setAttribute("contenteditable", "false");
+    el.removeAttribute("role");
+    el.removeAttribute("aria-multiline");
+    el.removeAttribute("aria-label");
+    paintTitle(card);
+  }
+
+  function storedTitle(card) {
+    var el = card.querySelector(".note-row-title");
+    var title = el ? String(el.getAttribute("data-title") || "") : "";
+    return title.replace(/\\s+/g, " ").trim().slice(0, 120);
+  }
+
+  function paintTitle(card, keepText) {
+    var el = card.querySelector(".note-row-title");
+    if (!el) return;
+    var title = storedTitle(card);
     var hubLabel = card.getAttribute("data-hub-label") || "";
-    var titleEl = card.querySelector(".note-row-title");
-    if (titleEl) titleEl.textContent = title || hubLabel;
+    var editing = document.activeElement === el;
+    if (!keepText && !editing) el.textContent = title || hubLabel;
     var summary = card.querySelector("summary.note-row");
     var excerpt = summary && summary.querySelector(".note-row-excerpt");
     if (title && hubLabel && title !== hubLabel) {
       if (!excerpt && summary) {
         excerpt = document.createElement("span");
         excerpt.className = "note-row-excerpt";
-        summary.appendChild(excerpt);
+        var hub = summary.querySelector(".verse-group-hub");
+        if (hub) summary.insertBefore(excerpt, hub);
+        else summary.appendChild(excerpt);
       }
       if (excerpt) excerpt.textContent = hubLabel;
     } else if (excerpt) {
       excerpt.remove();
     }
+  }
+
+  function writeTitle(card, title) {
+    var el = card.querySelector(".note-row-title");
+    if (!el) return;
+    var clean = String(title || "").replace(/\\s+/g, " ").trim().slice(0, 120);
+    el.setAttribute("data-title", clean);
+    var hubLabel = card.getAttribute("data-hub-label") || "";
+    el.textContent = clean || hubLabel;
+    paintTitle(card, true);
   }
 
   if (dialog) {
@@ -494,17 +635,11 @@ export function verseGroupsScript(): string {
     if (status && !quiet && !(opts && opts.dialog)) status.textContent = pending;
     var body = { action: action, hub: hub };
     if (action === "save") {
+      body.title = storedTitle(card);
       var form = card.querySelector(".verse-group-form");
-      if (form) {
-        var data = new FormData(form);
-        body.title = String(data.get("title") || "");
-        body.description = String(data.get("description") || "");
-      }
+      if (form) body.description = String(new FormData(form).get("description") || "");
     }
-    if (action === "suggest-title") {
-      var titleInput = card.querySelector("input[name=title]");
-      body.title = titleInput ? String(titleInput.value || "") : "";
-    }
+    if (action === "suggest-title") body.title = storedTitle(card);
     if (extra) {
       Object.keys(extra).forEach(function (key) { body[key] = extra[key]; });
     }
@@ -549,14 +684,10 @@ export function verseGroupsScript(): string {
         return;
       }
       if (opts && opts.topic) {
-        var titleInput = card.querySelector("input[name=title]");
         var baseline = card._titleAtAuto == null ? "" : String(card._titleAtAuto);
-        var current = titleInput ? String(titleInput.value || "") : "";
+        var current = storedTitle(card);
         if (payload.autoTitled) card.setAttribute("data-auto-titled", "1");
-        if (titleInput && payload.topic && current === baseline) {
-          titleInput.value = payload.topic;
-          paintTitle(card);
-        }
+        if (payload.topic && current === baseline) writeTitle(card, payload.topic);
         card.removeAttribute("data-busy");
         if (status) status.textContent = "";
         finishAuto();
@@ -592,8 +723,7 @@ export function verseGroupsScript(): string {
       var card = queue.shift();
       if (!card) return;
       card.setAttribute("data-auto-title-started", "1");
-      var input = card.querySelector("input[name=title]");
-      card._titleAtAuto = input ? String(input.value || "") : "";
+      card._titleAtAuto = storedTitle(card);
       post(card, "suggest-title", null, { topic: true, auto: true, done: run });
     }
     run();
