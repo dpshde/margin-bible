@@ -290,6 +290,11 @@ describe("verse groups inbox", () => {
     expect(css).toContain(".verse-group[open] > summary.note-row:focus");
     expect(css).toContain('.verse-group .verse-star[aria-pressed="true"] { color: #b0893e; }');
     expect(css).toContain(".verse-group .verse-star,\n    .verse-group .att-remove {");
+    const controls = css.slice(css.indexOf(".verse-group .verse-star,\n    .verse-group .att-remove {"));
+    expect(controls.slice(0, 700)).toContain("visibility: hidden");
+    expect(controls).toContain(".verse-group .att-item:hover .verse-star");
+    expect(controls).toContain(".verse-group .att-item:hover .att-remove");
+    expect(controls).toContain("@media (hover: none), (pointer: coarse)");
     expect(css).not.toContain(".att-chip.is-star");
     expect(css).toContain("outline: none;");
     expect(css).toContain("background: transparent;");

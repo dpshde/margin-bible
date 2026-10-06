@@ -1758,9 +1758,21 @@ export function page(title: string, body: string): string {
       border-radius: 999px;
       background: transparent;
       color: var(--faint);
-      visibility: visible;
-      opacity: 1;
+      visibility: hidden;
+      opacity: 0;
       cursor: pointer;
+      transition: opacity .12s ease, color .12s ease;
+    }
+    @media (hover: hover) and (pointer: fine) {
+      .verse-group .att-item:hover .verse-star,
+      .verse-group .att-item:hover .att-remove,
+      .verse-group .att-item:focus-within .verse-star,
+      .verse-group .att-item:focus-within .att-remove,
+      .verse-group .verse-star:focus-visible,
+      .verse-group .att-remove:focus-visible {
+        visibility: visible;
+        opacity: 1;
+      }
     }
     .verse-group .verse-star svg,
     .verse-group .att-remove svg { display: block; width: .72rem; height: .72rem; }
@@ -1775,6 +1787,8 @@ export function page(title: string, body: string): string {
       .verse-group .att-chip { font-size: .84rem; }
       .verse-group .verse-star,
       .verse-group .att-remove {
+        visibility: visible;
+        opacity: 1;
         width: 1.7rem;
         height: 1.7rem;
         min-width: 1.7rem;
