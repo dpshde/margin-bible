@@ -263,8 +263,15 @@ describe("verse groups inbox", () => {
     expect(css).toContain(".verse-group .att-chip");
     expect(css).toContain(".verse-group .att-remove");
     expect(css).toContain('.verse-group-form input[name="title"] {\n      font-weight: 600;');
-    expect(css).toContain("background: var(--paper-raised);");
-    expect(css).toContain(".verse-group[open] > summary.note-row {\n      background: var(--ink);\n      color: var(--paper);");
+    expect(css).toContain(".verse-group-fields {\n      display: flex;\n      flex-direction: column;");
+    expect(css).toContain(".verse-group[open] > summary.note-row {\n      background: transparent;");
+    expect(css).not.toContain(".verse-group[open] > summary.note-row {\n      background: var(--ink);");
+    const titleRule = css.slice(
+      css.indexOf('.verse-group-form input[name="title"] {'),
+      css.indexOf('.verse-group-form input[name="title"]::placeholder'),
+    );
+    expect(titleRule).not.toContain("paper-raised");
+    expect(css).toContain("background: color-mix(in srgb, var(--ink) 8%, transparent);");
     expect(css).toContain(".verse-group-description > summary {\n      cursor: pointer;\n      color: var(--faint);");
     expect(css).not.toContain(".verse-group-optional");
     const coarse = css.slice(css.indexOf("@media (hover: none), (pointer: coarse)"));

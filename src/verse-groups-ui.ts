@@ -23,11 +23,13 @@ export function verseGroupCardHtml(group: VerseGroupView, status = ""): string {
   return `<details class="verse-group" data-hub="${escapeHtml(group.hub)}" data-hub-label="${escapeHtml(group.hubLabel)}" data-sample="${group.sample ? "1" : "0"}" data-seed="${group.seed ? "1" : "0"}">
   <summary class="note-row"><span class="note-row-title">${escapeHtml(rowTitle)}</span>${excerpt ? `<span class="note-row-excerpt">${escapeHtml(excerpt)}</span>` : ""}<span class="verse-group-hub">${escapeHtml(group.hubLabel)}</span></summary>
   <form class="verse-group-form">
-    <input id="vg-title-${field}" name="title" value="${escapeHtml(saved)}" placeholder="Title" maxlength="120" autocomplete="off" aria-label="Title">
-    <details class="verse-group-description"${descriptionOpen}>
-      <summary>Description</summary>
-      <textarea id="vg-description-${field}" name="description" rows="2" maxlength="2000" aria-label="Description">${escapeHtml(group.description)}</textarea>
-    </details>
+    <div class="verse-group-fields">
+      <input id="vg-title-${field}" name="title" value="${escapeHtml(saved)}" placeholder="Title" maxlength="120" autocomplete="off" aria-label="Title">
+      <details class="verse-group-description"${descriptionOpen}>
+        <summary>Description</summary>
+        <textarea id="vg-description-${field}" name="description" rows="2" maxlength="2000" aria-label="Description">${escapeHtml(group.description)}</textarea>
+      </details>
+    </div>
     <div class="verse-group-verses">
       <ul class="att-board">${chips}</ul>
       <button type="button" class="tray-attach" data-vg-attach aria-label="Attach a link or passage" title="Attach">${iconPaperclip()}</button>

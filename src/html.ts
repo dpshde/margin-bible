@@ -1289,15 +1289,13 @@ export function page(title: string, body: string): string {
     }
     .verse-group > summary.note-row::-webkit-details-marker { display: none; }
     .verse-group > summary.note-row::marker { content: ""; }
-    /* Closed, the row stays a bookmark. Open, the hub ref becomes the same
-       inverted ink/paper divider as a week label, then title and description
-       alternate a raised row and a quieter wash. */
+    /* Closed, the row stays a bookmark. Open, the hub ref is a plain label
+       and the fields nest under the same light side rail as a week. */
     .verse-group-hub { display: none; }
     .verse-group[open] > summary.note-row {
-      background: var(--ink);
-      color: var(--paper);
-      border-radius: .35rem;
-      padding: .4rem .55rem;
+      background: transparent;
+      min-height: 0;
+      padding: .2rem .45rem .05rem;
     }
     .verse-group[open] > summary .note-row-title,
     .verse-group[open] > summary .note-row-excerpt { display: none; }
@@ -1307,17 +1305,26 @@ export function page(title: string, body: string): string {
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
-      color: var(--paper);
+      color: var(--ink);
       font-weight: 700;
       font-size: .95rem;
       letter-spacing: -.015em;
     }
     .bookmarks-panel .note-list .verse-group[open] > summary.note-row:hover,
-    .bookmarks-panel .note-list .verse-group[open] > summary.note-row:focus-visible {
-      background: var(--ink);
-      color: var(--paper);
+    .bookmarks-panel .note-list .verse-group[open] > summary.note-row:focus-visible,
+    .note-list .verse-group[open] > summary.note-row:hover,
+    .note-list .verse-group[open] > summary.note-row:focus-visible {
+      background: transparent;
     }
-    .verse-group-form { display: flex; flex-direction: column; gap: .2rem; margin: 0; padding: .2rem .15rem .1rem; }
+    .verse-group-form { display: flex; flex-direction: column; gap: .35rem; margin: 0; padding: .1rem .35rem .15rem; }
+    .verse-group-fields {
+      display: flex;
+      flex-direction: column;
+      gap: .2rem;
+      margin: 0 0 0 .35rem;
+      padding: .05rem 0 .05rem .55rem;
+      border-left: 1px solid color-mix(in srgb, var(--ink) 15%, transparent);
+    }
     .verse-group-description {
       margin: 0;
       border-radius: .35rem;
@@ -1345,7 +1352,7 @@ export function page(title: string, body: string): string {
     .verse-group-form input[name="title"] {
       font-weight: 600;
       font-size: 1.05rem;
-      background: var(--paper-raised);
+      padding: .3rem .35rem;
     }
     .verse-group-form input[name="title"]::placeholder {
       color: var(--ink-soft);
