@@ -1445,6 +1445,26 @@ export function page(title: string, body: string): string {
       html[data-phone-tab="groups"] .bookmarks-panel {
         padding: .75rem 1rem calc(1rem + var(--phone-tab-h, 0px));
       }
+      html[data-phone-tab="bookmarks"] .bookmarks-panel:has(> .empty),
+      html[data-phone-tab="groups"] .bookmarks-panel:has(> .empty) {
+        position: fixed;
+        z-index: 2;
+        left: 0;
+        right: 0;
+        top: calc(.7rem + var(--tap) + var(--safe-top) + 1px);
+        bottom: var(--phone-tab-h);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0;
+        padding: 0 1.5rem;
+        background: var(--paper);
+      }
+      html[data-phone-tab="bookmarks"] .bookmarks-panel > .empty,
+      html[data-phone-tab="groups"] .bookmarks-panel > .empty {
+        margin: 0;
+        text-align: center;
+      }
     }
     /* Keep the soft-wash bookmark container calm; rows do not grow a second frame. */
     .bookmarks-panel .note-list .note-row { border-radius: .35rem; }
@@ -2355,8 +2375,36 @@ export function page(title: string, body: string): string {
         display: inline-flex; align-items: center;
         min-height: var(--tap); padding: .2rem 0;
       }
-      .notes-main {
+      main.notes-main {
+        width: 100%;
+        max-width: none;
         padding-bottom: calc(3.4rem + 14px + 1.25rem + var(--phone-tab-h, var(--safe-bottom)));
+      }
+      .notes-main > .jump,
+      .notes-main > .starter-chips,
+      .notes-main > #notes-mount > .empty {
+        margin-left: max(.7rem, env(safe-area-inset-left, 0px));
+        margin-right: max(.7rem, env(safe-area-inset-right, 0px));
+      }
+      /* Phone notes feed is a full-bleed list. Desktop keeps the week frame. */
+      .notes-main > #notes-mount .note-week {
+        border: 0;
+        margin-bottom: 0;
+      }
+      .notes-main > #notes-mount .note-week-label {
+        padding-left: calc(1rem + env(safe-area-inset-left, 0px));
+        padding-right: calc(1rem + env(safe-area-inset-right, 0px));
+      }
+      .notes-main > #notes-mount .note-list > li {
+        border-bottom: 1px solid color-mix(in srgb, var(--ink) 18%, transparent);
+      }
+      .notes-main > #notes-mount .note-week .note-row,
+      .notes-main > #notes-mount .note-week .note-bundle {
+        width: 100%;
+        border-radius: 0;
+        padding-left: calc(1rem + env(safe-area-inset-left, 0px));
+        padding-right: calc(1rem + env(safe-area-inset-right, 0px));
+        box-sizing: border-box;
       }
       .chapter-grid {
         align-items: flex-end;

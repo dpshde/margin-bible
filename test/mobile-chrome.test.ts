@@ -89,6 +89,12 @@ describe("phone chapter sheet and verse-group description", () => {
     expect(css).toContain("padding-right: 0;");
     expect(css).toContain('html[data-phone-tab="bookmarks"] #bookmarks-view');
     expect(css).toContain('html[data-phone-tab="groups"] #verse-groups-view');
+    expect(css).toContain('html[data-phone-tab="bookmarks"] .bookmarks-panel:has(> .empty)');
+    expect(css).toContain('html[data-phone-tab="groups"] .bookmarks-panel:has(> .empty)');
+    expect(css).toContain("justify-content: center;");
+    expect(css).toContain(".notes-main > #notes-mount .note-week {\n        border: 0;");
+    expect(css).toContain(".notes-main > #notes-mount .note-list > li {\n        border-bottom: 1px solid color-mix(in srgb, var(--ink) 18%, transparent);");
+    expect(css).toContain(".note-week {\n      margin: 0;\n      border-left: 1px solid color-mix(in srgb, var(--ink) 15%, transparent);");
     expect(css).not.toContain("html:has(.bookmarks-view[open]) .search-fab");
     const chapter = renderChapterPage({ passage: parsePassage("jhn.1")!, pack, notes: [] });
     expect(chapter).toContain('class="phone-tabs"');
@@ -113,7 +119,8 @@ describe("phone layout tokens", () => {
   test("pager and notes clear the FAB, and the book picker is a bottom sheet", () => {
     const css = readFileSync(path.join(import.meta.dir, "../src/html.ts"), "utf8");
     expect(css).toContain("margin-bottom: calc(3.4rem + 14px + 1rem + var(--safe-bottom))");
-    expect(css).toContain(".notes-main {\n        padding-bottom: calc(3.4rem + 14px + 1.25rem + var(--phone-tab-h, var(--safe-bottom)));");
+    expect(css).toContain("main.notes-main {\n        width: 100%;\n        max-width: none;\n        padding-bottom: calc(3.4rem + 14px + 1.25rem + var(--phone-tab-h, var(--safe-bottom)));");
+    expect(css).toContain("top: calc(.7rem + var(--tap) + var(--safe-top) + 1px);");
     expect(css).toContain(".chapter-grid-sheet {\n        width: 100%;\n        max-width: none;");
     expect(css).not.toContain("border-radius: 1rem 1rem 0 0");
     expect(css).toContain(".chapter-grid-handle { display: none; }");
