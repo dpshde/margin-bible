@@ -512,18 +512,26 @@ export function page(title: string, body: string): string {
     .search-modal-form:has(.search-modal-list:not([hidden])) .search-modal-footer { display: block; }
     .search-modal-form:has(.search-modal-list.is-passage) .search-modal-footer { display: none; }
     .search-history {
+      display: flex;
+      align-items: center;
+      gap: .45rem;
       flex: 0 0 auto; min-width: 0;
-      /* Same inset as topic chips, so the first recent query lines up with the search icon. */
+      /* Same inset as the search bar, so the clock and the first recent query line up with the search icon. */
       padding: 0 14px 12px;
     }
     .search-history[hidden] { display: none; }
     .search-history-label {
-      margin: 0 0 .3rem;
-      font-size: .72rem; font-weight: 500; line-height: 1.2;
+      display: inline-flex;
+      align-items: center;
+      flex: none;
+      margin: 0;
       color: #a8a29e;
+      line-height: 0;
     }
+    .search-history-chips { flex: 1 1 auto; min-width: 0; }
     html[data-theme="dark"] .search-history-label { color: #78716c; }
     .search-suggest {
+      display: none;
       flex: 0 0 auto; min-width: 0;
       /* First chip lines up with the search icon. Right and bottom match the bar's 14px / 12px inset. */
       padding: 0 14px 12px;
@@ -1250,7 +1258,7 @@ export function page(title: string, body: string): string {
     .pager a:hover { color: var(--ink); }
     /* Bookmarks: icon + soft wash — distinct from THIS WEEK, not a heavy card. */
     .bookmarks-view {
-      margin: 0 0 1rem;
+      margin: 0 0 0.5rem;
       padding: .35rem .45rem .4rem;
       border-radius: .55rem;
       background: var(--fill);
@@ -1289,15 +1297,12 @@ export function page(title: string, body: string): string {
     }
     .verse-group > summary.note-row::-webkit-details-marker { display: none; }
     .verse-group > summary.note-row::marker { content: ""; }
-    /* Closed, the row stays a bookmark. Open, the same indent inverts ink
-       and paper, with less vertical padding than the tap-height row. */
+    /* Closed, the row stays a bookmark. Open, ink and paper invert.
+       Padding and baseline stay the closed row's, so the title does not jump. */
     .verse-group-hub { display: none; }
     .verse-group[open] > summary.note-row {
       background: var(--ink);
       color: var(--paper);
-      align-items: center;
-      min-height: 0;
-      padding: .42rem .7rem;
     }
     .verse-group[open] > summary .note-row-title,
     .verse-group[open] > summary .note-row-excerpt {
@@ -1345,70 +1350,55 @@ export function page(title: string, body: string): string {
       color: var(--ink);
       font: 400 1rem/1.4 var(--sans);
     }
-    .verse-group-title-field { position: relative; }
-    .verse-group-form input[name="title"] {
-      font-weight: 600;
-      font-size: 1.02rem;
-      line-height: 1.3;
-      padding: .2rem 1.7rem .2rem .15rem;
-    }
-    @font-face {
-      font-family: "Phosphor";
-      src: url("data:font/woff2;base64,d09GMgABAAAAAAIYAA0AAAAABFQAAAHJAAIZmgAAAAAAAAAAAAAAAAAAAAAAAAAAGxAcGgZgADQRCAqCWIJTATYCJAMGCwYABCAFgSoHIBtiAyCeBc55i6jIlUzoqpMf/IJH3cfDf/u1+2ZmdxHzJNbwSttMo3IoYRuRbKlaiGSieCKk///vN+/DPeKJ1EjiyT2RiOKedXL6figrfavkF89DA/wvDZy8xcOJfiYTHOlstJ4Pw6IPnxc0ocCyn/IoDCTtAku36ZLYF4uleLUr0KFLD5DXjBgTF85MDCgAcq5QHWqka9wPruyw+LMTVGL1Ucefyx3cd99wnHkbEJCfwJwZJGQMyQJDijkURfC5LD5+HCAQonoLJFBQcAncAVAAZVmiUuXM5uGxo3gbGzIa13uty/KwyTQ4dJaek6MWy+4U+evKiLHdHgqjudsdCbOl1xsNi6nTGQ6TPX/qRJ0RqHQQUGvfgTpQ8RgoOpzVjMmJrbMXdi3m+hcKSDrwLnZ1nD0cQmhE/svOglrz5fJFAyf8pukciEqw74p9zrrlTDg+PnmXnH0Rzs3lxXkAgTQ+LN8fPmP/R6EX8KphDOzBd9UTAeUntEkg+GdPUYlTkPCbKHAMIcU5MEGivYZTeFHaMcWThj5TNOmxWs+tegGtGbEr6kg3BcSlJez7KVIn3OJi0u0xPS+/rAhnAZhDKWlBAx+X2rZuSyY=") format("woff2");
-      font-weight: normal;
-      font-style: normal;
-      font-display: block;
-    }
-    .ph {
-      font-family: "Phosphor" !important;
-      font-style: normal;
-      font-weight: normal;
-      line-height: 1;
-      letter-spacing: 0;
-      -webkit-font-smoothing: antialiased;
-    }
-    .ph.ph-sparkle:before { content: "\\e6a2"; }
-    @font-face {
-      font-family: "Phosphor-Fill";
-      src: url("data:font/woff2;base64,d09GMgABAAAAAAK4AA0AAAAABeQAAAJmAAIZmgAAAAAAAAAAAAAAAAAAAAAAAAAAGxAcGgZgADQRCAqCHIIkATYCJAMGCwYABCAFhHYHIBv/BBEVlGkEf0jQ7PZzKkMj2IhsJems8ilXmMF9JQrT5UHwwt83Hr72ez337YYAFEogT1D2narIoi1Lcmj0H98IXSJdHR56b/+2N6RAQgu0md12EBdCGfAAuf+6dgK+mgXdrv/BaCIppGKy7LQJ0JK9/AceaBaxP1ENQLD0PwDm/5p64AdUQSd6SJnYa/t0wIsE+oIHNo7kKNob2ERHs83WNdKvoIeIjJARbRSoVqseWK9p1ylu4tktlQBSurBB8bJ9xDNfL/45ooqRapSs/j/VSt/Z9WMISCUwaAQFElolgVbZILIs+DkqGv9uBDiRXRMoQEbCGR5wvRvS7OhiWs+4n6MD+w8vsvrh1z3y9PRhx4NnYvT5+XXVPHq7hh8f3y/zjjgdbNxfNY8qIoA/2NVRjT1MQS3NvpHMjvZ+C3EfbddI83yd+/BQz04jkMMYU+A/w4106VAj+JSrdfN1dkFB71o5CGRRuB4Eiq5XtbXx3bDxv28wg69M/fMnXZxUQqUCBL+XykoIiGA2R4ZVgSIOG7X9PthU540uchV6YVTo1ksV6i1NpnwygyrTbnOyHFSVJadUtdueUzXmonayFlSd8lheVe95bDa2RZLpWr7qwOmvwg238j2dI1nT7kj0NXSeyHFl04BVbuXB5GV04ciR6Q+W4YQ0MhDeJDTEXRAERDJPENCnaStHfYwXU316TsEULxZAA0eE7YFIWqlE727y8cH/dGmaBid5nuWuMWZ9gzkmdzlSX788feif42DIibIn+bzvkrMp98gZ+/q9OdlRlEmALDxLyHR0f7rDLk73D6/uD9sGAAAA") format("woff2");
-      font-weight: normal;
-      font-style: normal;
-      font-display: block;
-    }
-    .ph-fill {
-      font-family: "Phosphor-Fill" !important;
-      font-style: normal;
-      font-weight: normal;
-      line-height: 1;
-      letter-spacing: 0;
-      -webkit-font-smoothing: antialiased;
-    }
-    .ph-fill.ph-sparkle:before { content: "\\e6a2"; }
-    .verse-group-topic .ph,
-    .verse-group-topic .ph-fill { font-size: 1.05rem; }
-    .verse-group-topic {
-      position: absolute;
-      right: 0;
-      top: 0;
-      bottom: 0;
-      width: 1.6rem;
+    .verse-group-title-edit {
       display: inline-flex;
       align-items: center;
       justify-content: center;
+      flex: none;
+      align-self: center;
       margin: 0;
       padding: 0;
       border: 0;
       background: transparent;
-      color: var(--faint);
-      cursor: pointer;
-    }
-    .verse-group-topic:hover,
-    .verse-group-topic:focus-visible { color: var(--ink); }
-    .verse-group-topic.is-set { color: var(--ink); cursor: default; }
-    .verse-group[data-busy] .verse-group-topic { opacity: .45; }
-    .verse-group-form input[name="title"]::placeholder {
       color: var(--ink-soft);
+      cursor: pointer;
+      line-height: 0;
+    }
+    .verse-group[open] > summary .verse-group-title-edit { color: var(--paper); }
+    .verse-group > summary .note-row-title[contenteditable="true"] {
+      cursor: text;
+      outline: none;
+      min-width: 1.5rem;
+      border-radius: .2rem;
+    }
+    .verse-group > summary .note-row-title[contenteditable="true"]:focus {
+      overflow: visible;
+      text-overflow: clip;
+      background: color-mix(in srgb, var(--paper) 14%, transparent);
+    }
+    .verse-group > summary .note-row-title[contenteditable="true"]:empty::before {
+      content: "Title";
       font-weight: 500;
+      color: color-mix(in srgb, var(--paper) 62%, transparent);
+    }
+    .verse-group.is-drop {
+      outline: 2px solid var(--ink);
+      outline-offset: -2px;
+    }
+    .verse-group .att-item.is-dragging { opacity: .4; }
+    .verse-group-drag-ghost {
+      position: fixed;
+      z-index: 80;
+      margin: 0;
+      padding: .15rem .55rem;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: var(--paper-raised);
+      color: var(--ink);
+      font: 600 .78rem/1.25 var(--sans);
+      pointer-events: none;
+      transform: translate(-50%, -140%);
+      box-shadow: 0 .25rem .8rem color-mix(in srgb, var(--ink) 18%, transparent);
     }
     .verse-group-form textarea.verse-group-description {
       display: block;
@@ -1762,6 +1752,7 @@ export function page(title: string, body: string): string {
     .att-remove:focus-visible { visibility: visible; opacity: 1; color: var(--ink); background: var(--paper-raised); }
     .att-remove svg { display: block; width: .7rem; height: .7rem; }
     /* Star and remove share the trailing edge of one quiet pill. */
+    .verse-group-member-actions { display: contents; }
     .verse-group .att-item {
       gap: 0;
       padding: .06rem .1rem .06rem .08rem;
@@ -1773,7 +1764,8 @@ export function page(title: string, body: string): string {
     .verse-group .att-chip {
       border: 0;
       background: transparent;
-      padding: .1rem .12rem .1rem .38rem;
+      /* Even side padding while the star and remove mark are collapsed. */
+      padding: .1rem .42rem .1rem .38rem;
       font-size: .78rem;
       font-weight: 600;
     }
@@ -1785,9 +1777,10 @@ export function page(title: string, body: string): string {
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      width: 1.35rem;
+      /* Collapsed until a star is on, or the chip is hovered. Empty icon slots stay out of the pill. */
+      width: 0;
+      min-width: 0;
       height: 1.35rem;
-      min-width: 1.35rem;
       min-height: 1.35rem;
       margin: 0;
       padding: 0;
@@ -1795,14 +1788,23 @@ export function page(title: string, body: string): string {
       border-radius: 999px;
       background: transparent;
       color: var(--faint);
+      overflow: hidden;
       visibility: hidden;
       opacity: 0;
       cursor: pointer;
-      /* Width stays put. Hover only fades the controls, so siblings and the paperclip do not reflow. */
+      /* Width snaps to the reserved size. Only the icon fades, so the row does not ease-shove. */
       transition: opacity .12s ease, color .12s ease;
     }
     @media (hover: hover) and (pointer: fine) {
+      .verse-group .att-item:has(.verse-star[aria-pressed="true"]) .att-chip,
+      .verse-group .att-item:hover .att-chip,
+      .verse-group .att-item:focus-within .att-chip {
+        padding-right: .12rem;
+      }
       .verse-group .verse-star[aria-pressed="true"] {
+        width: 1.35rem;
+        min-width: 1.35rem;
+        overflow: visible;
         visibility: visible;
         opacity: 1;
       }
@@ -1812,8 +1814,24 @@ export function page(title: string, body: string): string {
       .verse-group .att-item:focus-within .att-remove,
       .verse-group .verse-star:focus-visible,
       .verse-group .att-remove:focus-visible {
+        width: 1.35rem;
+        min-width: 1.35rem;
+        overflow: visible;
         visibility: visible;
         opacity: 1;
+      }
+      /* A remove or star reflow slides siblings under a still pointer. That borrowed
+         hover must not open them. A real pointer move clears is-member-quiet. */
+      .verse-group.is-member-quiet .att-item:hover:not(:focus-within):not(:has(.verse-star[aria-pressed="true"])) .att-chip {
+        padding-right: .42rem;
+      }
+      .verse-group.is-member-quiet .att-item:hover:not(:focus-within) .verse-star:not([aria-pressed="true"]),
+      .verse-group.is-member-quiet .att-item:hover:not(:focus-within) .att-remove {
+        width: 0;
+        min-width: 0;
+        overflow: hidden;
+        visibility: hidden;
+        opacity: 0;
       }
     }
     @media (prefers-reduced-motion: reduce) {
@@ -1842,6 +1860,67 @@ export function page(title: string, body: string): string {
       }
       .verse-group .verse-star svg,
       .verse-group .att-remove svg { width: .85rem; height: .85rem; }
+    }
+    /* Phone width stacks members. Desktop keeps the horizontal chip row. */
+    @media (max-width: 767px) {
+      .verse-group-verses {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0;
+        padding-left: 0;
+      }
+      .verse-group-members {
+        flex-direction: column;
+        flex-wrap: nowrap;
+        align-items: stretch;
+        width: 100%;
+        gap: 0;
+      }
+      .verse-group .att-item {
+        width: 100%;
+        max-width: none;
+        box-sizing: border-box;
+        justify-content: flex-start;
+        border: 0;
+        border-bottom: 1px solid color-mix(in srgb, var(--ink) 12%, transparent);
+        border-radius: 0;
+        background: transparent;
+        padding: .15rem .05rem .15rem .2rem;
+      }
+      .verse-group .att-item:hover {
+        border-color: transparent;
+        border-bottom-color: color-mix(in srgb, var(--ink) 12%, transparent);
+        background: transparent;
+      }
+      .verse-group .att-chip {
+        flex: 1 1 auto;
+        width: auto;
+        max-width: none;
+        border-radius: 0;
+        padding: .5rem .35rem;
+        font-size: .95rem;
+        line-height: 1.3;
+        white-space: normal;
+      }
+      .verse-group-member-actions {
+        display: inline-flex;
+        align-items: center;
+        flex: none;
+        margin-left: auto;
+        gap: .05rem;
+      }
+      .verse-group .verse-star,
+      .verse-group .att-remove {
+        visibility: visible;
+        opacity: 1;
+        width: 1.7rem;
+        min-width: 1.7rem;
+        overflow: visible;
+      }
+      .verse-group-verses .tray-attach {
+        align-self: flex-start;
+        margin-top: .15rem;
+      }
     }
     a.wiki {
       color: var(--ink-soft); text-decoration: underline;

@@ -6,9 +6,9 @@
  * inbox can show webs on first open. Signed-in libraries are left alone.
  * There is no "Save sample" control.
  *
- * Titles stay empty until typed. The title field's trailing button asks
- * TypeSafe Jev (TYPESAFE_API_KEY) for the nearest topic from the verse
- * texts. It does not use src/jev-topics.ts.
+ * A saved title is left as typed. An empty title is named once, automatically,
+ * from the verse texts via TypeSafe Jev (TYPESAFE_API_KEY). That pass does
+ * not use src/jev-topics.ts, and it does not run again after auto_titled is set.
  */
 import type { Attachment } from "./attachments";
 import { saveNote } from "./library";

@@ -6,13 +6,26 @@
  * Pairwise cross-links are a separate confirm action.
  */
 import { newAttachmentId, noteIsEmpty, type Attachment } from "./attachments";
-import { deleteNote, findNote, listNotes, saveNote } from "./library";
+import {
+  deleteNote,
+  deleteNoteStatement,
+  findNote,
+  libraryNotesStatement,
+  listNotes,
+  notesFromRows,
+  putNoteStatement,
+  saveNote,
+  type NoteRecord,
+} from "./library";
 import { parsePassage, passageOsis, passageSlug } from "./passage";
+import { backlinkLoadSlugs, planXrefBacklinks, type BacklinkNote } from "./xref-backlinks";
 import { syncBidirectionalXrefs } from "./xref-sync";
+import { slugLabel } from "./xref";
 import {
   canonSlug,
   cleanGroupDescription,
   cleanGroupTitle,
+  NOT_A_VERSE_GROUP,
   realVerseGroups,
   verseGroupsFromNotes,
   verseMemberFromInput,
@@ -24,6 +37,9 @@ import {
 } from "./verse-groups";
 import type { NoteDraft } from "./notes";
 
+/** Schema DDL is once per database binding. The title backfill still runs every call. */
+const verseGroupSchemaReady = new WeakMap<D1Database, Promise<void>>();
+
 const CREATE_VERSE_GROUPS = `CREATE TABLE IF NOT EXISTS verse_groups (
   library_id TEXT NOT NULL,
   hub_slug TEXT NOT NULL,
@@ -32,6 +48,7 @@ const CREATE_VERSE_GROUPS = `CREATE TABLE IF NOT EXISTS verse_groups (
   undo_json TEXT NOT NULL DEFAULT '[]',
   star_slug TEXT NOT NULL DEFAULT '',
   jev_title TEXT NOT NULL DEFAULT '',
+  auto_titled INTEGER NOT NULL DEFAULT 0,
   updated_at TEXT NOT NULL,
   PRIMARY KEY (library_id, hub_slug)
 )`;
@@ -43,10 +60,19 @@ type MetaRow = {
   undo_json: string | null;
   star_slug?: string | null;
   jev_title?: string | null;
+  auto_titled?: number | null;
 };
 
 export type VerseGroupActionResult =
-  | { ok: true; statusText: string; group: VerseGroupView }
+  | {
+      ok: true;
+      statusText: string;
+      group: VerseGroupView;
+      /** This action dropped the acted-on group under the link minimum. */
+      dissolved?: boolean;
+      /** A move dropped the group the chip left. */
+      sourceDissolved?: boolean;
+    }
   | { ok: false; status: 422 | 500; error: string };
 
 export async function loadVerseGroups(
@@ -85,11 +111,15 @@ export async function handleVerseGroupAction(
     action !== "undo-links" &&
     action !== "add-member" &&
     action !== "remove-member" &&
+    action !== "move-member" &&
     action !== "set-star"
   ) {
     return { ok: false, status: 422, error: "unknown action" };
   }
   try {
+    // Move and remove batch their own schema check, library read, and writes.
+    if (action === "remove-member") return await removeVerseMember(db, libraryId, hub, record.slug);
+    if (action === "move-member") return await moveVerseMember(db, libraryId, hub, record.from, record.slug);
     await ensureVerseGroupsTable(db);
     if (action === "save") {
       return await saveVerseGroup(db, libraryId, hub, {
@@ -98,7 +128,6 @@ export async function handleVerseGroupAction(
       });
     }
     if (action === "add-member") return await addVerseMember(db, libraryId, hub, record.text);
-    if (action === "remove-member") return await removeVerseMember(db, libraryId, hub, record.slug);
     if (action === "set-star") return await setVerseStar(db, libraryId, hub, record.slug);
     if (action === "add-links") return await addVerseGroupLinks(db, libraryId, hub);
     return await undoVerseGroupLinks(db, libraryId, hub);
@@ -125,7 +154,7 @@ async function saveVerseGroup(
   if (!ready.ok) return ready;
   await upsertVerseGroupText(db, libraryId, hub, text.title, text.description);
   const group = await groupForHub(db, libraryId, hub);
-  if (!group) return { ok: false, status: 422, error: "That verse is not a hub yet." };
+  if (!group) return { ok: false, status: 422, error: NOT_A_VERSE_GROUP };
   return { ok: true, statusText: "Saved.", group };
 }
 
@@ -146,7 +175,7 @@ async function addVerseMember(
   if (!ready.ok) return ready;
   await addUserLink(db, libraryId, parsed.slug, hub);
   const group = await groupForHub(db, libraryId, hub);
-  if (!group) return { ok: false, status: 422, error: "That verse is not a hub yet." };
+  if (!group) return { ok: false, status: 422, error: NOT_A_VERSE_GROUP };
   return { ok: true, statusText: `Attached ${parsed.label}.`, group };
 }
 
@@ -161,16 +190,66 @@ async function setVerseStar(
   const ready = await ensureHub(db, libraryId, hub);
   if (!ready.ok) return ready;
   const seen = await groupForHub(db, libraryId, hub);
-  if (!seen) return { ok: false, status: 422, error: "That verse is not a hub yet." };
+  if (!seen) return { ok: false, status: 422, error: NOT_A_VERSE_GROUP };
   if (!seen.members.some((member) => member.slug === slug)) {
     return { ok: false, status: 422, error: "That verse is not in this group." };
   }
   await upsertStar(db, libraryId, hub, seen.star === slug ? "" : slug);
   const group = await groupForHub(db, libraryId, hub);
-  if (!group) return { ok: false, status: 422, error: "That verse is not a hub yet." };
+  if (!group) return { ok: false, status: 422, error: NOT_A_VERSE_GROUP };
   return { ok: true, statusText: "", group };
 }
 
+/**
+ * Move a member onto another hub. One library read, then the xref edits and
+ * their mirrors are planned in memory and written together.
+ */
+async function moveVerseMember(
+  db: D1Database,
+  libraryId: string,
+  targetHub: string,
+  fromRaw: unknown,
+  slugRaw: unknown,
+): Promise<VerseGroupActionResult> {
+  const from = canonSlug(typeof fromRaw === "string" ? fromRaw : "");
+  const slug = canonSlug(typeof slugRaw === "string" ? slugRaw : "");
+  if (!from || !slug) return { ok: false, status: 422, error: "Need a passage." };
+  if (from === targetHub) return { ok: false, status: 422, error: "Already in this group." };
+  if (slug === targetHub) return { ok: false, status: 422, error: "Already attached." };
+
+  const shelf = await loadMemberShelf(db, libraryId);
+  const source = shelf.groups.find((group) => group.hub === from);
+  const target = shelf.groups.find((group) => group.hub === targetHub);
+  if (!source) return { ok: false, status: 422, error: NOT_A_VERSE_GROUP };
+  if (!target) return { ok: false, status: 422, error: NOT_A_VERSE_GROUP };
+  if (!source.members.some((member) => member.slug === slug)) {
+    return { ok: false, status: 422, error: "That verse is not in this group." };
+  }
+  const already = target.members.some((member) => member.slug === slug);
+
+  const writes: D1PreparedStatement[] = [];
+  let metas = shelf.metas;
+  if (slug !== from) {
+    rewriteUserLink(shelf.notes, slug, from, "remove");
+    rewriteUserLink(shelf.notes, from, slug, "remove");
+    if (source.star === slug) {
+      metas = metaWithStar(metas, from, "");
+      writes.push(starStatement(db, libraryId, from, ""));
+    }
+  }
+  if (!already) rewriteUserLink(shelf.notes, slug, targetHub, "add");
+  await commitMemberShelf(db, libraryId, shelf, writes);
+
+  const groups = verseGroupsFromNotes(liveNotes(shelf.notes), metas);
+  const group = groups.find((row) => row.hub === targetHub);
+  if (!group || !group.members.some((member) => member.slug === slug)) {
+    return { ok: false, status: 422, error: "Could not move that verse." };
+  }
+  const sourceDissolved = slug !== from && !groups.some((row) => row.hub === from);
+  return { ok: true, statusText: "Moved.", group, sourceDissolved };
+}
+
+/** Drop a member. Same single-read, batched-write path as a move. */
 async function removeVerseMember(
   db: D1Database,
   libraryId: string,
@@ -180,15 +259,169 @@ async function removeVerseMember(
   const slug = canonSlug(typeof raw === "string" ? raw : "");
   if (!slug) return { ok: false, status: 422, error: "Need a passage." };
   if (slug === hub) return { ok: false, status: 422, error: "That verse stays." };
-  const ready = await ensureHub(db, libraryId, hub);
-  if (!ready.ok) return ready;
-  const before = await groupForHub(db, libraryId, hub);
-  await removeUserLink(db, libraryId, slug, hub);
-  await removeUserLink(db, libraryId, hub, slug);
-  if (before && before.star === slug) await upsertStar(db, libraryId, hub, "");
-  const group = await groupForHub(db, libraryId, hub);
-  if (!group) return { ok: false, status: 422, error: "That verse is not a hub yet." };
+  const shelf = await loadMemberShelf(db, libraryId);
+  const before = shelf.groups.find((group) => group.hub === hub);
+  if (!before) return { ok: false, status: 422, error: NOT_A_VERSE_GROUP };
+
+  rewriteUserLink(shelf.notes, slug, hub, "remove");
+  rewriteUserLink(shelf.notes, hub, slug, "remove");
+  const writes: D1PreparedStatement[] = [];
+  let metas = shelf.metas;
+  if (before.star === slug) {
+    metas = metaWithStar(metas, hub, "");
+    writes.push(starStatement(db, libraryId, hub, ""));
+  }
+  await commitMemberShelf(db, libraryId, shelf, writes);
+
+  const group = verseGroupsFromNotes(liveNotes(shelf.notes), metas).find((row) => row.hub === hub);
+  if (!group) {
+    // The link is gone. A web that falls under the minimum stays removed on screen.
+    return {
+      ok: true,
+      statusText: "Removed.",
+      dissolved: true,
+      group: {
+        ...before,
+        members: before.members.filter((member) => member.slug !== slug),
+        star: before.star === slug ? "" : before.star,
+      },
+    };
+  }
   return { ok: true, statusText: "Removed.", group };
+}
+
+type MemberShelf = {
+  original: Map<string, NoteRecord>;
+  notes: Map<string, NoteRecord | null>;
+  metas: VerseGroupMeta[];
+  groups: VerseGroupView[];
+};
+
+async function loadMemberShelf(db: D1Database, libraryId: string): Promise<MemberShelf> {
+  await ensureVerseGroupSchema(db);
+  const [noteRows, metaRows] = await db.batch([
+    libraryNotesStatement(db, libraryId),
+    verseGroupMetaStatement(db, libraryId),
+  ]);
+  const notes = notesFromRows(noteRows.results as Parameters<typeof notesFromRows>[0]);
+  const metas = metasFromRows(metaRows.results as MetaRow[]);
+  const original = new Map(notes.map((note) => [note.slug, note]));
+  const copy = new Map<string, NoteRecord | null>();
+  for (const note of notes) copy.set(note.slug, { ...note, attachments: note.attachments.map((row) => ({ ...row })) });
+  return { original, notes: copy, metas, groups: verseGroupsFromNotes(notes, metas) };
+}
+
+function liveNotes(notes: Map<string, NoteRecord | null>): NoteRecord[] {
+  const live: NoteRecord[] = [];
+  for (const note of notes.values()) if (note) live.push(note);
+  return live;
+}
+
+function metaWithStar(metas: readonly VerseGroupMeta[], hub: string, star: string): VerseGroupMeta[] {
+  let found = false;
+  const next = metas.map((meta) => {
+    if (meta.hub !== hub) return meta;
+    found = true;
+    return { ...meta, star };
+  });
+  if (!found) {
+    next.push({ hub, title: "", description: "", undoPairs: [], star, jevTitle: "", autoTitled: false });
+  }
+  return next;
+}
+
+/** Edit one user xref and its mirror against the in-memory library. */
+function rewriteUserLink(
+  notes: Map<string, NoteRecord | null>,
+  origin: string,
+  target: string,
+  mode: "add" | "remove",
+): void {
+  const existing = notes.get(origin) ?? null;
+  const previous = existing?.attachments ?? [];
+  const next =
+    mode === "remove"
+      ? withoutUserXref(previous, target)
+      : withManualXref(previous, target, newAttachmentId()).list;
+  if (attachmentJson(previous) === attachmentJson(next)) return;
+  if (!existing) {
+    const draft = emptyNote(origin, next);
+    if (!draft) return;
+    notes.set(origin, { ...draft, createdAt: "", updatedAt: "" });
+  } else if (noteIsEmpty(existing.blocks, next, existing.bookmarked)) {
+    notes.set(origin, null);
+  } else {
+    notes.set(origin, { ...existing, attachments: next });
+  }
+  applyBacklinkPlan(notes, origin, previous, next);
+}
+
+function applyBacklinkPlan(
+  notes: Map<string, NoteRecord | null>,
+  origin: string,
+  previous: Attachment[],
+  next: Attachment[],
+): void {
+  const loaded = new Map<string, BacklinkNote | null>();
+  for (const slug of backlinkLoadSlugs(origin, previous, next)) {
+    const note = notes.get(slug) ?? null;
+    loaded.set(slug, note ? { blocks: note.blocks, bookmarked: note.bookmarked, attachments: note.attachments } : null);
+  }
+  const ops = planXrefBacklinks({
+    origin,
+    previous,
+    next,
+    notes: loaded,
+    label: slugLabel,
+    ids: {
+      attachment: newAttachmentId,
+      block: () => `b_${crypto.randomUUID().replaceAll("-", "").slice(0, 8)}`,
+    },
+  });
+  for (const op of ops) {
+    if (op.op === "delete") {
+      notes.set(op.slug, null);
+      continue;
+    }
+    const prior = notes.get(op.note.slug) ?? null;
+    notes.set(op.note.slug, {
+      ...op.note,
+      createdAt: prior?.createdAt ?? "",
+      updatedAt: prior?.updatedAt ?? "",
+    });
+  }
+}
+
+/**
+ * Title backfill plus every changed note (and an optional star write) in one
+ * D1 batch. No read-after-write: the shelf already has the rows we just planned.
+ */
+async function commitMemberShelf(
+  db: D1Database,
+  libraryId: string,
+  shelf: MemberShelf,
+  extra: readonly D1PreparedStatement[],
+): Promise<void> {
+  const now = new Date().toISOString();
+  const statements: D1PreparedStatement[] = [backfillAutoTitledStatement(db)];
+  const slugs = new Set<string>([...shelf.original.keys(), ...shelf.notes.keys()]);
+  for (const slug of slugs) {
+    const prev = shelf.original.get(slug) ?? null;
+    const next = shelf.notes.has(slug) ? (shelf.notes.get(slug) ?? null) : prev;
+    if (!next) {
+      if (prev) statements.push(deleteNoteStatement(db, libraryId, slug));
+      continue;
+    }
+    if (!prev || attachmentJson(prev.attachments) !== attachmentJson(next.attachments)) {
+      statements.push(putNoteStatement(db, libraryId, next, now));
+    }
+  }
+  statements.push(...extra);
+  await db.batch(statements);
+}
+
+function attachmentJson(list: readonly Attachment[] | null | undefined): string {
+  return JSON.stringify(list ?? []);
 }
 
 async function addVerseGroupLinks(
@@ -199,7 +432,7 @@ async function addVerseGroupLinks(
   const ready = await ensureHub(db, libraryId, hub);
   if (!ready.ok) return ready;
   const before = await groupForHub(db, libraryId, hub);
-  if (!before) return { ok: false, status: 422, error: "That verse is not a hub yet." };
+  if (!before) return { ok: false, status: 422, error: NOT_A_VERSE_GROUP };
   const added: { from: string; to: string }[] = [];
   for (const pair of before.missingPairs) {
     const did = await addUserLink(db, libraryId, pair.from, pair.to);
@@ -207,7 +440,7 @@ async function addVerseGroupLinks(
   }
   if (added.length) await setUndoPairs(db, libraryId, hub, added);
   const group = await groupForHub(db, libraryId, hub);
-  if (!group) return { ok: false, status: 422, error: "That verse is not a hub yet." };
+  if (!group) return { ok: false, status: 422, error: NOT_A_VERSE_GROUP };
   const statusText =
     added.length === 0
       ? "No missing cross-links."
@@ -229,7 +462,7 @@ async function undoVerseGroupLinks(
   const meta = metas.find((row) => row.hub === hub);
   const pairs = meta?.undoPairs ?? [];
   const group = await groupForHub(db, libraryId, hub);
-  if (!group) return { ok: false, status: 422, error: "That verse is not a hub yet." };
+  if (!group) return { ok: false, status: 422, error: NOT_A_VERSE_GROUP };
   const members = new Set(group.members.map((member) => member.slug));
   let removed = 0;
   for (const pair of pairs) {
@@ -239,7 +472,7 @@ async function undoVerseGroupLinks(
   }
   await setUndoPairs(db, libraryId, hub, []);
   const next = await groupForHub(db, libraryId, hub);
-  if (!next) return { ok: false, status: 422, error: "That verse is not a hub yet." };
+  if (!next) return { ok: false, status: 422, error: NOT_A_VERSE_GROUP };
   const statusText = removed === 0 ? "Nothing to undo." : "Removed the cross-links from the last add.";
   return { ok: true, statusText, group: next };
 }
@@ -253,7 +486,7 @@ async function ensureHub(
   const notes = await listNotes(db, libraryId);
   const real = realVerseGroups(notes);
   if (real.some((group) => group.hub === hub)) return { ok: true };
-  return { ok: false, status: 422, error: "That verse is not a hub yet." };
+  return { ok: false, status: 422, error: NOT_A_VERSE_GROUP };
 }
 
 async function addUserLink(db: D1Database, libraryId: string, origin: string, target: string): Promise<boolean> {
@@ -303,36 +536,122 @@ async function addVerseGroupColumn(db: D1Database, column: string): Promise<void
   }
 }
 
+async function ensureVerseGroupSchema(db: D1Database): Promise<void> {
+  let pending = verseGroupSchemaReady.get(db);
+  if (!pending) {
+    pending = migrateVerseGroupSchema(db).catch((err) => {
+      verseGroupSchemaReady.delete(db);
+      throw err;
+    });
+    verseGroupSchemaReady.set(db, pending);
+  }
+  await pending;
+}
+
 export async function ensureVerseGroupsTable(db: D1Database): Promise<void> {
+  await ensureVerseGroupSchema(db);
+  await backfillAutoTitled(db);
+}
+
+async function migrateVerseGroupSchema(db: D1Database): Promise<void> {
   await db.prepare(CREATE_VERSE_GROUPS).run();
   await addVerseGroupColumn(db, "star_slug TEXT NOT NULL DEFAULT ''");
   await addVerseGroupColumn(db, "jev_title TEXT NOT NULL DEFAULT ''");
+  await addVerseGroupColumn(db, "auto_titled INTEGER NOT NULL DEFAULT 0");
 }
 
-/** Remember the title Jev wrote. A later save keeps this string so an edit can unlock, and matching text locks again. */
-export async function saveJevTitle(db: D1Database, libraryId: string, hub: string, title: string): Promise<void> {
+/**
+ * Groups that already have a title were named by hand or by the old sparkle.
+ * Flag them so the one-shot pass does not overwrite them. Idempotent.
+ */
+function backfillAutoTitledStatement(db: D1Database): D1PreparedStatement {
+  return db.prepare("UPDATE verse_groups SET auto_titled = 1 WHERE auto_titled = 0 AND trim(title) != ''");
+}
+
+async function backfillAutoTitled(db: D1Database): Promise<void> {
+  await backfillAutoTitledStatement(db).run();
+}
+
+/** Set the lock without changing the title. A later edit does not clear it. */
+export async function markVerseGroupAutoTitled(db: D1Database, libraryId: string, hub: string): Promise<void> {
   await ensureVerseGroupsTable(db);
   const now = new Date().toISOString();
   await db
     .prepare(
-      `INSERT INTO verse_groups (library_id, hub_slug, title, description, undo_json, jev_title, updated_at)
-       VALUES (?, ?, ?, '', '[]', ?, ?)
+      `INSERT INTO verse_groups (library_id, hub_slug, title, description, undo_json, auto_titled, updated_at)
+       VALUES (?, ?, '', '', '[]', 1, ?)
        ON CONFLICT(library_id, hub_slug) DO UPDATE SET
-         title = excluded.title,
-         jev_title = excluded.jev_title,
+         auto_titled = 1,
          updated_at = excluded.updated_at`,
     )
-    .bind(libraryId, hub, title, title, now)
+    .bind(libraryId, hub, now)
     .run();
 }
 
-export async function listVerseGroupMeta(db: D1Database, libraryId: string): Promise<VerseGroupMeta[]> {
-  const result = await db
-    .prepare("SELECT hub_slug, title, description, undo_json, star_slug, jev_title FROM verse_groups WHERE library_id = ?")
-    .bind(libraryId)
-    .all<MetaRow>();
+/**
+ * Keep a title the reader already typed. Does not record it as Jev's title.
+ * Returns false when a title or the lock landed first.
+ */
+export async function claimOpenTitle(db: D1Database, libraryId: string, hub: string, title: string): Promise<boolean> {
+  await ensureVerseGroupsTable(db);
+  const now = new Date().toISOString();
+  await db
+    .prepare(
+      `INSERT INTO verse_groups (library_id, hub_slug, title, description, undo_json, auto_titled, updated_at)
+       VALUES (?, ?, ?, '', '[]', 1, ?)
+       ON CONFLICT(library_id, hub_slug) DO UPDATE SET
+         title = excluded.title,
+         auto_titled = 1,
+         updated_at = excluded.updated_at
+       WHERE verse_groups.auto_titled = 0 AND trim(verse_groups.title) = ''`,
+    )
+    .bind(libraryId, hub, title, now)
+    .run();
+  const row = await db
+    .prepare("SELECT title, auto_titled FROM verse_groups WHERE library_id = ? AND hub_slug = ?")
+    .bind(libraryId, hub)
+    .first<{ title: string; auto_titled: number | null }>();
+  return Boolean(row && Number(row.auto_titled) === 1 && (row.title ?? "") === title);
+}
+
+/**
+ * Write Jev's title only while the group is still unlocked and untitled.
+ * Returns false when a title or the lock landed first.
+ */
+export async function saveAutoTitle(db: D1Database, libraryId: string, hub: string, title: string): Promise<boolean> {
+  await ensureVerseGroupsTable(db);
+  const now = new Date().toISOString();
+  await db
+    .prepare(
+      `INSERT INTO verse_groups (library_id, hub_slug, title, description, undo_json, jev_title, auto_titled, updated_at)
+       VALUES (?, ?, ?, '', '[]', ?, 1, ?)
+       ON CONFLICT(library_id, hub_slug) DO UPDATE SET
+         title = excluded.title,
+         jev_title = excluded.jev_title,
+         auto_titled = 1,
+         updated_at = excluded.updated_at
+       WHERE verse_groups.auto_titled = 0 AND trim(verse_groups.title) = ''`,
+    )
+    .bind(libraryId, hub, title, title, now)
+    .run();
+  const row = await db
+    .prepare("SELECT title, auto_titled FROM verse_groups WHERE library_id = ? AND hub_slug = ?")
+    .bind(libraryId, hub)
+    .first<{ title: string; auto_titled: number | null }>();
+  return Boolean(row && Number(row.auto_titled) === 1 && (row.title ?? "") === title);
+}
+
+function verseGroupMetaStatement(db: D1Database, libraryId: string): D1PreparedStatement {
+  return db
+    .prepare(
+      "SELECT hub_slug, title, description, undo_json, star_slug, jev_title, auto_titled FROM verse_groups WHERE library_id = ?",
+    )
+    .bind(libraryId);
+}
+
+function metasFromRows(rows: readonly MetaRow[] | null | undefined): VerseGroupMeta[] {
   const metas: VerseGroupMeta[] = [];
-  for (const row of result.results ?? []) {
+  for (const row of rows ?? []) {
     const hub = canonSlug(row.hub_slug);
     if (!hub) continue;
     metas.push({
@@ -342,9 +661,15 @@ export async function listVerseGroupMeta(db: D1Database, libraryId: string): Pro
       undoPairs: parseUndoPairs(row.undo_json),
       star: row.star_slug ?? "",
       jevTitle: row.jev_title ?? "",
+      autoTitled: Number(row.auto_titled) === 1,
     });
   }
   return metas;
+}
+
+export async function listVerseGroupMeta(db: D1Database, libraryId: string): Promise<VerseGroupMeta[]> {
+  const result = await verseGroupMetaStatement(db, libraryId).all<MetaRow>();
+  return metasFromRows(result.results);
 }
 
 async function upsertVerseGroupText(
@@ -355,22 +680,27 @@ async function upsertVerseGroupText(
   description: string,
 ): Promise<void> {
   const now = new Date().toISOString();
+  const locked = title.trim() ? 1 : 0;
   await db
     .prepare(
-      `INSERT INTO verse_groups (library_id, hub_slug, title, description, undo_json, updated_at)
-       VALUES (?, ?, ?, ?, '[]', ?)
+      `INSERT INTO verse_groups (library_id, hub_slug, title, description, undo_json, auto_titled, updated_at)
+       VALUES (?, ?, ?, ?, '[]', ?, ?)
        ON CONFLICT(library_id, hub_slug) DO UPDATE SET
          title = excluded.title,
          description = excluded.description,
+         auto_titled = CASE
+           WHEN trim(excluded.title) != '' THEN 1
+           ELSE verse_groups.auto_titled
+         END,
          updated_at = excluded.updated_at`,
     )
-    .bind(libraryId, hub, title, description, now)
+    .bind(libraryId, hub, title, description, locked, now)
     .run();
 }
 
-async function upsertStar(db: D1Database, libraryId: string, hub: string, star: string): Promise<void> {
+function starStatement(db: D1Database, libraryId: string, hub: string, star: string): D1PreparedStatement {
   const now = new Date().toISOString();
-  await db
+  return db
     .prepare(
       `INSERT INTO verse_groups (library_id, hub_slug, title, description, undo_json, star_slug, updated_at)
        VALUES (?, ?, '', '', '[]', ?, ?)
@@ -378,8 +708,11 @@ async function upsertStar(db: D1Database, libraryId: string, hub: string, star: 
          star_slug = excluded.star_slug,
          updated_at = excluded.updated_at`,
     )
-    .bind(libraryId, hub, star, now)
-    .run();
+    .bind(libraryId, hub, star, now);
+}
+
+async function upsertStar(db: D1Database, libraryId: string, hub: string, star: string): Promise<void> {
+  await starStatement(db, libraryId, hub, star).run();
 }
 
 async function setUndoPairs(

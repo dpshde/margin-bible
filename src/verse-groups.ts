@@ -17,6 +17,9 @@ import { slugLabel } from "./xref";
 
 export const FAN_IN_MIN = 2;
 export const STAR_MIN = 2;
+
+/** A verse the reader can see stopped qualifying as a verse group, or never was one. */
+export const NOT_A_VERSE_GROUP = "That verse group changed. Refresh and try again.";
 export const PAIR_FILL_CAP = 48;
 export const GROUP_TITLE_MAX = 120;
 export const GROUP_DESCRIPTION_MAX = 2_000;
@@ -48,8 +51,13 @@ export type VerseGroupMeta = {
   undoPairs: { from: string; to: string }[];
   /** Member marked as the one star. Empty means no star. */
   star?: string;
-  /** Last title Jev wrote. The sparkle stays filled while the saved title still matches it. */
+  /** Last title Jev wrote on the one automatic pass. */
   jevTitle?: string;
+  /**
+   * True after that pass, or when a title was already saved.
+   * Once true, automatic titling does not run again. A manual edit does not clear it.
+   */
+  autoTitled?: boolean;
 };
 
 export type VerseGroupMember = {
@@ -66,8 +74,10 @@ export type VerseGroupView = {
   /** The starred member, or empty when the group has no star. */
   star: string;
   title: string;
-  /** True when the saved title is still the one Jev wrote. */
+  /** True when the saved title is still the one Jev wrote. Not the auto-title lock. */
   titleFromJev?: boolean;
+  /** Durable lock. Automatic titling runs only while this is false. */
+  autoTitled: boolean;
   description: string;
   members: VerseGroupMember[];
   trigger: VerseGroupTrigger;
@@ -94,7 +104,7 @@ export function canonSlug(slug: string | null | undefined): string | null {
   return passageSlug(passage);
 }
 
-/** The sparkle stays filled only while the saved title is still the Jev title. */
+/** True when the saved title is still the one Jev wrote. Editing the title does not clear `autoTitled`. */
 export function titleStillFromJev(title: unknown, jevTitle: unknown): boolean {
   const saved = cleanGroupTitle(title);
   const jev = cleanGroupTitle(jevTitle);
@@ -277,6 +287,7 @@ function toView(input: {
     star,
     title: input.meta?.title ?? "",
     titleFromJev: titleStillFromJev(input.meta?.title, input.meta?.jevTitle),
+    autoTitled: Boolean(input.meta?.autoTitled) || Boolean((input.meta?.title ?? "").trim()),
     description: input.meta?.description ?? "",
     members,
     trigger,

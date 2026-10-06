@@ -740,9 +740,10 @@ export function jumpScript(): string {
     const history = document.createElement("div");
     history.className = "search-history";
     history.hidden = true;
-    const historyLabel = document.createElement("p");
+    const historyLabel = document.createElement("span");
     historyLabel.className = "search-history-label";
-    historyLabel.textContent = "Recent";
+    historyLabel.setAttribute("aria-hidden", "true");
+    historyLabel.innerHTML = '<svg class="ph-clock-counter-clockwise" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M136,80v43.47l36.12,21.67a8,8,0,0,1-8.24,13.72l-40-24A8,8,0,0,1,120,128V80a8,8,0,0,1,16,0Zm-8-48A95.44,95.44,0,0,0,60.08,60.15C52.81,67.51,46.35,74.59,40,82V64a8,8,0,0,0-16,0v40a8,8,0,0,0,8,8H72a8,8,0,0,0,0-16H49c7.15-8.42,14.27-16.35,22.39-24.57a80,80,0,1,1,1.66,114.75,8,8,0,1,0-11,11.64A96,96,0,1,0,128,32Z"/></svg>';
     const historyChips = document.createElement("div");
     historyChips.className = "search-suggest-chips search-history-chips";
     historyChips.setAttribute("role", "group");
@@ -1249,24 +1250,8 @@ export function jumpScript(): string {
     return Boolean(modalIsOpen() && input && !String(input.value || "").trim() && !resultsOpen());
   }
 
-  function paintTopicChips(topics) {
-    const row = topicRow();
-    const chips = row && row.querySelector(".search-suggest-chips");
-    if (!row || !chips || !canOfferTopics() || !topics.length) {
-      hideTopicChips();
-      return;
-    }
-    chips.replaceChildren();
-    for (const topic of topics) {
-      const btn = document.createElement("button");
-      btn.type = "button";
-      btn.className = "search-suggest-chip";
-      btn.textContent = topic.label;
-      btn.setAttribute("data-query", topic.query);
-      chips.appendChild(btn);
-    }
-    row.hidden = false;
-    requestAnimationFrame(() => syncChipFades(chips));
+  function paintTopicChips() {
+    hideTopicChips();
   }
 
   function paintHistory() {
@@ -1303,62 +1288,21 @@ export function jumpScript(): string {
   }
 
   function syncTopicChips() {
+    hideTopicChips();
     if (!canOfferTopics()) {
-      hideTopicChips();
       hideHistory();
       return;
     }
     paintHistory();
-    paintTopicChips(suggestTopics);
   }
 
   async function loadTopicSuggestions() {
+    hideTopicChips();
     if (!canOfferTopics()) {
-      hideTopicChips();
       hideHistory();
       return;
     }
     paintHistory();
-    const recent = readRecentSearches();
-    if (recent.length < 2) {
-      hideTopicChips();
-      return;
-    }
-    const cached = readTopicCache(recent);
-    if (cached) {
-      suggestTopics = cached;
-      suggestAttempted = true;
-      paintTopicChips(cached);
-      return;
-    }
-    if (suggestAttempted) return;
-    suggestAttempted = true;
-    const token = ++suggestToken;
-    try {
-      const res = await fetch("/api/ha-suggest", {
-        method: "POST",
-        headers: { "content-type": "application/json", accept: "application/json" },
-        body: JSON.stringify({ recent: recent }),
-      });
-      if (token !== suggestToken) return;
-      if (!res.ok) {
-        hideTopicChips();
-        return;
-      }
-      const data = await res.json();
-      if (token !== suggestToken) return;
-      const topics = cleanTopics(data && data.topics);
-      if (!topics.length || !canOfferTopics()) {
-        hideTopicChips();
-        return;
-      }
-      suggestTopics = topics;
-      writeTopicCache(recent, topics);
-      paintTopicChips(topics);
-    } catch (_) {
-      if (token !== suggestToken) return;
-      hideTopicChips();
-    }
   }
 
   async function searchScripture(q, my) {
