@@ -289,6 +289,7 @@ describe("verse groups inbox", () => {
     expect(css).toContain(".verse-group.is-collapsed-hover:not([open]) > summary.note-row:hover");
     expect(css).toContain(".verse-group[open] > summary.note-row:focus");
     expect(css).toContain('.verse-group .verse-star[aria-pressed="true"] { color: #b0893e; }');
+    expect(css).toContain(".verse-group .verse-star,\n    .verse-group .att-remove {");
     expect(css).not.toContain(".att-chip.is-star");
     expect(css).toContain("outline: none;");
     expect(css).toContain("background: transparent;");
@@ -313,7 +314,7 @@ describe("verse groups inbox", () => {
     const verseChip = coarse.slice(coarse.indexOf(".verse-group .att-chip"));
     expect(verseChip).toContain("font-size: .84rem");
     expect(verseChip).toContain("position: static");
-    expect(verseChip).toContain("min-width: 1.65rem");
+    expect(verseChip).toContain("min-width: 1.7rem");
     nodeCheck(verseGroupsScript());
   });
 
@@ -375,6 +376,12 @@ describe("verse groups inbox", () => {
     expect(verseCard).not.toContain('aria-pressed="true"');
     expect(verseCard).toContain('aria-pressed="false"');
     expect(verseCard).not.toContain("att-chip wiki is-star");
+    const chipAt = verseCard.indexOf('class="att-chip wiki"');
+    const starAt = verseCard.indexOf('class="verse-star"');
+    const removeAt = verseCard.indexOf('class="att-remove"');
+    expect(chipAt).toBeGreaterThan(-1);
+    expect(chipAt).toBeLessThan(starAt);
+    expect(starAt).toBeLessThan(removeAt);
     expect(html.indexOf('data-att-slug="rom.8.28"')).toBeLessThan(html.indexOf('data-att-slug="rom.8.31"'));
     expect(html).not.toMatch(/<details class="verse-group"[^>]*open/);
   });

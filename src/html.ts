@@ -1398,23 +1398,6 @@ export function page(title: string, body: string): string {
       gap: .25rem .3rem;
       padding-left: .15rem;
     }
-    .verse-group .verse-star {
-      position: static;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      width: 1.25rem;
-      height: 1.25rem;
-      min-width: 1.25rem;
-      margin: 0 .12rem 0 0;
-      padding: 0;
-      border: 0;
-      border-radius: 999px;
-      background: transparent;
-      color: var(--faint);
-      cursor: pointer;
-    }
-    .verse-group .verse-star[aria-pressed="true"] { color: #b0893e; }
     .verse-group-verses .att-board { flex: 1 1 auto; margin: 0; gap: .28rem; }
     .verse-group-verses .tray-attach {
       color: var(--ink-soft);
@@ -1734,35 +1717,72 @@ export function page(title: string, body: string): string {
     @media (hover: none), (pointer: coarse) {
       /* Touch still gets a tap target, but it stays quiet inside the pill. */
       .att-remove { visibility: visible; opacity: .72; }
-      /* Verse-group refs stay fully readable. The remove control sits beside the chip. */
       .verse-group .att-chip {
         max-width: none;
-        padding: .18rem .5rem;
         font-size: .84rem;
-        font-weight: 600;
-        line-height: 1.25;
       }
-      .verse-group .verse-star {
-        width: 1.65rem;
-        height: 1.65rem;
-        min-width: 1.65rem;
-      }
-      .verse-group .att-item { gap: .05rem; }
-      .verse-group .att-remove {
-        position: static;
-        transform: none;
-        width: 1.65rem;
-        height: 1.65rem;
-        min-width: 1.65rem;
-        min-height: 1.65rem;
-        opacity: .85;
-        visibility: visible;
-        background: transparent;
-      }
-      .verse-group .att-remove svg { width: .85rem; height: .85rem; }
     }
     .att-remove:focus-visible { visibility: visible; opacity: 1; color: var(--ink); background: var(--paper-raised); }
     .att-remove svg { display: block; width: .7rem; height: .7rem; }
+    /* Star and remove share the trailing edge of one quiet pill. */
+    .verse-group .att-item {
+      gap: 0;
+      padding: .06rem .1rem .06rem .08rem;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: var(--paper-raised);
+    }
+    .verse-group .att-item:hover { border-color: color-mix(in srgb, var(--ink) 28%, transparent); }
+    .verse-group .att-chip {
+      border: 0;
+      background: transparent;
+      padding: .1rem .12rem .1rem .38rem;
+      font-size: .78rem;
+      font-weight: 600;
+    }
+    .verse-group .att-chip:hover { border-color: transparent; background: transparent; }
+    .verse-group .verse-star,
+    .verse-group .att-remove {
+      position: static;
+      transform: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 1.35rem;
+      height: 1.35rem;
+      min-width: 1.35rem;
+      min-height: 1.35rem;
+      margin: 0;
+      padding: 0;
+      border: 0;
+      border-radius: 999px;
+      background: transparent;
+      color: var(--faint);
+      visibility: visible;
+      opacity: 1;
+      cursor: pointer;
+    }
+    .verse-group .verse-star svg,
+    .verse-group .att-remove svg { display: block; width: .72rem; height: .72rem; }
+    .verse-group .verse-star[aria-pressed="true"] { color: #b0893e; }
+    .verse-group .verse-star:hover,
+    .verse-group .att-remove:hover,
+    .verse-group .verse-star:focus-visible,
+    .verse-group .att-remove:focus-visible { color: var(--ink); background: transparent; }
+    .verse-group .verse-star[aria-pressed="true"]:hover,
+    .verse-group .verse-star[aria-pressed="true"]:focus-visible { color: #b0893e; }
+    @media (hover: none), (pointer: coarse) {
+      .verse-group .att-chip { font-size: .84rem; }
+      .verse-group .verse-star,
+      .verse-group .att-remove {
+        width: 1.7rem;
+        height: 1.7rem;
+        min-width: 1.7rem;
+        min-height: 1.7rem;
+      }
+      .verse-group .verse-star svg,
+      .verse-group .att-remove svg { width: .85rem; height: .85rem; }
+    }
     a.wiki {
       color: var(--ink-soft); text-decoration: underline;
       text-decoration-thickness: 1px; text-underline-offset: .15em;
