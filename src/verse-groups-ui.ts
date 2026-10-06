@@ -34,14 +34,13 @@ export function verseGroupCardHtml(group: VerseGroupView, status = ""): string {
   const rowTitle = saved || group.hubLabel;
   const excerpt = saved && saved !== group.hubLabel ? group.hubLabel : "";
   return `<details class="verse-group" data-hub="${escapeHtml(group.hub)}" data-hub-label="${escapeHtml(group.hubLabel)}" data-star="${escapeHtml(star)}" data-sample="${group.sample ? "1" : "0"}" data-seed="${group.seed ? "1" : "0"}" data-auto-titled="${group.autoTitled ? "1" : "0"}">
-  <summary class="note-row"><span class="note-row-title" data-title="${escapeHtml(saved)}" contenteditable="false">${escapeHtml(rowTitle)}</span><button type="button" class="verse-group-title-edit" aria-label="Edit title" title="Edit title">${iconNotePencil()}</button>${excerpt ? `<span class="note-row-excerpt">${escapeHtml(excerpt)}</span>` : ""}<span class="verse-group-hub">${escapeHtml(group.hubLabel)}</span></summary>
+  <summary class="note-row"><span class="note-row-title" data-title="${escapeHtml(saved)}" contenteditable="false">${escapeHtml(rowTitle)}</span><span class="verse-group-title-actions"><button type="button" class="verse-group-title-edit" aria-label="Edit title" title="Edit title">${iconNotePencil()}</button><button type="button" class="tray-attach" data-vg-attach aria-label="Attach a link or passage" title="Attach">${iconPaperclip()}</button></span>${excerpt ? `<span class="note-row-excerpt">${escapeHtml(excerpt)}</span>` : ""}<span class="verse-group-hub">${escapeHtml(group.hubLabel)}</span></summary>
   <form class="verse-group-form">
     <div class="verse-group-fields">
       <textarea id="vg-description-${field}" class="verse-group-description" name="description" rows="1" maxlength="2000" placeholder="Description" aria-label="Description" autocomplete="off">${escapeHtml(group.description)}</textarea>
     </div>
     <div class="verse-group-verses">
       <ul class="att-board verse-group-members">${chips}</ul>
-      <button type="button" class="tray-attach" data-vg-attach aria-label="Attach a link or passage" title="Attach">${iconPaperclip()}</button>
     </div>
     <p class="verse-group-status" role="status">${escapeHtml(status)}</p>
   </form>
@@ -693,12 +692,13 @@ export function verseGroupsScript(): string {
     var target = event.target;
     if (!target || !target.closest) return;
     var pencil = target.closest(".verse-group-title-edit");
+    var attach = target.closest("[data-vg-attach]");
     var title = target.closest(".note-row-title");
-    var hit = pencil || title;
+    var hit = pencil || attach || title;
     if (!hit || !panel.contains(hit)) return;
     var card = hit.closest(".verse-group");
     if (!card) return;
-    if (pencil || title.getAttribute("contenteditable") === "true") card._titlePointer = true;
+    if (pencil || attach || (title && title.getAttribute("contenteditable") === "true")) card._titlePointer = true;
   }, true);
 
   panel.addEventListener("click", function (event) {

@@ -1517,12 +1517,29 @@ export function page(title: string, body: string): string {
       color: var(--ink);
       font: 400 1rem/1.4 var(--sans);
     }
+    .verse-group > summary .note-row-title {
+      flex: 0 1 auto;
+      min-width: 0;
+    }
+    .verse-group > summary .note-row-excerpt { order: 1; }
+    .verse-group-title-actions {
+      display: inline-flex;
+      align-items: center;
+      justify-content: flex-end;
+      flex: none;
+      order: 3;
+      margin-left: auto;
+    }
     .verse-group-title-edit {
       display: inline-flex;
       align-items: center;
       justify-content: center;
       flex: none;
       align-self: center;
+      width: var(--tap);
+      height: var(--tap);
+      min-width: var(--tap);
+      min-height: var(--tap);
       margin: 0;
       padding: 0;
       border: 0;
@@ -1531,7 +1548,27 @@ export function page(title: string, body: string): string {
       cursor: pointer;
       line-height: 0;
     }
-    .verse-group[open] > summary .verse-group-title-edit { color: var(--paper); }
+    .verse-group > summary .tray-attach {
+      color: var(--ink-soft);
+      width: var(--tap);
+      height: var(--tap);
+      min-width: var(--tap);
+      min-height: var(--tap);
+    }
+    .verse-group > summary .verse-group-title-edit svg,
+    .verse-group > summary .tray-attach svg {
+      width: 1.05rem;
+      height: 1.05rem;
+    }
+    .verse-group[open] > summary .verse-group-title-edit,
+    .verse-group[open] > summary .tray-attach { color: var(--paper); }
+    .verse-group[open] > summary .verse-group-title-edit:hover,
+    .verse-group[open] > summary .tray-attach:hover,
+    .verse-group[open] > summary .verse-group-title-edit:focus-visible,
+    .verse-group[open] > summary .tray-attach:focus-visible {
+      color: var(--paper);
+      background: color-mix(in srgb, var(--paper) 16%, transparent);
+    }
     .verse-group > summary .note-row-title[contenteditable="true"] {
       cursor: text;
       outline: none;
@@ -1591,13 +1628,6 @@ export function page(title: string, body: string): string {
       padding-left: .15rem;
     }
     .verse-group-verses .att-board { flex: 1 1 auto; margin: 0; gap: .28rem; }
-    .verse-group-verses .tray-attach {
-      color: var(--ink-soft);
-      width: var(--tap);
-      height: var(--tap);
-      min-width: var(--tap);
-      min-height: var(--tap);
-    }
     .verse-group-status { margin: 0; color: var(--muted); font-size: .8rem; font-weight: 400; }
     .verse-group-status:empty { display: none; }
     /* Light side rails make each week one frame, not a stack of cards.
@@ -2087,10 +2117,6 @@ export function page(title: string, body: string): string {
         min-height: var(--tap);
         overflow: visible;
       }
-      .verse-group-verses .tray-attach {
-        align-self: flex-start;
-        margin-top: .15rem;
-      }
     }
     a.wiki {
       color: var(--ink-soft); text-decoration: underline;
@@ -2402,9 +2428,11 @@ export function page(title: string, body: string): string {
       .bookmarks-panel .note-row-excerpt,
       .verse-group > summary .note-row-excerpt {
         flex: 1 0 100%;
+        order: 3;
         font-size: .84rem;
         color: var(--muted);
       }
+      .verse-group-title-actions { order: 1; }
       .verse-group[open] > summary .note-row-excerpt {
         color: color-mix(in srgb, var(--paper) 86%, transparent);
       }

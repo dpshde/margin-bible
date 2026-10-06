@@ -327,6 +327,8 @@ describe("verse groups inbox", () => {
     expect(css).toContain('.verse-group > summary .note-row-title[contenteditable="true"]:empty::before {\n      content: "Title";');
     expect(css).toContain(".verse-group-fields {\n      display: flex;\n      flex-direction: column;");
     expect(css).toContain(".verse-group[open] > summary.note-row {\n      background: var(--ink);\n      color: var(--paper);\n    }");
+    expect(css).toContain(".verse-group-title-actions {\n      display: inline-flex;");
+    expect(css).toContain(".verse-group > summary .tray-attach {");
     expect(css).not.toContain("padding: .42rem .7rem;");
     expect(css).toContain(".verse-group.is-drop");
     expect(css).toContain(".verse-group-drag-ghost");
@@ -458,6 +460,15 @@ describe("verse groups inbox", () => {
     expect(html).toContain('aria-label="Edit title"');
     expect(html).toContain("m229.66 58.34l-32-32a8 8 0 0 0-11.32 0l-96 96");
     expect(html.indexOf('class="note-row-title"')).toBeLessThan(html.indexOf('class="verse-group-title-edit"'));
+    const cardStart = html.indexOf('<details class="verse-group"');
+    const card = html.slice(cardStart, html.indexOf("</details>", cardStart));
+    const summary = card.slice(card.indexOf("<summary"), card.indexOf("</summary>"));
+    expect(summary).toContain('class="verse-group-title-actions"');
+    expect(summary.indexOf('class="verse-group-title-edit"')).toBeLessThan(summary.indexOf("data-vg-attach"));
+    expect(summary).toContain('aria-label="Attach a link or passage"');
+    const verses = html.slice(html.indexOf('class="verse-group-verses"'), html.indexOf('class="verse-group-status"'));
+    expect(verses).not.toContain("data-vg-attach");
+    expect(verses).not.toContain("tray-attach");
     expect(html).not.toContain('name="title"');
     expect(html).not.toContain('placeholder="Title"');
     expect(html).toContain('placeholder="Description"');
