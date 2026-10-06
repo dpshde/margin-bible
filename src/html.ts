@@ -750,6 +750,9 @@ export function page(title: string, body: string): string {
         position: absolute; inset: 0;
         width: auto; height: auto; max-width: none; max-height: none;
         margin: 0; border: 0; border-radius: 0;
+        background: var(--paper-raised);
+        background-clip: border-box;
+        box-shadow: none;
       }
       .search-modal-form:has(.search-modal-list:not([hidden])) .search-modal-bar::after {
         content: none;
@@ -2337,11 +2340,14 @@ export function page(title: string, body: string): string {
       }
       .chapter-grid-sheet {
         width: 100%;
+        max-width: none;
         max-height: min(82dvh, calc(100dvh - var(--safe-top) - .5rem));
         margin: 0;
         padding: 0 1rem calc(1.1rem + var(--safe-bottom));
-        border-radius: 1rem 1rem 0 0;
-        border-bottom: 0;
+        border: 0;
+        border-radius: 0;
+        box-shadow: none;
+        background: var(--paper-raised);
         overflow: auto;
         overscroll-behavior: contain;
         -webkit-overflow-scrolling: touch;

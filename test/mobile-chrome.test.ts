@@ -108,6 +108,8 @@ describe("phone layout tokens", () => {
     const css = readFileSync(path.join(import.meta.dir, "../src/html.ts"), "utf8");
     expect(css).toContain("margin-bottom: calc(3.4rem + 14px + 1rem + var(--safe-bottom))");
     expect(css).toContain(".notes-main {\n        padding-bottom: calc(3.4rem + 14px + 1.25rem + var(--phone-tab-h, var(--safe-bottom)));");
+    expect(css).toContain(".chapter-grid-sheet {\n        width: 100%;\n        max-width: none;");
+    expect(css).not.toContain("border-radius: 1rem 1rem 0 0");
     expect(css).toContain(".chapter-grid-handle { display: none; }");
     expect(css).toContain("align-items: flex-end;");
     expect(css).toContain("html[data-theme=\"dark\"] .search-fab");
