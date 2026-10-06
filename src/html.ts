@@ -512,18 +512,26 @@ export function page(title: string, body: string): string {
     .search-modal-form:has(.search-modal-list:not([hidden])) .search-modal-footer { display: block; }
     .search-modal-form:has(.search-modal-list.is-passage) .search-modal-footer { display: none; }
     .search-history {
+      display: flex;
+      align-items: center;
+      gap: .45rem;
       flex: 0 0 auto; min-width: 0;
-      /* Same inset as topic chips, so the first recent query lines up with the search icon. */
+      /* Same inset as the search bar, so the clock and the first recent query line up with the search icon. */
       padding: 0 14px 12px;
     }
     .search-history[hidden] { display: none; }
     .search-history-label {
-      margin: 0 0 .3rem;
-      font-size: .72rem; font-weight: 500; line-height: 1.2;
+      display: inline-flex;
+      align-items: center;
+      flex: none;
+      margin: 0;
       color: #a8a29e;
+      line-height: 0;
     }
+    .search-history-chips { flex: 1 1 auto; min-width: 0; }
     html[data-theme="dark"] .search-history-label { color: #78716c; }
     .search-suggest {
+      display: none;
       flex: 0 0 auto; min-width: 0;
       /* First chip lines up with the search icon. Right and bottom match the bar's 14px / 12px inset. */
       padding: 0 14px 12px;
@@ -1784,19 +1792,14 @@ export function page(title: string, body: string): string {
       visibility: hidden;
       opacity: 0;
       cursor: pointer;
-      /* Width snaps. Leaving hover is instant so a chip does not linger open. */
-      transition: opacity .12s ease, color .12s ease, width 0s linear, min-width 0s linear, visibility 0s linear;
+      /* Width snaps to the reserved size. Only the icon fades, so the row does not ease-shove. */
+      transition: opacity .12s ease, color .12s ease;
     }
     @media (hover: hover) and (pointer: fine) {
-      /* Hover waits, then snaps. A frame of hover while starring or removing reflows siblings must not open them. */
-      .verse-group .att-item:hover .att-chip {
-        padding-right: .12rem;
-        transition: padding-right 0s linear .16s;
-      }
       .verse-group .att-item:has(.verse-star[aria-pressed="true"]) .att-chip,
+      .verse-group .att-item:hover .att-chip,
       .verse-group .att-item:focus-within .att-chip {
         padding-right: .12rem;
-        transition: padding-right 0s linear;
       }
       .verse-group .verse-star[aria-pressed="true"] {
         width: 1.35rem;
@@ -1804,17 +1807,9 @@ export function page(title: string, body: string): string {
         overflow: visible;
         visibility: visible;
         opacity: 1;
-        transition: opacity .12s ease, color .12s ease, width 0s linear, min-width 0s linear, visibility 0s linear;
       }
       .verse-group .att-item:hover .verse-star,
-      .verse-group .att-item:hover .att-remove {
-        width: 1.35rem;
-        min-width: 1.35rem;
-        overflow: visible;
-        visibility: visible;
-        opacity: 1;
-        transition: opacity .12s ease .16s, color .12s ease, width 0s linear .16s, min-width 0s linear .16s, visibility 0s linear .16s;
-      }
+      .verse-group .att-item:hover .att-remove,
       .verse-group .att-item:focus-within .verse-star,
       .verse-group .att-item:focus-within .att-remove,
       .verse-group .verse-star:focus-visible,
@@ -1824,7 +1819,19 @@ export function page(title: string, body: string): string {
         overflow: visible;
         visibility: visible;
         opacity: 1;
-        transition: opacity .12s ease, color .12s ease, width 0s linear, min-width 0s linear, visibility 0s linear;
+      }
+      /* A remove or star reflow slides siblings under a still pointer. That borrowed
+         hover must not open them. A real pointer move clears is-member-quiet. */
+      .verse-group.is-member-quiet .att-item:hover:not(:focus-within):not(:has(.verse-star[aria-pressed="true"])) .att-chip {
+        padding-right: .42rem;
+      }
+      .verse-group.is-member-quiet .att-item:hover:not(:focus-within) .verse-star:not([aria-pressed="true"]),
+      .verse-group.is-member-quiet .att-item:hover:not(:focus-within) .att-remove {
+        width: 0;
+        min-width: 0;
+        overflow: hidden;
+        visibility: hidden;
+        opacity: 0;
       }
     }
     @media (prefers-reduced-motion: reduce) {

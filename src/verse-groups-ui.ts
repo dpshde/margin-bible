@@ -280,10 +280,49 @@ export function verseGroupsScript(): string {
     btn.setAttribute("title", "Star this verse");
   }
 
+  var pointerAt = { x: 0, y: 0 };
+
+  function rememberPointer(event) {
+    if (!event || typeof event.clientX !== "number") return;
+    pointerAt = { x: event.clientX, y: event.clientY };
+  }
+
+  function releaseMemberQuiet(event) {
+    rememberPointer(event);
+    var cards = panel.querySelectorAll(".verse-group.is-member-quiet");
+    for (var i = 0; i < cards.length; i += 1) {
+      var origin = cards[i]._quietPointer;
+      if (!origin) continue;
+      if (Math.abs(event.clientX - origin.x) + Math.abs(event.clientY - origin.y) < 4) continue;
+      cards[i].classList.remove("is-member-quiet");
+      cards[i]._quietPointer = null;
+    }
+  }
+
+  function quietMemberHover(card) {
+    if (!card) return;
+    card.classList.add("is-member-quiet");
+    card._quietPointer = { x: pointerAt.x, y: pointerAt.y };
+  }
+
+  function blurRemovedMember(card, item) {
+    var active = document.activeElement;
+    if (active && item && item.contains(active)) active.blur();
+    active = document.activeElement;
+    if (!active || !active.closest || active === document.body) return;
+    if (card.contains(active) && active.closest(".att-item")) active.blur();
+  }
+
+  window.addEventListener("pointerdown", rememberPointer);
+  window.addEventListener("pointermove", releaseMemberQuiet);
+
   function applyMemberRemove(card, slug) {
     var item = memberItem(card, slug);
     if (!item) return;
+    quietMemberHover(card);
+    blurRemovedMember(card, item);
     item.remove();
+    blurRemovedMember(card, null);
     if ((card.getAttribute("data-star") || "") === slug) paintStar(card, "");
   }
 
@@ -291,6 +330,8 @@ export function verseGroupsScript(): string {
     var item = memberItem(fromCard, slug);
     var list = toCard.querySelector(".verse-group-members");
     if (!item || !list) return;
+    quietMemberHover(fromCard);
+    quietMemberHover(toCard);
     if (slug === fromCard.getAttribute("data-hub")) {
       if (memberItem(toCard, slug)) return;
       var copy = item.cloneNode(true);
@@ -634,6 +675,7 @@ export function verseGroupsScript(): string {
     card.setAttribute("data-star", slug || "");
     var board = card.querySelector(".att-board");
     var items = Array.prototype.slice.call(card.querySelectorAll(".att-item"));
+    var domOrder = items.slice();
     var starred = null;
     for (var i = 0; i < items.length; i += 1) {
       var item = items[i];
@@ -651,10 +693,20 @@ export function verseGroupsScript(): string {
     items.sort(function (a, b) {
       return Number(a.getAttribute("data-order")) - Number(b.getAttribute("data-order"));
     });
-    if (starred) board.appendChild(starred);
+    var ordered = [];
+    if (starred) ordered.push(starred);
     for (var j = 0; j < items.length; j += 1) {
-      if (items[j] !== starred) board.appendChild(items[j]);
+      if (items[j] !== starred) ordered.push(items[j]);
     }
+    var moved = ordered.length !== domOrder.length;
+    if (!moved) {
+      for (var k = 0; k < ordered.length; k += 1) {
+        if (ordered[k] !== domOrder[k]) { moved = true; break; }
+      }
+    }
+    quietMemberHover(card);
+    if (!moved) return;
+    for (var n = 0; n < ordered.length; n += 1) board.appendChild(ordered[n]);
   }
 
   function guardTitleToggle(card) {

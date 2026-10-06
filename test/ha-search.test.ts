@@ -606,17 +606,11 @@ describe("topic suggestion chips", () => {
   test("chips load once per open from the session cache and stay quiet on failure", () => {
     const source = jumpScript();
     const load = source.slice(source.indexOf("async function loadTopicSuggestions"), source.indexOf("async function searchScripture"));
-    expect(load.indexOf("recent.length < 2")).toBeGreaterThan(-1);
-    expect(load.indexOf("readTopicCache(recent)")).toBeLessThan(load.indexOf('fetch("/api/ha-suggest"'));
-    expect(load.indexOf("if (suggestAttempted) return")).toBeLessThan(load.indexOf('fetch("/api/ha-suggest"'));
-    expect(load.indexOf("suggestAttempted = true")).toBeLessThan(load.indexOf('fetch("/api/ha-suggest"'));
-    expect(load.match(/fetch\("\/api\/ha-suggest"/g)?.length).toBe(1);
-    expect(load).toContain('JSON.stringify({ recent: recent })');
-    expect(load).toContain("if (!res.ok)");
-    const failed = load.slice(load.indexOf("if (!res.ok)"), load.indexOf("const data = await res.json()"));
-    expect(failed).toContain("hideTopicChips()");
-    expect(failed).not.toContain("writeTopicCache");
-    expect(failed).not.toContain("Search unavailable");
+    expect(load).toContain("hideTopicChips()");
+    expect(load).toContain("paintHistory()");
+    expect(load).not.toContain('fetch("/api/ha-suggest"');
+    expect(load).not.toContain("paintTopicChips(");
+    expect(source).not.toContain('fetch("/api/ha-suggest"');
     expect(source).toContain('sessionStorage.getItem("margin-suggest-cache")');
     expect(source).toContain('sessionStorage.setItem("margin-suggest-cache"');
     expect(source).toContain('localStorage.getItem("margin-recent-searches")');
@@ -624,7 +618,7 @@ describe("topic suggestion chips", () => {
     expect(source).not.toContain('textContent = "Suggested"');
     expect(source).not.toContain("search-suggest-label");
     expect(source).toContain("search-suggest-chip");
-    expect(source).toContain('btn.setAttribute("data-query", topic.query)');
+    expect(source).toContain('btn.setAttribute("data-query", query)');
     expect(source).not.toContain("x-api-key");
     expect(source).not.toContain("HIDDEN_ARROW_SEARCH_KEY");
     const open = source.slice(source.indexOf("function openSearchModal"), source.indexOf("function closeSearchModal"));
@@ -645,6 +639,7 @@ describe("topic suggestion chips", () => {
     expect(typed).not.toContain("/api/ha-suggest");
     const css = readFileSync(path.join(import.meta.dir, "../src/html.ts"), "utf8");
     const chips = css.slice(css.indexOf(".search-suggest {"), css.indexOf(".search-result {"));
+    expect(chips).toContain("display: none;");
     expect(chips).toContain(".search-suggest[hidden] { display: none; }");
     expect(chips).toContain("flex-wrap: nowrap");
     expect(chips).toContain("overflow-x: auto");
@@ -920,7 +915,9 @@ describe("recent query history", () => {
     expect(source).toContain('localStorage.setItem("margin-recent-searches"');
     expect(source).not.toContain("margin-query-history");
     expect(source).not.toContain("margin-search-history");
-    expect(source).toContain('textContent = "Recent"');
+    expect(source).not.toContain('textContent = "Recent"');
+    expect(source).toContain('class="ph-clock-counter-clockwise"');
+    expect(source).toContain("M136,80v43.47l36.12,21.67");
     expect(source).not.toContain('textContent = "Suggested"');
     expect(source).not.toContain("search-suggest-label");
     const paint = source.slice(source.indexOf("function paintHistory"), source.indexOf("function syncChipFades"));
@@ -929,8 +926,8 @@ describe("recent query history", () => {
     expect(paint).toContain("search-suggest-chip");
     expect(paint).toContain("btn.textContent = query");
     const load = source.slice(source.indexOf("async function loadTopicSuggestions"), source.indexOf("async function searchScripture"));
-    expect(load.indexOf("paintHistory()")).toBeLessThan(load.indexOf("recent.length < 2"));
-    expect(load.indexOf("recent.length < 2")).toBeLessThan(load.indexOf('fetch("/api/ha-suggest"'));
+    expect(load).toContain("paintHistory()");
+    expect(load).not.toContain('fetch("/api/ha-suggest"');
     const inputAt = source.indexOf('input.addEventListener("input"');
     const typing = source.slice(inputAt, source.indexOf("seq += 1", inputAt));
     expect(typing).toContain("hideHistory()");
@@ -947,9 +944,12 @@ describe("recent query history", () => {
     expect(freeText.indexOf("rememberRecentSearch(q)")).toBeLessThan(freeText.indexOf("searchScripture(q, my)"));
     const css = readFileSync(path.join(import.meta.dir, "../src/html.ts"), "utf8");
     const history = css.slice(css.indexOf(".search-history {"), css.indexOf(".search-suggest {"));
+    expect(history).toContain("display: flex;");
+    expect(history).toContain("align-items: center;");
     expect(history).toContain("padding: 0 14px 12px");
     expect(history).toContain(".search-history[hidden] { display: none; }");
     expect(history).toContain(".search-history-label");
+    expect(history).toContain(".search-history-chips { flex: 1 1 auto; min-width: 0; }");
     expect(history).not.toContain("Suggested");
     const sheet = css.slice(css.indexOf("@media (max-width: 640px)"), css.indexOf(".section-head {"));
     expect(sheet).toContain(".search-history,");
