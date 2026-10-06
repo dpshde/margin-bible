@@ -330,7 +330,15 @@ function bookmarkSimpleIcon(): string {
   return `<svg class="bookmarks-summary-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="15" height="15" fill="currentColor" aria-hidden="true"><path d="M184 32H72a16 16 0 0 0-16 16v176a8 8 0 0 0 12.24 6.78L128 193.43l59.77 37.35A8 8 0 0 0 200 224V48a16 16 0 0 0-16-16m0 177.57l-51.77-32.35a8 8 0 0 0-8.48 0L72 209.57V48h112Z"/></svg>`;
 }
 
-/** Bookmarks and verse groups share this shell. Desktop expands inline; phone CSS turns it into a sheet. */
+/** Scripture, the notes feed, Bookmarks, and Verse groups. Hidden from desktop layout. */
+export function phoneTabsHtml(opts: { surface: "notes" | "scripture"; readerHref: string }): string {
+  const scripture = opts.surface === "scripture" ? ' aria-current="page"' : "";
+  const notes = opts.surface === "notes" ? ' aria-current="page"' : "";
+  const reader = escapeHtml(opts.readerHref);
+  return `<nav class="phone-tabs" aria-label="Sections"><a class="phone-tab" data-phone-tab="scripture" href="${reader}" data-reader-link${scripture}>Scripture</a><a class="phone-tab" data-phone-tab="notes" href="/notes"${notes}>Notes</a><a class="phone-tab" data-phone-tab="bookmarks" href="/notes#bookmarks">Bookmarks</a><a class="phone-tab" data-phone-tab="groups" href="/notes#groups" aria-label="Verse groups">Verse groups</a></nav>`;
+}
+
+/** Bookmarks and verse groups share this shell. Desktop expands inline; phone tabs show the list full screen. */
 export function notesCollectionHtml(opts: {
   id: string;
   label: string;
@@ -897,71 +905,39 @@ export function notesInboxScript(): string {
     if (!btn) return;
     showChapterPane(btn.dataset.book);
   });
-  function bindNotesSheets() {
+  function bindPhoneTabs() {
     var phoneQuery = window.matchMedia("(max-width: 767px)");
     function phone() { return phoneQuery.matches; }
-    function sync() {
-      var open = phone() && document.querySelector(".bookmarks-view[open]");
-      document.documentElement.classList.toggle("notes-sheet-open", Boolean(open));
+    var titles = { notes: "Notes", bookmarks: "Bookmarks", groups: "Verse groups" };
+    function tabFromHash() {
+      var hash = String(location.hash || "").replace(/^#/, "");
+      if (hash === "bookmarks" || hash === "groups") return hash;
+      return "notes";
     }
-    document.addEventListener("toggle", function (event) {
-      var target = event.target;
-      if (!target || !target.classList || !target.classList.contains("bookmarks-view")) return;
-      sync();
-    }, true);
-    document.addEventListener("click", function (event) {
-      var btn = event.target && event.target.closest && event.target.closest("[data-notes-sheet-close]");
-      if (!btn || !phone()) return;
-      var details = btn.closest("details");
-      if (details) details.open = false;
-    });
-    document.addEventListener("keydown", function (event) {
-      if (event.key !== "Escape" || !phone()) return;
-      var openSheet = document.querySelector(".bookmarks-view[open]");
-      if (openSheet) openSheet.open = false;
-    });
-    var handles = document.querySelectorAll(".notes-sheet-handle");
-    for (var h = 0; h < handles.length; h += 1) {
-      (function (handle) {
-        var panel = handle.parentElement;
-        var details = handle.closest("details");
-        var startY = 0;
-        var dy = 0;
-        var active = false;
-        function shift(y) {
-          panel.style.transition = "none";
-          panel.style.transform = y ? "translate3d(0," + y + "px,0)" : "";
-        }
-        function finish() {
-          if (!active) return;
-          active = false;
-          if (dy >= 72 && details) {
-            panel.style.transition = "";
-            panel.style.transform = "";
-            details.open = false;
-            return;
-          }
-          panel.style.transition = "transform 180ms ease";
-          panel.style.transform = "";
-        }
-        handle.addEventListener("pointerdown", function (event) {
-          if (!phone() || event.button) return;
-          active = true;
-          startY = event.clientY;
-          dy = 0;
-          if (handle.setPointerCapture) handle.setPointerCapture(event.pointerId);
-        });
-        handle.addEventListener("pointermove", function (event) {
-          if (!active) return;
-          dy = Math.max(0, event.clientY - startY);
-          if (dy) shift(dy);
-        });
-        handle.addEventListener("pointerup", finish);
-        handle.addEventListener("pointercancel", function () { dy = 0; finish(); });
-      })(handles[h]);
+    function apply() {
+      var onPhone = phone();
+      var tab = tabFromHash();
+      if (onPhone) document.documentElement.dataset.phoneTab = tab;
+      else document.documentElement.removeAttribute("data-phone-tab");
+      var bookmarks = document.getElementById("bookmarks-view");
+      var groups = document.getElementById("verse-groups-view");
+      if (onPhone) {
+        if (bookmarks) bookmarks.open = tab === "bookmarks";
+        if (groups) groups.open = tab === "groups";
+      }
+      var tabs = document.querySelectorAll(".phone-tab");
+      for (var i = 0; i < tabs.length; i++) {
+        var name = tabs[i].getAttribute("data-phone-tab");
+        if (name === "scripture") continue;
+        if (onPhone && name === tab) tabs[i].setAttribute("aria-current", "page");
+        else if (onPhone) tabs[i].removeAttribute("aria-current");
+      }
+      var title = document.getElementById("chapter-grid-title");
+      if (title && onPhone && document.querySelector(".notes-main")) title.textContent = titles[tab];
     }
-    if (phoneQuery.addEventListener) phoneQuery.addEventListener("change", sync);
-    sync();
+    window.addEventListener("hashchange", apply);
+    if (phoneQuery.addEventListener) phoneQuery.addEventListener("change", apply);
+    apply();
   }
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape" && grid && !grid.hidden) {
@@ -969,6 +945,6 @@ export function notesInboxScript(): string {
       showChapterPane(currentBook);
     }
   });
-  bindNotesSheets();
+  bindPhoneTabs();
 })();`;
 }

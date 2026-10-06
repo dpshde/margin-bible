@@ -728,9 +728,12 @@ export function page(title: string, body: string): string {
           0 0 0 1px color-mix(in srgb, #fafaf9 46%, transparent),
           0 .35rem 1rem rgb(0 0 0 / .5);
       }
+      html { --phone-tab-h: calc(var(--tap) + env(safe-area-inset-bottom, 0px)); }
+      .search-fab {
+        bottom: calc(14px + var(--phone-tab-h));
+      }
       html.search-modal-open .search-fab,
       html.is-grid-open .search-fab,
-      html:has(.bookmarks-view[open]) .search-fab,
       html.spotlight-on:has(.verse:is(.is-open, .is-span)) .search-fab {
         opacity: 0; visibility: hidden; pointer-events: none;
         transition: opacity 160ms ease, visibility 0s linear 160ms;
@@ -1344,112 +1347,102 @@ export function page(title: string, body: string): string {
     .bookmarks-view > summary:focus-visible { outline: 2px solid var(--sel-rail-open); outline-offset: -2px; }
     .bookmarks-panel { padding: 0; margin: 0; border: 0; }
     .bookmarks-panel .empty { margin: .2rem 0 0; }
-    /* Sheet chrome stays out of the desktop accordion. Phone CSS opens it. */
+    /* Sheet chrome stays out of the desktop accordion. Phone tabs show the list full screen. */
     .notes-sheet-backdrop,
     .notes-sheet-handle,
     .notes-sheet-title { display: none; }
+    .phone-tabs { display: none; }
     @media (max-width: 767px) {
-      .bookmarks-view {
-        margin: 0;
-        padding: 0;
-        border-radius: 0;
-        background: transparent;
-      }
-      .bookmarks-view > summary {
-        margin: 0;
-        padding: 0 .15rem 0 .2rem;
-        min-height: var(--tap);
-        font: 600 .95rem/1.2 var(--sans);
-        letter-spacing: 0;
-        text-transform: none;
-        color: var(--ink);
-        border-bottom: 1px solid color-mix(in srgb, var(--ink) 12%, transparent);
-      }
-      .bookmarks-view > summary::after,
-      .bookmarks-view[open] > summary::after {
-        content: "";
-        width: .45rem;
-        height: .45rem;
-        min-width: .45rem;
-        min-height: .45rem;
-        margin-right: .7rem;
-        padding: 0;
-        border-right: 2px solid var(--faint);
-        border-bottom: 2px solid var(--faint);
-        transform: rotate(-45deg);
-        background: transparent;
-        font-size: 0;
-      }
-      html:has(.bookmarks-view[open]) { overflow: hidden; }
-      .bookmarks-view[open] > .notes-sheet {
+      .phone-tabs {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
         position: fixed;
-        top: 0;
-        right: 0;
-        bottom: 0;
-        left: 0;
-        width: auto;
-        height: auto;
-        margin: 0;
-        z-index: 70;
-      }
-      .notes-sheet-backdrop {
-        display: block;
-        position: absolute;
-        inset: 0;
-        margin: 0;
-        padding: 0;
-        border: 0;
-        background: color-mix(in srgb, var(--ink) 42%, transparent);
-        cursor: pointer;
-      }
-      .notes-sheet-panel {
-        position: absolute;
         left: 0;
         right: 0;
         bottom: 0;
-        width: auto;
+        z-index: 36;
+        width: 100%;
         margin: 0;
-        display: flex;
-        flex-direction: column;
-        max-height: min(78dvh, calc(100dvh - var(--safe-top) - .5rem));
-        overflow: auto;
-        overscroll-behavior: contain;
+        padding: 0 0 env(safe-area-inset-bottom, 0px);
+        border-top: 1px solid var(--line);
         background: var(--paper);
-        border: 0;
-        border-radius: 0;
-        padding: 0 .9rem calc(1rem + var(--safe-bottom));
-        box-shadow: none;
       }
-      .notes-sheet-handle {
+      .phone-tab {
         display: flex;
         align-items: center;
         justify-content: center;
-        position: sticky;
-        top: 0;
-        z-index: 1;
-        flex: none;
+        min-width: 0;
         min-height: var(--tap);
-        margin: 0 -.9rem;
-        background: var(--paper);
-        touch-action: none;
-        cursor: grab;
+        margin: 0;
+        padding: .25rem .2rem;
+        border: 0;
+        background: transparent;
+        color: var(--faint);
+        text-align: center;
+        text-decoration: none;
+        font: 650 .68rem/1.15 var(--sans);
       }
-      .notes-sheet-handle::before {
-        content: "";
-        width: 2.5rem;
-        height: .28rem;
-        border-radius: 999px;
-        background: color-mix(in srgb, var(--ink) 28%, transparent);
+      .phone-tab[aria-current="page"] {
+        color: var(--ink);
+        box-shadow: inset 0 2px 0 var(--ink);
       }
-      .notes-sheet-title {
+      .bookmarks-view > summary { display: none; }
+      .bookmarks-view > summary::after,
+      .bookmarks-view[open] > summary::after {
+        content: none;
+        display: none;
+      }
+      .bookmarks-view { display: none; }
+      html[data-phone-tab="bookmarks"] .notes-main,
+      html[data-phone-tab="groups"] .notes-main {
+        width: 100%;
+        max-width: none;
+        margin: 0;
+        padding-left: 0;
+        padding-right: 0;
+      }
+      html[data-phone-tab="bookmarks"] #bookmarks-view,
+      html[data-phone-tab="groups"] #verse-groups-view {
         display: block;
-        margin: 0 0 .35rem;
-        font: 700 .7rem/1.3 var(--sans);
-        letter-spacing: .08em;
-        text-transform: uppercase;
-        color: var(--ink-soft);
+        width: 100%;
+        max-width: none;
+        margin: 0;
+        padding: 0;
+        border-radius: 0;
+        background: var(--paper);
       }
-      .notes-sheet .bookmarks-panel { padding-bottom: .4rem; }
+      html[data-phone-tab="bookmarks"] .notes-main > .jump,
+      html[data-phone-tab="bookmarks"] .notes-main > .starter-chips,
+      html[data-phone-tab="bookmarks"] .notes-main > #notes-mount,
+      html[data-phone-tab="groups"] .notes-main > .jump,
+      html[data-phone-tab="groups"] .notes-main > .starter-chips,
+      html[data-phone-tab="groups"] .notes-main > #notes-mount {
+        display: none;
+      }
+      .notes-sheet,
+      .notes-sheet-panel {
+        position: static;
+        left: auto;
+        right: auto;
+        bottom: auto;
+        width: 100%;
+        max-width: none;
+        height: auto;
+        max-height: none;
+        margin: 0;
+        padding: 0;
+        padding-left: 0;
+        padding-right: 0;
+        border: 0;
+        border-radius: 0;
+        box-shadow: none;
+        background: transparent;
+        overflow: visible;
+      }
+      html[data-phone-tab="bookmarks"] .bookmarks-panel,
+      html[data-phone-tab="groups"] .bookmarks-panel {
+        padding: .75rem 1rem calc(1rem + var(--phone-tab-h, 0px));
+      }
     }
     /* Keep the soft-wash bookmark container calm; rows do not grow a second frame. */
     .bookmarks-panel .note-list .note-row { border-radius: .35rem; }
@@ -2328,14 +2321,14 @@ export function page(title: string, body: string): string {
     }
     @media (max-width: 767px) {
       .pager {
-        margin-bottom: calc(3.4rem + 14px + 1rem + var(--safe-bottom));
+        margin-bottom: calc(3.4rem + 14px + 1rem + var(--phone-tab-h, var(--safe-bottom)));
       }
       .pager a, .pager span {
         display: inline-flex; align-items: center;
         min-height: var(--tap); padding: .2rem 0;
       }
       .notes-main {
-        padding-bottom: calc(3.4rem + 14px + 1.25rem + var(--safe-bottom));
+        padding-bottom: calc(3.4rem + 14px + 1.25rem + var(--phone-tab-h, var(--safe-bottom)));
       }
       .chapter-grid {
         align-items: flex-end;

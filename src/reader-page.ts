@@ -17,7 +17,7 @@ import {
   routeBibleUrl,
   type Passage,
 } from "./passage";
-import { bookmarksViewHtml, notesInboxScript, starterChipsHtml, notesListHtml } from "./inbox-ui";
+import { bookmarksViewHtml, notesInboxScript, phoneTabsHtml, starterChipsHtml, notesListHtml } from "./inbox-ui";
 import { verseGroupsFromNotes, type VerseGroupView } from "./verse-groups";
 import { verseGroupsScript, verseGroupsViewHtml } from "./verse-groups-ui";
 import { jumpFormHtml, jumpScript } from "./jump-ui";
@@ -146,6 +146,7 @@ ${chapterGridHtml(passage.book, passage.chapter)}
   ${pager(passage)}
   ${renderVerseRail(passage, pack)}
 </main>
+${phoneTabsHtml({ surface: "scripture", readerHref: `/${passageSlug(passage)}` })}
 <dialog class="att-drop" id="att-drop">
   <form method="dialog" class="att-drop-sheet" id="att-drop-form">
     <button type="button" class="att-drop-close" id="att-drop-close" aria-label="Close">${iconClose()}</button>
@@ -228,6 +229,7 @@ ${chapterGridHtml(gridBook, gridChapter)}
   ${verseGroupsViewHtml(verseGroups)}
   <div id="notes-mount">${items}</div>
 </main>
+${phoneTabsHtml({ surface: "notes", readerHref: `/${escapeHtml(backSlug)}` })}
 <script type="application/json" id="inbox-pack-mirror">${JSON.stringify(mirror).replace(/</g, "\\u003c")}</script>
 ${restoreReaderLinkScript()}
 <script>
@@ -288,8 +290,8 @@ function restoreReaderLinkScript(): string {
   try {
     var slug = sessionStorage.getItem("margin_last_read") || "";
     if (!/^[a-z0-9]+\\.\\d+/i.test(slug)) return;
-    var link = document.querySelector("[data-reader-link]");
-    if (link) link.setAttribute("href", "/" + slug.toLowerCase());
+    var links = document.querySelectorAll("[data-reader-link]");
+    for (var i = 0; i < links.length; i++) links[i].setAttribute("href", "/" + slug.toLowerCase());
   } catch (err) {}
 })();
 </script>`;

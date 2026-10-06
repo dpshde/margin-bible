@@ -72,19 +72,22 @@ describe("phone chapter sheet and verse-group description", () => {
     const notes = renderNotesIndex([], "jhn.1");
     expect(notes).toContain('id="bookmarks-view"');
     expect(notes).toContain('id="verse-groups-view"');
-    expect(notes).toContain('class="notes-sheet"');
-    expect(notes).toContain("data-notes-sheet-close");
-    expect(notes).toContain("notes-sheet-handle");
-    expect(notes).toContain("bindNotesSheets");
+    expect(notes).toContain('class="phone-tabs"');
+    expect(notes).toContain('data-phone-tab="bookmarks"');
+    expect(notes).toContain('data-phone-tab="groups"');
+    expect(notes).toContain("bindPhoneTabs");
     expect(notes).toContain("dy >= 72");
     const css = notes;
-    expect(css).toContain(".bookmarks-view[open] > .notes-sheet");
-    const notesSheet = css.slice(css.indexOf(".bookmarks-view[open] > .notes-sheet"), css.indexOf(".notes-sheet-handle {"));
-    expect(notesSheet).toContain("top: 0;");
-    expect(notesSheet).toContain("bottom: 0;");
-    expect(notesSheet).toContain("border-radius: 0;");
-    expect(css).toContain("html:has(.bookmarks-view[open]) .search-fab");
-    expect(css).toContain("html:has(.bookmarks-view[open]) { overflow: hidden; }");
+    expect(css).toContain(".bookmarks-view > summary::after,\n      .bookmarks-view[open] > summary::after {\n        content: none;");
+    expect(css).toContain("padding-left: 0;");
+    expect(css).toContain("padding-right: 0;");
+    expect(css).toContain('html[data-phone-tab="bookmarks"] #bookmarks-view');
+    expect(css).toContain('html[data-phone-tab="groups"] #verse-groups-view');
+    expect(css).not.toContain("html:has(.bookmarks-view[open]) .search-fab");
+    const chapter = renderChapterPage({ passage: parsePassage("jhn.1")!, pack, notes: [] });
+    expect(chapter).toContain('class="phone-tabs"');
+    expect(chapter).toContain('data-phone-tab="scripture"');
+    expect(chapter).toContain('aria-current="page"');
   });
 
   test("description blur saves the typed value even after the debounce already fired", () => {
@@ -104,7 +107,7 @@ describe("phone layout tokens", () => {
   test("pager and notes clear the FAB, and the book picker is a bottom sheet", () => {
     const css = readFileSync(path.join(import.meta.dir, "../src/html.ts"), "utf8");
     expect(css).toContain("margin-bottom: calc(3.4rem + 14px + 1rem + var(--safe-bottom))");
-    expect(css).toContain(".notes-main {\n        padding-bottom: calc(3.4rem + 14px + 1.25rem + var(--safe-bottom));");
+    expect(css).toContain(".notes-main {\n        padding-bottom: calc(3.4rem + 14px + 1.25rem + var(--phone-tab-h, var(--safe-bottom)));");
     expect(css).toContain(".chapter-grid-handle { display: none; }");
     expect(css).toContain("align-items: flex-end;");
     expect(css).toContain("html[data-theme=\"dark\"] .search-fab");
