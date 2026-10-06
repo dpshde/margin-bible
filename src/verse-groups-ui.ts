@@ -336,14 +336,13 @@ export function verseGroupsScript(): string {
       if (on) starred = item;
     }
     if (!board) return;
-    if (starred) {
-      if (board.firstElementChild !== starred) board.insertBefore(starred, board.firstElementChild);
-      return;
-    }
     items.sort(function (a, b) {
       return Number(a.getAttribute("data-order")) - Number(b.getAttribute("data-order"));
     });
-    for (var j = 0; j < items.length; j += 1) board.appendChild(items[j]);
+    if (starred) board.appendChild(starred);
+    for (var j = 0; j < items.length; j += 1) {
+      if (items[j] !== starred) board.appendChild(items[j]);
+    }
   }
 
   function paintTitle(card) {
