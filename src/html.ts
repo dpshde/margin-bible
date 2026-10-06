@@ -1784,14 +1784,19 @@ export function page(title: string, body: string): string {
       visibility: hidden;
       opacity: 0;
       cursor: pointer;
-      /* Width snaps to the reserved size. Only the icon fades, so the row does not ease-shove. */
-      transition: opacity .12s ease, color .12s ease;
+      /* Width snaps. Leaving hover is instant so a chip does not linger open. */
+      transition: opacity .12s ease, color .12s ease, width 0s linear, min-width 0s linear, visibility 0s linear;
     }
     @media (hover: hover) and (pointer: fine) {
+      /* Hover waits, then snaps. A frame of hover while starring or removing reflows siblings must not open them. */
+      .verse-group .att-item:hover .att-chip {
+        padding-right: .12rem;
+        transition: padding-right 0s linear .16s;
+      }
       .verse-group .att-item:has(.verse-star[aria-pressed="true"]) .att-chip,
-      .verse-group .att-item:hover .att-chip,
       .verse-group .att-item:focus-within .att-chip {
         padding-right: .12rem;
+        transition: padding-right 0s linear;
       }
       .verse-group .verse-star[aria-pressed="true"] {
         width: 1.35rem;
@@ -1799,9 +1804,17 @@ export function page(title: string, body: string): string {
         overflow: visible;
         visibility: visible;
         opacity: 1;
+        transition: opacity .12s ease, color .12s ease, width 0s linear, min-width 0s linear, visibility 0s linear;
       }
       .verse-group .att-item:hover .verse-star,
-      .verse-group .att-item:hover .att-remove,
+      .verse-group .att-item:hover .att-remove {
+        width: 1.35rem;
+        min-width: 1.35rem;
+        overflow: visible;
+        visibility: visible;
+        opacity: 1;
+        transition: opacity .12s ease .16s, color .12s ease, width 0s linear .16s, min-width 0s linear .16s, visibility 0s linear .16s;
+      }
       .verse-group .att-item:focus-within .verse-star,
       .verse-group .att-item:focus-within .att-remove,
       .verse-group .verse-star:focus-visible,
@@ -1811,6 +1824,7 @@ export function page(title: string, body: string): string {
         overflow: visible;
         visibility: visible;
         opacity: 1;
+        transition: opacity .12s ease, color .12s ease, width 0s linear, min-width 0s linear, visibility 0s linear;
       }
     }
     @media (prefers-reduced-motion: reduce) {

@@ -317,8 +317,12 @@ describe("verse groups inbox", () => {
     expect(controls.slice(0, 900)).toContain("min-width: 0;");
     expect(controls).toContain(".verse-group .att-item:hover .verse-star");
     expect(controls).toContain(".verse-group .att-item:hover .att-remove");
-    expect(controls).toContain("transition: opacity .12s ease, color .12s ease;");
+    expect(controls).toContain("transition: opacity .12s ease, color .12s ease, width 0s linear, min-width 0s linear, visibility 0s linear;");
+    expect(controls).toContain("width 0s linear .16s");
+    expect(controls).toContain("min-width 0s linear .16s");
+    expect(controls).toContain("padding-right 0s linear .16s");
     expect(controls).not.toContain("transition: width");
+    expect(controls).not.toMatch(/width\s+\d*\.?\d+s\s+ease/);
     expect(controls).toContain('.verse-group .verse-star[aria-pressed="true"] {\n        width: 1.35rem;\n        min-width: 1.35rem;');
     expect(controls).toContain(".verse-group .att-item:hover .verse-star,\n      .verse-group .att-item:hover .att-remove");
     expect(controls).toContain("padding-right: .12rem;");
