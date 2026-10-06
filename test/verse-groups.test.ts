@@ -264,8 +264,8 @@ describe("verse groups inbox", () => {
     expect(css).toContain(".verse-group .att-remove");
     expect(css).toContain('.verse-group-form input[name="title"] {\n      font-weight: 600;');
     expect(css).toContain(".verse-group-fields {\n      display: flex;\n      flex-direction: column;");
-    expect(css).toContain(".verse-group[open] > summary.note-row {\n      background: transparent;");
-    expect(css).not.toContain(".verse-group[open] > summary.note-row {\n      background: var(--ink);");
+    expect(css).toContain(".verse-group[open] > summary.note-row {\n      background: var(--ink);\n      color: var(--paper);");
+    expect(css).not.toContain(".verse-group[open] > summary .note-row-title,\n    .verse-group[open] > summary .note-row-excerpt { display: none; }");
     const titleRule = css.slice(
       css.indexOf('.verse-group-form input[name="title"] {'),
       css.indexOf('.verse-group-form input[name="title"]::placeholder'),
@@ -273,7 +273,8 @@ describe("verse groups inbox", () => {
     expect(titleRule).not.toContain("paper-raised");
     expect(css).toContain("background: color-mix(in srgb, var(--ink) 8%, transparent);");
     expect(css).toContain("textarea.verse-group-description::placeholder {\n      color: var(--faint);");
-    expect(css).toContain("textarea.verse-group-description:focus,\n    .verse-group-form textarea.verse-group-description:not(:placeholder-shown)");
+    expect(css).toContain("textarea.verse-group-description {\n      display: block;\n      resize: vertical;");
+    expect(css).not.toContain("textarea.verse-group-description:focus");
     expect(css).not.toContain(".verse-group-description > summary");
     expect(css).not.toContain(".verse-group-optional");
     const coarse = css.slice(css.indexOf("@media (hover: none), (pointer: coarse)"));

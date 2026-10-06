@@ -1289,32 +1289,23 @@ export function page(title: string, body: string): string {
     }
     .verse-group > summary.note-row::-webkit-details-marker { display: none; }
     .verse-group > summary.note-row::marker { content: ""; }
-    /* Closed, the row stays a bookmark. Open, the hub ref is a plain label
-       and the fields nest under the same light side rail as a week. */
+    /* Closed, the row stays a bookmark. Open, the same row inverts ink and
+       paper. Padding stays the bookmark indent. */
     .verse-group-hub { display: none; }
     .verse-group[open] > summary.note-row {
-      background: transparent;
-      min-height: 0;
-      padding: .2rem .45rem .05rem;
+      background: var(--ink);
+      color: var(--paper);
     }
     .verse-group[open] > summary .note-row-title,
-    .verse-group[open] > summary .note-row-excerpt { display: none; }
-    .verse-group[open] > summary .verse-group-hub {
-      display: block;
-      min-width: 0;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-      color: var(--ink);
-      font-weight: 700;
-      font-size: .95rem;
-      letter-spacing: -.015em;
+    .verse-group[open] > summary .note-row-excerpt {
+      color: var(--paper);
     }
     .bookmarks-panel .note-list .verse-group[open] > summary.note-row:hover,
     .bookmarks-panel .note-list .verse-group[open] > summary.note-row:focus-visible,
     .note-list .verse-group[open] > summary.note-row:hover,
     .note-list .verse-group[open] > summary.note-row:focus-visible {
-      background: transparent;
+      background: var(--ink);
+      color: var(--paper);
     }
     .verse-group-form { display: flex; flex-direction: column; gap: .35rem; margin: 0; padding: .1rem .35rem .15rem; }
     .verse-group-fields {
@@ -1347,8 +1338,8 @@ export function page(title: string, body: string): string {
     }
     .verse-group-form textarea.verse-group-description {
       display: block;
-      resize: none;
-      overflow: hidden;
+      resize: vertical;
+      overflow: auto;
       border-radius: .35rem;
       background: color-mix(in srgb, var(--ink) 8%, transparent);
       color: var(--ink-soft);
@@ -1360,10 +1351,6 @@ export function page(title: string, body: string): string {
       color: var(--faint);
       font-weight: 400;
       font-size: .78rem;
-    }
-    .verse-group-form textarea.verse-group-description:focus,
-    .verse-group-form textarea.verse-group-description:not(:placeholder-shown) {
-      min-height: 4.2rem;
     }
     .verse-group-verses {
       display: flex;

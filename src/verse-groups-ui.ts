@@ -252,27 +252,14 @@ export function verseGroupsScript(): string {
     var target = event.target;
     if (!target || !target.closest) return;
     if (target.name !== "title" && target.name !== "description") return;
-    if (target.name === "description") fitDescription(target);
     var card = target.closest(".verse-group");
     if (card) scheduleSave(card);
   });
-
-  panel.addEventListener("focusin", function (event) {
-    var target = event.target;
-    if (target && target.name === "description") fitDescription(target);
-  });
-
-  panel.addEventListener("toggle", function (event) {
-    var card = event.target;
-    if (!card || !card.classList || !card.classList.contains("verse-group") || !card.open) return;
-    fitDescription(card.querySelector("textarea[name=description]"));
-  }, true);
 
   panel.addEventListener("focusout", function (event) {
     var target = event.target;
     if (!target || !target.closest) return;
     if (target.name !== "title" && target.name !== "description") return;
-    if (target.name === "description") fitDescription(target);
     var card = target.closest(".verse-group");
     if (!card || !card._saveTimer) return;
     clearTimeout(card._saveTimer);
@@ -289,19 +276,6 @@ export function verseGroupsScript(): string {
     if (card._saveTimer) { clearTimeout(card._saveTimer); card._saveTimer = 0; }
     post(card, "save", null, { quiet: true });
   });
-
-  function fitDescription(el) {
-    if (!el || el.name !== "description") return;
-    var open = document.activeElement === el || String(el.value || "").length > 0;
-    if (!open) {
-      el.style.height = "";
-      return;
-    }
-    if (!el.offsetParent) return;
-    el.style.height = "auto";
-    var next = el.scrollHeight;
-    if (next > 0) el.style.height = next + "px";
-  }
 
   function scheduleSave(card) {
     if (card._saveTimer) clearTimeout(card._saveTimer);
