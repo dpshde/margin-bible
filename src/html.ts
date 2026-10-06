@@ -1780,23 +1780,11 @@ export function page(title: string, body: string): string {
       visibility: hidden;
       opacity: 0;
       cursor: pointer;
-      transition: width .12s ease, min-width .12s ease, opacity .12s ease, color .12s ease;
+      /* Width stays put. Hover only fades the controls, so siblings and the paperclip do not reflow. */
+      transition: opacity .12s ease, color .12s ease;
     }
     @media (hover: hover) and (pointer: fine) {
-      .verse-group .att-chip { padding-right: .42rem; }
-      .verse-group .att-item:has(.verse-star[aria-pressed="true"]) .att-chip,
-      .verse-group .att-item:hover .att-chip,
-      .verse-group .att-item:focus-within .att-chip { padding-right: .12rem; }
-      .verse-group .verse-star,
-      .verse-group .att-remove {
-        width: 0;
-        min-width: 0;
-        overflow: hidden;
-      }
       .verse-group .verse-star[aria-pressed="true"] {
-        width: 1.35rem;
-        min-width: 1.35rem;
-        overflow: visible;
         visibility: visible;
         opacity: 1;
       }
@@ -1806,9 +1794,6 @@ export function page(title: string, body: string): string {
       .verse-group .att-item:focus-within .att-remove,
       .verse-group .verse-star:focus-visible,
       .verse-group .att-remove:focus-visible {
-        width: 1.35rem;
-        min-width: 1.35rem;
-        overflow: visible;
         visibility: visible;
         opacity: 1;
       }
