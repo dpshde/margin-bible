@@ -40,9 +40,8 @@ import {
 } from "./passkeys";
 import { chapterSlug, createPassage, lazyChapterNotes, parsePassage, passageLabel, passageSlug, type Passage } from "./passage";
 import { renderChapterPage, renderMissing, renderNotesIndex } from "./reader-page";
-import { applySuggestedTopic } from "./jev-topics";
+import { seedPreviewVerseGroups } from "./preview-seed";
 import { handleVerseGroupAction, loadVerseGroups } from "./verse-groups-store";
-import type { VerseGroupView } from "./verse-groups";
 import { verseGroupCardHtml } from "./verse-groups-ui";
 import type { ChapterPack } from "./usj";
 import { ensureBidirectionalXrefs, syncBidirectionalXrefs } from "./xref-sync";
@@ -67,6 +66,8 @@ export type Env = {
   HIDDEN_ARROW_BASE_URL?: string;
   /** Server-only Hidden Arrow search key. Never sent to the browser. */
   HIDDEN_ARROW_SEARCH_KEY?: string;
+  /** Preview worker only. Guest libraries with no web get a few real hubs. */
+  PREVIEW_SEED?: string;
 };
 
 type Variables = {
@@ -135,7 +136,7 @@ app.use("*", async (c, next) => {
   }
 });
 
-app.get("/health", (c) => c.json({ ok: true, app: "margin-bible", version: "2026.10.06.2" }));
+app.get("/health", (c) => c.json({ ok: true, app: "margin-bible", version: "2026.10.06.3" }));
 
 app.get("/manifest.webmanifest", () => manifestResponse());
 app.get("/manifest.json", () => manifestResponse());
@@ -425,9 +426,9 @@ app.get("/notes", async (c) => {
       .prepare("SELECT last_read_slug FROM libraries WHERE id = ?")
       .bind(libraryId)
       .first<{ last_read_slug: string | null }>(),
-    listNotes(c.env.DB, libraryId),
+    notesForInbox(c),
   ]);
-  const verseGroups = await groupsWithTopics(c.env.ASSETS, await loadVerseGroups(c.env.DB, libraryId, notes));
+  const verseGroups = await loadVerseGroups(c.env.DB, libraryId, notes);
   return c.html(
     renderNotesIndex(notes, safeBack(library?.last_read_slug || "jhn.1"), {
       signedIn: c.get("signedIn"),
@@ -440,8 +441,8 @@ app.get("/notes", async (c) => {
 
 app.get("/api/verse-groups", async (c) => {
   const libraryId = c.get("libraryId");
-  const notes = await listNotes(c.env.DB, libraryId);
-  const groups = await groupsWithTopics(c.env.ASSETS, await loadVerseGroups(c.env.DB, libraryId, notes));
+  const notes = await notesForInbox(c);
+  const groups = await loadVerseGroups(c.env.DB, libraryId, notes);
   c.header("cache-control", "private, no-store");
   return c.json({ ok: true, groups });
 });
@@ -643,33 +644,14 @@ async function servePwaIcon(c: AppContext): Promise<Response> {
   });
 }
 
-async function groupsWithTopics(assets: Fetcher, groups: VerseGroupView[]): Promise<VerseGroupView[]> {
-  const next: VerseGroupView[] = [];
-  for (const group of groups) {
-    if (group.title.trim()) {
-      next.push(group);
-      continue;
-    }
-    const texts: string[] = [];
-    for (const member of group.members) {
-      const text = await memberVerseText(assets, member.slug);
-      if (text) texts.push(text);
-    }
-    next.push(texts.length ? applySuggestedTopic(group, texts) : group);
+async function notesForInbox(c: AppContext): Promise<Awaited<ReturnType<typeof listNotes>>> {
+  const libraryId = c.get("libraryId");
+  let notes = await listNotes(c.env.DB, libraryId);
+  if (c.env.PREVIEW_SEED === "1" && !c.get("signedIn")) {
+    const seeded = await seedPreviewVerseGroups(c.env.DB, libraryId, notes);
+    if (seeded) notes = await listNotes(c.env.DB, libraryId);
   }
-  return next;
-}
-
-async function memberVerseText(assets: Fetcher, slug: string): Promise<string> {
-  const passage = parsePassage(slug);
-  if (!passage || passage.verseStart == null) return "";
-  const pack = await loadChapter(assets, passage);
-  if (!pack) return "";
-  const end = passage.verseEnd ?? passage.verseStart;
-  return pack.verses
-    .filter((verse) => verse.v >= passage.verseStart! && verse.v <= end)
-    .map((verse) => verse.text)
-    .join(" ");
+  return notes;
 }
 
 async function loadChapter(assets: Fetcher, passage: Passage): Promise<ChapterPack | null> {

@@ -1289,39 +1289,7 @@ export function page(title: string, body: string): string {
     }
     .verse-group > summary.note-row::-webkit-details-marker { display: none; }
     .verse-group > summary.note-row::marker { content: ""; }
-    .verse-group-guess {
-      margin: 0;
-      color: var(--faint);
-      font-size: .78rem;
-      font-weight: 400;
-    }
-    .verse-group-form { display: flex; flex-direction: column; gap: .45rem; margin: 0; padding: 0 .7rem .75rem; }
-    .verse-group-title-row { display: flex; align-items: center; gap: .35rem; }
-    .verse-group-title-row input { flex: 1 1 auto; }
-    .verse-group-topic-toggle {
-      flex: 0 0 auto;
-      border: 0;
-      background: transparent;
-      color: var(--muted);
-      font: 600 .75rem/1.2 var(--sans);
-      min-height: var(--tap);
-      padding: 0 .35rem;
-      cursor: pointer;
-    }
-    .verse-group-topics[hidden],
-    .verse-group-topic-parents[hidden],
-    .verse-group-topic-children[hidden] { display: none !important; }
-    .verse-group-topic-row { display: flex; flex-wrap: wrap; align-items: center; gap: .3rem; }
-    .verse-group-topic {
-      appearance: none;
-      border: 1px solid var(--line);
-      border-radius: 999px;
-      background: var(--paper-raised);
-      color: var(--ink-soft);
-      font: 500 .7rem/1.25 var(--sans);
-      padding: .1rem .5rem;
-      cursor: pointer;
-    }
+    .verse-group-form { display: flex; flex-direction: column; gap: .35rem; margin: 0; padding: .1rem .55rem .15rem; }
     .verse-group-description { margin: 0; }
     .verse-group-description > summary {
       cursor: pointer;
@@ -1351,19 +1319,8 @@ export function page(title: string, body: string): string {
     }
     .verse-group-verses .att-board { flex: 1 1 auto; margin: 0; }
     .verse-group-verses .tray-attach { color: var(--ink-soft); }
-    .verse-group-save {
-      align-self: flex-start;
-      font: 600 .82rem/1.2 var(--sans);
-      min-height: var(--tap);
-      padding: .35rem .75rem;
-      border-radius: .45rem;
-      border: 0;
-      background: var(--paper);
-      color: var(--ink);
-      cursor: pointer;
-    }
-    .verse-group-status { min-height: 1.2em; margin: 0; color: var(--muted); font-size: .8rem; font-weight: 400; }
-    .verse-group-save:focus-visible { outline: 2px solid var(--sel-rail-open); outline-offset: 2px; }
+    .verse-group-status { margin: 0; color: var(--muted); font-size: .8rem; font-weight: 400; }
+    .verse-group-status:empty { display: none; }
     /* Light side rails make each week one frame, not a stack of cards.
        Weeks stack flush so the rails do not break into a borderless gap. */
     .note-week {
@@ -1382,8 +1339,6 @@ export function page(title: string, body: string): string {
       letter-spacing: .08em; text-transform: uppercase;
     }
     .note-list { list-style: none; padding: 0; margin: 0; }
-    .note-list li { border-top: 1px solid var(--line); }
-    .note-week .note-list li:first-child { border-top: 0; }
     .note-list .note-row {
       display: flex; align-items: baseline; gap: .5rem; min-width: 0;
       padding: .95rem .7rem; overflow: hidden; text-decoration: none;

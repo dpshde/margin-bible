@@ -22,6 +22,7 @@ import {
   type GroupNote,
 } from "../src/verse-groups";
 import { closestJevTopic, DEMO_VERSE_TEXTS, JEV_TOPICS } from "../src/jev-topics";
+import { previewSeedNeeded, previewSeedNotes } from "../src/preview-seed";
 import { verseGroupCardHtml, verseGroupsScript } from "../src/verse-groups-ui";
 
 function xref(slug: string, source: "manual" | "scan" | "backlink" = "manual"): Attachment {
@@ -201,6 +202,25 @@ describe("preview worker publish", () => {
   });
 });
 
+describe("preview guest seed", () => {
+  test("five star notes become five webs and an existing web skips another seed", () => {
+    const notes = previewSeedNotes();
+    expect(notes).toHaveLength(5);
+    const groups = realVerseGroups(notes);
+    expect(groups.map((group) => group.hub).sort()).toEqual([
+      "eph.2.8",
+      "jhn.1.1",
+      "mat.5.3",
+      "psa.23.1",
+      "rom.8.28",
+    ]);
+    expect(groups.every((group) => group.sample === false)).toBe(true);
+    expect(groups.find((group) => group.hub === "rom.8.28")?.members.length).toBeGreaterThanOrEqual(3);
+    expect(previewSeedNeeded(notes)).toBe(false);
+    expect(previewSeedNeeded([])).toBe(true);
+  });
+});
+
 describe("local topic guess", () => {
   test("keyword scoring on the seed passages lands on Providence, under God", () => {
     const match = closestJevTopic(DEMO_VERSE_TEXTS);
@@ -250,25 +270,25 @@ describe("verse groups inbox", () => {
     nodeCheck(verseGroupsScript());
   });
 
-  test("a library web collapses like a bookmark and keeps the guess out of the title", () => {
+  test("a library web collapses like a bookmark and keeps the title field empty until typed", () => {
     const html = renderNotesIndex([], "jhn.1", {
       verseGroups: [
         {
-          hub: "rom.9.17",
-          hubLabel: "Romans 9:17",
+          hub: "rom.8.28",
+          hubLabel: "Romans 8:28",
           title: "",
           description: "",
           members: [
-            { slug: "rom.9.17", label: "Romans 9:17", role: "hub" },
-            { slug: "1pe.5.6", label: "1 Peter 5:6", role: "member" },
-            { slug: "est.4.14", label: "Esther 4:14", role: "member" },
+            { slug: "rom.8.28", label: "Romans 8:28", role: "hub" },
+            { slug: "rom.8.31", label: "Romans 8:31", role: "member" },
+            { slug: "rom.8.38", label: "Romans 8:38", role: "member" },
           ],
-          trigger: "fan-in",
-          inboundCount: 2,
-          outboundCount: 0,
-          why: "2 notes point at Romans 9:17.",
+          trigger: "star",
+          inboundCount: 0,
+          outboundCount: 2,
+          why: "This note points at 2 verses.",
           sample: false,
-          seed: true,
+          seed: false,
           missingPairs: [],
           missingCount: 0,
           undoReady: false,
@@ -279,29 +299,23 @@ describe("verse groups inbox", () => {
     });
     expect(html).toContain('class="verse-group"');
     expect(html).toContain('<summary class="note-row">');
-    expect(html).toContain(">Romans 9:17</span>");
-    expect(html).toContain("local topic guess · Providence");
+    expect(html).toContain(">Romans 8:28</span>");
     expect(html).toContain('value=""');
-    expect(html).toContain('placeholder="Providence"');
-    expect(html).toContain("local topic guess");
-    expect(html).not.toContain('value="Providence"');
+    expect(html).toContain('placeholder="Title"');
+    expect(html).not.toContain("local topic guess");
+    expect(html).not.toContain("Providence");
+    expect(html).not.toContain("data-vg-topics");
+    expect(html).not.toContain("verse-group-save");
+    expect(html).not.toContain(">Save</button>");
+    expect(html).not.toContain("Save sample");
     expect(html).toContain('class="verse-group-description"');
     expect(html).not.toContain('class="verse-group-description" open');
-    expect(html).toContain(">Save</button>");
-    expect(html).not.toContain("Save sample");
-    const panel = html.slice(html.indexOf('id="verse-groups-panel"'));
-    const parents = panel.slice(panel.indexOf("verse-group-topic-parents"), panel.indexOf("verse-group-topic-children"));
-    expect(parents).toContain(">God</button>");
-    expect(parents).toContain(">Character</button>");
-    expect(parents).toContain(">Life</button>");
-    expect(parents).not.toContain("Providence");
-    expect(html).toContain('data-parent="god" hidden');
-    expect(html).toContain('data-vg-topic-child="Providence"');
+    expect(html).toContain("scheduleSave");
     expect(html).toContain('class="att-chip wiki"');
     expect(html).toContain('data-vg-attach');
-    expect(html).toContain("1 Peter 5:6");
-    expect(html).toContain("Esther 4:14");
-    expect(html).not.toContain('<details class="verse-group" data-hub="rom.9.17" data-sample="0" data-seed="1" open');
+    expect(html).toContain("Romans 8:31");
+    expect(html).toContain('data-hub="rom.8.28"');
+    expect(html).not.toMatch(/<details class="verse-group"[^>]*open/);
   });
 
   test("a real fan-in card escapes the title and is not marked sample", () => {
@@ -328,7 +342,8 @@ describe("verse groups inbox", () => {
     expect(html).not.toContain("<script>alert");
     expect(html).toContain("&lt;script&gt;");
     expect(html).toContain('class="verse-group-description" open');
-    expect(html).toContain(">Save</button>");
+    expect(html).not.toContain("verse-group-save");
+    expect(html).not.toContain(">Save</button>");
     expect(html).not.toContain("Save sample");
     expect(html).toContain('<summary class="note-row">');
     expect(html).toContain('value="&lt;script&gt;alert(&quot;x&quot;)&lt;/script&gt;"');

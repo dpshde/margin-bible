@@ -3,7 +3,6 @@
  * Each web is a bookmark row that opens onto its member chips.
  */
 import { escapeHtml } from "./html";
-import { JEV_TOPICS } from "./jev-topics";
 import type { VerseGroupMember, VerseGroupView } from "./verse-groups";
 import { hrefForXref } from "./xref";
 
@@ -18,21 +17,13 @@ export function verseGroupCardHtml(group: VerseGroupView, status = ""): string {
   const field = group.hub.replaceAll(".", "-");
   const chips = group.members.map((member) => verseChipHtml(member)).join("");
   const saved = group.title.trim();
-  const guess = (group.suggestedTitle ?? "").trim();
   const rowTitle = saved || group.hubLabel;
-  const excerpt = !saved && guess ? `local topic guess · ${guess}` : saved && saved !== group.hubLabel ? group.hubLabel : "";
-  const placeholder = guess || "Name this web";
-  const guessCaption = !saved && guess ? `<p class="verse-group-guess">local topic guess</p>` : "";
+  const excerpt = saved && saved !== group.hubLabel ? group.hubLabel : "";
   const descriptionOpen = group.description.trim() ? " open" : "";
-  return `<details class="verse-group" data-hub="${escapeHtml(group.hub)}" data-sample="${group.sample ? "1" : "0"}" data-seed="${group.seed ? "1" : "0"}">
+  return `<details class="verse-group" data-hub="${escapeHtml(group.hub)}" data-hub-label="${escapeHtml(group.hubLabel)}" data-sample="${group.sample ? "1" : "0"}" data-seed="${group.seed ? "1" : "0"}">
   <summary class="note-row"><span class="note-row-title">${escapeHtml(rowTitle)}</span>${excerpt ? `<span class="note-row-excerpt">${escapeHtml(excerpt)}</span>` : ""}</summary>
   <form class="verse-group-form">
-    <div class="verse-group-title-row">
-      <input id="vg-title-${field}" name="title" value="${escapeHtml(saved)}" placeholder="${escapeHtml(placeholder)}" maxlength="120" autocomplete="off" aria-label="Title">
-      <button type="button" class="verse-group-topic-toggle" data-vg-topics aria-expanded="false">Topics</button>
-    </div>
-    ${guessCaption}
-    ${topicPickerHtml(group.topicParent)}
+    <input id="vg-title-${field}" name="title" value="${escapeHtml(saved)}" placeholder="Title" maxlength="120" autocomplete="off" aria-label="Title">
     <details class="verse-group-description"${descriptionOpen}>
       <summary>Description <span class="verse-group-optional">optional</span></summary>
       <textarea id="vg-description-${field}" name="description" rows="2" maxlength="2000" placeholder="What holds these together?" aria-label="Description">${escapeHtml(group.description)}</textarea>
@@ -41,30 +32,9 @@ export function verseGroupCardHtml(group: VerseGroupView, status = ""): string {
       <ul class="att-board">${chips}</ul>
       <button type="button" class="tray-attach" data-vg-attach aria-label="Attach a link or passage" title="Attach">${iconPaperclip()}</button>
     </div>
-    <button type="submit" class="verse-group-save">Save</button>
     <p class="verse-group-status" role="status">${escapeHtml(status)}</p>
   </form>
 </details>`;
-}
-
-function topicPickerHtml(nearestParent: string | undefined): string {
-  const parents = JEV_TOPICS.map((parent) => {
-    const current = parent.id === nearestParent ? ` aria-current="true"` : "";
-    return `<button type="button" class="verse-group-topic" data-vg-topic-parent="${escapeHtml(parent.id)}"${current}>${escapeHtml(parent.label)}</button>`;
-  }).join("");
-  const children = JEV_TOPICS.map((parent) => {
-    const kids = parent.children
-      .map(
-        (child) =>
-          `<button type="button" class="verse-group-topic" data-vg-topic-child="${escapeHtml(child.label)}">${escapeHtml(child.label)}</button>`,
-      )
-      .join("");
-    return `<div class="verse-group-topic-children verse-group-topic-row" data-parent="${escapeHtml(parent.id)}" hidden><button type="button" class="verse-group-topic" data-vg-topic-back>Back</button>${kids}</div>`;
-  }).join("");
-  return `<div class="verse-group-topics" hidden>
-    <div class="verse-group-topic-parents verse-group-topic-row">${parents}</div>
-    ${children}
-  </div>`;
 }
 
 export function verseGroupsScript(): string {
@@ -270,40 +240,6 @@ export function verseGroupsScript(): string {
       openDialog(card);
       return;
     }
-    if (target.closest("[data-vg-topics]")) {
-      event.preventDefault();
-      var box = card.querySelector(".verse-group-topics");
-      var toggle = card.querySelector("[data-vg-topics]");
-      if (!box) return;
-      var show = box.hasAttribute("hidden");
-      if (show) box.removeAttribute("hidden");
-      else box.setAttribute("hidden", "");
-      if (toggle) toggle.setAttribute("aria-expanded", show ? "true" : "false");
-      showTopicParents(card);
-      return;
-    }
-    var parentBtn = target.closest("[data-vg-topic-parent]");
-    if (parentBtn) {
-      event.preventDefault();
-      showTopicChildren(card, parentBtn.getAttribute("data-vg-topic-parent"));
-      return;
-    }
-    if (target.closest("[data-vg-topic-back]")) {
-      event.preventDefault();
-      showTopicParents(card);
-      return;
-    }
-    var childBtn = target.closest("[data-vg-topic-child]");
-    if (childBtn) {
-      event.preventDefault();
-      var titleInput = card.querySelector("input[name=title]");
-      if (titleInput) titleInput.value = childBtn.getAttribute("data-vg-topic-child") || "";
-      var topicBox = card.querySelector(".verse-group-topics");
-      if (topicBox) topicBox.setAttribute("hidden", "");
-      var topicToggle = card.querySelector("[data-vg-topics]");
-      if (topicToggle) topicToggle.setAttribute("aria-expanded", "false");
-      return;
-    }
     var remove = target.closest(".att-remove");
     if (remove) {
       event.preventDefault();
@@ -314,30 +250,62 @@ export function verseGroupsScript(): string {
     }
   });
 
-  function showTopicParents(card) {
-    var parents = card.querySelector(".verse-group-topic-parents");
-    if (parents) parents.removeAttribute("hidden");
-    var lists = card.querySelectorAll(".verse-group-topic-children");
-    for (var i = 0; i < lists.length; i++) lists[i].setAttribute("hidden", "");
-  }
+  panel.addEventListener("input", function (event) {
+    var target = event.target;
+    if (!target || !target.closest) return;
+    if (target.name !== "title" && target.name !== "description") return;
+    var card = target.closest(".verse-group");
+    if (card) scheduleSave(card);
+  });
 
-  function showTopicChildren(card, parentId) {
-    var parents = card.querySelector(".verse-group-topic-parents");
-    if (parents) parents.setAttribute("hidden", "");
-    var lists = card.querySelectorAll(".verse-group-topic-children");
-    for (var i = 0; i < lists.length; i++) {
-      if (lists[i].getAttribute("data-parent") === parentId) lists[i].removeAttribute("hidden");
-      else lists[i].setAttribute("hidden", "");
-    }
-  }
+  panel.addEventListener("focusout", function (event) {
+    var target = event.target;
+    if (!target || !target.closest) return;
+    if (target.name !== "title" && target.name !== "description") return;
+    var card = target.closest(".verse-group");
+    if (!card || !card._saveTimer) return;
+    clearTimeout(card._saveTimer);
+    card._saveTimer = 0;
+    post(card, "save", null, { quiet: true });
+  });
 
   panel.addEventListener("submit", function (event) {
     var form = event.target;
     if (!form || !form.closest) return;
     event.preventDefault();
     var card = form.closest(".verse-group");
-    if (card) post(card, "save");
+    if (!card) return;
+    if (card._saveTimer) { clearTimeout(card._saveTimer); card._saveTimer = 0; }
+    post(card, "save", null, { quiet: true });
   });
+
+  function scheduleSave(card) {
+    if (card._saveTimer) clearTimeout(card._saveTimer);
+    card._saveTimer = setTimeout(function () {
+      card._saveTimer = 0;
+      post(card, "save", null, { quiet: true });
+    }, 400);
+  }
+
+  function paintTitle(card) {
+    var input = card.querySelector("input[name=title]");
+    var title = input ? String(input.value || "").replace(/\\s+/g, " ").trim() : "";
+    var hubLabel = card.getAttribute("data-hub-label") || "";
+    var titleEl = card.querySelector(".note-row-title");
+    if (titleEl) titleEl.textContent = title || hubLabel;
+    var summary = card.querySelector("summary.note-row");
+    var excerpt = summary && summary.querySelector(".note-row-excerpt");
+    if (title && hubLabel && title !== hubLabel) {
+      if (!excerpt && summary) {
+        excerpt = document.createElement("span");
+        excerpt.className = "note-row-excerpt";
+        summary.appendChild(excerpt);
+      }
+      if (excerpt) excerpt.textContent = hubLabel;
+    } else if (excerpt) {
+      excerpt.remove();
+    }
+  }
 
   if (dialog) {
     dialog.addEventListener("click", function (event) {
@@ -429,12 +397,22 @@ export function verseGroupsScript(): string {
   }
 
   function post(card, action, extra, opts) {
-    if (card.getAttribute("data-busy") === "1") return;
-    card.setAttribute("data-busy", "1");
+    var quiet = Boolean(opts && opts.quiet);
+    if (quiet) {
+      if (card.getAttribute("data-save-inflight") === "1") {
+        card.setAttribute("data-save-pending", "1");
+        return;
+      }
+      card.setAttribute("data-save-inflight", "1");
+    } else if (card.getAttribute("data-busy") === "1") {
+      return;
+    } else {
+      card.setAttribute("data-busy", "1");
+    }
     var hub = card.getAttribute("data-hub");
     var status = card.querySelector(".verse-group-status");
     var pending = action === "add-member" ? "Attaching…" : action === "remove-member" ? "Removing…" : "Saving…";
-    if (status && !(opts && opts.dialog)) status.textContent = pending;
+    if (status && !quiet && !(opts && opts.dialog)) status.textContent = pending;
     var body = { action: action, hub: hub };
     if (action === "save") {
       var form = card.querySelector(".verse-group-form");
@@ -460,9 +438,20 @@ export function verseGroupsScript(): string {
       var payload = result.payload || {};
       if (!result.ok || !payload.ok) {
         card.removeAttribute("data-busy");
+        card.removeAttribute("data-save-inflight");
         var message = payload.error || "Could not save.";
         if (opts && opts.dialog) showDialogError(message);
         else if (status) status.textContent = message;
+        return;
+      }
+      if (quiet) {
+        paintTitle(card);
+        if (status) status.textContent = "";
+        card.removeAttribute("data-save-inflight");
+        if (card.getAttribute("data-save-pending") === "1") {
+          card.removeAttribute("data-save-pending");
+          post(card, "save", null, { quiet: true });
+        }
         return;
       }
       try {
@@ -472,6 +461,7 @@ export function verseGroupsScript(): string {
       location.reload();
     }).catch(function () {
       card.removeAttribute("data-busy");
+      card.removeAttribute("data-save-inflight");
       if (opts && opts.dialog) showDialogError("Could not save.");
       else if (status) status.textContent = "Could not save.";
     });

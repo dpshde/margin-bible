@@ -45,7 +45,7 @@ mise exec -- cf deploy
 
 prod=$(curl -fsS -H "cache-control: no-cache" "https://margin-bible.dpshade.workers.dev/health" || true)
 printf '%s\n' "$prod"
-if printf '%s' "$prod" | grep -q '2026.10.06.2'; then
+if printf '%s' "$prod" | grep -q '2026.10.06.3'; then
   echo "production worker is serving this preview build" >&2
   exit 1
 fi
@@ -55,25 +55,42 @@ body=""
 while [ "$i" -lt 12 ]; do
   body=$(curl -fsS -H "cache-control: no-cache" "$preview_url/health" || true)
   printf '%s\n' "$body"
-  if printf '%s' "$body" | grep -q '2026.10.06.2'; then
+  if printf '%s' "$body" | grep -q '2026.10.06.3'; then
     break
   fi
   i=$((i + 1))
   sleep 3
 done
-printf '%s' "$body" | grep -q '2026.10.06.2'
+printf '%s' "$body" | grep -q '2026.10.06.3'
 
 notes=$(curl -fsS -A "Mozilla/5.0" -H "cache-control: no-cache" "$preview_url/notes")
 printf '%s' "$notes" | grep -q 'id="verse-groups-view"'
 printf '%s' "$notes" | grep -q 'id="bookmarks-view"'
-printf '%s' "$notes" | grep -q 'No verse groups yet — link 2+ notes to a hub'
 printf '%s' "$notes" | grep -q 'class="bookmarks-view"'
+if printf '%s' "$notes" | grep -q 'data-hub="rom.8.28"'; then
+  printf '%s' "$notes" | grep -q 'data-hub="jhn.1.1"'
+  printf '%s' "$notes" | grep -q 'data-hub="psa.23.1"'
+else
+  printf '%s' "$notes" | grep -q 'No verse groups yet — link 2+ notes to a hub'
+fi
 if printf '%s' "$notes" | grep -q 'verse-groups-btn'; then
   echo "verse groups still uses the side button" >&2
   exit 1
 fi
 if printf '%s' "$notes" | grep -q 'Save sample'; then
   echo "sample save is still in the preview" >&2
+  exit 1
+fi
+if printf '%s' "$notes" | grep -q 'local topic guess'; then
+  echo "topic guess copy is still in the preview" >&2
+  exit 1
+fi
+if printf '%s' "$notes" | grep -q 'verse-group-save'; then
+  echo "verse group Save button is still in the preview" >&2
+  exit 1
+fi
+if printf '%s' "$notes" | grep -q '.note-list li { border-top:'; then
+  echo "note list border is still in the preview" >&2
   exit 1
 fi
 if printf '%s' "$notes" | grep -q 'data-hub="rom.9.17"'; then
