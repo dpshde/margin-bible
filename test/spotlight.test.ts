@@ -182,7 +182,10 @@ describe("verse spotlight", () => {
     const range = renderChapterPage({ passage: parsePassage("jhn.3.16-18")!, pack, notes: [] });
     expect(range).toContain('document.getElementById("v18")');
     expect(range).toContain("dataset.placedScroll");
-    expect(renderChapterPage({ passage: parsePassage("jhn.3")!, pack, notes: [] })).not.toContain("dataset.placedScroll");
+    const chapter = renderChapterPage({ passage: parsePassage("jhn.3")!, pack, notes: [] });
+    expect(chapter).toContain("window.scrollTo(0, 0)");
+    expect(chapter).not.toContain('document.getElementById("v18")');
+    expect(chapter).toContain("dataset.placedScroll");
     expect(range).toMatch(/class="verse is-open is-span" id="v16"/);
     expect(range).toMatch(/class="verse is-open is-span" id="v17"/);
     expect(range).toMatch(/class="verse is-open is-span" id="v18"/);

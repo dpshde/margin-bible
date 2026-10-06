@@ -1,7 +1,7 @@
 #!/bin/sh
 # Publish this checkout as a separate Worker. Does not deploy `margin-bible`.
 # The D1 binding stays the production database. The worker creates `verse_groups`
-# on first use (CREATE TABLE IF NOT EXISTS) and adds star_slug when missing.
+# on first use (CREATE TABLE IF NOT EXISTS) and adds star_slug and external_refs when missing.
 set -eu
 
 preview_name="margin-bible-verse-groups"

@@ -42,12 +42,11 @@ export function noteIsEmpty(blocks: Array<{ text?: string }>, attachments: unkno
 export function parseAttachmentInput(raw: unknown): Attachment | null {
   const text = String(raw || "").trim();
   if (!text) return null;
-  const passage = parsePassageValue(text);
-  if (passage) return passage;
-  const fromUrl = parsePassageFromUrl(text);
-  if (fromUrl) return fromUrl;
+  // An http(s) link is an external ref. A typed passage is still an xref.
   const url = absoluteHttpUrl(text);
   if (url) return { id: newAttachmentId(), kind: "url", url, title: urlTitle(url), source: "manual" };
+  const passage = parsePassageValue(text);
+  if (passage) return passage;
   return null;
 }
 
@@ -202,26 +201,13 @@ function normalizeAttachment(row: unknown): Attachment | null {
 
 function parsePassageValue(input: string): Extract<Attachment, { kind: "xref" }> | null {
   const text = String(input || "").trim();
-  if (!text) return null;
-  if (!/\d/.test(text) && !/^https?:\/\//i.test(text)) return null;
+  if (!text || !/\d/.test(text)) return null;
   const parsed = tryParseAnyPassage(text);
   if (!parsed.ok) return null;
   const value = Array.isArray(parsed.value) ? parsed.value[0] : parsed.value;
   const slug = String(value?.canonical || "").toLowerCase();
   if (!slug) return null;
   return { id: newAttachmentId(), kind: "xref", slug, title: slugLabel(slug), source: "manual" };
-}
-
-function parsePassageFromUrl(input: string): Extract<Attachment, { kind: "xref" }> | null {
-  const url = absoluteHttpUrl(input);
-  if (!url) return null;
-  let path = "";
-  try {
-    path = new URL(url).pathname.replace(/^\/+/, "");
-  } catch {
-    return null;
-  }
-  return parsePassageValue(path);
 }
 
 function absoluteHttpUrl(value: string): string | null {

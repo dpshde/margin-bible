@@ -99,7 +99,7 @@ export function renderChapterPage(input: {
   const notesPreload = notesPending
     ? `<link rel="preload" href="/api/notes?chapter=${escapeHtml(chapSlug)}" as="fetch" crossorigin="use-credentials">\n`
     : "";
-  const body = `${bootChapterTopScript(chapterNoteOpen && bootOpen == null)}<link rel="prefetch" href="/notes" as="document">
+  const body = `${bootArrivalScrollScript(bootOpen)}<link rel="prefetch" href="/notes" as="document">
 <link rel="prefetch" href="/api/notes" as="fetch" crossorigin="use-credentials">
 ${notesPreload}${prefetchLinks}
 <script type="speculationrules">{"prefetch":[{"urls":${speculateUrls},"eagerness":"eager"}]}</script>
@@ -173,8 +173,7 @@ ${chapterGridHtml(passage.book, passage.chapter)}
   </form>
 </dialog>
 </div>
-${bootChapterTopScript(chapterNoteOpen && bootOpen == null)}
-${bootVerseScrollScript(bootOpen)}
+${bootArrivalScrollScript(bootOpen)}
 <script id="notes-data" type="application/json">${JSON.stringify(notesPayload).replace(/</g, "\\u003c")}</script>
 <script>
 ${clientScript()}
@@ -242,31 +241,44 @@ ${verseGroupsScript()}
 
 const VERSE_RAIL_DOTS = 28;
 
-/** A chapter opened for its note must start at the top. Soft-nav keeps the notes-list scroll, so the new document resets it. */
-function bootChapterTopScript(open: boolean): string {
-  if (!open) return "";
+/**
+ * Chapter navigations start at the top. Soft-nav keeps the previous scroll,
+ * and the browser restores a saved offset, so the new document pins the top
+ * unless the address names a verse.
+ * Emitted twice: once before the chapter (so a chapter hop does not paint
+ * mid-page) and once after the verses exist (so a verse address can measure).
+ */
+function bootArrivalScrollScript(bootVerse: number | null): string {
+  const pinned = bootVerse != null ? `document.getElementById("v${bootVerse}")` : "null";
   return `<script>
 (function () {
-  if (history.scrollRestoration) history.scrollRestoration = "manual";
-  window.scrollTo(0, 0);
-})();
-</script>`;
-}
-
-/** Place a verse URL before first paint. The async reader loads after this, so it must not start at the top. */
-function bootVerseScrollScript(bootVerse: number | null): string {
-  if (bootVerse == null) return "";
-  return `<script>
-(function () {
-  if (history.scrollRestoration) history.scrollRestoration = "manual";
-  var el = document.getElementById("v${bootVerse}");
-  if (!el) return;
-  var press = el.querySelector(".verse-press") || el;
-  var rect = press.getBoundingClientRect();
-  var target = (window.scrollY || 0) + rect.top + rect.height / 2 - (window.innerHeight || 0) / 2;
-  if (target < 0) target = 0;
-  window.scrollTo(0, target);
-  document.documentElement.dataset.placedScroll = String(Math.round(target));
+  function placeArrival() {
+    if (history.scrollRestoration) history.scrollRestoration = "manual";
+    var path = location.pathname.replace(/^\\/+/, "");
+    var named = /^[a-z0-9]+\\.\\d+\\.(\\d+)(?:-(\\d+))?/i.exec(path);
+    var el = ${pinned};
+    if (!el && named) el = document.getElementById("v" + (named[2] || named[1]));
+    if (el) {
+      var press = el.querySelector(".verse-press") || el;
+      var rect = press.getBoundingClientRect();
+      var target = (window.scrollY || 0) + rect.top + rect.height / 2 - (window.innerHeight || 0) / 2;
+      if (target < 0) target = 0;
+      window.scrollTo(0, target);
+      document.documentElement.dataset.placedScroll = String(Math.round(target));
+      return;
+    }
+    // Verse address, verses not in the document yet. Do not pin the top.
+    if (named) return;
+    window.scrollTo(0, 0);
+    // Restoration can land after this script. Pin again on the next frame.
+    requestAnimationFrame(function () {
+      var later = location.pathname.replace(/^\\/+/, "");
+      if (/^[a-z0-9]+\\.\\d+\\.\\d+/i.test(later)) return;
+      window.scrollTo(0, 0);
+    });
+  }
+  placeArrival();
+  window.addEventListener("pageshow", placeArrival);
 })();
 </script>`;
 }

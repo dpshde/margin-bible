@@ -305,6 +305,30 @@ describe("inbox Older chapter bundles in reader client", () => {
 });
 
 describe("attachment xref UX", () => {
+  test("http urls attach as external refs and are not parsed into xrefs", () => {
+    const source = clientScript();
+    const fn = source.slice(source.indexOf("function parseAttachmentInput"), source.indexOf("function normalizeAttachments"));
+    expect(fn.indexOf("absoluteHttpUrl")).toBeGreaterThan(-1);
+    expect(fn.indexOf("absoluteHttpUrl")).toBeLessThan(fn.indexOf("resolveWikiTarget"));
+    expect(fn).toContain('kind: "url"');
+    expect(fn).not.toContain("fromPath");
+  });
+
+  test("chapter soft-nav pins the window before write unless the address is a verse", () => {
+    const source = clientScript();
+    const inbox = notesInboxScript();
+    for (const script of [source, inbox]) {
+      const soft = script.slice(script.indexOf("async function softNavTo"));
+      expect(soft).toContain("Chapter arrival starts at the top.");
+      expect(soft.indexOf("window.scrollTo(0, 0)")).toBeGreaterThan(-1);
+      expect(soft.indexOf("window.scrollTo(0, 0)")).toBeLessThan(soft.indexOf("document.open()"));
+      expect(soft).toContain('history.scrollRestoration = "manual"');
+    }
+    const boot = source.slice(0, source.indexOf("await import"));
+    expect(boot).toContain("window.scrollTo(0, 0)");
+    expect(boot).toContain("arrivalPath");
+  });
+
   test("suggest hit attaches when passage parses (no second Enter)", () => {
     const source = clientScript();
     expect(source).toContain("async function applyAttHit(hit)");

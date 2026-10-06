@@ -3,7 +3,7 @@
  * Each web is a bookmark row that opens onto its member chips.
  */
 import { escapeHtml } from "./html";
-import type { VerseGroupMember, VerseGroupView } from "./verse-groups";
+import type { ExternalRef, VerseGroupMember, VerseGroupView } from "./verse-groups";
 import { hrefForXref } from "./xref";
 
 export function verseGroupsViewHtml(groups: readonly VerseGroupView[]): string {
@@ -16,7 +16,13 @@ export function verseGroupsViewHtml(groups: readonly VerseGroupView[]): string {
 export function verseGroupCardHtml(group: VerseGroupView, status = ""): string {
   const field = group.hub.replaceAll(".", "-");
   const star = group.star || "";
-  const chips = group.members.map((member, index) => verseChipHtml(member, member.slug === star, member.order ?? index)).join("");
+  const memberChips = group.members
+    .map((member, index) => verseChipHtml(member, member.slug === star, member.order ?? index))
+    .join("");
+  const linkChips = (group.externalRefs ?? [])
+    .map((ref, index) => externalRefChipHtml(ref, 10_000 + index))
+    .join("");
+  const chips = memberChips + linkChips;
   const saved = group.title.trim();
   const namedByJev = Boolean(group.titleFromJev && saved);
   const rowTitle = saved || group.hubLabel;
@@ -266,6 +272,11 @@ export function verseGroupsScript(): string {
       event.preventDefault();
       var item = remove.closest(".att-item");
       var chip = item && item.querySelector(".att-chip");
+      if (chip && chip.getAttribute("data-att-kind") === "url") {
+        var url = chip.getAttribute("data-att-url");
+        if (url) post(card, "remove-external", { url: url });
+        return;
+      }
       var slug = chip && chip.getAttribute("data-att-slug");
       if (slug) post(card, "remove-member", { slug: slug });
     }
@@ -602,6 +613,13 @@ export function verseGroupsScript(): string {
 })();`;
 }
 
+function externalRefChipHtml(ref: ExternalRef, order: number): string {
+  const id = escapeHtml(ref.id);
+  const title = escapeHtml(ref.title);
+  const url = escapeHtml(ref.url);
+  return `<li class="att-item" data-order="${order}"><a class="att-chip att-url" href="${url}" target="_blank" rel="noreferrer" data-att-id="${id}" data-att-kind="url" data-att-url="${url}" data-att-title="${title}" data-att-source="manual">${title}</a><button type="button" class="att-remove" data-att-id="${id}" aria-label="Remove attachment" title="Remove attachment">${iconX(12)}</button></li>`;
+}
+
 function verseChipHtml(member: VerseGroupMember, starred: boolean, order: number): string {
   const id = `vg_${member.slug.replaceAll(".", "_")}`;
   const title = escapeHtml(member.label);
@@ -620,7 +638,7 @@ function attachDialogHtml(): string {
     <div class="att-drop-zone" id="vg-att-drop-zone">
       <p class="att-drop-check" id="vg-att-drop-check" hidden>✓</p>
       <p class="att-drop-title" id="vg-att-drop-title">Drop a link. Or a passage.</p>
-      <p class="att-drop-sub" id="vg-att-drop-sub">Paste a URL, or type John 3:16. It stays on this note as a chip — not mixed into the outline.</p>
+      <p class="att-drop-sub" id="vg-att-drop-sub">Paste a URL, or type John 3:16. A link stays on this group as a chip. A passage joins the verses.</p>
       <label class="sr-only" for="vg-att-drop-input">Link or passage</label>
       <div class="att-drop-field">
         <input id="vg-att-drop-input" class="att-drop-input" type="text" autocomplete="off" spellcheck="false" placeholder="https://…  or  Romans 8:28" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="vg-att-drop-suggest">

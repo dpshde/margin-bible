@@ -5,9 +5,16 @@ import { jumpFormHtml } from "./jump-ui";
 export function clientScript(): string {
   // Language: JavaScript (browser). Loads grab-bcv for wiki/attachment parsing (Rails parity).
   return `(async () => {
+  if (history.scrollRestoration) history.scrollRestoration = "manual";
+  // Chapter arrival starts at the top. A verse address keeps its placement.
+  var arrivalPath = location.pathname.replace(/^\\/+/, "");
+  if (!/^[a-z0-9]+\\.\\d+\\.\\d+/i.test(arrivalPath)) window.scrollTo(0, 0);
   const { tryParseAnyPassage } = await import("/vendor/grab-bcv/parse.js");
   const root = document.querySelector("#reader");
   if (!root) return;
+  if (history.scrollRestoration) history.scrollRestoration = "manual";
+  // Chapter arrival starts at the top. A verse address keeps its placement.
+  if (!/^[a-z0-9]+\\.\\d+\\.\\d+/i.test(arrivalPath)) window.scrollTo(0, 0);
   const chapterSlug = root.dataset.chapterSlug;
   const notesPending = root.dataset.notesPending === "1";
   const notes = JSON.parse(document.querySelector("#notes-data").textContent || "[]");
@@ -537,18 +544,11 @@ export function clientScript(): string {
   function parseAttachmentInput(raw) {
     const text = String(raw || "").trim();
     if (!text) return null;
-    if (/\\d/.test(text) || /^https?:\\/\\//i.test(text)) {
+    const url = absoluteHttpUrl(text);
+    if (url) return { id: newAttId(), kind: "url", url, title: urlTitle(url), source: "manual" };
+    if (/\\d/.test(text)) {
       const resolved = resolveWikiTarget(text);
       if (resolved) return { id: newAttId(), kind: "xref", slug: resolved.slug, title: resolved.label, source: "manual" };
-    }
-    const url = absoluteHttpUrl(text);
-    if (url) {
-      try {
-        const path = new URL(url).pathname.replace(/^\\/+/, "");
-        const fromPath = resolveWikiTarget(path);
-        if (fromPath && /\\d/.test(path)) return { id: newAttId(), kind: "xref", slug: fromPath.slug, title: fromPath.label, source: "manual" };
-      } catch {}
-      return { id: newAttId(), kind: "url", url, title: urlTitle(url), source: "manual" };
     }
     return null;
   }
@@ -3464,6 +3464,10 @@ export function clientScript(): string {
       seedNotesFromHtml(slug, html);
       if (push) history.pushState({ soft: 1 }, "", url.pathname + url.search + url.hash);
       else history.replaceState({ soft: 1 }, "", url.pathname + url.search + url.hash);
+      if (history.scrollRestoration) history.scrollRestoration = "manual";
+      // Chapter arrival starts at the top. A verse address keeps its placement.
+      const navPath = url.pathname.replace(/^\\/+/, "");
+      if (!/^[a-z0-9]+\\.\\d+\\.\\d+/i.test(navPath)) window.scrollTo(0, 0);
       document.open();
       document.write(html);
       document.close();

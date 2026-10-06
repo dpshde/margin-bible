@@ -92,13 +92,18 @@ describe("chapter note first paint", () => {
     expect(html).toContain('data-notes-pending="0"');
     expect(html).toContain("history.scrollRestoration = \"manual\"");
     expect(html).toContain("window.scrollTo(0, 0)");
+    expect(html).toContain("function placeArrival");
   });
 
-  test("a normal chapter keeps the tray closed", () => {
+  test("a normal chapter keeps the tray closed and starts at the top", () => {
     const html = renderChapterPage({ passage: parsePassage("jhn.3")!, pack, notes: [] });
     expect(html).toContain('id="chapter-tray" data-slug="jhn.3" hidden');
     expect(html).not.toContain("chapter-note-rail is-open");
-    expect(html).not.toContain("window.scrollTo(0, 0)");
+    expect(html).toContain("window.scrollTo(0, 0)");
+    expect(html).toContain("history.scrollRestoration = \"manual\"");
+    const place = html.slice(html.indexOf("function placeArrival"), html.indexOf("placeArrival();"));
+    expect(place.indexOf("if (named) return")).toBeLessThan(place.indexOf("window.scrollTo(0, 0)"));
+    expect(place).toContain("requestAnimationFrame");
   });
 
   test("a verse page still centers the verse when the chapter note is also open", () => {
@@ -109,7 +114,10 @@ describe("chapter note first paint", () => {
       chapterNoteOpen: true,
     });
     expect(html).toContain('id="v16"');
+    expect(html).toContain('document.getElementById("v16")');
     expect(html).toContain("window.scrollTo(0, target)");
-    expect(html).not.toContain("window.scrollTo(0, 0)");
+    const place = html.slice(html.indexOf("function placeArrival"), html.indexOf("placeArrival();"));
+    expect(place.indexOf("window.scrollTo(0, target)")).toBeLessThan(place.indexOf("if (named) return"));
+    expect(place.indexOf("if (named) return")).toBeLessThan(place.indexOf("window.scrollTo(0, 0)"));
   });
 });

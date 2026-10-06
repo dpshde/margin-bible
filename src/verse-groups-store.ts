@@ -1,6 +1,6 @@
 /**
- * Persist a web's name beside the hub slug. Xref sync keeps owning the chips,
- * so a title survives a backlink write.
+ * Persist a web's name beside the hub slug. Xref sync keeps owning passage chips.
+ * http(s) links live on this row as external refs, not as verse members.
  *
  * A hub has to already exist in the library. This store does not invent a sample mesh.
  * Pairwise cross-links are a separate confirm action.
@@ -15,10 +15,14 @@ import {
   cleanGroupTitle,
   realVerseGroups,
   verseGroupsFromNotes,
-  verseMemberFromInput,
+  groupAttachFromInput,
+  normalizeExternalRefs,
+  withExternalRef,
   withManualXref,
+  withoutExternalRef,
   withoutUserXref,
   type GroupNote,
+  type ExternalRef,
   type VerseGroupMeta,
   type VerseGroupView,
 } from "./verse-groups";
@@ -32,6 +36,7 @@ const CREATE_VERSE_GROUPS = `CREATE TABLE IF NOT EXISTS verse_groups (
   undo_json TEXT NOT NULL DEFAULT '[]',
   star_slug TEXT NOT NULL DEFAULT '',
   jev_title TEXT NOT NULL DEFAULT '',
+  external_refs TEXT NOT NULL DEFAULT '[]',
   updated_at TEXT NOT NULL,
   PRIMARY KEY (library_id, hub_slug)
 )`;
@@ -43,6 +48,7 @@ type MetaRow = {
   undo_json: string | null;
   star_slug?: string | null;
   jev_title?: string | null;
+  external_refs?: string | null;
 };
 
 export type VerseGroupActionResult =
@@ -85,6 +91,7 @@ export async function handleVerseGroupAction(
     action !== "undo-links" &&
     action !== "add-member" &&
     action !== "remove-member" &&
+    action !== "remove-external" &&
     action !== "set-star"
   ) {
     return { ok: false, status: 422, error: "unknown action" };
@@ -99,6 +106,7 @@ export async function handleVerseGroupAction(
     }
     if (action === "add-member") return await addVerseMember(db, libraryId, hub, record.text);
     if (action === "remove-member") return await removeVerseMember(db, libraryId, hub, record.slug);
+    if (action === "remove-external") return await removeExternalRef(db, libraryId, hub, record.url);
     if (action === "set-star") return await setVerseStar(db, libraryId, hub, record.slug);
     if (action === "add-links") return await addVerseGroupLinks(db, libraryId, hub);
     return await undoVerseGroupLinks(db, libraryId, hub);
@@ -135,8 +143,9 @@ async function addVerseMember(
   hub: string,
   raw: unknown,
 ): Promise<VerseGroupActionResult> {
-  const parsed = verseMemberFromInput(raw);
+  const parsed = groupAttachFromInput(raw);
   if (!parsed.ok) return { ok: false, status: 422, error: parsed.error };
+  if (parsed.kind === "url") return addExternalRef(db, libraryId, hub, parsed.url, parsed.title);
   if (parsed.slug === hub) return { ok: false, status: 422, error: "Already attached." };
   const seen = await groupForHub(db, libraryId, hub);
   if (seen?.members.some((member) => member.slug === parsed.slug)) {
@@ -148,6 +157,43 @@ async function addVerseMember(
   const group = await groupForHub(db, libraryId, hub);
   if (!group) return { ok: false, status: 422, error: "That verse is not a hub yet." };
   return { ok: true, statusText: `Attached ${parsed.label}.`, group };
+}
+
+async function addExternalRef(
+  db: D1Database,
+  libraryId: string,
+  hub: string,
+  url: string,
+  title: string,
+): Promise<VerseGroupActionResult> {
+  const ready = await ensureHub(db, libraryId, hub);
+  if (!ready.ok) return ready;
+  const metas = await listVerseGroupMeta(db, libraryId);
+  const current = metas.find((row) => row.hub === hub)?.externalRefs ?? [];
+  const next = withExternalRef(current, { id: newAttachmentId(), url, title });
+  if (!next.added) return { ok: false, status: 422, error: "Already attached." };
+  await saveExternalRefs(db, libraryId, hub, next.list);
+  const group = await groupForHub(db, libraryId, hub);
+  if (!group) return { ok: false, status: 422, error: "That verse is not a hub yet." };
+  return { ok: true, statusText: `Attached ${next.added.title}.`, group };
+}
+
+async function removeExternalRef(
+  db: D1Database,
+  libraryId: string,
+  hub: string,
+  raw: unknown,
+): Promise<VerseGroupActionResult> {
+  const ready = await ensureHub(db, libraryId, hub);
+  if (!ready.ok) return ready;
+  const metas = await listVerseGroupMeta(db, libraryId);
+  const current = metas.find((row) => row.hub === hub)?.externalRefs ?? [];
+  const next = withoutExternalRef(current, raw);
+  if (!next.removed) return { ok: false, status: 422, error: "That link is not in this group." };
+  await saveExternalRefs(db, libraryId, hub, next.list);
+  const group = await groupForHub(db, libraryId, hub);
+  if (!group) return { ok: false, status: 422, error: "That verse is not a hub yet." };
+  return { ok: true, statusText: "Removed.", group };
 }
 
 async function setVerseStar(
@@ -307,6 +353,7 @@ export async function ensureVerseGroupsTable(db: D1Database): Promise<void> {
   await db.prepare(CREATE_VERSE_GROUPS).run();
   await addVerseGroupColumn(db, "star_slug TEXT NOT NULL DEFAULT ''");
   await addVerseGroupColumn(db, "jev_title TEXT NOT NULL DEFAULT ''");
+  await addVerseGroupColumn(db, "external_refs TEXT NOT NULL DEFAULT '[]'");
 }
 
 /** Remember the title Jev wrote. A later save keeps this string so an edit can unlock, and matching text locks again. */
@@ -328,7 +375,9 @@ export async function saveJevTitle(db: D1Database, libraryId: string, hub: strin
 
 export async function listVerseGroupMeta(db: D1Database, libraryId: string): Promise<VerseGroupMeta[]> {
   const result = await db
-    .prepare("SELECT hub_slug, title, description, undo_json, star_slug, jev_title FROM verse_groups WHERE library_id = ?")
+    .prepare(
+      "SELECT hub_slug, title, description, undo_json, star_slug, jev_title, external_refs FROM verse_groups WHERE library_id = ?",
+    )
     .bind(libraryId)
     .all<MetaRow>();
   const metas: VerseGroupMeta[] = [];
@@ -342,6 +391,7 @@ export async function listVerseGroupMeta(db: D1Database, libraryId: string): Pro
       undoPairs: parseUndoPairs(row.undo_json),
       star: row.star_slug ?? "",
       jevTitle: row.jev_title ?? "",
+      externalRefs: parseExternalRefs(row.external_refs),
     });
   }
   return metas;
@@ -380,6 +430,34 @@ async function upsertStar(db: D1Database, libraryId: string, hub: string, star: 
     )
     .bind(libraryId, hub, star, now)
     .run();
+}
+
+async function saveExternalRefs(
+  db: D1Database,
+  libraryId: string,
+  hub: string,
+  refs: readonly ExternalRef[],
+): Promise<void> {
+  const now = new Date().toISOString();
+  const json = JSON.stringify(normalizeExternalRefs(refs));
+  await db
+    .prepare(
+      `INSERT INTO verse_groups (library_id, hub_slug, title, description, undo_json, external_refs, updated_at)
+       VALUES (?, ?, '', '', '[]', ?, ?)
+       ON CONFLICT(library_id, hub_slug) DO UPDATE SET
+         external_refs = excluded.external_refs,
+         updated_at = excluded.updated_at`,
+    )
+    .bind(libraryId, hub, json, now)
+    .run();
+}
+
+function parseExternalRefs(raw: string | null | undefined): ExternalRef[] {
+  try {
+    return normalizeExternalRefs(JSON.parse(raw || "[]") as unknown);
+  } catch {
+    return [];
+  }
 }
 
 async function setUndoPairs(
