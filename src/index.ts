@@ -139,7 +139,7 @@ app.use("*", async (c, next) => {
   }
 });
 
-app.get("/health", (c) => c.json({ ok: true, app: "margin-bible", version: "2026.10.06.21" }));
+app.get("/health", (c) => c.json({ ok: true, app: "margin-bible", version: "2026.10.06.26" }));
 
 app.get("/manifest.webmanifest", () => manifestResponse());
 app.get("/manifest.json", () => manifestResponse());
@@ -461,6 +461,7 @@ app.post("/api/verse-groups", async (c) => {
       libraryId: c.get("libraryId"),
       hub: typeof record.hub === "string" ? record.hub : "",
       apiKey: c.env.TYPESAFE_API_KEY,
+      postedTitle: record.title,
     });
     if (!suggested.ok) return c.json({ ok: false, error: suggested.error }, suggested.status);
     return c.json({ ok: true, status: "", topic: suggested.topic, star: suggested.group.star });

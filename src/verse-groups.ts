@@ -48,6 +48,8 @@ export type VerseGroupMeta = {
   undoPairs: { from: string; to: string }[];
   /** Member marked as the one star. Empty means no star. */
   star?: string;
+  /** Last title Jev wrote. The sparkle stays filled while the saved title still matches it. */
+  jevTitle?: string;
 };
 
 export type VerseGroupMember = {
@@ -64,6 +66,8 @@ export type VerseGroupView = {
   /** The starred member, or empty when the group has no star. */
   star: string;
   title: string;
+  /** True when the saved title is still the one Jev wrote. */
+  titleFromJev?: boolean;
   description: string;
   members: VerseGroupMember[];
   trigger: VerseGroupTrigger;
@@ -88,6 +92,13 @@ export function canonSlug(slug: string | null | undefined): string | null {
   const passage = parsePassage(slug);
   if (!passage) return null;
   return passageSlug(passage);
+}
+
+/** The sparkle stays filled only while the saved title is still the Jev title. */
+export function titleStillFromJev(title: unknown, jevTitle: unknown): boolean {
+  const saved = cleanGroupTitle(title);
+  const jev = cleanGroupTitle(jevTitle);
+  return Boolean(saved && jev && saved === jev);
 }
 
 export function cleanGroupTitle(value: unknown): string {
@@ -265,6 +276,7 @@ function toView(input: {
     hubLabel,
     star,
     title: input.meta?.title ?? "",
+    titleFromJev: titleStillFromJev(input.meta?.title, input.meta?.jevTitle),
     description: input.meta?.description ?? "",
     members,
     trigger,

@@ -1,3 +1,4 @@
+import { Database } from "bun:sqlite";
 import { describe, expect, test } from "bun:test";
 import { spawnSync } from "child_process";
 import { existsSync, readFileSync, unlinkSync, writeFileSync } from "fs";
@@ -12,6 +13,7 @@ import {
   PAIR_FILL_CAP,
   cleanGroupDescription,
   cleanGroupTitle,
+  titleStillFromJev,
   verseMemberFromInput,
   missingPairwise,
   realVerseGroups,
@@ -23,6 +25,9 @@ import {
 } from "../src/verse-groups";
 import { closestJevTopic, DEMO_VERSE_TEXTS, JEV_TOPICS } from "../src/jev-topics";
 import { previewSeedNeeded, previewSeedNotes } from "../src/preview-seed";
+import { notesInboxScript } from "../src/inbox-ui";
+import { handleVerseGroupAction, loadVerseGroups, saveJevTitle } from "../src/verse-groups-store";
+import { suggestVerseGroupTopic } from "../src/verse-topic";
 import { verseGroupCardHtml, verseGroupsScript } from "../src/verse-groups-ui";
 
 function xref(slug: string, source: "manual" | "scan" | "backlink" = "manual"): Attachment {
@@ -186,6 +191,11 @@ describe("verse group detection", () => {
   test("title is one line and description keeps newlines inside the cap", () => {
     expect(cleanGroupTitle(`  hello \n web  ${"x".repeat(200)}`)).toBe(`hello web ${"x".repeat(110)}`);
     expect(cleanGroupTitle("x".repeat(130)).length).toBe(120);
+    expect(titleStillFromJev("The Word", "The Word")).toBe(true);
+    expect(titleStillFromJev("  The Word  ", "The Word")).toBe(true);
+    expect(titleStillFromJev("My title", "The Word")).toBe(false);
+    expect(titleStillFromJev("", "The Word")).toBe(false);
+    expect(titleStillFromJev("The Word", "")).toBe(false);
     const description = cleanGroupDescription(`  line\r\nnext  ${"y".repeat(3_000)}`);
     expect(description.startsWith("line\nnext")).toBe(true);
     expect(description.length).toBe(2_000);
@@ -213,6 +223,8 @@ describe("preview worker publish", () => {
     expect(workflow).not.toContain("refs/heads/main");
     expect(config).toContain('name: "margin-bible"');
     expect(config).not.toContain("margin-bible-verse-groups");
+    expect(config).not.toContain("PREVIEW_SEED");
+    expect(script).toContain('PREVIEW_SEED: bindings.text("1")');
     expect(script).not.toContain("railway");
     expect(workflow).not.toContain("railway");
     expect(existsSync(new URL("../Dockerfile", import.meta.url))).toBe(false);
@@ -294,15 +306,37 @@ describe("verse groups inbox", () => {
     expect(controls.slice(0, 700)).toContain("visibility: hidden");
     expect(controls).toContain(".verse-group .att-item:hover .verse-star");
     expect(controls).toContain(".verse-group .att-item:hover .att-remove");
-    expect(controls).toContain("width: 0;\n        min-width: 0;");
-    expect(controls).toContain('.verse-group .verse-star[aria-pressed="true"] {\n        width: 1.35rem;\n        min-width: 1.35rem;');
-    expect(controls).toContain("width: 1.35rem;\n        min-width: 1.35rem;");
+    expect(controls).toContain("transition: opacity .12s ease, color .12s ease;");
+    expect(controls).not.toContain("transition: width");
+    expect(controls).not.toContain("width: 0;");
+    expect(controls).toContain('.verse-group .verse-star[aria-pressed="true"] {\n        visibility: visible;\n        opacity: 1;');
+    expect(controls).toContain("width: 1.35rem;\n      height: 1.35rem;\n      min-width: 1.35rem;");
     expect(controls).toContain("@media (hover: none), (pointer: coarse)");
+    expect(css).toContain('font-family: "Phosphor-Fill"');
+    expect(css).toContain('.ph-fill.ph-sparkle:before { content: "\\e6a2"; }');
+    expect(css).toContain(".verse-group-topic.is-set { color: var(--ink); cursor: default; }");
     expect(css).not.toContain(".att-chip.is-star");
     expect(css).toContain("outline: none;");
     expect(css).toContain("background: transparent;");
     expect(verseGroupsScript()).toContain("is-collapsed-hover");
     expect(verseGroupsScript()).toContain("set-star");
+    expect(verseGroupsScript()).toContain("ph-fill ph-sparkle");
+    expect(verseGroupsScript()).toContain('data-topic-set');
+    expect(verseGroupsScript()).toContain("syncTopicLock(card)");
+    expect(verseGroupsScript()).toContain("data-jev-title");
+    expect(verseGroupsScript()).toContain("next === jev");
+    expect(verseGroupsScript()).toContain("preloadMembers");
+    expect(verseGroupsScript()).toContain("__marginPreloadHrefs");
+    expect(notesInboxScript()).toContain("window.__marginPreloadHrefs = preloadHrefs");
+    expect(notesInboxScript()).toContain('a.classList?.contains("att-chip") && a.classList?.contains("wiki")');
+    const inbox = notesInboxScript();
+    const preload = inbox.slice(inbox.indexOf("function preloadHrefs"));
+    expect(preload).toContain('const chapterKey = documentHref("/" + slug);');
+    expect(preload).toContain("prefetchChapter(chapterKey, { priority: \"low\" });");
+    expect(preload).not.toContain("searchPrefetch.controller.abort");
+    expect(inbox).toContain("useChapterCache: verseChip");
+    expect(inbox).toContain("const chapterPromise = htmlCache.get(chapterKey);");
+    nodeCheck(inbox);
     expect(verseGroupsScript()).toContain('typeof payload.star === "string"');
     expect(verseGroupsScript()).toContain("items[j] !== starred");
     expect(verseGroupsScript()).toContain("suggest-title");
@@ -432,5 +466,208 @@ describe("verse groups inbox", () => {
     expect(html).toContain("1 Peter 5:6");
     expect(html).not.toContain("verse-group-preview");
     expect(html).not.toContain("border-left");
+    expect(html).toContain('<i class="ph ph-sparkle"></i>');
+    expect(html).not.toContain("ph-fill ph-sparkle");
+    expect(html).not.toContain("data-topic-set");
+  });
+
+  test("a title Jev already wrote keeps the filled sparkle", () => {
+    const html = verseGroupCardHtml({
+      hub: "jhn.1.1",
+      hubLabel: "John 1:1",
+      star: "",
+      title: "The Word made flesh",
+      titleFromJev: true,
+      description: "",
+      members: [
+        { slug: "jhn.1.1", label: "John 1:1", role: "hub" },
+        { slug: "jhn.1.14", label: "John 1:14", role: "member" },
+      ],
+      trigger: "star",
+      inboundCount: 0,
+      outboundCount: 1,
+      why: "This note points at 1 verse.",
+      sample: false,
+      seed: false,
+      missingPairs: [],
+      missingCount: 0,
+      undoReady: false,
+    });
+    expect(html).toContain('data-topic-set="1"');
+    expect(html).toContain('data-jev-title="The Word made flesh"');
+    expect(html).toContain('class="verse-group-topic is-set"');
+    expect(html).toContain('aria-disabled="true"');
+    expect(html).toContain('<i class="ph-fill ph-sparkle"></i>');
+    expect(html).not.toContain('<i class="ph ph-sparkle"></i>');
+  });
+});
+
+function memoryD1(sqlite: Database): D1Database {
+  const statement = (sql: string, args: unknown[]) => ({
+    bind(...next: unknown[]) {
+      return statement(sql, next);
+    },
+    async run() {
+      if (args.length) sqlite.run(sql, args as never[]);
+      else sqlite.run(sql);
+      return { success: true };
+    },
+    async all<T>() {
+      const query = sqlite.query(sql);
+      const results = args.length ? query.all(...(args as never[])) : query.all();
+      return { results: results as T[], success: true };
+    },
+    async first<T>() {
+      const query = sqlite.query(sql);
+      const row = args.length ? query.get(...(args as never[])) : query.get();
+      return (row as T | null) ?? null;
+    },
+  });
+  return {
+    prepare(sql: string) {
+      return statement(sql, []);
+    },
+  } as unknown as D1Database;
+}
+
+function starLibrary(): D1Database {
+  const sqlite = new Database(":memory:");
+  sqlite.run(`CREATE TABLE notes (
+    library_id TEXT NOT NULL,
+    slug TEXT NOT NULL,
+    osis TEXT NOT NULL,
+    kind TEXT NOT NULL,
+    book TEXT NOT NULL,
+    chapter INTEGER NOT NULL,
+    verse_start INTEGER,
+    verse_end INTEGER,
+    blocks TEXT NOT NULL,
+    bookmarked INTEGER NOT NULL DEFAULT 0,
+    attachments TEXT NOT NULL DEFAULT '[]',
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    PRIMARY KEY (library_id, slug)
+  )`);
+  sqlite.run(
+    `INSERT INTO notes (library_id, slug, osis, kind, book, chapter, verse_start, verse_end, blocks, bookmarked, attachments, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      "lib",
+      "jhn.1.1",
+      "John.1.1",
+      "verse",
+      "jhn",
+      1,
+      1,
+      1,
+      "[]",
+      0,
+      JSON.stringify([
+        { id: "att_abcd1234", kind: "xref", slug: "jhn.1.14", title: "John 1:14", source: "manual" },
+        { id: "att_abcd1235", kind: "xref", slug: "jhn.1.3", title: "John 1:3", source: "manual" },
+      ]),
+      "2026-10-06T00:00:00.000Z",
+      "2026-10-06T00:00:00.000Z",
+    ],
+  );
+  return memoryD1(sqlite);
+}
+
+describe("Jev title lock", () => {
+  test("a saved Jev title stays filled until the title text changes, then locks again when it matches", async () => {
+    const db = starLibrary();
+    await saveJevTitle(db, "lib", "jhn.1.1", "The Word made flesh");
+    const notes = [note("jhn.1.1", [xref("jhn.1.14"), xref("jhn.1.3")])];
+    const named = await loadVerseGroups(db, "lib", notes);
+    expect(named[0]?.title).toBe("The Word made flesh");
+    expect(named[0]?.titleFromJev).toBe(true);
+
+    const edited = await handleVerseGroupAction(db, "lib", {
+      action: "save",
+      hub: "jhn.1.1",
+      title: "My title",
+      description: "notes",
+    });
+    expect(edited.ok).toBe(true);
+    if (!edited.ok) return;
+    expect(edited.group.title).toBe("My title");
+    expect(edited.group.titleFromJev).toBe(false);
+    expect(edited.group.description).toBe("notes");
+
+    const restored = await handleVerseGroupAction(db, "lib", {
+      action: "save",
+      hub: "jhn.1.1",
+      title: "The Word made flesh",
+      description: "notes",
+    });
+    expect(restored.ok).toBe(true);
+    if (!restored.ok) return;
+    expect(restored.group.titleFromJev).toBe(true);
+  });
+
+  test("suggest skips TypeSafe while the title is still Jev's, and calls once after an edit", async () => {
+    const db = starLibrary();
+    await saveJevTitle(db, "lib", "jhn.1.1", "The Word");
+    let calls = 0;
+    let sent = "";
+    const fetchImpl = (async (_url: unknown, init?: { body?: unknown }) => {
+      calls += 1;
+      sent = String(init?.body ?? "");
+      return new Response(JSON.stringify({ answers: { topic: { choice: "The Word made flesh" } } }), { status: 200 });
+    }) as typeof fetch;
+    const held = await suggestVerseGroupTopic({
+      db,
+      assets: { fetch: async () => new Response("no", { status: 404 }) },
+      libraryId: "lib",
+      hub: "jhn.1.1",
+      postedTitle: "The Word",
+      apiKey: "test-key",
+      fetchImpl,
+    });
+    expect(held).toEqual({ ok: true, topic: "The Word", group: expect.objectContaining({ titleFromJev: true }) });
+    expect(calls).toBe(0);
+
+    const next = await suggestVerseGroupTopic({
+      db,
+      assets: {
+        fetch: async () =>
+          new Response(
+            JSON.stringify({
+              verses: [
+                { v: 1, text: "In the beginning was the Word." },
+                { v: 3, text: "All things were made through him." },
+                { v: 14, text: "The Word became flesh." },
+              ],
+            }),
+            { status: 200 },
+          ),
+      },
+      libraryId: "lib",
+      hub: "jhn.1.1",
+      postedTitle: "My title",
+      apiKey: "test-key",
+      fetchImpl,
+    });
+    expect(next.ok).toBe(true);
+    if (!next.ok) return;
+    expect(next.topic).toBe("The Word made flesh");
+    expect(calls).toBe(1);
+    expect(sent).toContain("already used");
+    expect(sent).toContain("The Word");
+    expect(sent).toContain("My title");
+    const again = await loadVerseGroups(db, "lib", [note("jhn.1.1", [xref("jhn.1.14"), xref("jhn.1.3")])])
+    expect(again[0]?.titleFromJev).toBe(true);
+    expect(again[0]?.title).toBe("The Word made flesh");
+    const repeat = await suggestVerseGroupTopic({
+      db,
+      assets: { fetch: async () => new Response("no", { status: 404 }) },
+      libraryId: "lib",
+      hub: "jhn.1.1",
+      postedTitle: "The Word made flesh",
+      apiKey: "test-key",
+      fetchImpl,
+    });
+    expect(repeat.ok).toBe(true);
+    expect(calls).toBe(1);
   });
 });

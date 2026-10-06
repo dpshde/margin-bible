@@ -18,15 +18,20 @@ export function verseGroupCardHtml(group: VerseGroupView, status = ""): string {
   const star = group.star || "";
   const chips = group.members.map((member, index) => verseChipHtml(member, member.slug === star, member.order ?? index)).join("");
   const saved = group.title.trim();
+  const namedByJev = Boolean(group.titleFromJev && saved);
   const rowTitle = saved || group.hubLabel;
   const excerpt = saved && saved !== group.hubLabel ? group.hubLabel : "";
-  return `<details class="verse-group" data-hub="${escapeHtml(group.hub)}" data-hub-label="${escapeHtml(group.hubLabel)}" data-star="${escapeHtml(star)}" data-sample="${group.sample ? "1" : "0"}" data-seed="${group.seed ? "1" : "0"}">
+  const jevAttrs = namedByJev ? ` data-topic-set="1" data-jev-title="${escapeHtml(saved)}"` : "";
+  const topicButton = namedByJev
+    ? `<button type="button" class="verse-group-topic is-set" data-vg-topic aria-disabled="true" aria-label="Suggest a title" title="Suggest a title"><i class="ph-fill ph-sparkle"></i></button>`
+    : `<button type="button" class="verse-group-topic" data-vg-topic aria-label="Suggest a title" title="Suggest a title"><i class="ph ph-sparkle"></i></button>`;
+  return `<details class="verse-group" data-hub="${escapeHtml(group.hub)}" data-hub-label="${escapeHtml(group.hubLabel)}" data-star="${escapeHtml(star)}" data-sample="${group.sample ? "1" : "0"}" data-seed="${group.seed ? "1" : "0"}"${jevAttrs}>
   <summary class="note-row"><span class="note-row-title">${escapeHtml(rowTitle)}</span>${excerpt ? `<span class="note-row-excerpt">${escapeHtml(excerpt)}</span>` : ""}<span class="verse-group-hub">${escapeHtml(group.hubLabel)}</span></summary>
   <form class="verse-group-form">
     <div class="verse-group-fields">
       <div class="verse-group-title-field">
         <input id="vg-title-${field}" name="title" value="${escapeHtml(saved)}" placeholder="Title" maxlength="120" autocomplete="off" aria-label="Title">
-        <button type="button" class="verse-group-topic" data-vg-topic aria-label="Suggest a title" title="Suggest a title"><i class="ph ph-sparkle"></i></button>
+        ${topicButton}
       </div>
       <textarea id="vg-description-${field}" class="verse-group-description" name="description" rows="1" maxlength="2000" placeholder="Description" aria-label="Description">${escapeHtml(group.description)}</textarea>
     </div>
@@ -239,6 +244,7 @@ export function verseGroupsScript(): string {
     if (!card || card.getAttribute("data-busy") === "1") return;
     if (target.closest("[data-vg-topic]")) {
       event.preventDefault();
+      if (card.getAttribute("data-topic-set") === "1") return;
       post(card, "suggest-title", null, { topic: true });
       return;
     }
@@ -270,6 +276,7 @@ export function verseGroupsScript(): string {
     if (!card || !card.classList || !card.classList.contains("verse-group")) return;
     if (card.open) {
       card.classList.remove("is-collapsed-hover");
+      preloadMembers(card);
       return;
     }
     var summary = card.querySelector("summary");
@@ -281,12 +288,17 @@ export function verseGroupsScript(): string {
     }, { once: true });
   }, true);
 
+  var openGroups = panel.querySelectorAll(".verse-group[open]");
+  for (var openIndex = 0; openIndex < openGroups.length; openIndex += 1) preloadMembers(openGroups[openIndex]);
+
   panel.addEventListener("input", function (event) {
     var target = event.target;
     if (!target || !target.closest) return;
     if (target.name !== "title" && target.name !== "description") return;
     var card = target.closest(".verse-group");
-    if (card) scheduleSave(card);
+    if (!card) return;
+    if (target.name === "title") syncTopicLock(card);
+    scheduleSave(card);
   });
 
   panel.addEventListener("focusout", function (event) {
@@ -309,6 +321,47 @@ export function verseGroupsScript(): string {
     if (card._saveTimer) { clearTimeout(card._saveTimer); card._saveTimer = 0; }
     post(card, "save", null, { quiet: true });
   });
+
+  function setTopicLocked(card, locked) {
+    if (!card) return;
+    var button = card.querySelector("[data-vg-topic]");
+    if (!button) return;
+    var icon = button.querySelector("i");
+    if (locked) {
+      var input = card.querySelector("input[name=title]");
+      var title = input ? String(input.value || "").replace(/\\s+/g, " ").trim() : "";
+      if (title) card.setAttribute("data-jev-title", title);
+      card.setAttribute("data-topic-set", "1");
+      button.classList.add("is-set");
+      button.setAttribute("aria-disabled", "true");
+      if (icon) icon.className = "ph-fill ph-sparkle";
+    } else {
+      card.removeAttribute("data-topic-set");
+      button.classList.remove("is-set");
+      button.removeAttribute("aria-disabled");
+      if (icon) icon.className = "ph ph-sparkle";
+    }
+  }
+
+  function syncTopicLock(card) {
+    var input = card.querySelector("input[name=title]");
+    var jev = card.getAttribute("data-jev-title") || "";
+    var next = input ? String(input.value || "").replace(/\\s+/g, " ").trim() : "";
+    setTopicLocked(card, Boolean(jev) && next === jev);
+  }
+
+  function preloadMembers(card) {
+    if (!card || !card.open) return;
+    var preload = window.__marginPreloadHrefs;
+    if (typeof preload !== "function") return;
+    var links = card.querySelectorAll("a.att-chip.wiki[href]");
+    var hrefs = [];
+    for (var i = 0; i < links.length; i += 1) {
+      var href = links[i].getAttribute("href");
+      if (href) hrefs.push(href);
+    }
+    if (hrefs.length) preload(hrefs);
+  }
 
   function scheduleSave(card) {
     if (card._saveTimer) clearTimeout(card._saveTimer);
@@ -480,6 +533,10 @@ export function verseGroupsScript(): string {
         body.description = String(data.get("description") || "");
       }
     }
+    if (action === "suggest-title") {
+      var titleInput = card.querySelector("input[name=title]");
+      body.title = titleInput ? String(titleInput.value || "") : "";
+    }
     if (extra) {
       Object.keys(extra).forEach(function (key) { body[key] = extra[key]; });
     }
@@ -520,7 +577,10 @@ export function verseGroupsScript(): string {
       }
       if (opts && opts.topic) {
         var titleInput = card.querySelector("input[name=title]");
-        if (titleInput && payload.topic) titleInput.value = payload.topic;
+        if (titleInput && payload.topic) {
+          titleInput.value = payload.topic;
+          setTopicLocked(card, true);
+        }
         paintTitle(card);
         card.removeAttribute("data-busy");
         if (status) status.textContent = "";

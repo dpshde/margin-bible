@@ -1368,7 +1368,24 @@ export function page(title: string, body: string): string {
       -webkit-font-smoothing: antialiased;
     }
     .ph.ph-sparkle:before { content: "\\e6a2"; }
-    .verse-group-topic .ph { font-size: 1.05rem; }
+    @font-face {
+      font-family: "Phosphor-Fill";
+      src: url("data:font/woff2;base64,d09GMgABAAAAAAK4AA0AAAAABeQAAAJmAAIZmgAAAAAAAAAAAAAAAAAAAAAAAAAAGxAcGgZgADQRCAqCHIIkATYCJAMGCwYABCAFhHYHIBv/BBEVlGkEf0jQ7PZzKkMj2IhsJems8ilXmMF9JQrT5UHwwt83Hr72ez337YYAFEogT1D2narIoi1Lcmj0H98IXSJdHR56b/+2N6RAQgu0md12EBdCGfAAuf+6dgK+mgXdrv/BaCIppGKy7LQJ0JK9/AceaBaxP1ENQLD0PwDm/5p64AdUQSd6SJnYa/t0wIsE+oIHNo7kKNob2ERHs83WNdKvoIeIjJARbRSoVqseWK9p1ylu4tktlQBSurBB8bJ9xDNfL/45ooqRapSs/j/VSt/Z9WMISCUwaAQFElolgVbZILIs+DkqGv9uBDiRXRMoQEbCGR5wvRvS7OhiWs+4n6MD+w8vsvrh1z3y9PRhx4NnYvT5+XXVPHq7hh8f3y/zjjgdbNxfNY8qIoA/2NVRjT1MQS3NvpHMjvZ+C3EfbddI83yd+/BQz04jkMMYU+A/w4106VAj+JSrdfN1dkFB71o5CGRRuB4Eiq5XtbXx3bDxv28wg69M/fMnXZxUQqUCBL+XykoIiGA2R4ZVgSIOG7X9PthU540uchV6YVTo1ksV6i1NpnwygyrTbnOyHFSVJadUtdueUzXmonayFlSd8lheVe95bDa2RZLpWr7qwOmvwg238j2dI1nT7kj0NXSeyHFl04BVbuXB5GV04ciR6Q+W4YQ0MhDeJDTEXRAERDJPENCnaStHfYwXU316TsEULxZAA0eE7YFIWqlE727y8cH/dGmaBid5nuWuMWZ9gzkmdzlSX788feif42DIibIn+bzvkrMp98gZ+/q9OdlRlEmALDxLyHR0f7rDLk73D6/uD9sGAAAA") format("woff2");
+      font-weight: normal;
+      font-style: normal;
+      font-display: block;
+    }
+    .ph-fill {
+      font-family: "Phosphor-Fill" !important;
+      font-style: normal;
+      font-weight: normal;
+      line-height: 1;
+      letter-spacing: 0;
+      -webkit-font-smoothing: antialiased;
+    }
+    .ph-fill.ph-sparkle:before { content: "\\e6a2"; }
+    .verse-group-topic .ph,
+    .verse-group-topic .ph-fill { font-size: 1.05rem; }
     .verse-group-topic {
       position: absolute;
       right: 0;
@@ -1387,6 +1404,7 @@ export function page(title: string, body: string): string {
     }
     .verse-group-topic:hover,
     .verse-group-topic:focus-visible { color: var(--ink); }
+    .verse-group-topic.is-set { color: var(--ink); cursor: default; }
     .verse-group[data-busy] .verse-group-topic { opacity: .45; }
     .verse-group-form input[name="title"]::placeholder {
       color: var(--ink-soft);
@@ -1780,23 +1798,11 @@ export function page(title: string, body: string): string {
       visibility: hidden;
       opacity: 0;
       cursor: pointer;
-      transition: width .12s ease, min-width .12s ease, opacity .12s ease, color .12s ease;
+      /* Width stays put. Hover only fades the controls, so siblings and the paperclip do not reflow. */
+      transition: opacity .12s ease, color .12s ease;
     }
     @media (hover: hover) and (pointer: fine) {
-      .verse-group .att-chip { padding-right: .42rem; }
-      .verse-group .att-item:has(.verse-star[aria-pressed="true"]) .att-chip,
-      .verse-group .att-item:hover .att-chip,
-      .verse-group .att-item:focus-within .att-chip { padding-right: .12rem; }
-      .verse-group .verse-star,
-      .verse-group .att-remove {
-        width: 0;
-        min-width: 0;
-        overflow: hidden;
-      }
       .verse-group .verse-star[aria-pressed="true"] {
-        width: 1.35rem;
-        min-width: 1.35rem;
-        overflow: visible;
         visibility: visible;
         opacity: 1;
       }
@@ -1806,9 +1812,6 @@ export function page(title: string, body: string): string {
       .verse-group .att-item:focus-within .att-remove,
       .verse-group .verse-star:focus-visible,
       .verse-group .att-remove:focus-visible {
-        width: 1.35rem;
-        min-width: 1.35rem;
-        overflow: visible;
         visibility: visible;
         opacity: 1;
       }

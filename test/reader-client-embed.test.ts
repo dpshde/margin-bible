@@ -80,6 +80,8 @@ describe("embedded reader scripts", () => {
     expect(source).toContain("useChapterCache");
     expect(source).toContain("htmlCache.get(chapterKey)");
     expect(source).toContain("function verseTargetFromLocation");
+    expect(source).toContain("applyXref({ start: located.start, end: located.end })");
+    expect(source).toContain("const chapterPromise = htmlCache.get(chapterKey);");
     const inbox = notesInboxScript();
     expect(inbox).toContain("window.__marginPrefetchChapter = prefetchSearchChapter");
     expect(inbox).toContain("window.__marginSoftNav = softNavTo");

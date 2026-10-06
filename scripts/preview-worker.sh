@@ -39,13 +39,23 @@ if updated.count('name: "margin-bible"') != 1:
     raise SystemExit("expected the D1 binding name to stay margin-bible")
 if 'id: "0f48d232-f2d8-46c2-a8a3-3b36c4279feb"' not in updated:
     raise SystemExit("D1 id changed")
+seed_anchor = "ASSETS: bindings.assets(),"
+seed_line = 'ASSETS: bindings.assets(),\n\t\t\tPREVIEW_SEED: bindings.text("1"),'
+if seed_anchor not in updated:
+    raise SystemExit("assets binding anchor missing")
+file.write_text(updated.replace(seed_anchor, seed_line, 1))
+updated = file.read_text()
+if 'PREVIEW_SEED: bindings.text("1")' not in updated:
+    raise SystemExit("preview seed binding missing")
+if updated.count('name: "margin-bible"') != 1:
+    raise SystemExit("expected the D1 binding name to stay margin-bible")
 PY
 
 mise exec -- cf deploy
 
 prod=$(curl -fsS -H "cache-control: no-cache" "https://margin-bible.dpshade.workers.dev/health" || true)
 printf '%s\n' "$prod"
-if printf '%s' "$prod" | grep -q '2026.10.06.21'; then
+if printf '%s' "$prod" | grep -q '2026.10.06.26'; then
   echo "production worker is serving this preview build" >&2
   exit 1
 fi
@@ -55,13 +65,13 @@ body=""
 while [ "$i" -lt 12 ]; do
   body=$(curl -fsS -H "cache-control: no-cache" "$preview_url/health" || true)
   printf '%s\n' "$body"
-  if printf '%s' "$body" | grep -q '2026.10.06.21'; then
+  if printf '%s' "$body" | grep -q '2026.10.06.26'; then
     break
   fi
   i=$((i + 1))
   sleep 3
 done
-printf '%s' "$body" | grep -q '2026.10.06.21'
+printf '%s' "$body" | grep -q '2026.10.06.26'
 
 notes=$(curl -fsS -A "Mozilla/5.0" -H "cache-control: no-cache" "$preview_url/notes")
 printf '%s' "$notes" | grep -q 'id="verse-groups-view"'
