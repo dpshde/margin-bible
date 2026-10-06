@@ -45,7 +45,7 @@ mise exec -- cf deploy
 
 prod=$(curl -fsS -H "cache-control: no-cache" "https://margin-bible.dpshade.workers.dev/health" || true)
 printf '%s\n' "$prod"
-if printf '%s' "$prod" | grep -q '2026.10.05.3'; then
+if printf '%s' "$prod" | grep -q '2026.10.06.1'; then
   echo "production worker is serving this preview build" >&2
   exit 1
 fi
@@ -55,21 +55,30 @@ body=""
 while [ "$i" -lt 12 ]; do
   body=$(curl -fsS -H "cache-control: no-cache" "$preview_url/health" || true)
   printf '%s\n' "$body"
-  if printf '%s' "$body" | grep -q '2026.10.05.3'; then
+  if printf '%s' "$body" | grep -q '2026.10.06.1'; then
     break
   fi
   i=$((i + 1))
   sleep 3
 done
-printf '%s' "$body" | grep -q '2026.10.05.3'
+printf '%s' "$body" | grep -q '2026.10.06.1'
 
-notes=$(curl -fsS -H "cache-control: no-cache" "$preview_url/notes")
-printf '%s' "$notes" | grep -q 'id="verse-groups-btn"'
-printf '%s' "$notes" | grep -q 'data-hub="rom.9.17"'
-printf '%s' "$notes" | grep -q 'data-vg-attach'
-printf '%s' "$notes" | grep -q 'class="att-chip wiki"'
-printf '%s' "$notes" | grep -q 'value="Providence"'
-printf '%s' "$notes" | grep -q 'data-vg-topic-parent="god"'
-printf '%s' "$notes" | grep -q 'class="verse-group-description"'
+notes=$(curl -fsS -A "Mozilla/5.0" -H "cache-control: no-cache" "$preview_url/notes")
+printf '%s' "$notes" | grep -q 'id="verse-groups-view"'
+printf '%s' "$notes" | grep -q 'id="bookmarks-view"'
+printf '%s' "$notes" | grep -q 'No verse groups yet — link 2+ notes to a hub'
+printf '%s' "$notes" | grep -q 'class="bookmarks-view"'
+if printf '%s' "$notes" | grep -q 'verse-groups-btn'; then
+  echo "verse groups still uses the side button" >&2
+  exit 1
+fi
+if printf '%s' "$notes" | grep -q 'Save sample'; then
+  echo "sample save is still in the preview" >&2
+  exit 1
+fi
+if printf '%s' "$notes" | grep -q 'data-hub="rom.9.17"'; then
+  echo "empty library is still showing the sample web" >&2
+  exit 1
+fi
 
 echo "PREVIEW_URL=$preview_url/notes"

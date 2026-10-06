@@ -1279,57 +1279,23 @@ export function page(title: string, body: string): string {
         background: var(--paper-raised);
       }
     }
-    /* Verse groups sits beside Bookmarks. The panel opens under that row. */
-    .inbox-tool-row {
-      display: flex;
-      align-items: flex-start;
-      gap: .5rem;
-      margin: 0 0 1rem;
-    }
-    .inbox-tool-row .bookmarks-view {
-      flex: 1 1 auto;
-      min-width: 0;
-      margin: 0;
-    }
-    .verse-groups-btn {
-      appearance: none;
-      display: inline-flex;
-      align-items: center;
-      gap: .35rem;
-      flex: 0 0 auto;
-      margin: 0;
-      padding: .35rem .7rem;
-      min-height: var(--tap);
-      border: 0;
-      border-radius: .55rem;
-      background: var(--fill);
-      color: var(--ink-soft);
+    /* Verse groups use the same soft-wash control as Bookmarks.
+       A web collapses to a bookmark row and opens onto its chips. */
+    .verse-group { margin: 0; }
+    .verse-group > summary.note-row {
+      width: 100%;
       cursor: pointer;
-      font: 700 .7rem/1.3 var(--sans);
-      letter-spacing: .08em;
-      text-transform: uppercase;
+      list-style: none;
     }
-    .verse-groups-btn[aria-expanded="true"] { color: var(--ink); background: var(--paper-raised); }
-    .verse-groups-btn:focus-visible { outline: 2px solid var(--sel-rail-open); outline-offset: 2px; }
-    .verse-groups-icon { display: block; width: .9rem; height: .9rem; }
-    .verse-groups-panel {
-      margin: -0.35rem 0 1rem;
-      padding: .75rem .75rem .85rem;
-      border: 0;
-      border-radius: .55rem;
-      background: var(--fill);
-      box-shadow: none;
-    }
-    .verse-groups-panel[hidden] { display: none !important; }
-    .verse-groups-panel .verse-group {
+    .verse-group > summary.note-row::-webkit-details-marker { display: none; }
+    .verse-group > summary.note-row::marker { content: ""; }
+    .verse-group-guess {
       margin: 0;
-      padding: 0;
-      border: 0;
-      background: none;
-      box-shadow: none;
+      color: var(--faint);
+      font-size: .78rem;
+      font-weight: 400;
     }
-    .verse-groups-panel .verse-group + .verse-group { margin-top: 1rem; }
-    .verse-group-form { display: flex; flex-direction: column; gap: .45rem; margin: 0; }
+    .verse-group-form { display: flex; flex-direction: column; gap: .45rem; margin: 0; padding: 0 .7rem .75rem; }
     .verse-group-title-row { display: flex; align-items: center; gap: .35rem; }
     .verse-group-title-row input { flex: 1 1 auto; }
     .verse-group-topic-toggle {
@@ -1709,6 +1675,27 @@ export function page(title: string, body: string): string {
     @media (hover: none), (pointer: coarse) {
       /* Touch still gets a tap target, but it stays quiet inside the pill. */
       .att-remove { visibility: visible; opacity: .72; }
+      /* Verse-group refs stay fully readable. The remove control sits beside the chip. */
+      .verse-group .att-chip {
+        max-width: none;
+        padding: .45rem .75rem;
+        font-size: 1rem;
+        font-weight: 600;
+        line-height: 1.3;
+      }
+      .verse-group .att-item { gap: .1rem; }
+      .verse-group .att-remove {
+        position: static;
+        transform: none;
+        width: var(--tap);
+        height: var(--tap);
+        min-width: var(--tap);
+        min-height: var(--tap);
+        opacity: 1;
+        visibility: visible;
+        background: transparent;
+      }
+      .verse-group .att-remove svg { width: 1.05rem; height: 1.05rem; }
     }
     .att-remove:focus-visible { visibility: visible; opacity: 1; color: var(--ink); background: var(--paper-raised); }
     .att-remove svg { display: block; width: .7rem; height: .7rem; }

@@ -2,7 +2,7 @@
  * Persist a web's name beside the hub slug. Xref sync keeps owning the chips,
  * so a title survives a backlink write.
  *
- * Saving a sample mesh writes the fan-in spokes (members → hub) only.
+ * A hub has to already exist in the library. This store does not invent a sample mesh.
  * Pairwise cross-links are a separate confirm action.
  */
 import { newAttachmentId, noteIsEmpty, type Attachment } from "./attachments";
@@ -13,8 +13,6 @@ import {
   canonSlug,
   cleanGroupDescription,
   cleanGroupTitle,
-  DEMO_HUB,
-  DEMO_SPOKE_SLUGS,
   realVerseGroups,
   verseGroupsFromNotes,
   verseMemberFromInput,
@@ -217,7 +215,7 @@ async function undoVerseGroupLinks(
   return { ok: true, statusText, group: next };
 }
 
-/** Materialize the sample spokes when this library does not already have the hub. */
+/** Refuse a hub the library has not already formed. */
 async function ensureHub(
   db: D1Database,
   libraryId: string,
@@ -226,33 +224,7 @@ async function ensureHub(
   const notes = await listNotes(db, libraryId);
   const real = realVerseGroups(notes);
   if (real.some((group) => group.hub === hub)) return { ok: true };
-  if (hub !== DEMO_HUB) return { ok: false, status: 422, error: "That verse is not a hub yet." };
-  await materializeDemoMesh(db, libraryId);
-  const again = realVerseGroups(await listNotes(db, libraryId));
-  if (!again.some((group) => group.hub === hub)) {
-    return { ok: false, status: 422, error: "Could not save the sample web." };
-  }
-  return { ok: true };
-}
-
-/**
- * Fan-in spokes only: each sample member points at Romans 9:17.
- * Does not add the pairwise cross-links.
- */
-export async function materializeDemoMesh(db: D1Database, libraryId: string): Promise<void> {
-  for (const member of DEMO_SPOKE_SLUGS) {
-    const existing = await findNote(db, libraryId, member);
-    const previous = existing?.attachments ?? [];
-    const next = withManualXref(previous, DEMO_HUB, newAttachmentId());
-    if (!existing) {
-      const draft = emptyNote(member, next.list);
-      if (!draft) continue;
-      await saveNote(db, libraryId, draft);
-    } else if (next.added) {
-      await saveNote(db, libraryId, { ...existing, attachments: next.list });
-    }
-    await syncBidirectionalXrefs(db, libraryId, member, previous, next.list);
-  }
+  return { ok: false, status: 422, error: "That verse is not a hub yet." };
 }
 
 async function addUserLink(db: D1Database, libraryId: string, origin: string, target: string): Promise<boolean> {

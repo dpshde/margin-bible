@@ -12,7 +12,6 @@
  * TODO(pair): stack more than the last cross-link add on undo.
  */
 import { addAttachment, parseAttachmentInput, type Attachment } from "./attachments";
-import { applySuggestedTopic, DEMO_VERSE_TEXTS } from "./jev-topics";
 import { parsePassage, passageSlug } from "./passage";
 import { slugLabel } from "./xref";
 
@@ -22,7 +21,7 @@ export const PAIR_FILL_CAP = 48;
 export const GROUP_TITLE_MAX = 120;
 export const GROUP_DESCRIPTION_MAX = 2_000;
 
-/** Dylan's manual mesh. Preview shows this when the library has no hub yet. */
+/** Fixture slugs from the promote packet. Detection tests use these. They are not shown as a product sample. */
 export const DEMO_HUB = "rom.9.17";
 export const DEMO_SPOKE_SLUGS = ["1pe.5.6", "est.4.14", "jhn.9.3", "rom.12.3"] as const;
 
@@ -71,9 +70,9 @@ export type VerseGroupView = {
   missingPairs: VersePair[];
   missingCount: number;
   undoReady: boolean;
-  /** Nearest topic, used when the web has no saved title. */
+  /** Local keyword guess. A caption until the web has a saved title. Not a Jev result. */
   suggestedTitle?: string;
-  /** Parent id for that topic, so the picker can open on the right branch. */
+  /** Parent id for that guess, so the picker can open on the right branch. */
   topicParent?: string;
 };
 
@@ -223,29 +222,12 @@ export function realVerseGroups(notes: readonly GroupNote[], metas: readonly Ver
   return groups;
 }
 
-/** Real hubs, or the Romans 9:17 sample when the library has none. */
+/** Hubs already in this library. Empty when there is no fan-in or star. */
 export function verseGroupsFromNotes(
   notes: readonly GroupNote[],
   metas: readonly VerseGroupMeta[] = [],
 ): VerseGroupView[] {
-  const real = realVerseGroups(notes, metas);
-  if (real.length) return real;
-  return [sampleVerseGroup(metaMap(metas).get(DEMO_HUB))];
-}
-
-export function sampleVerseGroup(meta?: VerseGroupMeta): VerseGroupView {
-  const edges = DEMO_SPOKE_SLUGS.map((origin) => ({ origin, target: DEMO_HUB }));
-  const group = toView({
-    hub: DEMO_HUB,
-    edges,
-    members: [DEMO_HUB, ...DEMO_SPOKE_SLUGS],
-    inboundCount: DEMO_SPOKE_SLUGS.length,
-    outboundCount: 0,
-    sample: true,
-    meta,
-  });
-  if (group.title.trim()) return group;
-  return applySuggestedTopic(group, DEMO_VERSE_TEXTS);
+  return realVerseGroups(notes, metas);
 }
 
 function toView(input: {

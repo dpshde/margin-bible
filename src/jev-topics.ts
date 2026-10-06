@@ -1,7 +1,8 @@
 /**
- * Two-step topic choice for a verse web.
+ * Local keyword guess for a verse-web title.
+ * This is not a TypeSafe/Jev or Hidden Arrow topic call.
  * Parents come first. Children appear only after a parent is chosen.
- * The nearest topic is the child whose words show up in the most passages.
+ * The guess is the child whose words show up in the most passages.
  */
 import type { VerseGroupView } from "./verse-groups";
 

@@ -1,33 +1,37 @@
 /**
- * Inbox surface for verse webs. One flat container beside Bookmarks.
- * Verses are the same chips as outliner attachments, added through the same dialog.
+ * Inbox surface for verse webs. Same chrome as Bookmarks.
+ * Each web is a bookmark row that opens onto its member chips.
  */
 import { escapeHtml } from "./html";
 import { JEV_TOPICS } from "./jev-topics";
 import type { VerseGroupMember, VerseGroupView } from "./verse-groups";
 import { hrefForXref } from "./xref";
 
-export function verseGroupsButtonHtml(): string {
-  return `<button type="button" class="verse-groups-btn" id="verse-groups-btn" aria-expanded="false" aria-controls="verse-groups-panel">${verseGroupsIcon()}<span>Verse groups</span></button>`;
-}
-
-export function verseGroupsPanelHtml(groups: readonly VerseGroupView[]): string {
-  const groupsHtml = groups.map((group) => verseGroupCardHtml(group)).join("");
-  return `<section id="verse-groups-panel" class="verse-groups-panel" hidden aria-label="Verse groups">${groupsHtml}</section>${attachDialogHtml()}`;
+export function verseGroupsViewHtml(groups: readonly VerseGroupView[]): string {
+  const body = groups.length
+    ? `<ul class="note-list">${groups.map((group) => `<li>${verseGroupCardHtml(group)}</li>`).join("")}</ul>`
+    : `<p class="empty">No verse groups yet — link 2+ notes to a hub</p>`;
+  return `<details class="bookmarks-view" id="verse-groups-view"><summary><span class="bookmarks-summary-label">${verseGroupsIcon()}<span>Verse groups</span></span></summary><div class="bookmarks-panel" id="verse-groups-panel">${body}</div></details>${attachDialogHtml()}`;
 }
 
 export function verseGroupCardHtml(group: VerseGroupView, status = ""): string {
   const field = group.hub.replaceAll(".", "-");
   const chips = group.members.map((member) => verseChipHtml(member)).join("");
-  const saveLabel = group.sample ? "Save sample to this library" : "Save";
-  const title = group.title.trim() || group.suggestedTitle || "";
+  const saved = group.title.trim();
+  const guess = (group.suggestedTitle ?? "").trim();
+  const rowTitle = saved || group.hubLabel;
+  const excerpt = !saved && guess ? `local topic guess · ${guess}` : saved && saved !== group.hubLabel ? group.hubLabel : "";
+  const placeholder = guess || "Name this web";
+  const guessCaption = !saved && guess ? `<p class="verse-group-guess">local topic guess</p>` : "";
   const descriptionOpen = group.description.trim() ? " open" : "";
-  return `<div class="verse-group" data-hub="${escapeHtml(group.hub)}" data-sample="${group.sample ? "1" : "0"}" data-seed="${group.seed ? "1" : "0"}">
+  return `<details class="verse-group" data-hub="${escapeHtml(group.hub)}" data-sample="${group.sample ? "1" : "0"}" data-seed="${group.seed ? "1" : "0"}">
+  <summary class="note-row"><span class="note-row-title">${escapeHtml(rowTitle)}</span>${excerpt ? `<span class="note-row-excerpt">${escapeHtml(excerpt)}</span>` : ""}</summary>
   <form class="verse-group-form">
     <div class="verse-group-title-row">
-      <input id="vg-title-${field}" name="title" value="${escapeHtml(title)}" placeholder="Name this web" maxlength="120" autocomplete="off" aria-label="Title">
-      <button type="button" class="verse-group-topic-toggle" data-vg-topics aria-expanded="false">Topic</button>
+      <input id="vg-title-${field}" name="title" value="${escapeHtml(saved)}" placeholder="${escapeHtml(placeholder)}" maxlength="120" autocomplete="off" aria-label="Title">
+      <button type="button" class="verse-group-topic-toggle" data-vg-topics aria-expanded="false">Topics</button>
     </div>
+    ${guessCaption}
     ${topicPickerHtml(group.topicParent)}
     <details class="verse-group-description"${descriptionOpen}>
       <summary>Description <span class="verse-group-optional">optional</span></summary>
@@ -37,10 +41,10 @@ export function verseGroupCardHtml(group: VerseGroupView, status = ""): string {
       <ul class="att-board">${chips}</ul>
       <button type="button" class="tray-attach" data-vg-attach aria-label="Attach a link or passage" title="Attach">${iconPaperclip()}</button>
     </div>
-    <button type="submit" class="verse-group-save">${saveLabel}</button>
+    <button type="submit" class="verse-group-save">Save</button>
     <p class="verse-group-status" role="status">${escapeHtml(status)}</p>
   </form>
-</div>`;
+</details>`;
 }
 
 function topicPickerHtml(nearestParent: string | undefined): string {
@@ -65,10 +69,10 @@ function topicPickerHtml(nearestParent: string | undefined): string {
 
 export function verseGroupsScript(): string {
   return `(() => {
-  var btn = document.getElementById("verse-groups-btn");
+  var view = document.getElementById("verse-groups-view");
   var panel = document.getElementById("verse-groups-panel");
   var dialog = document.getElementById("vg-att-drop");
-  if (!btn || !panel) return;
+  if (!view || !panel) return;
   var OPEN_KEY = "margin_verse_groups_open";
   var FLASH_KEY = "margin_verse_groups_flash";
   var active = null;
@@ -78,14 +82,8 @@ export function verseGroupsScript(): string {
   var suggestSeq = 0;
 
   function setOpen(open) {
-    btn.setAttribute("aria-expanded", open ? "true" : "false");
-    if (open) panel.removeAttribute("hidden");
-    else panel.setAttribute("hidden", "");
+    view.open = Boolean(open);
   }
-
-  btn.addEventListener("click", function () {
-    setOpen(panel.hasAttribute("hidden"));
-  });
 
   if (location.hash === "#verse-groups") setOpen(true);
   try {
@@ -102,6 +100,7 @@ export function verseGroupsScript(): string {
       for (var i = 0; i < cards.length; i += 1) {
         if (cards[i].getAttribute("data-hub") === flash.hub) card = cards[i];
       }
+      if (card) card.open = true;
       var status = card && card.querySelector(".verse-group-status");
       if (status && flash.message) status.textContent = flash.message;
     }
@@ -507,7 +506,7 @@ function attachDialogHtml(): string {
 }
 
 function verseGroupsIcon(): string {
-  return `<svg class="verse-groups-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="15" height="15" aria-hidden="true"><circle cx="3.2" cy="8" r="1.5" fill="currentColor"/><circle cx="12.6" cy="3.4" r="1.5" fill="currentColor"/><circle cx="12.6" cy="12.6" r="1.5" fill="currentColor"/><path d="M4.6 7.3 11.1 4.1M4.6 8.7 11.1 11.8" stroke="currentColor" stroke-width="1.2" fill="none"/></svg>`;
+  return `<svg class="bookmarks-summary-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="15" height="15" aria-hidden="true"><circle cx="3.2" cy="8" r="1.5" fill="currentColor"/><circle cx="12.6" cy="3.4" r="1.5" fill="currentColor"/><circle cx="12.6" cy="12.6" r="1.5" fill="currentColor"/><path d="M4.6 7.3 11.1 4.1M4.6 8.7 11.1 11.8" stroke="currentColor" stroke-width="1.2" fill="none"/></svg>`;
 }
 
 function iconPaperclip(): string {

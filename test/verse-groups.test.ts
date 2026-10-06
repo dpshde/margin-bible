@@ -73,12 +73,8 @@ describe("verse group detection", () => {
     expect(group.missingPairs.some((pair) => pair.from === DEMO_HUB || pair.to === DEMO_HUB)).toBe(false);
   });
 
-  test("an empty library shows the Romans 9:17 sample and does not invent other hubs", () => {
-    const groups = verseGroupsFromNotes([]);
-    expect(groups).toHaveLength(1);
-    expect(groups[0]?.sample).toBe(true);
-    expect(groups[0]?.hub).toBe(DEMO_HUB);
-    expect(groups[0]?.title).toBe("");
+  test("an empty library has no verse groups", () => {
+    expect(verseGroupsFromNotes([])).toEqual([]);
     expect(realVerseGroups([])).toEqual([]);
   });
 
@@ -189,7 +185,9 @@ describe("preview worker publish", () => {
     const config = readFileSync(new URL("../cloudflare.config.ts", import.meta.url), "utf8");
     expect(script).toContain('preview_name="margin-bible-verse-groups"');
     expect(script).toContain("production worker is serving this preview build");
-    expect(script).toContain('id="verse-groups-btn"');
+    expect(script).toContain('id="verse-groups-view"');
+    expect(script).toContain("No verse groups yet");
+    expect(script).toContain("sample save is still in the preview");
     expect(script).not.toContain("migrations apply");
     expect(workflow).toContain("sh scripts/preview-worker.sh");
     expect(workflow).not.toContain("refs/heads/main");
@@ -203,8 +201,8 @@ describe("preview worker publish", () => {
   });
 });
 
-describe("jev topic hierarchy", () => {
-  test("the seed passages land on Providence, under God", () => {
+describe("local topic guess", () => {
+  test("keyword scoring on the seed passages lands on Providence, under God", () => {
     const match = closestJevTopic(DEMO_VERSE_TEXTS);
     expect(match?.parent).toBe("God");
     expect(match?.parentId).toBe("god");
@@ -226,25 +224,71 @@ describe("jev topic hierarchy", () => {
 });
 
 describe("verse groups inbox", () => {
-  test("empty inbox puts Verse groups beside Bookmarks and shows the seed mesh", () => {
+  test("empty inbox uses the Bookmarks chrome and an empty library state", () => {
     const html = renderNotesIndex([], "jhn.1");
-    const rowStart = html.indexOf('class="inbox-tool-row"');
-    const row = html.slice(rowStart, html.indexOf('id="verse-groups-panel"'));
-    expect(row).toContain(">Bookmarks</span>");
-    expect(row).toContain('id="verse-groups-btn"');
-    expect(row.indexOf(">Bookmarks</span>")).toBeLessThan(row.indexOf('id="verse-groups-btn"'));
-    expect(row).toContain(">Verse groups</span>");
-    expect(html).toContain('aria-controls="verse-groups-panel"');
-    expect(html).toContain('data-hub="rom.9.17"');
-    expect(html).toContain("1 Peter 5:6");
-    expect(html).toContain("Esther 4:14");
-    expect(html).toContain("John 9:3");
-    expect(html).toContain("Romans 12:3");
-    expect(html).toContain("Name this web");
-    expect(html).toContain('value="Providence"');
+    expect(html.match(/class="bookmarks-view"/g)).toHaveLength(2);
+    expect(html.indexOf('id="bookmarks-view"')).toBeLessThan(html.indexOf('id="verse-groups-view"'));
+    expect(html).toContain(">Bookmarks</span>");
+    expect(html).toContain(">Verse groups</span>");
+    expect(html).toContain("No verse groups yet — link 2+ notes to a hub");
+    expect(html).not.toContain("verse-groups-btn");
+    expect(html).not.toContain("inbox-tool-row");
+    expect(html).not.toContain("Save sample");
+    expect(html).not.toContain('data-hub="rom.9.17"');
+    expect(html).toContain("John 3:16");
+    const css = page("t", "<p>x</p>");
+    expect(css).toContain(".bookmarks-view");
+    expect(css).not.toContain(".verse-groups-btn");
+    expect(css).not.toContain(".inbox-tool-row");
+    expect(css).toContain(".verse-group .att-chip");
+    expect(css).toContain(".verse-group .att-remove");
+    const coarse = css.slice(css.indexOf("@media (hover: none), (pointer: coarse)"));
+    const verseChip = coarse.slice(coarse.indexOf(".verse-group .att-chip"));
+    expect(verseChip).toContain("font-size: 1rem");
+    expect(verseChip).toContain("position: static");
+    expect(verseChip).toContain("min-width: var(--tap)");
+    nodeCheck(verseGroupsScript());
+  });
+
+  test("a library web collapses like a bookmark and keeps the guess out of the title", () => {
+    const html = renderNotesIndex([], "jhn.1", {
+      verseGroups: [
+        {
+          hub: "rom.9.17",
+          hubLabel: "Romans 9:17",
+          title: "",
+          description: "",
+          members: [
+            { slug: "rom.9.17", label: "Romans 9:17", role: "hub" },
+            { slug: "1pe.5.6", label: "1 Peter 5:6", role: "member" },
+            { slug: "est.4.14", label: "Esther 4:14", role: "member" },
+          ],
+          trigger: "fan-in",
+          inboundCount: 2,
+          outboundCount: 0,
+          why: "2 notes point at Romans 9:17.",
+          sample: false,
+          seed: true,
+          missingPairs: [],
+          missingCount: 0,
+          undoReady: false,
+          suggestedTitle: "Providence",
+          topicParent: "god",
+        },
+      ],
+    });
+    expect(html).toContain('class="verse-group"');
+    expect(html).toContain('<summary class="note-row">');
+    expect(html).toContain(">Romans 9:17</span>");
+    expect(html).toContain("local topic guess · Providence");
+    expect(html).toContain('value=""');
+    expect(html).toContain('placeholder="Providence"');
+    expect(html).toContain("local topic guess");
+    expect(html).not.toContain('value="Providence"');
     expect(html).toContain('class="verse-group-description"');
     expect(html).not.toContain('class="verse-group-description" open');
-    expect(html).toContain("optional");
+    expect(html).toContain(">Save</button>");
+    expect(html).not.toContain("Save sample");
     const panel = html.slice(html.indexOf('id="verse-groups-panel"'));
     const parents = panel.slice(panel.indexOf("verse-group-topic-parents"), panel.indexOf("verse-group-topic-children"));
     expect(parents).toContain(">God</button>");
@@ -255,19 +299,9 @@ describe("verse groups inbox", () => {
     expect(html).toContain('data-vg-topic-child="Providence"');
     expect(html).toContain('class="att-chip wiki"');
     expect(html).toContain('data-vg-attach');
-    expect(html).toContain("Drop a link. Or a passage.");
-    expect(html).toContain("John 3:16");
-    expect(html).not.toContain("verse-group-preview");
-    expect(html).not.toContain("is-highlight");
-    expect(html).not.toContain("verse-group-members");
-    expect(html).not.toMatch(/>Open</);
-    const css = page("t", "<p>x</p>");
-    expect(css).toContain(".inbox-tool-row");
-    expect(css).toContain(".verse-groups-btn");
-    const vgCss = css.slice(css.indexOf(".verse-groups-btn"), css.indexOf(".note-week"));
-    expect(vgCss).not.toContain("border-left");
-    expect(vgCss).not.toContain("inset 3px");
-    nodeCheck(verseGroupsScript());
+    expect(html).toContain("1 Peter 5:6");
+    expect(html).toContain("Esther 4:14");
+    expect(html).not.toContain('<details class="verse-group" data-hub="rom.9.17" data-sample="0" data-seed="1" open');
   });
 
   test("a real fan-in card escapes the title and is not marked sample", () => {
@@ -295,6 +329,10 @@ describe("verse groups inbox", () => {
     expect(html).toContain("&lt;script&gt;");
     expect(html).toContain('class="verse-group-description" open');
     expect(html).toContain(">Save</button>");
+    expect(html).not.toContain("Save sample");
+    expect(html).toContain('<summary class="note-row">');
+    expect(html).toContain('value="&lt;script&gt;alert(&quot;x&quot;)&lt;/script&gt;"');
+    expect(html).not.toContain("local topic guess");
     expect(html).toContain('class="att-chip wiki"');
     expect(html).toContain("1 Peter 5:6");
     expect(html).not.toContain("verse-group-preview");

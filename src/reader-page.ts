@@ -19,7 +19,7 @@ import {
 } from "./passage";
 import { bookmarksViewHtml, notesInboxScript, starterChipsHtml, notesListHtml } from "./inbox-ui";
 import { verseGroupsFromNotes, type VerseGroupView } from "./verse-groups";
-import { verseGroupsButtonHtml, verseGroupsPanelHtml, verseGroupsScript } from "./verse-groups-ui";
+import { verseGroupsScript, verseGroupsViewHtml } from "./verse-groups-ui";
 import { jumpFormHtml, jumpScript } from "./jump-ui";
 import { chapterGridHtml } from "./chapter-grid";
 import { clientScript } from "./reader-client";
@@ -221,11 +221,8 @@ ${chapterGridHtml(gridBook, gridChapter)}
 <main class="notes-main reader">
   ${jumpFormHtml()}
   ${starterChipsHtml()}
-  <div class="inbox-tool-row">
-    ${bookmarksViewHtml(mirror)}
-    ${verseGroupsButtonHtml()}
-  </div>
-  ${verseGroupsPanelHtml(verseGroups)}
+  ${bookmarksViewHtml(mirror)}
+  ${verseGroupsViewHtml(verseGroups)}
   <div id="notes-mount">${items}</div>
 </main>
 <script type="application/json" id="inbox-pack-mirror">${JSON.stringify(mirror).replace(/</g, "\\u003c")}</script>
