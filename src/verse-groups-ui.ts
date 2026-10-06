@@ -250,7 +250,11 @@ export function verseGroupsScript(): string {
 
   panel.addEventListener("toggle", function (event) {
     var card = event.target;
-    if (!card || !card.classList || !card.classList.contains("verse-group") || card.open) return;
+    if (!card || !card.classList || !card.classList.contains("verse-group")) return;
+    if (card.open) {
+      card.classList.remove("is-collapsed-hover");
+      return;
+    }
     var summary = card.querySelector("summary");
     if (summary && document.activeElement === summary) summary.blur();
     if (!card.matches(":hover")) return;

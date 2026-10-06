@@ -1303,20 +1303,27 @@ export function page(title: string, body: string): string {
     .verse-group[open] > summary .note-row-excerpt {
       color: var(--paper);
     }
+    /* Open fill wins over bookmark hover, focus, and the collapse wash. */
+    .bookmarks-panel .note-list .verse-group[open] > summary.note-row,
     .bookmarks-panel .note-list .verse-group[open] > summary.note-row:hover,
-    .bookmarks-panel .note-list .verse-group[open] > summary.note-row:focus-visible,
-    .note-list .verse-group[open] > summary.note-row:hover,
-    .note-list .verse-group[open] > summary.note-row:focus-visible {
+    .bookmarks-panel .note-list .verse-group[open] > summary.note-row:focus,
+    .bookmarks-panel .note-list .verse-group[open] > summary.note-row:focus-visible {
       background: var(--ink);
+      color: var(--paper);
+      outline: none;
+    }
+    .bookmarks-panel .note-list .verse-group[open] > summary .note-row-title,
+    .bookmarks-panel .note-list .verse-group[open] > summary .note-row-excerpt {
       color: var(--paper);
     }
     /* Collapse leaves the pointer on the summary. Hold the closed look
-       until the pointer actually leaves and comes back. */
-    .bookmarks-panel .note-list .verse-group.is-collapsed-hover > summary.note-row,
-    .bookmarks-panel .note-list .verse-group.is-collapsed-hover > summary.note-row:hover,
-    .bookmarks-panel .note-list .verse-group.is-collapsed-hover > summary.note-row:focus,
-    .bookmarks-panel .note-list .verse-group.is-collapsed-hover > summary.note-row:focus-visible {
+       until the pointer actually leaves and comes back. Never while open. */
+    .bookmarks-panel .note-list .verse-group.is-collapsed-hover:not([open]) > summary.note-row,
+    .bookmarks-panel .note-list .verse-group.is-collapsed-hover:not([open]) > summary.note-row:hover,
+    .bookmarks-panel .note-list .verse-group.is-collapsed-hover:not([open]) > summary.note-row:focus,
+    .bookmarks-panel .note-list .verse-group.is-collapsed-hover:not([open]) > summary.note-row:focus-visible {
       background: transparent;
+      outline: none;
     }
     .verse-group-form { display: flex; flex-direction: column; gap: .4rem; margin: 0; padding: .4rem .55rem .25rem; }
     .verse-group-fields {

@@ -265,7 +265,9 @@ describe("verse groups inbox", () => {
     expect(css).toContain('.verse-group-form input[name="title"] {\n      font-weight: 600;');
     expect(css).toContain(".verse-group-fields {\n      display: flex;\n      flex-direction: column;");
     expect(css).toContain(".verse-group[open] > summary.note-row {\n      background: var(--ink);\n      color: var(--paper);\n      align-items: center;\n      min-height: 0;\n      padding: .42rem .7rem;");
-    expect(css).toContain(".verse-group.is-collapsed-hover > summary.note-row:hover");
+    expect(css).toContain(".verse-group.is-collapsed-hover:not([open]) > summary.note-row:hover");
+    expect(css).toContain(".verse-group[open] > summary.note-row:focus");
+    expect(css).toContain("outline: none;");
     expect(css).toContain("background: transparent;");
     expect(verseGroupsScript()).toContain("is-collapsed-hover");
     expect(css).not.toContain(".verse-group[open] > summary .note-row-title,\n    .verse-group[open] > summary .note-row-excerpt { display: none; }");
