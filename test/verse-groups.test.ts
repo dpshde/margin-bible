@@ -294,6 +294,7 @@ describe("verse groups inbox", () => {
     expect(css).toContain("background: transparent;");
     expect(verseGroupsScript()).toContain("is-collapsed-hover");
     expect(verseGroupsScript()).toContain("set-star");
+    expect(verseGroupsScript()).toContain('typeof payload.star === "string"');
     expect(verseGroupsScript()).toContain("suggest-title");
     expect(css).not.toContain(".verse-group[open] > summary .note-row-title,\n    .verse-group[open] > summary .note-row-excerpt { display: none; }");
     const titleRule = css.slice(

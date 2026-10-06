@@ -514,7 +514,7 @@ export function verseGroupsScript(): string {
         return;
       }
       if (opts && opts.star) {
-        paintStar(card, payload.star || (extra && extra.slug) || "");
+        paintStar(card, typeof payload.star === "string" ? payload.star : "");
         card.removeAttribute("data-busy");
         if (status) status.textContent = "";
         return;
