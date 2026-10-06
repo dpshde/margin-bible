@@ -1021,13 +1021,11 @@ export function clientScript(): string {
     xrefSpan = { start: span.start, end: span.end || span.start };
     selectedVerse = null;
     openVerses.clear();
-    document.querySelectorAll(".verse").forEach((row) => {
-      const n = Number(row.dataset.verse);
-      const inSpan = n >= xrefSpan.start && n <= xrefSpan.end;
-      row.classList.remove("is-open");
-      row.classList.toggle("is-xref", inSpan);
-    });
+    // Arrival scrolls to the verse. It does not paint a selection: the old
+    // is-xref border and text wash stayed up until the next tap.
+    document.querySelectorAll(".verse.is-xref").forEach((row) => row.classList.remove("is-xref"));
     document.querySelectorAll(".note-tray").forEach((tray) => { setNoteTray(tray, false); });
+    syncOpenChrome();
     const slug = chapterSlug + "." + xrefSpan.start + (xrefSpan.end !== xrefSpan.start ? "-" + xrefSpan.end : "");
     history.replaceState({}, "", "/" + slug + "?xref=1");
     snappyScrollIntoView(document.querySelector('.verse[data-verse="' + xrefSpan.start + '"]'), { block: "center" });

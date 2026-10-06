@@ -1705,15 +1705,6 @@ export function page(title: string, body: string): string {
       text-decoration-color: color-mix(in srgb, var(--ink) 28%, transparent);
     }
     a.wiki:hover { color: var(--ink); }
-    .verse.is-xref .vtext {
-      background: color-mix(in srgb, var(--ink) 7%, transparent);
-      border-radius: .08em; padding: .02em .08em;
-      box-decoration-break: clone; -webkit-box-decoration-break: clone;
-    }
-    .verse.is-xref .vnum { color: var(--ink-soft); }
-    .verse.is-xref {
-      border-left: 2px solid color-mix(in srgb, var(--ink) 32%, transparent);
-    }
     .att-drop {
       width: min(36rem, calc(100vw - 1.5rem));
       max-width: 100%; padding: 0; border: 0; background: transparent;

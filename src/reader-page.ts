@@ -53,8 +53,10 @@ export function renderChapterPage(input: {
   notesPending?: boolean;
   /** First paint already shows the chapter note. Used by /slug?chapter_note=1. */
   chapterNoteOpen?: boolean;
+  /** ?xref=1 lands on the verse without opening it or painting selection chrome. */
+  xrefArrival?: boolean;
 }): string {
-  const { passage, pack, notes, signedIn = false, notesPending = false, chapterNoteOpen = false } = input;
+  const { passage, pack, notes, signedIn = false, notesPending = false, chapterNoteOpen = false, xrefArrival = false } = input;
   const chapSlug = chapterSlug(passage);
 
   // notesPending: embed [] so HTML/TTFB never waits on D1; client fills noteMap from /api/notes.
@@ -137,7 +139,7 @@ ${chapterGridHtml(passage.book, passage.chapter)}
     </section>
   </div>
   <article class="chapter" id="chapter">
-    ${renderVerses(passage, pack, notesForRender)}
+    ${renderVerses(passage, pack, notesForRender, xrefArrival)}
   </article>
   ${pager(passage)}
   ${renderVerseRail(passage, pack)}
@@ -282,7 +284,7 @@ function renderVerseRail(passage: Passage, pack: ChapterPack): string {
   return `<div class="reader-verse-rail" data-reader-rail="true" role="slider" tabindex="0" aria-label="Jump to verse" aria-valuemin="1" aria-valuemax="${count}" aria-valuenow="${valueNow}"><div class="reader-verse-rail-checkpoints" aria-hidden="true">${dots}</div></div><div class="reader-verse-modal" data-reader-rail-preview="true" hidden></div>`;
 }
 
-function renderVerses(passage: Passage, pack: ChapterPack, notes: NoteView[]): string {
+function renderVerses(passage: Passage, pack: ChapterPack, notes: NoteView[], xrefArrival = false): string {
   const start = passage.verseStart;
   const end = passage.verseEnd ?? passage.verseStart;
   const book = passage.book.toLowerCase();
@@ -305,11 +307,11 @@ function renderVerses(passage: Passage, pack: ChapterPack, notes: NoteView[]): s
     const marked =
       Boolean(exact) ||
       notes.some((note) => note.kind !== "chapter" && note.slug !== vslug && noteCoversVerse(note, verse.v));
-    const openVerse = passage.kind === "verse" && focused;
-    const openRangeEnd = passage.kind === "range" && verse.v === end;
-    const open = openVerse || (passage.kind === "range" && focused);
+    const openVerse = !xrefArrival && passage.kind === "verse" && focused;
+    const openRangeEnd = !xrefArrival && passage.kind === "range" && verse.v === end;
+    const open = openVerse || (!xrefArrival && passage.kind === "range" && focused);
     // Rails is-span: contiguous selection rail across the focused range (3–5). The range note sits under the last verse.
-    const span = passage.kind === "range" && focused;
+    const span = !xrefArrival && passage.kind === "range" && focused;
     const classes = ["verse", open ? "is-open" : "", span ? "is-span" : "", marked ? "has-note" : ""].filter(Boolean).join(" ");
     html += `<div class="${classes}" id="v${verse.v}" data-verse="${verse.v}" data-slug="${escapeHtml(vslug)}">`;
     const railSlug = rangeRailSlug(verse.v, passage, notes);
