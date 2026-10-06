@@ -1293,12 +1293,11 @@ export function page(title: string, body: string): string {
     .verse-group-description { margin: 0; }
     .verse-group-description > summary {
       cursor: pointer;
-      color: var(--muted);
-      font: 500 .8rem/1.3 var(--sans);
+      color: var(--faint);
+      font: 400 .78rem/1.3 var(--sans);
       list-style: none;
     }
     .verse-group-description > summary::-webkit-details-marker { display: none; }
-    .verse-group-optional { color: var(--faint); font-weight: 400; }
     .verse-group-form input,
     .verse-group-form textarea {
       width: 100%;
@@ -1310,7 +1309,20 @@ export function page(title: string, body: string): string {
       color: var(--ink);
       font: 400 1rem/1.4 var(--sans);
     }
-    .verse-group-form textarea { resize: vertical; }
+    .verse-group-form input[name="title"] {
+      font-weight: 600;
+      font-size: 1.05rem;
+    }
+    .verse-group-form input[name="title"]::placeholder {
+      color: var(--ink-soft);
+      font-weight: 500;
+    }
+    .verse-group-form textarea {
+      resize: vertical;
+      font-size: .92rem;
+      font-weight: 400;
+      color: var(--ink-soft);
+    }
     .verse-group-verses {
       display: flex;
       flex-wrap: wrap;

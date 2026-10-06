@@ -25,8 +25,8 @@ export function verseGroupCardHtml(group: VerseGroupView, status = ""): string {
   <form class="verse-group-form">
     <input id="vg-title-${field}" name="title" value="${escapeHtml(saved)}" placeholder="Title" maxlength="120" autocomplete="off" aria-label="Title">
     <details class="verse-group-description"${descriptionOpen}>
-      <summary>Description <span class="verse-group-optional">optional</span></summary>
-      <textarea id="vg-description-${field}" name="description" rows="2" maxlength="2000" placeholder="What holds these together?" aria-label="Description">${escapeHtml(group.description)}</textarea>
+      <summary>Description</summary>
+      <textarea id="vg-description-${field}" name="description" rows="2" maxlength="2000" aria-label="Description">${escapeHtml(group.description)}</textarea>
     </details>
     <div class="verse-group-verses">
       <ul class="att-board">${chips}</ul>
