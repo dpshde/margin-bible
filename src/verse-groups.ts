@@ -46,7 +46,7 @@ export type VerseGroupMeta = {
   title: string;
   description: string;
   undoPairs: { from: string; to: string }[];
-  /** Member marked as the one star. Empty means the detected hub. */
+  /** Member marked as the one star. Empty means no star. */
   star?: string;
 };
 
@@ -54,12 +54,14 @@ export type VerseGroupMember = {
   slug: string;
   label: string;
   role: "hub" | "member";
+  /** Place in the unstarred order, so clearing a star can put the chip back. */
+  order?: number;
 };
 
 export type VerseGroupView = {
   hub: string;
   hubLabel: string;
-  /** The one starred member. Defaults to the detected hub. */
+  /** The starred member, or empty when the group has no star. */
   star: string;
   title: string;
   description: string;
@@ -248,11 +250,15 @@ function toView(input: {
   const starTrigger = input.outboundCount >= STAR_MIN;
   const trigger: VerseGroupTrigger = fanIn && starTrigger ? "both" : fanIn ? "fan-in" : "star";
   const missing = missingPairwise(input.members, input.edges);
-  const star = resolveStar(input.hub, input.members, input.meta?.star);
-  const members = sortMembers(star, input.members).map((slug) => ({
+  const star = resolveStar(input.members, input.meta?.star);
+  const natural = sortMembers(input.hub, input.members);
+  const ordered = star ? [star, ...natural.filter((slug) => slug !== star)] : natural;
+  const place = new Map(natural.map((slug, index) => [slug, index]));
+  const members = ordered.map((slug) => ({
     slug,
     label: slugLabel(slug),
     role: slug === input.hub ? ("hub" as const) : ("member" as const),
+    order: place.get(slug) ?? 0,
   }));
   return {
     hub: input.hub,
@@ -288,11 +294,11 @@ function compareGroups(a: VerseGroupView, b: VerseGroupView): number {
   return a.hub < b.hub ? -1 : a.hub > b.hub ? 1 : 0;
 }
 
-function resolveStar(hub: string, members: readonly string[], stored: string | undefined): string {
+function resolveStar(members: readonly string[], stored: string | undefined): string {
   const star = stored ? canonSlug(stored) : null;
-  if (!star) return hub;
+  if (!star) return "";
   const known = new Set(members.map((slug) => canonSlug(slug) ?? slug));
-  return known.has(star) ? star : hub;
+  return known.has(star) ? star : "";
 }
 
 function sortMembers(first: string, slugs: readonly string[]): string[] {

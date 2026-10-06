@@ -163,7 +163,7 @@ async function setVerseStar(
   if (!seen.members.some((member) => member.slug === slug)) {
     return { ok: false, status: 422, error: "That verse is not in this group." };
   }
-  await upsertStar(db, libraryId, hub, slug === hub ? "" : slug);
+  await upsertStar(db, libraryId, hub, seen.star === slug ? "" : slug);
   const group = await groupForHub(db, libraryId, hub);
   if (!group) return { ok: false, status: 422, error: "That verse is not a hub yet." };
   return { ok: true, statusText: "", group };

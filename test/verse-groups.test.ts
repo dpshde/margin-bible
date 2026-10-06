@@ -137,20 +137,23 @@ describe("verse group detection", () => {
     expect(groups[1]?.title).toBe("");
   });
 
-  test("a stored star moves that member to the front and a stranger falls back to the hub", () => {
+  test("a stored star moves that member to the front and an empty star keeps natural order", () => {
     const notes = [note(DEMO_HUB, [xref("1pe.5.6"), xref("est.4.14")])];
+    const natural = realVerseGroups(notes)[0]!;
+    expect(natural.star).toBe("");
+    expect(natural.members.map((member) => member.slug)).toEqual([DEMO_HUB, "1pe.5.6", "est.4.14"]);
     const starred = realVerseGroups(notes, [
       { hub: DEMO_HUB, title: "", description: "", undoPairs: [], star: "est.4.14" },
     ]);
     expect(starred[0]?.hub).toBe(DEMO_HUB);
     expect(starred[0]?.star).toBe("est.4.14");
-    expect(starred[0]?.members.map((member) => member.slug)[0]).toBe("est.4.14");
-    expect(starred[0]?.members.filter((member) => member.slug === "est.4.14")).toHaveLength(1);
+    expect(starred[0]?.members.map((member) => member.slug)).toEqual(["est.4.14", DEMO_HUB, "1pe.5.6"]);
+    expect(starred[0]?.members.find((member) => member.slug === "est.4.14")?.order).toBe(2);
     const fallback = realVerseGroups(notes, [
       { hub: DEMO_HUB, title: "", description: "", undoPairs: [], star: "jhn.3.16" },
     ]);
-    expect(fallback[0]?.star).toBe(DEMO_HUB);
-    expect(fallback[0]?.members[0]?.slug).toBe(DEMO_HUB);
+    expect(fallback[0]?.star).toBe("");
+    expect(fallback[0]?.members.map((member) => member.slug)).toEqual(natural.members.map((member) => member.slug));
   });
 
   test("pairwise preview is capped and does not mutate the notes", () => {
@@ -232,8 +235,8 @@ describe("preview guest seed", () => {
     ]);
     expect(groups.every((group) => group.sample === false)).toBe(true);
     expect(groups.find((group) => group.hub === "rom.8.28")?.members.length).toBeGreaterThanOrEqual(3);
-    expect(groups.every((group) => group.star === group.hub)).toBe(true);
-    expect(groups.every((group) => group.members[0]?.slug === group.star)).toBe(true);
+    expect(groups.every((group) => group.star === "")).toBe(true);
+    expect(groups.every((group) => group.members[0]?.slug === group.hub)).toBe(true);
     expect(previewSeedNeeded(notes)).toBe(false);
     expect(previewSeedNeeded([])).toBe(true);
   });
@@ -285,6 +288,8 @@ describe("verse groups inbox", () => {
     expect(css).toContain(".verse-group[open] > summary.note-row {\n      background: var(--ink);\n      color: var(--paper);\n      align-items: center;\n      min-height: 0;\n      padding: .42rem .7rem;");
     expect(css).toContain(".verse-group.is-collapsed-hover:not([open]) > summary.note-row:hover");
     expect(css).toContain(".verse-group[open] > summary.note-row:focus");
+    expect(css).toContain('.verse-group .verse-star[aria-pressed="true"] { color: #b0893e; }');
+    expect(css).not.toContain(".att-chip.is-star");
     expect(css).toContain("outline: none;");
     expect(css).toContain("background: transparent;");
     expect(verseGroupsScript()).toContain("is-collapsed-hover");
@@ -316,7 +321,7 @@ describe("verse groups inbox", () => {
         {
           hub: "rom.8.28",
           hubLabel: "Romans 8:28",
-          star: "rom.8.28",
+          star: "",
           title: "",
           description: "",
           members: [
@@ -361,10 +366,13 @@ describe("verse groups inbox", () => {
     expect(html).toContain('data-vg-attach');
     expect(html).toContain("Romans 8:31");
     expect(html).toContain('data-hub="rom.8.28"');
-    expect(html).toContain('data-star="rom.8.28"');
+    expect(html).toContain('data-star=""');
     expect(html).toContain('data-vg-star');
     expect(html).toContain('data-vg-topic');
-    expect(html).toContain('aria-pressed="true"');
+    const verseCard = html.slice(html.indexOf('id="verse-groups-view"'), html.indexOf('id="vg-att-drop"'));
+    expect(verseCard).not.toContain('aria-pressed="true"');
+    expect(verseCard).toContain('aria-pressed="false"');
+    expect(verseCard).not.toContain("att-chip wiki is-star");
     expect(html.indexOf('data-att-slug="rom.8.28"')).toBeLessThan(html.indexOf('data-att-slug="rom.8.31"'));
     expect(html).not.toMatch(/<details class="verse-group"[^>]*open/);
   });

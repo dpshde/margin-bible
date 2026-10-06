@@ -1414,14 +1414,7 @@ export function page(title: string, body: string): string {
       color: var(--faint);
       cursor: pointer;
     }
-    .verse-group .att-item.is-star .verse-star { color: var(--ink); }
-    .verse-group .att-chip.is-star {
-      color: var(--ink);
-      border-color: color-mix(in srgb, var(--ink) 45%, transparent);
-      background: color-mix(in srgb, var(--ink) 12%, var(--paper));
-      font-weight: 650;
-    }
-    .verse-group .att-chip.is-star:hover { color: var(--ink); }
+    .verse-group .verse-star[aria-pressed="true"] { color: #b0893e; }
     .verse-group-verses .att-board { flex: 1 1 auto; margin: 0; gap: .28rem; }
     .verse-group-verses .tray-attach {
       color: var(--ink-soft);
