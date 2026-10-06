@@ -248,6 +248,18 @@ export function verseGroupsScript(): string {
     }
   });
 
+  panel.addEventListener("toggle", function (event) {
+    var card = event.target;
+    if (!card || !card.classList || !card.classList.contains("verse-group") || card.open) return;
+    var summary = card.querySelector("summary");
+    if (summary && document.activeElement === summary) summary.blur();
+    if (!card.matches(":hover")) return;
+    card.classList.add("is-collapsed-hover");
+    card.addEventListener("pointerleave", function () {
+      card.classList.remove("is-collapsed-hover");
+    }, { once: true });
+  }, true);
+
   panel.addEventListener("input", function (event) {
     var target = event.target;
     if (!target || !target.closest) return;

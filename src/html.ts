@@ -1310,6 +1310,14 @@ export function page(title: string, body: string): string {
       background: var(--ink);
       color: var(--paper);
     }
+    /* Collapse leaves the pointer on the summary. Hold the closed look
+       until the pointer actually leaves and comes back. */
+    .bookmarks-panel .note-list .verse-group.is-collapsed-hover > summary.note-row,
+    .bookmarks-panel .note-list .verse-group.is-collapsed-hover > summary.note-row:hover,
+    .bookmarks-panel .note-list .verse-group.is-collapsed-hover > summary.note-row:focus,
+    .bookmarks-panel .note-list .verse-group.is-collapsed-hover > summary.note-row:focus-visible {
+      background: transparent;
+    }
     .verse-group-form { display: flex; flex-direction: column; gap: .4rem; margin: 0; padding: .4rem .55rem .25rem; }
     .verse-group-fields {
       display: flex;
