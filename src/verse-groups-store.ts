@@ -31,6 +31,7 @@ const CREATE_VERSE_GROUPS = `CREATE TABLE IF NOT EXISTS verse_groups (
   description TEXT NOT NULL DEFAULT '',
   undo_json TEXT NOT NULL DEFAULT '[]',
   star_slug TEXT NOT NULL DEFAULT '',
+  jev_title TEXT NOT NULL DEFAULT '',
   updated_at TEXT NOT NULL,
   PRIMARY KEY (library_id, hub_slug)
 )`;
@@ -41,6 +42,7 @@ type MetaRow = {
   description: string;
   undo_json: string | null;
   star_slug?: string | null;
+  jev_title?: string | null;
 };
 
 export type VerseGroupActionResult =
@@ -292,19 +294,41 @@ async function groupForHub(db: D1Database, libraryId: string, hub: string): Prom
   return verseGroupsFromNotes(notes, metas).find((group) => group.hub === hub) ?? null;
 }
 
-export async function ensureVerseGroupsTable(db: D1Database): Promise<void> {
-  await db.prepare(CREATE_VERSE_GROUPS).run();
+async function addVerseGroupColumn(db: D1Database, column: string): Promise<void> {
   try {
-    await db.prepare("ALTER TABLE verse_groups ADD COLUMN star_slug TEXT NOT NULL DEFAULT ''").run();
+    await db.prepare(`ALTER TABLE verse_groups ADD COLUMN ${column}`).run();
   } catch (err) {
     const message = err instanceof Error ? `${err.message} ${String(err.cause ?? "")}` : String(err);
     if (!/duplicate column/i.test(message)) throw err;
   }
 }
 
+export async function ensureVerseGroupsTable(db: D1Database): Promise<void> {
+  await db.prepare(CREATE_VERSE_GROUPS).run();
+  await addVerseGroupColumn(db, "star_slug TEXT NOT NULL DEFAULT ''");
+  await addVerseGroupColumn(db, "jev_title TEXT NOT NULL DEFAULT ''");
+}
+
+/** Remember the title Jev wrote. A later save keeps this string so an edit can unlock, and matching text locks again. */
+export async function saveJevTitle(db: D1Database, libraryId: string, hub: string, title: string): Promise<void> {
+  await ensureVerseGroupsTable(db);
+  const now = new Date().toISOString();
+  await db
+    .prepare(
+      `INSERT INTO verse_groups (library_id, hub_slug, title, description, undo_json, jev_title, updated_at)
+       VALUES (?, ?, ?, '', '[]', ?, ?)
+       ON CONFLICT(library_id, hub_slug) DO UPDATE SET
+         title = excluded.title,
+         jev_title = excluded.jev_title,
+         updated_at = excluded.updated_at`,
+    )
+    .bind(libraryId, hub, title, title, now)
+    .run();
+}
+
 export async function listVerseGroupMeta(db: D1Database, libraryId: string): Promise<VerseGroupMeta[]> {
   const result = await db
-    .prepare("SELECT hub_slug, title, description, undo_json, star_slug FROM verse_groups WHERE library_id = ?")
+    .prepare("SELECT hub_slug, title, description, undo_json, star_slug, jev_title FROM verse_groups WHERE library_id = ?")
     .bind(libraryId)
     .all<MetaRow>();
   const metas: VerseGroupMeta[] = [];
@@ -317,6 +341,7 @@ export async function listVerseGroupMeta(db: D1Database, libraryId: string): Pro
       description: row.description ?? "",
       undoPairs: parseUndoPairs(row.undo_json),
       star: row.star_slug ?? "",
+      jevTitle: row.jev_title ?? "",
     });
   }
   return metas;
