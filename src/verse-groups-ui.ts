@@ -21,7 +21,7 @@ export function verseGroupCardHtml(group: VerseGroupView, status = ""): string {
   const excerpt = saved && saved !== group.hubLabel ? group.hubLabel : "";
   const descriptionOpen = group.description.trim() ? " open" : "";
   return `<details class="verse-group" data-hub="${escapeHtml(group.hub)}" data-hub-label="${escapeHtml(group.hubLabel)}" data-sample="${group.sample ? "1" : "0"}" data-seed="${group.seed ? "1" : "0"}">
-  <summary class="note-row"><span class="note-row-title">${escapeHtml(rowTitle)}</span>${excerpt ? `<span class="note-row-excerpt">${escapeHtml(excerpt)}</span>` : ""}</summary>
+  <summary class="note-row"><span class="note-row-title">${escapeHtml(rowTitle)}</span>${excerpt ? `<span class="note-row-excerpt">${escapeHtml(excerpt)}</span>` : ""}<span class="verse-group-hub">${escapeHtml(group.hubLabel)}</span></summary>
   <form class="verse-group-form">
     <input id="vg-title-${field}" name="title" value="${escapeHtml(saved)}" placeholder="Title" maxlength="120" autocomplete="off" aria-label="Title">
     <details class="verse-group-description"${descriptionOpen}>

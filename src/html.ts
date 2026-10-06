@@ -1289,13 +1289,46 @@ export function page(title: string, body: string): string {
     }
     .verse-group > summary.note-row::-webkit-details-marker { display: none; }
     .verse-group > summary.note-row::marker { content: ""; }
-    .verse-group-form { display: flex; flex-direction: column; gap: .35rem; margin: 0; padding: .1rem .55rem .15rem; }
-    .verse-group-description { margin: 0; }
+    /* Closed, the row stays a bookmark. Open, the hub ref becomes the same
+       inverted ink/paper divider as a week label, then title and description
+       alternate a raised row and a quieter wash. */
+    .verse-group-hub { display: none; }
+    .verse-group[open] > summary.note-row {
+      background: var(--ink);
+      color: var(--paper);
+      border-radius: .35rem;
+      padding: .4rem .55rem;
+    }
+    .verse-group[open] > summary .note-row-title,
+    .verse-group[open] > summary .note-row-excerpt { display: none; }
+    .verse-group[open] > summary .verse-group-hub {
+      display: block;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      color: var(--paper);
+      font-weight: 700;
+      font-size: .95rem;
+      letter-spacing: -.015em;
+    }
+    .bookmarks-panel .note-list .verse-group[open] > summary.note-row:hover,
+    .bookmarks-panel .note-list .verse-group[open] > summary.note-row:focus-visible {
+      background: var(--ink);
+      color: var(--paper);
+    }
+    .verse-group-form { display: flex; flex-direction: column; gap: .2rem; margin: 0; padding: .2rem .15rem .1rem; }
+    .verse-group-description {
+      margin: 0;
+      border-radius: .35rem;
+      background: color-mix(in srgb, var(--ink) 8%, transparent);
+    }
     .verse-group-description > summary {
       cursor: pointer;
       color: var(--faint);
       font: 400 .78rem/1.3 var(--sans);
       list-style: none;
+      padding: .4rem .55rem;
     }
     .verse-group-description > summary::-webkit-details-marker { display: none; }
     .verse-group-form input,
@@ -1312,6 +1345,7 @@ export function page(title: string, body: string): string {
     .verse-group-form input[name="title"] {
       font-weight: 600;
       font-size: 1.05rem;
+      background: var(--paper-raised);
     }
     .verse-group-form input[name="title"]::placeholder {
       color: var(--ink-soft);

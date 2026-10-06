@@ -263,6 +263,8 @@ describe("verse groups inbox", () => {
     expect(css).toContain(".verse-group .att-chip");
     expect(css).toContain(".verse-group .att-remove");
     expect(css).toContain('.verse-group-form input[name="title"] {\n      font-weight: 600;');
+    expect(css).toContain("background: var(--paper-raised);");
+    expect(css).toContain(".verse-group[open] > summary.note-row {\n      background: var(--ink);\n      color: var(--paper);");
     expect(css).toContain(".verse-group-description > summary {\n      cursor: pointer;\n      color: var(--faint);");
     expect(css).not.toContain(".verse-group-optional");
     const coarse = css.slice(css.indexOf("@media (hover: none), (pointer: coarse)"));
@@ -306,6 +308,7 @@ describe("verse groups inbox", () => {
     expect(html).toContain('value=""');
     expect(html).toContain('placeholder="Title"');
     expect(html).toContain(">Description</summary>");
+    expect(html).toContain('class="verse-group-hub">Romans 8:28</span>');
     expect(html).not.toContain("verse-group-optional");
     expect(html).not.toContain(">optional<");
     expect(html).not.toContain("local topic guess");
