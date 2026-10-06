@@ -1778,18 +1778,34 @@ export function page(title: string, body: string): string {
       visibility: hidden;
       opacity: 0;
       cursor: pointer;
-      transition: opacity .12s ease, color .12s ease;
+      transition: width .12s ease, min-width .12s ease, opacity .12s ease, color .12s ease;
     }
     @media (hover: hover) and (pointer: fine) {
+      .verse-group .att-chip { padding-right: .42rem; }
+      .verse-group .att-item:hover .att-chip,
+      .verse-group .att-item:focus-within .att-chip { padding-right: .12rem; }
+      .verse-group .verse-star,
+      .verse-group .att-remove {
+        width: 0;
+        min-width: 0;
+        overflow: hidden;
+      }
       .verse-group .att-item:hover .verse-star,
       .verse-group .att-item:hover .att-remove,
       .verse-group .att-item:focus-within .verse-star,
       .verse-group .att-item:focus-within .att-remove,
       .verse-group .verse-star:focus-visible,
       .verse-group .att-remove:focus-visible {
+        width: 1.35rem;
+        min-width: 1.35rem;
+        overflow: visible;
         visibility: visible;
         opacity: 1;
       }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .verse-group .verse-star,
+      .verse-group .att-remove { transition: none; }
     }
     .verse-group .verse-star svg,
     .verse-group .att-remove svg { display: block; width: .72rem; height: .72rem; }

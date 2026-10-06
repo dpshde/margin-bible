@@ -294,6 +294,8 @@ describe("verse groups inbox", () => {
     expect(controls.slice(0, 700)).toContain("visibility: hidden");
     expect(controls).toContain(".verse-group .att-item:hover .verse-star");
     expect(controls).toContain(".verse-group .att-item:hover .att-remove");
+    expect(controls).toContain("width: 0;\n        min-width: 0;");
+    expect(controls).toContain("width: 1.35rem;\n        min-width: 1.35rem;");
     expect(controls).toContain("@media (hover: none), (pointer: coarse)");
     expect(css).not.toContain(".att-chip.is-star");
     expect(css).toContain("outline: none;");
