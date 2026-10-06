@@ -26,7 +26,7 @@ export function verseGroupCardHtml(group: VerseGroupView, status = ""): string {
     <div class="verse-group-fields">
       <div class="verse-group-title-field">
         <input id="vg-title-${field}" name="title" value="${escapeHtml(saved)}" placeholder="Title" maxlength="120" autocomplete="off" aria-label="Title">
-        <button type="button" class="verse-group-topic" data-vg-topic aria-label="Suggest a title" title="Suggest a title">${iconTopic()}</button>
+        <button type="button" class="verse-group-topic" data-vg-topic aria-label="Suggest a title" title="Suggest a title"><i class="ph ph-sparkle"></i></button>
       </div>
       <textarea id="vg-description-${field}" class="verse-group-description" name="description" rows="1" maxlength="2000" placeholder="Description" aria-label="Description">${escapeHtml(group.description)}</textarea>
     </div>
@@ -551,10 +551,6 @@ function verseChipHtml(member: VerseGroupMember, starred: boolean, order: number
 
 function iconStar(): string {
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="12" height="12" fill="currentColor" aria-hidden="true"><path d="M8 1.4 9.8 5.7l4.6.4-3.5 3 1.1 4.5L8 11.3 4 13.6l1.1-4.5-3.5-3 4.6-.4Z"/></svg>`;
-}
-
-function iconTopic(): string {
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="13" height="13" fill="currentColor" aria-hidden="true"><path d="M8 1.2 9.2 6.1 14.1 8 9.2 9.9 8 14.8 6.8 9.9 1.9 8 6.8 6.1Z"/></svg>`;
 }
 
 function attachDialogHtml(): string {

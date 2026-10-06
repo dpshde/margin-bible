@@ -377,6 +377,7 @@ describe("verse groups inbox", () => {
     expect(html).toContain('data-star=""');
     expect(html).toContain('data-vg-star');
     expect(html).toContain('data-vg-topic');
+    expect(html).toContain('<i class="ph ph-sparkle"></i>');
     const verseCard = html.slice(html.indexOf('id="verse-groups-view"'), html.indexOf('id="vg-att-drop"'));
     expect(verseCard).not.toContain('aria-pressed="true"');
     expect(verseCard).toContain('aria-pressed="false"');

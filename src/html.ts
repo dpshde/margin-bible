@@ -1352,6 +1352,23 @@ export function page(title: string, body: string): string {
       line-height: 1.3;
       padding: .2rem 1.7rem .2rem .15rem;
     }
+    @font-face {
+      font-family: "Phosphor";
+      src: url("data:font/woff2;base64,d09GMgABAAAAAAIYAA0AAAAABFQAAAHJAAIZmgAAAAAAAAAAAAAAAAAAAAAAAAAAGxAcGgZgADQRCAqCWIJTATYCJAMGCwYABCAFgSoHIBtiAyCeBc55i6jIlUzoqpMf/IJH3cfDf/u1+2ZmdxHzJNbwSttMo3IoYRuRbKlaiGSieCKk///vN+/DPeKJ1EjiyT2RiOKedXL6figrfavkF89DA/wvDZy8xcOJfiYTHOlstJ4Pw6IPnxc0ocCyn/IoDCTtAku36ZLYF4uleLUr0KFLD5DXjBgTF85MDCgAcq5QHWqka9wPruyw+LMTVGL1Ucefyx3cd99wnHkbEJCfwJwZJGQMyQJDijkURfC5LD5+HCAQonoLJFBQcAncAVAAZVmiUuXM5uGxo3gbGzIa13uty/KwyTQ4dJaek6MWy+4U+evKiLHdHgqjudsdCbOl1xsNi6nTGQ6TPX/qRJ0RqHQQUGvfgTpQ8RgoOpzVjMmJrbMXdi3m+hcKSDrwLnZ1nD0cQmhE/svOglrz5fJFAyf8pukciEqw74p9zrrlTDg+PnmXnH0Rzs3lxXkAgTQ+LN8fPmP/R6EX8KphDOzBd9UTAeUntEkg+GdPUYlTkPCbKHAMIcU5MEGivYZTeFHaMcWThj5TNOmxWs+tegGtGbEr6kg3BcSlJez7KVIn3OJi0u0xPS+/rAhnAZhDKWlBAx+X2rZuSyY=") format("woff2");
+      font-weight: normal;
+      font-style: normal;
+      font-display: block;
+    }
+    .ph {
+      font-family: "Phosphor" !important;
+      font-style: normal;
+      font-weight: normal;
+      line-height: 1;
+      letter-spacing: 0;
+      -webkit-font-smoothing: antialiased;
+    }
+    .ph.ph-sparkle:before { content: "\\e6a2"; }
+    .verse-group-topic .ph { font-size: 1.05rem; }
     .verse-group-topic {
       position: absolute;
       right: 0;
