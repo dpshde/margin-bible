@@ -351,6 +351,13 @@ describe("verse groups inbox", () => {
     expect(verseGroupsScript()).not.toContain("Removing…");
     expect(verseGroupsScript()).toContain("verse-group-drag-ghost");
     expect(verseGroupsScript()).toContain("syncTitleEdit");
+    expect(verseGroupsScript()).toContain("function beginTitleEdit");
+    expect(verseGroupsScript()).toContain("verse-group-title-edit");
+    const syncTitle = verseGroupsScript().slice(
+      verseGroupsScript().indexOf("function syncTitleEdit"),
+      verseGroupsScript().indexOf("function storedTitle"),
+    );
+    expect(syncTitle).not.toContain('setAttribute("contenteditable", "true")');
     expect(verseGroupsScript()).toContain('getAttribute("data-title")');
     expect(verseGroupsScript()).not.toContain("input[name=title]");
     expect(verseGroupsScript()).toContain('data-auto-titled');
@@ -418,7 +425,11 @@ describe("verse groups inbox", () => {
     expect(html).toContain('class="verse-group"');
     expect(html).toContain('<summary class="note-row">');
     expect(html).toContain(">Romans 8:28</span>");
-    expect(html).toContain('class="note-row-title" data-title=""');
+    expect(html).toContain('class="note-row-title" data-title="" contenteditable="false"');
+    expect(html).toContain('class="verse-group-title-edit"');
+    expect(html).toContain('aria-label="Edit title"');
+    expect(html).toContain("m229.66 58.34l-32-32a8 8 0 0 0-11.32 0l-96 96");
+    expect(html.indexOf('class="note-row-title"')).toBeLessThan(html.indexOf('class="verse-group-title-edit"'));
     expect(html).not.toContain('name="title"');
     expect(html).not.toContain('placeholder="Title"');
     expect(html).toContain('placeholder="Description"');

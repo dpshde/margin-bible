@@ -1342,6 +1342,21 @@ export function page(title: string, body: string): string {
       color: var(--ink);
       font: 400 1rem/1.4 var(--sans);
     }
+    .verse-group-title-edit {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex: none;
+      align-self: center;
+      margin: 0;
+      padding: 0;
+      border: 0;
+      background: transparent;
+      color: var(--ink-soft);
+      cursor: pointer;
+      line-height: 0;
+    }
+    .verse-group[open] > summary .verse-group-title-edit { color: var(--paper); }
     .verse-group > summary .note-row-title[contenteditable="true"] {
       cursor: text;
       outline: none;

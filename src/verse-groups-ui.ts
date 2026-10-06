@@ -21,7 +21,7 @@ export function verseGroupCardHtml(group: VerseGroupView, status = ""): string {
   const rowTitle = saved || group.hubLabel;
   const excerpt = saved && saved !== group.hubLabel ? group.hubLabel : "";
   return `<details class="verse-group" data-hub="${escapeHtml(group.hub)}" data-hub-label="${escapeHtml(group.hubLabel)}" data-star="${escapeHtml(star)}" data-sample="${group.sample ? "1" : "0"}" data-seed="${group.seed ? "1" : "0"}" data-auto-titled="${group.autoTitled ? "1" : "0"}">
-  <summary class="note-row"><span class="note-row-title" data-title="${escapeHtml(saved)}" contenteditable="false">${escapeHtml(rowTitle)}</span>${excerpt ? `<span class="note-row-excerpt">${escapeHtml(excerpt)}</span>` : ""}<span class="verse-group-hub">${escapeHtml(group.hubLabel)}</span></summary>
+  <summary class="note-row"><span class="note-row-title" data-title="${escapeHtml(saved)}" contenteditable="false">${escapeHtml(rowTitle)}</span><button type="button" class="verse-group-title-edit" aria-label="Edit title" title="Edit title">${iconNotePencil()}</button>${excerpt ? `<span class="note-row-excerpt">${escapeHtml(excerpt)}</span>` : ""}<span class="verse-group-hub">${escapeHtml(group.hubLabel)}</span></summary>
   <form class="verse-group-form">
     <div class="verse-group-fields">
       <textarea id="vg-description-${field}" class="verse-group-description" name="description" rows="1" maxlength="2000" placeholder="Description" aria-label="Description">${escapeHtml(group.description)}</textarea>
@@ -463,13 +463,7 @@ export function verseGroupsScript(): string {
   panel.addEventListener("toggle", function (event) {
     var card = event.target;
     if (!card || !card.classList || !card.classList.contains("verse-group")) return;
-    if (!card.open && card._titlePointer) {
-      card._titlePointer = false;
-      card.open = true;
-      var title = card.querySelector(".note-row-title");
-      if (title) title.focus();
-      return;
-    }
+    card._titlePointer = false;
     syncTitleEdit(card);
     if (card.open) {
       card.classList.remove("is-collapsed-hover");
@@ -496,27 +490,26 @@ export function verseGroupsScript(): string {
   panel.addEventListener("pointerdown", function (event) {
     var cards = panel.querySelectorAll(".verse-group");
     for (var i = 0; i < cards.length; i += 1) cards[i]._titlePointer = false;
-    var title = event.target && event.target.closest && event.target.closest(".note-row-title");
-    var card = title && title.closest(".verse-group");
-    if (card && card.open) card._titlePointer = true;
+    var target = event.target;
+    if (!target || !target.closest) return;
+    var pencil = target.closest(".verse-group-title-edit");
+    var title = target.closest(".note-row-title");
+    var hit = pencil || title;
+    if (!hit || !panel.contains(hit)) return;
+    var card = hit.closest(".verse-group");
+    if (!card) return;
+    if (pencil || title.getAttribute("contenteditable") === "true") card._titlePointer = true;
   }, true);
 
   panel.addEventListener("click", function (event) {
-    var title = event.target && event.target.closest && event.target.closest(".note-row-title");
-    if (!title) return;
-    var card = title.closest(".verse-group");
-    if (!card || !card.open) return;
+    var pencil = event.target && event.target.closest && event.target.closest(".verse-group-title-edit");
+    if (!pencil || !panel.contains(pencil)) return;
     event.preventDefault();
-    if (document.activeElement !== title) title.focus();
-    if (String(title.getAttribute("data-title") || "").trim()) return;
-    requestAnimationFrame(function () {
-      var range = document.createRange();
-      range.selectNodeContents(title);
-      var selection = window.getSelection();
-      if (!selection) return;
-      selection.removeAllRanges();
-      selection.addRange(range);
-    });
+    event.stopPropagation();
+    var card = pencil.closest(".verse-group");
+    if (!card) return;
+    card._titlePointer = false;
+    beginTitleEdit(card);
   }, true);
 
   panel.addEventListener("keydown", function (event) {
@@ -593,7 +586,13 @@ export function verseGroupsScript(): string {
     if (!card) return;
     var titleEdit = target.classList && target.classList.contains("note-row-title");
     if (!titleEdit && target.name !== "description") return;
-    if (titleEdit) paintTitle(card);
+    if (titleEdit) {
+      paintTitle(card);
+      target.setAttribute("contenteditable", "false");
+      target.removeAttribute("role");
+      target.removeAttribute("aria-multiline");
+      target.removeAttribute("aria-label");
+    }
     if (!card._saveTimer) return;
     clearTimeout(card._saveTimer);
     card._saveTimer = 0;
@@ -660,21 +659,33 @@ export function verseGroupsScript(): string {
 
   function guardTitleToggle(card) {
     card.addEventListener("beforetoggle", function (event) {
-      if (event.newState === "closed" && card._titlePointer) event.preventDefault();
+      if (card._titlePointer) event.preventDefault();
+    });
+  }
+
+  function beginTitleEdit(card) {
+    var el = card.querySelector(".note-row-title");
+    if (!el) return;
+    el.setAttribute("contenteditable", "true");
+    el.setAttribute("role", "textbox");
+    el.setAttribute("aria-label", "Title");
+    el.setAttribute("aria-multiline", "false");
+    el.spellcheck = false;
+    el.focus();
+    if (String(el.getAttribute("data-title") || "").trim()) return;
+    requestAnimationFrame(function () {
+      var range = document.createRange();
+      range.selectNodeContents(el);
+      var selection = window.getSelection();
+      if (!selection) return;
+      selection.removeAllRanges();
+      selection.addRange(range);
     });
   }
 
   function syncTitleEdit(card) {
     var el = card.querySelector(".note-row-title");
-    if (!el) return;
-    if (card.open) {
-      el.setAttribute("contenteditable", "true");
-      el.setAttribute("role", "textbox");
-      el.setAttribute("aria-label", "Title");
-      el.setAttribute("aria-multiline", "false");
-      el.spellcheck = false;
-      return;
-    }
+    if (!el || card.open) return;
     if (document.activeElement === el) el.blur();
     el.setAttribute("contenteditable", "false");
     el.removeAttribute("role");
@@ -980,6 +991,10 @@ function attachDialogHtml(): string {
 
 function verseGroupsIcon(): string {
   return `<svg class="bookmarks-summary-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="15" height="15" aria-hidden="true"><circle cx="3.2" cy="8" r="1.5" fill="currentColor"/><circle cx="12.6" cy="3.4" r="1.5" fill="currentColor"/><circle cx="12.6" cy="12.6" r="1.5" fill="currentColor"/><path d="M4.6 7.3 11.1 4.1M4.6 8.7 11.1 11.8" stroke="currentColor" stroke-width="1.2" fill="none"/></svg>`;
+}
+
+function iconNotePencil(): string {
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="15" height="15" fill="currentColor" aria-hidden="true"><path d="m229.66 58.34l-32-32a8 8 0 0 0-11.32 0l-96 96A8 8 0 0 0 88 128v32a8 8 0 0 0 8 8h32a8 8 0 0 0 5.66-2.34l96-96a8 8 0 0 0 0-11.32M124.69 152H104v-20.69l64-64L188.69 88ZM200 76.69L179.31 56L192 43.31L212.69 64ZM224 128v80a16 16 0 0 1-16 16H48a16 16 0 0 1-16-16V48a16 16 0 0 1 16-16h80a8 8 0 0 1 0 16H48v160h160v-80a8 8 0 0 1 16 0"/></svg>`;
 }
 
 function iconPaperclip(): string {
