@@ -1289,12 +1289,15 @@ export function page(title: string, body: string): string {
     }
     .verse-group > summary.note-row::-webkit-details-marker { display: none; }
     .verse-group > summary.note-row::marker { content: ""; }
-    /* Closed, the row stays a bookmark. Open, the same row inverts ink and
-       paper. Padding stays the bookmark indent. */
+    /* Closed, the row stays a bookmark. Open, the same indent inverts ink
+       and paper, with less vertical padding than the tap-height row. */
     .verse-group-hub { display: none; }
     .verse-group[open] > summary.note-row {
       background: var(--ink);
       color: var(--paper);
+      align-items: center;
+      min-height: 0;
+      padding: .42rem .7rem;
     }
     .verse-group[open] > summary .note-row-title,
     .verse-group[open] > summary .note-row-excerpt {
@@ -1307,13 +1310,13 @@ export function page(title: string, body: string): string {
       background: var(--ink);
       color: var(--paper);
     }
-    .verse-group-form { display: flex; flex-direction: column; gap: .35rem; margin: 0; padding: .1rem .35rem .15rem; }
+    .verse-group-form { display: flex; flex-direction: column; gap: .4rem; margin: 0; padding: .4rem .55rem .25rem; }
     .verse-group-fields {
       display: flex;
       flex-direction: column;
-      gap: .2rem;
-      margin: 0 0 0 .35rem;
-      padding: .05rem 0 .05rem .55rem;
+      gap: .15rem;
+      margin: 0 0 0 .2rem;
+      padding: 0 0 .05rem .5rem;
       border-left: 1px solid color-mix(in srgb, var(--ink) 15%, transparent);
     }
     .verse-group-form input,
@@ -1329,8 +1332,9 @@ export function page(title: string, body: string): string {
     }
     .verse-group-form input[name="title"] {
       font-weight: 600;
-      font-size: 1.05rem;
-      padding: .3rem .35rem;
+      font-size: 1.02rem;
+      line-height: 1.3;
+      padding: .2rem .15rem;
     }
     .verse-group-form input[name="title"]::placeholder {
       color: var(--ink-soft);
@@ -1343,8 +1347,8 @@ export function page(title: string, body: string): string {
       border-radius: .35rem;
       background: color-mix(in srgb, var(--ink) 8%, transparent);
       color: var(--ink-soft);
-      font: 400 .92rem/1.4 var(--sans);
-      padding: .35rem .55rem;
+      font: 400 .88rem/1.35 var(--sans);
+      padding: .32rem .5rem;
       min-height: 1.85rem;
     }
     .verse-group-form textarea.verse-group-description::placeholder {
@@ -1356,10 +1360,17 @@ export function page(title: string, body: string): string {
       display: flex;
       flex-wrap: wrap;
       align-items: center;
-      gap: .3rem;
+      gap: .25rem .3rem;
+      padding-left: .15rem;
     }
-    .verse-group-verses .att-board { flex: 1 1 auto; margin: 0; }
-    .verse-group-verses .tray-attach { color: var(--ink-soft); }
+    .verse-group-verses .att-board { flex: 1 1 auto; margin: 0; gap: .28rem; }
+    .verse-group-verses .tray-attach {
+      color: var(--ink-soft);
+      width: 2rem;
+      height: 2rem;
+      min-width: 2rem;
+      min-height: 2rem;
+    }
     .verse-group-status { margin: 0; color: var(--muted); font-size: .8rem; font-weight: 400; }
     .verse-group-status:empty { display: none; }
     /* Light side rails make each week one frame, not a stack of cards.
@@ -1674,24 +1685,24 @@ export function page(title: string, body: string): string {
       /* Verse-group refs stay fully readable. The remove control sits beside the chip. */
       .verse-group .att-chip {
         max-width: none;
-        padding: .45rem .75rem;
-        font-size: 1rem;
+        padding: .18rem .5rem;
+        font-size: .84rem;
         font-weight: 600;
-        line-height: 1.3;
+        line-height: 1.25;
       }
-      .verse-group .att-item { gap: .1rem; }
+      .verse-group .att-item { gap: .05rem; }
       .verse-group .att-remove {
         position: static;
         transform: none;
-        width: var(--tap);
-        height: var(--tap);
-        min-width: var(--tap);
-        min-height: var(--tap);
-        opacity: 1;
+        width: 1.65rem;
+        height: 1.65rem;
+        min-width: 1.65rem;
+        min-height: 1.65rem;
+        opacity: .85;
         visibility: visible;
         background: transparent;
       }
-      .verse-group .att-remove svg { width: 1.05rem; height: 1.05rem; }
+      .verse-group .att-remove svg { width: .85rem; height: .85rem; }
     }
     .att-remove:focus-visible { visibility: visible; opacity: 1; color: var(--ink); background: var(--paper-raised); }
     .att-remove svg { display: block; width: .7rem; height: .7rem; }

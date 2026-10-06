@@ -264,7 +264,7 @@ describe("verse groups inbox", () => {
     expect(css).toContain(".verse-group .att-remove");
     expect(css).toContain('.verse-group-form input[name="title"] {\n      font-weight: 600;');
     expect(css).toContain(".verse-group-fields {\n      display: flex;\n      flex-direction: column;");
-    expect(css).toContain(".verse-group[open] > summary.note-row {\n      background: var(--ink);\n      color: var(--paper);");
+    expect(css).toContain(".verse-group[open] > summary.note-row {\n      background: var(--ink);\n      color: var(--paper);\n      align-items: center;\n      min-height: 0;\n      padding: .42rem .7rem;");
     expect(css).not.toContain(".verse-group[open] > summary .note-row-title,\n    .verse-group[open] > summary .note-row-excerpt { display: none; }");
     const titleRule = css.slice(
       css.indexOf('.verse-group-form input[name="title"] {'),
@@ -279,9 +279,9 @@ describe("verse groups inbox", () => {
     expect(css).not.toContain(".verse-group-optional");
     const coarse = css.slice(css.indexOf("@media (hover: none), (pointer: coarse)"));
     const verseChip = coarse.slice(coarse.indexOf(".verse-group .att-chip"));
-    expect(verseChip).toContain("font-size: 1rem");
+    expect(verseChip).toContain("font-size: .84rem");
     expect(verseChip).toContain("position: static");
-    expect(verseChip).toContain("min-width: var(--tap)");
+    expect(verseChip).toContain("min-width: 1.65rem");
     nodeCheck(verseGroupsScript());
   });
 
