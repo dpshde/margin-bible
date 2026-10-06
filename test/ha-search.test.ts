@@ -443,8 +443,8 @@ describe("clearing the modal input", () => {
     expect(closeList).not.toContain("clearSearchCache");
     expect(closeList).not.toContain("sessionStorage");
     const closeModal = source.slice(source.indexOf("function closeSearchModal"), source.indexOf("function revealCachedSearch"));
-    expect(closeModal).toContain("readSearchCache()");
-    expect(closeModal).toContain("mirrorHeader(cache.query)");
+    expect(closeModal).toContain('mirrorHeader("")');
+    expect(closeModal).not.toContain("mirrorHeader(cache.query)");
     expect(closeModal).not.toContain("clearSearchCache");
     const reveal = source.slice(source.indexOf("function revealCachedSearch"), source.indexOf("function openFromHeader"));
     expect(reveal).toContain("input.value = cache.query");
@@ -528,7 +528,8 @@ describe("search list stays on screen", () => {
     expect(source).toContain("search-modal-footer");
     expect(source).toContain("search-modal-icon");
     expect(source).not.toContain("search-modal-cancel");
-    expect(source).not.toContain("Cancel");
+    expect(source).toContain('cancel.textContent = "Cancel"');
+    expect(source).toContain('cancel.className = "search-cancel"');
     expect(source).toContain("function bindSheetSwipe");
     expect(source).toContain("const limit = 80");
     expect(source).toContain("history.pushState");
@@ -558,8 +559,8 @@ describe("search list stays on screen", () => {
     expect(list).toContain("scrollbar-width: none");
     expect(css).toContain(".search-modal-list::-webkit-scrollbar");
     expect(css).not.toContain("search-modal-cancel");
-    const sheet = css.slice(css.indexOf("@media (max-width: 640px)"), css.indexOf(".section-head {"));
-    expect(sheet).toContain("@media (max-width: 640px)");
+    const sheet = css.slice(css.indexOf("@media (max-width: 767px)"), css.indexOf(".section-head {"));
+    expect(sheet).toContain("@media (max-width: 767px)");
     expect(sheet).toContain("padding: 0");
     expect(sheet).toContain("border-radius: 0");
     expect(sheet).toContain("env(safe-area-inset-top, 0px)");
@@ -627,7 +628,8 @@ describe("topic suggestion chips", () => {
     expect(open).toContain("loadTopicSuggestions()");
     const submit = source.slice(source.indexOf("async function submitJump"), source.indexOf("function suggest()"));
     const passage = submit.slice(0, submit.indexOf("if ((data.hits"));
-    expect(passage).not.toContain("rememberRecentSearch");
+    expect(passage).toContain("rememberRecentSearch(q)");
+    expect(passage.indexOf("rememberRecentSearch(q)")).toBeLessThan(passage.indexOf("window.__marginSoftNav"));
     const freeText = submit.slice(submit.lastIndexOf("submittedQuery = q"));
     expect(freeText.indexOf("rememberRecentSearch(q)")).toBeLessThan(freeText.indexOf("showSearchSkeletons()"));
     expect(freeText.indexOf("showSearchSkeletons()")).toBeLessThan(freeText.indexOf("searchScripture(q, my)"));
@@ -662,7 +664,7 @@ describe("topic suggestion chips", () => {
     expect(source).toContain("function syncChipFades");
     expect(source).toContain('classList.toggle("is-fade-left"');
     expect(source).toContain('classList.toggle("is-fade-right"');
-    const sheet = css.slice(css.indexOf("@media (max-width: 640px)"), css.indexOf(".section-head {"));
+    const sheet = css.slice(css.indexOf("@media (max-width: 767px)"), css.indexOf(".section-head {"));
     expect(sheet).toContain(".search-suggest-chips");
     expect(sheet).toContain("flex-wrap: nowrap");
     expect(sheet).toContain("overflow-x: auto");
@@ -816,9 +818,13 @@ describe("testament filter", () => {
     expect(picker).toContain(".search-testament-menu .search-testament-option:first-child { border-radius: .2rem .2rem 0 0; }");
     expect(picker).toContain(".search-testament-menu .search-testament-option:last-child { border-radius: 0 0 .2rem .2rem; }");
     expect(picker).toContain("padding: .3rem .7rem");
-    const sheet = css.slice(css.indexOf("@media (max-width: 640px)"), css.indexOf(".section-head {"));
+    const sheet = css.slice(css.indexOf("@media (max-width: 767px)"), css.indexOf(".section-head {"));
     expect(sheet).toContain(".search-testament-desktop { display: none; }");
-    expect(sheet).toContain(".search-testament-more { display: inline-flex; }");
+    expect(sheet).toContain(".search-testament-more { display: none; }");
+    expect(sheet).toContain(".search-testament-segments {");
+    expect(sheet).toContain(".search-testament-segment {");
+    expect(sheet).toContain("min-height: var(--tap);");
+    expect(sheet).toContain(".search-cancel {");
     expect(sheet).toContain(".search-testament-sheet-label");
     expect(sheet).toContain("background: #f5f5f4");
     expect(sheet).toContain("background: #292524");
@@ -884,7 +890,8 @@ describe("passage helpers while typing", () => {
     expect(exact).toContain("location.replace(jumpUrl)");
     expect(exact).not.toContain("/api/ha-search");
     expect(exact).not.toContain("searchScripture");
-    expect(exact).not.toContain("rememberRecentSearch");
+    expect(exact.indexOf("rememberRecentSearch(q)")).toBeGreaterThan(-1);
+    expect(exact.indexOf("rememberRecentSearch(q)")).toBeLessThan(exact.indexOf("window.__marginSoftNav"));
     const prefetch = source.slice(source.indexOf("function chapterHref"), source.indexOf("function suggestNow"));
     expect(prefetch).toContain("window.__marginPrefetchChapter");
     expect(prefetch).toContain('return "/" + String(state.book).toLowerCase() + "." + state.chapter');
@@ -939,7 +946,8 @@ describe("recent query history", () => {
     expect(submitChip).not.toContain("/api/ha-search");
     const remembered = source.slice(source.indexOf("async function submitJump"), source.indexOf("function suggest()"));
     const passage = remembered.slice(0, remembered.indexOf("if ((data.hits"));
-    expect(passage).not.toContain("rememberRecentSearch");
+    expect(passage).toContain("rememberRecentSearch(q)");
+    expect(passage.indexOf("rememberRecentSearch(q)")).toBeLessThan(passage.indexOf("passageHref(local)"));
     const freeText = remembered.slice(remembered.lastIndexOf("submittedQuery = q"));
     expect(freeText.indexOf("rememberRecentSearch(q)")).toBeLessThan(freeText.indexOf("searchScripture(q, my)"));
     const css = readFileSync(path.join(import.meta.dir, "../src/html.ts"), "utf8");
@@ -951,7 +959,7 @@ describe("recent query history", () => {
     expect(history).toContain(".search-history-label");
     expect(history).toContain(".search-history-chips { flex: 1 1 auto; min-width: 0; }");
     expect(history).not.toContain("Suggested");
-    const sheet = css.slice(css.indexOf("@media (max-width: 640px)"), css.indexOf(".section-head {"));
+    const sheet = css.slice(css.indexOf("@media (max-width: 767px)"), css.indexOf(".section-head {"));
     expect(sheet).toContain(".search-history,");
     expect(sheet).toContain("calc(14px + env(safe-area-inset-left, 0px));");
   });

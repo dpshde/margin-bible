@@ -418,7 +418,7 @@ describe("verse groups inbox", () => {
     const verseChip = coarse.slice(coarse.indexOf(".verse-group .att-chip"));
     expect(verseChip).toContain("font-size: .84rem");
     expect(verseChip).toContain("position: static");
-    expect(verseChip).toContain("min-width: 1.7rem");
+    expect(verseChip).toContain("min-width: var(--tap)");
     nodeCheck(verseGroupsScript());
   });
 

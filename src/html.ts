@@ -142,7 +142,11 @@ export function page(title: string, body: string): string {
       position: sticky; top: 0; z-index: 7;
       display: grid; grid-template-columns: 1fr auto 1fr; align-items: center;
       gap: .5rem;
-      padding: calc(.35rem + var(--safe-top)) .75rem .35rem;
+      padding:
+        calc(.35rem + var(--safe-top))
+        calc(.75rem + env(safe-area-inset-right, 0px))
+        .35rem
+        calc(.75rem + env(safe-area-inset-left, 0px));
       min-height: calc(var(--tap) + var(--safe-top));
       background: color-mix(in srgb, var(--paper) 92%, transparent);
       backdrop-filter: blur(12px);
@@ -150,6 +154,18 @@ export function page(title: string, body: string): string {
     }
     .topbar-side { display: flex; align-items: center; gap: .25rem; }
     .topbar-actions { display: flex; align-items: center; justify-content: flex-end; gap: 0; }
+    /* Notes keeps the title in the center track. Side tracks size to their icons, so the title never slides under the moon. */
+    .topbar.topbar-notes {
+      grid-template-columns: minmax(max-content, 1fr) auto minmax(max-content, 1fr);
+    }
+    .topbar.topbar-notes .topbar-side { justify-self: start; }
+    .topbar.topbar-notes .topbar-title {
+      justify-self: center;
+      width: max-content;
+      max-width: 100%;
+    }
+    .topbar.topbar-notes .topbar-title-btn { width: max-content; max-width: 100%; }
+    .topbar.topbar-notes .topbar-actions { justify-self: end; }
     .topbar-title {
       display: flex; align-items: center; justify-content: center;
       margin: 0; font-family: var(--head); font-size: 1.05rem; font-weight: 600;
@@ -582,9 +598,12 @@ export function page(title: string, body: string): string {
     }
     .search-result {
       display: block; width: 100%; margin: 0; text-align: left;
+      min-height: var(--tap);
       padding: .85rem 1rem; border: 0; border-radius: 0;
       background: transparent; cursor: pointer; color: var(--ink);
     }
+    .search-cancel { display: none; }
+    .search-testament-segments { display: none; }
     .search-modal-list li + li .search-result { box-shadow: inset 0 1px var(--line); }
     .search-result.is-selected,
     .search-result:hover,
@@ -702,13 +721,21 @@ export function page(title: string, body: string): string {
         transition: opacity 160ms ease, visibility 0s linear;
       }
       .search-fab svg { display: block; width: 28px; height: 28px; }
+      html[data-theme="dark"] .search-fab {
+        background: #57534e;
+        color: #fafaf9;
+        box-shadow:
+          0 0 0 1px color-mix(in srgb, #fafaf9 46%, transparent),
+          0 .35rem 1rem rgb(0 0 0 / .5);
+      }
       html.search-modal-open .search-fab,
+      html.is-grid-open .search-fab,
       html.spotlight-on:has(.verse:is(.is-open, .is-span)) .search-fab {
         opacity: 0; visibility: hidden; pointer-events: none;
         transition: opacity 160ms ease, visibility 0s linear 160ms;
       }
     }
-    @media (max-width: 640px) {
+    @media (max-width: 767px) {
       .search-modal {
         align-items: stretch; justify-content: flex-start;
         padding: 0;
@@ -755,7 +782,37 @@ export function page(title: string, body: string): string {
       .search-suggest-chips::-webkit-scrollbar { display: none; width: 0; height: 0; }
       .search-suggest-chip { flex: 0 0 auto; }
       .search-testament-desktop { display: none; }
-      .search-testament-more { display: inline-flex; }
+      .search-testament-more { display: none; }
+      .search-cancel {
+        display: inline-flex; align-items: center; justify-content: center;
+        flex: none; min-width: var(--tap); min-height: var(--tap);
+        margin: 0; padding: 0 .35rem;
+        border: 0; border-radius: .55rem; background: transparent;
+        color: var(--ink); cursor: pointer;
+        font: inherit; font-size: .95rem; font-weight: 650;
+      }
+      .search-cancel:focus-visible { outline: 2px solid color-mix(in srgb, var(--ink) 28%, transparent); outline-offset: 1px; }
+      .search-testament-segments {
+        display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: .35rem;
+        padding:
+          0
+          calc(14px + env(safe-area-inset-right, 0px))
+          12px
+          calc(14px + env(safe-area-inset-left, 0px));
+      }
+      .search-testament-segment {
+        min-height: var(--tap);
+        margin: 0; padding: 0 .4rem;
+        border: 1px solid var(--line); border-radius: .7rem;
+        background: transparent; color: var(--ink-soft);
+        font: inherit; font-size: .95rem; font-weight: 650;
+        cursor: pointer;
+      }
+      .search-testament-segment.is-selected {
+        background: var(--ink); color: var(--paper); border-color: var(--ink);
+      }
+      .search-suggest-chip { min-height: var(--tap); padding: 0 .9rem; }
       .search-testament-sheet:not([hidden]) {
         display: flex; align-items: center; justify-content: space-between;
         flex: 0 0 auto;
@@ -851,10 +908,11 @@ export function page(title: string, body: string): string {
     }
     .verse-press:focus, .verse-press:focus-visible { outline: none; }
     .vnum {
-      font-variant-numeric: oldstyle-nums;
-      color: color-mix(in srgb, var(--ink) 35%, transparent);
-      font-size: .72em; font-weight: 500; padding-top: .42rem; text-align: right;
+      font-variant-numeric: lining-nums;
+      color: #57534e;
+      font-size: .92em; font-weight: 650; padding-top: .28rem; text-align: right;
     }
+    html[data-theme="dark"] .vnum { color: #e7e5e4; }
     .verse.is-open .vnum, .verse.is-span .vnum, .verse.has-note .vnum { color: var(--ink-soft); }
     .vtext {
       font-family: var(--read); font-size: var(--read-size); line-height: var(--read-leading);
@@ -1266,6 +1324,7 @@ export function page(title: string, body: string): string {
     .bookmarks-view > summary {
       display: flex; align-items: center; justify-content: space-between; gap: .5rem;
       margin: 0 0 .15rem; padding: 0;
+      min-height: var(--tap);
       cursor: pointer; list-style: none;
       font: 700 .7rem/1.3 var(--sans);
       letter-spacing: .08em; text-transform: uppercase;
@@ -1274,7 +1333,7 @@ export function page(title: string, body: string): string {
     .bookmarks-view > summary::-webkit-details-marker { display: none; }
     .bookmarks-summary-label { display: inline-flex; align-items: center; gap: .35rem; }
     .bookmarks-summary-icon { display: block; width: .9rem; height: .9rem; color: var(--ink-soft); }
-    .bookmarks-view > summary::after { content: "＋"; display: inline-flex; align-items: center; justify-content: center; min-width: 1.35rem; min-height: 1.35rem; padding: .1rem .2rem; border-radius: .35rem; color: var(--faint); font-size: .9rem; font-weight: 400; }
+    .bookmarks-view > summary::after { content: "＋"; display: inline-flex; align-items: center; justify-content: center; min-width: var(--tap); min-height: var(--tap); padding: .1rem .2rem; border-radius: .35rem; color: var(--faint); font-size: .9rem; font-weight: 400; }
     .bookmarks-view[open] > summary::after { content: "－"; }
     .bookmarks-view > summary:focus-visible { outline: 2px solid var(--sel-rail-open); outline-offset: -2px; }
     .bookmarks-panel { padding: 0; margin: 0; border: 0; }
@@ -1406,7 +1465,7 @@ export function page(title: string, body: string): string {
       overflow: auto;
       border-radius: .35rem;
       background: color-mix(in srgb, var(--ink) 8%, transparent);
-      color: var(--ink-soft);
+      color: var(--ink);
       font: 400 .88rem/1.35 var(--sans);
       padding: .32rem .5rem;
       min-height: 1.85rem;
@@ -1426,10 +1485,10 @@ export function page(title: string, body: string): string {
     .verse-group-verses .att-board { flex: 1 1 auto; margin: 0; gap: .28rem; }
     .verse-group-verses .tray-attach {
       color: var(--ink-soft);
-      width: 2rem;
-      height: 2rem;
-      min-width: 2rem;
-      min-height: 2rem;
+      width: var(--tap);
+      height: var(--tap);
+      min-width: var(--tap);
+      min-height: var(--tap);
     }
     .verse-group-status { margin: 0; color: var(--muted); font-size: .8rem; font-weight: 400; }
     .verse-group-status:empty { display: none; }
@@ -1853,10 +1912,10 @@ export function page(title: string, body: string): string {
       .verse-group .att-remove {
         visibility: visible;
         opacity: 1;
-        width: 1.7rem;
-        height: 1.7rem;
-        min-width: 1.7rem;
-        min-height: 1.7rem;
+        width: var(--tap);
+        height: var(--tap);
+        min-width: var(--tap);
+        min-height: var(--tap);
       }
       .verse-group .verse-star svg,
       .verse-group .att-remove svg { width: .85rem; height: .85rem; }
@@ -1913,8 +1972,10 @@ export function page(title: string, body: string): string {
       .verse-group .att-remove {
         visibility: visible;
         opacity: 1;
-        width: 1.7rem;
-        min-width: 1.7rem;
+        width: var(--tap);
+        min-width: var(--tap);
+        height: var(--tap);
+        min-height: var(--tap);
         overflow: visible;
       }
       .verse-group-verses .tray-attach {
@@ -1948,9 +2009,9 @@ export function page(title: string, body: string): string {
       border-color: color-mix(in srgb, var(--ink) 40%, transparent);
     }
     .att-drop-close {
-      position: absolute; top: .65rem; right: .65rem; z-index: 3;
+      position: absolute; top: .35rem; right: .35rem; z-index: 3;
       display: inline-flex; align-items: center; justify-content: center;
-      width: 2rem; height: 2rem; padding: 0;
+      width: var(--tap); height: var(--tap); min-width: var(--tap); min-height: var(--tap); padding: 0;
       border: 0; border-radius: 999px; background: transparent;
       color: var(--muted); cursor: pointer;
     }
@@ -2026,6 +2087,7 @@ export function page(title: string, body: string): string {
       background: color-mix(in srgb, var(--ink) 28%, transparent);
     }
     .chapter-grid[hidden] { display: none; }
+    .chapter-grid-handle { display: none; }
     .chapter-grid-sheet {
       width: min(28rem, 100%);
       max-height: min(36rem, calc(100dvh - 6rem));
@@ -2096,25 +2158,22 @@ export function page(title: string, body: string): string {
     .suggest button { min-height: var(--tap); }
     .note-list .note-row { min-height: var(--tap); }
     @media (max-width: 640px) {
-      .topbar { grid-template-columns: auto 1fr auto; gap: .25rem; padding-left: .5rem; padding-right: .5rem; }
-      .topbar-title { font-size: .95rem; }
-      /* A long chapter name fills the middle track. Keep the bookmark on the title's left,
-         with a gap before the Notes icon. */
-      .topbar-chapter-mark { margin-inline-start: .75rem; }
-      /* Notes inbox only. The left slot is empty and the right slot is three icons,
-         so a title centered in the flexible middle track sits left of the screen.
-         Paint the same title across the bar; the icons stay in the end column. */
-      .topbar-notes .topbar-side { grid-column: 1; grid-row: 1; z-index: 2; }
-      .topbar-notes .topbar-title {
-        grid-column: 1 / -1;
-        grid-row: 1;
-        justify-self: center;
-        width: max-content;
-        max-width: calc(100% - 9.5rem);
-        z-index: 1;
+      .topbar {
+        grid-template-columns: auto minmax(min-content, 1fr) auto;
+        gap: .25rem;
+        padding-left: calc(.5rem + env(safe-area-inset-left, 0px));
+        padding-right: calc(.5rem + env(safe-area-inset-right, 0px));
       }
-      .topbar-notes .topbar-title-btn { width: max-content; max-width: 100%; }
-      .topbar-notes .topbar-actions { grid-column: 3; grid-row: 1; z-index: 2; }
+      .topbar-title { font-size: .95rem; overflow: visible; }
+      .topbar:not(.topbar-notes) .topbar-title-btn {
+        flex: 0 0 auto;
+        min-width: min-content;
+        overflow: visible;
+        text-overflow: clip;
+      }
+      /* A long chapter name fills the middle track. Keep the bookmark on the title's left,
+         with a gap before the Notes icon. The title itself does not ellipsize. */
+      .topbar-chapter-mark { margin-inline-start: .75rem; }
       .expand-btn { width: var(--tap); padding: 0; justify-content: center; }
       .reader, .verse, .chapter {
         --verse-gutter: 1.2rem;
@@ -2139,7 +2198,7 @@ export function page(title: string, body: string): string {
         padding-right: .45rem;
       }
       .hint { font-size: .78rem; }
-      .pager { margin-bottom: calc(2rem + var(--safe-bottom)); }
+      .pager { margin-bottom: calc(3.4rem + 14px + 1rem + var(--safe-bottom)); }
       main.reader, .notes-main, footer.site {
         width: min(var(--page-max), calc(100% - 1.1rem));
       }
@@ -2152,6 +2211,92 @@ export function page(title: string, body: string): string {
       }
       .oblock { padding-left: calc(.25rem + (var(--depth, 0) * .85rem)); }
       .tray-label { font-size: .72rem; }
+    }
+    @media (max-width: 767px) {
+      .pager {
+        margin-bottom: calc(3.4rem + 14px + 1rem + var(--safe-bottom));
+      }
+      .pager a, .pager span {
+        display: inline-flex; align-items: center;
+        min-height: var(--tap); padding: .2rem 0;
+      }
+      .notes-main {
+        padding-bottom: calc(3.4rem + 14px + 1.25rem + var(--safe-bottom));
+      }
+      .chapter-grid {
+        align-items: flex-end;
+        justify-content: stretch;
+        padding: 0;
+      }
+      .chapter-grid-sheet {
+        width: 100%;
+        max-height: min(82dvh, calc(100dvh - var(--safe-top) - .5rem));
+        margin: 0;
+        padding: 0 1rem calc(1.1rem + var(--safe-bottom));
+        border-radius: 1rem 1rem 0 0;
+        border-bottom: 0;
+        overflow: auto;
+        overscroll-behavior: contain;
+        -webkit-overflow-scrolling: touch;
+      }
+      .chapter-grid-handle {
+        display: flex; align-items: center; justify-content: center;
+        position: sticky; top: 0; z-index: 2;
+        min-height: var(--tap);
+        margin: 0 -1rem;
+        background: var(--paper-raised);
+        touch-action: none;
+        cursor: grab;
+      }
+      .chapter-grid-handle::before {
+        content: "";
+        width: 2.5rem; height: .28rem; border-radius: 999px;
+        background: color-mix(in srgb, var(--ink) 28%, transparent);
+      }
+      .chapter-grid-book { min-height: var(--tap); padding: .2rem 0; }
+      .chapter-grid-group {
+        position: sticky;
+        top: var(--tap);
+        z-index: 1;
+        margin: 0;
+        padding: .55rem 0 .35rem;
+        background: var(--paper-raised);
+      }
+      .chapter-grid-cell {
+        min-height: 3.25rem;
+        font-size: 1.05rem;
+      }
+      .note-tray .att-chip,
+      .chapter-tray .att-chip {
+        max-width: 100%;
+        white-space: normal;
+        line-height: 1.35;
+        padding: .35rem .65rem;
+      }
+      .bookmarks-panel .note-list > li > a.note-row,
+      .verse-group > summary.note-row {
+        flex-wrap: wrap;
+        align-items: center;
+        row-gap: .12rem;
+      }
+      .bookmarks-panel .note-row-title,
+      .verse-group > summary .note-row-title,
+      .bookmarks-panel .note-row-excerpt,
+      .verse-group > summary .note-row-excerpt {
+        white-space: normal;
+        overflow: visible;
+        text-overflow: unset;
+      }
+      .bookmarks-panel .note-row-excerpt,
+      .verse-group > summary .note-row-excerpt {
+        flex: 1 0 100%;
+        font-size: .84rem;
+        color: var(--muted);
+      }
+      .verse-group[open] > summary .note-row-excerpt {
+        color: color-mix(in srgb, var(--paper) 86%, transparent);
+      }
+      .att-drop-sheet { padding-bottom: var(--safe-bottom); }
     }
   </style>
 </head>

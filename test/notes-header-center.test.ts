@@ -23,8 +23,13 @@ describe("Notes title centering", () => {
     expect(html).toContain(
       '<button type="button" class="topbar-title-btn" id="chapter-grid-title" aria-haspopup="dialog" aria-expanded="false" aria-controls="chapter-grid" title="Choose book or chapter">Notes</button>',
     );
-    expect(html).toContain('class="topbar-side"></div>');
-    expect(html).toContain('aria-label="Reader"');
+    const header = html.slice(html.indexOf("<header"), html.indexOf("</header>"));
+    const side = header.slice(header.indexOf("topbar-side"), header.indexOf("topbar-title"));
+    const actions = header.slice(header.indexOf("topbar-actions"));
+    expect(side).toContain('aria-label="Reader"');
+    expect(side).toContain('href="/jhn.3"');
+    expect(actions).not.toContain('aria-label="Reader"');
+    expect(html).not.toContain('class="topbar-side"></div>');
     expect(html).toContain("theme-toggle");
   });
 
@@ -40,23 +45,17 @@ describe("Notes title centering", () => {
     }
   });
 
-  test("phone-width CSS centers only the notes title; desktop tracks stay equal", () => {
+  test("notes title stays in the center track and does not cover the theme icon", () => {
     const css = readFileSync(path.join(import.meta.dir, "../src/html.ts"), "utf8");
     const desktop = css.indexOf("grid-template-columns: 1fr auto 1fr");
-    const phone = css.indexOf("@media (max-width: 640px)");
-    const notesRule = css.indexOf(".topbar-notes .topbar-title");
+    const notes = css.indexOf(".topbar.topbar-notes {");
     expect(desktop).toBeGreaterThan(-1);
-    expect(phone).toBeGreaterThan(desktop);
-    expect(notesRule).toBeGreaterThan(phone);
-    expect(css.slice(0, phone)).not.toContain(".topbar-notes");
-    expect(css).toContain(".topbar { grid-template-columns: auto 1fr auto; gap: .25rem;");
-
-    const rule = css.slice(notesRule, css.indexOf(".topbar-notes .topbar-title-btn"));
-    expect(rule).toContain("grid-column: 1 / -1");
-    expect(rule).toContain("grid-row: 1");
-    expect(rule).toContain("justify-self: center");
-    expect(rule).toContain("width: max-content");
-    expect(css).toContain(".topbar-notes .topbar-actions { grid-column: 3; grid-row: 1; z-index: 2; }");
-    expect(css).toContain(".topbar-notes .topbar-side { grid-column: 1; grid-row: 1; z-index: 2; }");
+    expect(notes).toBeGreaterThan(desktop);
+    const rule = css.slice(notes, css.indexOf(".topbar.topbar-notes .topbar-side"));
+    expect(rule).toContain("minmax(max-content, 1fr) auto minmax(max-content, 1fr)");
+    expect(css).toContain(".topbar.topbar-notes .topbar-title {");
+    expect(css).toContain("justify-self: center");
+    expect(css).not.toContain("grid-column: 1 / -1");
+    expect(css).not.toContain("max-width: calc(100% - 9.5rem)");
   });
 });

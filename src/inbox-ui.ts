@@ -706,7 +706,7 @@ export function notesInboxScript(): string {
     const slug = chapterSlugFromHref(href);
     if (!slug) return;
     if (!htmlCache.has(href)) {
-      const init = { credentials: "same-origin", headers: { accept: "text/html", purpose: "prefetch" } };
+      const init = { credentials: "same-origin", headers: { accept: "text/html", purpose: "prefetch", "x-margin-prefetch": "1" } };
       if (opts && opts.priority) init.priority = opts.priority;
       if (opts && opts.signal) init.signal = opts.signal;
       const promise = fetch(href, init)

@@ -16,6 +16,7 @@ export function chapterGridHtml(book: string, chapter: number): string {
   const chapCells = chapterCellsHtml(book, chapterCount(book), book, chapter);
   return `<div id="chapter-grid" class="chapter-grid" hidden role="dialog" aria-modal="true" aria-labelledby="chapter-grid-heading">
   <div class="chapter-grid-sheet">
+    <div class="chapter-grid-handle" aria-hidden="true"></div>
     <button type="button" class="chapter-grid-book" id="chapter-grid-heading" aria-expanded="false" aria-controls="chapter-grid-books">${escapeHtml(name)}</button>
     <div id="chapter-grid-books" class="chapter-grid-books" hidden>
       <p class="chapter-grid-group">Old Testament</p>
@@ -30,7 +31,54 @@ export function chapterGridHtml(book: string, chapter: number): string {
     codes: bookCodes(),
     names: Object.fromEntries(bookCodes().map((c) => [c, bookName(c)])),
     chapterCounts: Object.fromEntries(bookCodes().map((c) => [c, chapterCount(c)])),
-  }).replace(/</g, "\\u003c")}</script>`;
+  }).replace(/</g, "\\u003c")}</script>
+<script>
+(function () {
+  var grid = document.getElementById("chapter-grid");
+  var sheet = grid && grid.querySelector(".chapter-grid-sheet");
+  var handle = grid && grid.querySelector(".chapter-grid-handle");
+  if (!grid || !sheet || !handle || handle.dataset.bound === "1") return;
+  handle.dataset.bound = "1";
+  var startY = 0;
+  var dy = 0;
+  var active = false;
+  function phone() { return window.matchMedia("(max-width: 767px)").matches; }
+  function shift(y) {
+    sheet.style.transition = "none";
+    sheet.style.transform = y ? "translate3d(0," + y + "px,0)" : "";
+  }
+  function finish() {
+    if (!active) return;
+    active = false;
+    if (dy >= 72) {
+      sheet.style.transition = "";
+      sheet.style.transform = "";
+      grid.hidden = true;
+      grid.classList.remove("is-open");
+      document.documentElement.classList.remove("is-grid-open");
+      var title = document.getElementById("chapter-grid-title");
+      if (title) title.setAttribute("aria-expanded", "false");
+      return;
+    }
+    sheet.style.transition = "transform 180ms ease";
+    sheet.style.transform = "";
+  }
+  handle.addEventListener("pointerdown", function (event) {
+    if (!phone() || event.button) return;
+    active = true;
+    startY = event.clientY;
+    dy = 0;
+    if (handle.setPointerCapture) handle.setPointerCapture(event.pointerId);
+  });
+  handle.addEventListener("pointermove", function (event) {
+    if (!active) return;
+    dy = Math.max(0, event.clientY - startY);
+    if (dy) shift(dy);
+  });
+  handle.addEventListener("pointerup", finish);
+  handle.addEventListener("pointercancel", function () { dy = 0; finish(); });
+})();
+</script>`;
 }
 
 export function chapterCellsHtml(book: string, count: number, currentBook: string, currentChapter: number): string {

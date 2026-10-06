@@ -30,7 +30,7 @@ export function verseGroupCardHtml(group: VerseGroupView, status = ""): string {
   <summary class="note-row"><span class="note-row-title" data-title="${escapeHtml(saved)}" contenteditable="false">${escapeHtml(rowTitle)}</span><button type="button" class="verse-group-title-edit" aria-label="Edit title" title="Edit title">${iconNotePencil()}</button>${excerpt ? `<span class="note-row-excerpt">${escapeHtml(excerpt)}</span>` : ""}<span class="verse-group-hub">${escapeHtml(group.hubLabel)}</span></summary>
   <form class="verse-group-form">
     <div class="verse-group-fields">
-      <textarea id="vg-description-${field}" class="verse-group-description" name="description" rows="1" maxlength="2000" placeholder="Description" aria-label="Description">${escapeHtml(group.description)}</textarea>
+      <textarea id="vg-description-${field}" class="verse-group-description" name="description" rows="1" maxlength="2000" placeholder="Description" aria-label="Description" autocomplete="off">${escapeHtml(group.description)}</textarea>
     </div>
     <div class="verse-group-verses">
       <ul class="att-board verse-group-members">${chips}</ul>
@@ -769,6 +769,8 @@ export function verseGroupsScript(): string {
       return;
     }
     if (target.name !== "description") return;
+    card._descriptionDraft = String(target.value || "");
+    target.defaultValue = card._descriptionDraft;
     scheduleSave(card);
   });
 
@@ -785,6 +787,13 @@ export function verseGroupsScript(): string {
       target.removeAttribute("role");
       target.removeAttribute("aria-multiline");
       target.removeAttribute("aria-label");
+    }
+    if (target.name === "description") {
+      card._descriptionDraft = String(target.value || card._descriptionDraft || "");
+      target.defaultValue = card._descriptionDraft;
+      if (card._saveTimer) { clearTimeout(card._saveTimer); card._saveTimer = 0; }
+      post(card, "save", null, { quiet: true });
+      return;
     }
     if (!card._saveTimer) return;
     clearTimeout(card._saveTimer);
@@ -1060,8 +1069,10 @@ export function verseGroupsScript(): string {
     var body = { action: action, hub: hub };
     if (action === "save") {
       body.title = storedTitle(card);
-      var form = card.querySelector(".verse-group-form");
-      if (form) body.description = String(new FormData(form).get("description") || "");
+      var field = card.querySelector("textarea.verse-group-description");
+      var typed = field ? String(field.value || "") : "";
+      if (!typed && card._descriptionDraft) typed = String(card._descriptionDraft);
+      body.description = typed;
     }
     if (action === "suggest-title") body.title = storedTitle(card);
     if (extra) {
@@ -1096,6 +1107,12 @@ export function verseGroupsScript(): string {
       }
       if (quiet) {
         paintTitle(card);
+        var savedField = card.querySelector("textarea.verse-group-description");
+        if (savedField) {
+          if (!String(savedField.value || "") && body.description) savedField.value = body.description;
+          savedField.defaultValue = String(savedField.value || "");
+          card._descriptionDraft = savedField.defaultValue;
+        }
         if (status) status.textContent = "";
         card.removeAttribute("data-save-inflight");
         if (card.getAttribute("data-save-pending") === "1") {
