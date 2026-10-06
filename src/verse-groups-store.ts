@@ -32,6 +32,7 @@ const CREATE_VERSE_GROUPS = `CREATE TABLE IF NOT EXISTS verse_groups (
   undo_json TEXT NOT NULL DEFAULT '[]',
   star_slug TEXT NOT NULL DEFAULT '',
   jev_title TEXT NOT NULL DEFAULT '',
+  auto_titled INTEGER NOT NULL DEFAULT 0,
   updated_at TEXT NOT NULL,
   PRIMARY KEY (library_id, hub_slug)
 )`;
@@ -43,6 +44,7 @@ type MetaRow = {
   undo_json: string | null;
   star_slug?: string | null;
   jev_title?: string | null;
+  auto_titled?: number | null;
 };
 
 export type VerseGroupActionResult =
@@ -307,28 +309,94 @@ export async function ensureVerseGroupsTable(db: D1Database): Promise<void> {
   await db.prepare(CREATE_VERSE_GROUPS).run();
   await addVerseGroupColumn(db, "star_slug TEXT NOT NULL DEFAULT ''");
   await addVerseGroupColumn(db, "jev_title TEXT NOT NULL DEFAULT ''");
+  await addVerseGroupColumn(db, "auto_titled INTEGER NOT NULL DEFAULT 0");
+  await backfillAutoTitled(db);
 }
 
-/** Remember the title Jev wrote. A later save keeps this string so an edit can unlock, and matching text locks again. */
-export async function saveJevTitle(db: D1Database, libraryId: string, hub: string, title: string): Promise<void> {
+/**
+ * Groups that already have a title were named by hand or by the old sparkle.
+ * Flag them so the one-shot pass does not overwrite them. Idempotent.
+ */
+async function backfillAutoTitled(db: D1Database): Promise<void> {
+  await db
+    .prepare("UPDATE verse_groups SET auto_titled = 1 WHERE auto_titled = 0 AND trim(title) != ''")
+    .run();
+}
+
+/** Set the lock without changing the title. A later edit does not clear it. */
+export async function markVerseGroupAutoTitled(db: D1Database, libraryId: string, hub: string): Promise<void> {
   await ensureVerseGroupsTable(db);
   const now = new Date().toISOString();
   await db
     .prepare(
-      `INSERT INTO verse_groups (library_id, hub_slug, title, description, undo_json, jev_title, updated_at)
-       VALUES (?, ?, ?, '', '[]', ?, ?)
+      `INSERT INTO verse_groups (library_id, hub_slug, title, description, undo_json, auto_titled, updated_at)
+       VALUES (?, ?, '', '', '[]', 1, ?)
+       ON CONFLICT(library_id, hub_slug) DO UPDATE SET
+         auto_titled = 1,
+         updated_at = excluded.updated_at`,
+    )
+    .bind(libraryId, hub, now)
+    .run();
+}
+
+/**
+ * Keep a title the reader already typed. Does not record it as Jev's title.
+ * Returns false when a title or the lock landed first.
+ */
+export async function claimOpenTitle(db: D1Database, libraryId: string, hub: string, title: string): Promise<boolean> {
+  await ensureVerseGroupsTable(db);
+  const now = new Date().toISOString();
+  await db
+    .prepare(
+      `INSERT INTO verse_groups (library_id, hub_slug, title, description, undo_json, auto_titled, updated_at)
+       VALUES (?, ?, ?, '', '[]', 1, ?)
+       ON CONFLICT(library_id, hub_slug) DO UPDATE SET
+         title = excluded.title,
+         auto_titled = 1,
+         updated_at = excluded.updated_at
+       WHERE verse_groups.auto_titled = 0 AND trim(verse_groups.title) = ''`,
+    )
+    .bind(libraryId, hub, title, now)
+    .run();
+  const row = await db
+    .prepare("SELECT title, auto_titled FROM verse_groups WHERE library_id = ? AND hub_slug = ?")
+    .bind(libraryId, hub)
+    .first<{ title: string; auto_titled: number | null }>();
+  return Boolean(row && Number(row.auto_titled) === 1 && (row.title ?? "") === title);
+}
+
+/**
+ * Write Jev's title only while the group is still unlocked and untitled.
+ * Returns false when a title or the lock landed first.
+ */
+export async function saveAutoTitle(db: D1Database, libraryId: string, hub: string, title: string): Promise<boolean> {
+  await ensureVerseGroupsTable(db);
+  const now = new Date().toISOString();
+  await db
+    .prepare(
+      `INSERT INTO verse_groups (library_id, hub_slug, title, description, undo_json, jev_title, auto_titled, updated_at)
+       VALUES (?, ?, ?, '', '[]', ?, 1, ?)
        ON CONFLICT(library_id, hub_slug) DO UPDATE SET
          title = excluded.title,
          jev_title = excluded.jev_title,
-         updated_at = excluded.updated_at`,
+         auto_titled = 1,
+         updated_at = excluded.updated_at
+       WHERE verse_groups.auto_titled = 0 AND trim(verse_groups.title) = ''`,
     )
     .bind(libraryId, hub, title, title, now)
     .run();
+  const row = await db
+    .prepare("SELECT title, auto_titled FROM verse_groups WHERE library_id = ? AND hub_slug = ?")
+    .bind(libraryId, hub)
+    .first<{ title: string; auto_titled: number | null }>();
+  return Boolean(row && Number(row.auto_titled) === 1 && (row.title ?? "") === title);
 }
 
 export async function listVerseGroupMeta(db: D1Database, libraryId: string): Promise<VerseGroupMeta[]> {
   const result = await db
-    .prepare("SELECT hub_slug, title, description, undo_json, star_slug, jev_title FROM verse_groups WHERE library_id = ?")
+    .prepare(
+      "SELECT hub_slug, title, description, undo_json, star_slug, jev_title, auto_titled FROM verse_groups WHERE library_id = ?",
+    )
     .bind(libraryId)
     .all<MetaRow>();
   const metas: VerseGroupMeta[] = [];
@@ -342,6 +410,7 @@ export async function listVerseGroupMeta(db: D1Database, libraryId: string): Pro
       undoPairs: parseUndoPairs(row.undo_json),
       star: row.star_slug ?? "",
       jevTitle: row.jev_title ?? "",
+      autoTitled: Number(row.auto_titled) === 1,
     });
   }
   return metas;
@@ -355,16 +424,21 @@ async function upsertVerseGroupText(
   description: string,
 ): Promise<void> {
   const now = new Date().toISOString();
+  const locked = title.trim() ? 1 : 0;
   await db
     .prepare(
-      `INSERT INTO verse_groups (library_id, hub_slug, title, description, undo_json, updated_at)
-       VALUES (?, ?, ?, ?, '[]', ?)
+      `INSERT INTO verse_groups (library_id, hub_slug, title, description, undo_json, auto_titled, updated_at)
+       VALUES (?, ?, ?, ?, '[]', ?, ?)
        ON CONFLICT(library_id, hub_slug) DO UPDATE SET
          title = excluded.title,
          description = excluded.description,
+         auto_titled = CASE
+           WHEN trim(excluded.title) != '' THEN 1
+           ELSE verse_groups.auto_titled
+         END,
          updated_at = excluded.updated_at`,
     )
-    .bind(libraryId, hub, title, description, now)
+    .bind(libraryId, hub, title, description, locked, now)
     .run();
 }
 

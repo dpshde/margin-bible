@@ -1350,62 +1350,8 @@ export function page(title: string, body: string): string {
       font-weight: 600;
       font-size: 1.02rem;
       line-height: 1.3;
-      padding: .2rem 1.7rem .2rem .15rem;
+      padding: .2rem .15rem;
     }
-    @font-face {
-      font-family: "Phosphor";
-      src: url("data:font/woff2;base64,d09GMgABAAAAAAIYAA0AAAAABFQAAAHJAAIZmgAAAAAAAAAAAAAAAAAAAAAAAAAAGxAcGgZgADQRCAqCWIJTATYCJAMGCwYABCAFgSoHIBtiAyCeBc55i6jIlUzoqpMf/IJH3cfDf/u1+2ZmdxHzJNbwSttMo3IoYRuRbKlaiGSieCKk///vN+/DPeKJ1EjiyT2RiOKedXL6figrfavkF89DA/wvDZy8xcOJfiYTHOlstJ4Pw6IPnxc0ocCyn/IoDCTtAku36ZLYF4uleLUr0KFLD5DXjBgTF85MDCgAcq5QHWqka9wPruyw+LMTVGL1Ucefyx3cd99wnHkbEJCfwJwZJGQMyQJDijkURfC5LD5+HCAQonoLJFBQcAncAVAAZVmiUuXM5uGxo3gbGzIa13uty/KwyTQ4dJaek6MWy+4U+evKiLHdHgqjudsdCbOl1xsNi6nTGQ6TPX/qRJ0RqHQQUGvfgTpQ8RgoOpzVjMmJrbMXdi3m+hcKSDrwLnZ1nD0cQmhE/svOglrz5fJFAyf8pukciEqw74p9zrrlTDg+PnmXnH0Rzs3lxXkAgTQ+LN8fPmP/R6EX8KphDOzBd9UTAeUntEkg+GdPUYlTkPCbKHAMIcU5MEGivYZTeFHaMcWThj5TNOmxWs+tegGtGbEr6kg3BcSlJez7KVIn3OJi0u0xPS+/rAhnAZhDKWlBAx+X2rZuSyY=") format("woff2");
-      font-weight: normal;
-      font-style: normal;
-      font-display: block;
-    }
-    .ph {
-      font-family: "Phosphor" !important;
-      font-style: normal;
-      font-weight: normal;
-      line-height: 1;
-      letter-spacing: 0;
-      -webkit-font-smoothing: antialiased;
-    }
-    .ph.ph-sparkle:before { content: "\\e6a2"; }
-    @font-face {
-      font-family: "Phosphor-Fill";
-      src: url("data:font/woff2;base64,d09GMgABAAAAAAK4AA0AAAAABeQAAAJmAAIZmgAAAAAAAAAAAAAAAAAAAAAAAAAAGxAcGgZgADQRCAqCHIIkATYCJAMGCwYABCAFhHYHIBv/BBEVlGkEf0jQ7PZzKkMj2IhsJems8ilXmMF9JQrT5UHwwt83Hr72ez337YYAFEogT1D2narIoi1Lcmj0H98IXSJdHR56b/+2N6RAQgu0md12EBdCGfAAuf+6dgK+mgXdrv/BaCIppGKy7LQJ0JK9/AceaBaxP1ENQLD0PwDm/5p64AdUQSd6SJnYa/t0wIsE+oIHNo7kKNob2ERHs83WNdKvoIeIjJARbRSoVqseWK9p1ylu4tktlQBSurBB8bJ9xDNfL/45ooqRapSs/j/VSt/Z9WMISCUwaAQFElolgVbZILIs+DkqGv9uBDiRXRMoQEbCGR5wvRvS7OhiWs+4n6MD+w8vsvrh1z3y9PRhx4NnYvT5+XXVPHq7hh8f3y/zjjgdbNxfNY8qIoA/2NVRjT1MQS3NvpHMjvZ+C3EfbddI83yd+/BQz04jkMMYU+A/w4106VAj+JSrdfN1dkFB71o5CGRRuB4Eiq5XtbXx3bDxv28wg69M/fMnXZxUQqUCBL+XykoIiGA2R4ZVgSIOG7X9PthU540uchV6YVTo1ksV6i1NpnwygyrTbnOyHFSVJadUtdueUzXmonayFlSd8lheVe95bDa2RZLpWr7qwOmvwg238j2dI1nT7kj0NXSeyHFl04BVbuXB5GV04ciR6Q+W4YQ0MhDeJDTEXRAERDJPENCnaStHfYwXU316TsEULxZAA0eE7YFIWqlE727y8cH/dGmaBid5nuWuMWZ9gzkmdzlSX788feif42DIibIn+bzvkrMp98gZ+/q9OdlRlEmALDxLyHR0f7rDLk73D6/uD9sGAAAA") format("woff2");
-      font-weight: normal;
-      font-style: normal;
-      font-display: block;
-    }
-    .ph-fill {
-      font-family: "Phosphor-Fill" !important;
-      font-style: normal;
-      font-weight: normal;
-      line-height: 1;
-      letter-spacing: 0;
-      -webkit-font-smoothing: antialiased;
-    }
-    .ph-fill.ph-sparkle:before { content: "\\e6a2"; }
-    .verse-group-topic .ph,
-    .verse-group-topic .ph-fill { font-size: 1.05rem; }
-    .verse-group-topic {
-      position: absolute;
-      right: 0;
-      top: 0;
-      bottom: 0;
-      width: 1.6rem;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      margin: 0;
-      padding: 0;
-      border: 0;
-      background: transparent;
-      color: var(--faint);
-      cursor: pointer;
-    }
-    .verse-group-topic:hover,
-    .verse-group-topic:focus-visible { color: var(--ink); }
-    .verse-group-topic.is-set { color: var(--ink); cursor: default; }
-    .verse-group[data-busy] .verse-group-topic { opacity: .45; }
     .verse-group-form input[name="title"]::placeholder {
       color: var(--ink-soft);
       font-weight: 500;
@@ -1762,6 +1708,7 @@ export function page(title: string, body: string): string {
     .att-remove:focus-visible { visibility: visible; opacity: 1; color: var(--ink); background: var(--paper-raised); }
     .att-remove svg { display: block; width: .7rem; height: .7rem; }
     /* Star and remove share the trailing edge of one quiet pill. */
+    .verse-group-member-actions { display: contents; }
     .verse-group .att-item {
       gap: 0;
       padding: .06rem .1rem .06rem .08rem;
@@ -1842,6 +1789,64 @@ export function page(title: string, body: string): string {
       }
       .verse-group .verse-star svg,
       .verse-group .att-remove svg { width: .85rem; height: .85rem; }
+    }
+    /* Phone width stacks members. Desktop keeps the horizontal chip row. */
+    @media (max-width: 767px) {
+      .verse-group-verses {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0;
+        padding-left: 0;
+      }
+      .verse-group-members {
+        flex-direction: column;
+        flex-wrap: nowrap;
+        align-items: stretch;
+        width: 100%;
+        gap: 0;
+      }
+      .verse-group .att-item {
+        width: 100%;
+        max-width: none;
+        box-sizing: border-box;
+        justify-content: flex-start;
+        border: 0;
+        border-bottom: 1px solid color-mix(in srgb, var(--ink) 12%, transparent);
+        border-radius: 0;
+        background: transparent;
+        padding: .15rem .05rem .15rem .2rem;
+      }
+      .verse-group .att-item:hover {
+        border-color: transparent;
+        border-bottom-color: color-mix(in srgb, var(--ink) 12%, transparent);
+        background: transparent;
+      }
+      .verse-group .att-chip {
+        flex: 1 1 auto;
+        width: auto;
+        max-width: none;
+        border-radius: 0;
+        padding: .5rem .35rem;
+        font-size: .95rem;
+        line-height: 1.3;
+        white-space: normal;
+      }
+      .verse-group-member-actions {
+        display: inline-flex;
+        align-items: center;
+        flex: none;
+        margin-left: auto;
+        gap: .05rem;
+      }
+      .verse-group .verse-star,
+      .verse-group .att-remove {
+        visibility: visible;
+        opacity: 1;
+      }
+      .verse-group-verses .tray-attach {
+        align-self: flex-start;
+        margin-top: .15rem;
+      }
     }
     a.wiki {
       color: var(--ink-soft); text-decoration: underline;

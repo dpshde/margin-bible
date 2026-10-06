@@ -139,7 +139,7 @@ app.use("*", async (c, next) => {
   }
 });
 
-app.get("/health", (c) => c.json({ ok: true, app: "margin-bible", version: "2026.10.06.26" }));
+app.get("/health", (c) => c.json({ ok: true, app: "margin-bible", version: "2026.10.06.27" }));
 
 app.get("/manifest.webmanifest", () => manifestResponse());
 app.get("/manifest.json", () => manifestResponse());
@@ -464,7 +464,14 @@ app.post("/api/verse-groups", async (c) => {
       postedTitle: record.title,
     });
     if (!suggested.ok) return c.json({ ok: false, error: suggested.error }, suggested.status);
-    return c.json({ ok: true, status: "", topic: suggested.topic, star: suggested.group.star });
+    return c.json({
+      ok: true,
+      status: "",
+      topic: suggested.topic,
+      star: suggested.group.star,
+      autoTitled: suggested.group.autoTitled,
+      skipped: suggested.skipped ?? null,
+    });
   }
   const result = await handleVerseGroupAction(c.env.DB, c.get("libraryId"), body);
   if (!result.ok) return c.json({ ok: false, error: result.error }, result.status);
