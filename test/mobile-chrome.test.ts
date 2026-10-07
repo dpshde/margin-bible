@@ -115,6 +115,30 @@ describe("phone chapter sheet and verse-group description", () => {
   });
 });
 
+describe("desktop notes chrome stays off the phone shell", () => {
+  test("reader placement, accordion plus, and verse-group attach split at 768", () => {
+    const css = readFileSync(path.join(import.meta.dir, "../src/html.ts"), "utf8");
+    const phone = css.indexOf("@media (max-width: 767px) {\n      .icon-btn.notes-reader-desktop { display: none; }");
+    expect(phone).toBeGreaterThan(-1);
+    const base = css.slice(0, phone);
+    const phoneCss = css.slice(phone);
+    expect(base).toContain(".icon-btn.notes-reader-phone { display: none; }");
+    expect(base).not.toContain(".topbar.topbar-notes {");
+    expect(base).toContain(".tray-attach.vg-attach-phone { display: none; }");
+    expect(base).toContain("min-width: 1.35rem; min-height: 1.35rem;");
+    expect(base).toContain(".verse-group-verses .tray-attach {\n      color: var(--ink-soft);\n      width: 2rem;");
+    expect(phoneCss).toContain(".icon-btn.notes-reader-phone { display: inline-flex; }");
+    expect(phoneCss).toContain(".tray-attach.vg-attach-desktop { display: none; }");
+    expect(phoneCss).toContain(".tray-attach.vg-attach-phone { display: inline-flex; }");
+    expect(phoneCss).toContain(".verse-group > summary .vg-attach-phone {\n        width: var(--tap);");
+    const notes = renderNotesIndex([], "jhn.3");
+    expect(notes).toContain('class="icon-btn notes-reader-desktop"');
+    expect(notes).toContain('class="icon-btn notes-reader-phone"');
+    expect(notes).toContain('class="phone-tabs"');
+    expect(notes).toContain("max-width: 767px");
+  });
+});
+
 describe("phone layout tokens", () => {
   test("pager and notes clear the FAB, and the book picker is a bottom sheet", () => {
     const css = readFileSync(path.join(import.meta.dir, "../src/html.ts"), "utf8");

@@ -44,13 +44,14 @@ export function verseGroupCardHtml(group: VerseGroupView, status = ""): string {
   const count = group.members.length;
   const countLabel = count === 1 ? "1 verse" : `${count} verses`;
   return `<details class="verse-group" data-hub="${escapeHtml(group.hub)}" data-hub-label="${escapeHtml(group.hubLabel)}" data-star="${escapeHtml(star)}" data-sample="${group.sample ? "1" : "0"}" data-seed="${group.seed ? "1" : "0"}" data-auto-titled="${group.autoTitled ? "1" : "0"}" data-member-count="${count}">
-  <summary class="note-row verse-group-row"><span class="verse-group-copy"><span class="verse-group-head"><span class="note-row-title" data-title="${escapeHtml(saved)}" contenteditable="false">${escapeHtml(rowTitle)}</span><span class="verse-group-title-actions"><button type="button" class="verse-group-title-edit" aria-label="Edit title" title="Edit title">${iconNotePencil()}</button><button type="button" class="tray-attach" data-vg-attach aria-label="Attach a link or passage" title="Attach">${iconPaperclip()}</button></span></span></span><span class="verse-count-pill" aria-label="${escapeHtml(countLabel)}">${count}</span><span class="verse-group-hub">${escapeHtml(group.hubLabel)}</span></summary>
+  <summary class="note-row verse-group-row"><span class="verse-group-copy"><span class="verse-group-head"><span class="note-row-title" data-title="${escapeHtml(saved)}" contenteditable="false">${escapeHtml(rowTitle)}</span><span class="verse-group-title-actions"><button type="button" class="verse-group-title-edit" aria-label="Edit title" title="Edit title">${iconNotePencil()}</button><button type="button" class="tray-attach vg-attach-phone" data-vg-attach aria-label="Attach a link or passage" title="Attach">${iconPaperclip()}</button></span></span></span><span class="verse-count-pill" aria-label="${escapeHtml(countLabel)}">${count}</span><span class="verse-group-hub">${escapeHtml(group.hubLabel)}</span></summary>
   <form class="verse-group-form">
     <div class="verse-group-fields">
       <textarea id="vg-description-${field}" class="verse-group-description" name="description" rows="1" maxlength="2000" placeholder="Description" aria-label="Description" autocomplete="off">${escapeHtml(group.description)}</textarea>
     </div>
     <div class="verse-group-verses">
       <ul class="att-board verse-group-members">${chips}</ul>
+      <button type="button" class="tray-attach vg-attach-desktop" data-vg-attach aria-label="Attach a link or passage" title="Attach">${iconPaperclip()}</button>
     </div>
     <p class="verse-group-status" role="status">${escapeHtml(status)}</p>
   </form>
