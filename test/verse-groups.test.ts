@@ -771,13 +771,13 @@ describe("topic rows", () => {
     expect(css.slice(phoneOnly, phoneOnly + 2200)).toContain("padding: .28rem .55rem .28rem var(--topic-inset);");
     expect(css.slice(phoneOnly, phoneOnly + 2200)).toContain("padding: .4rem .65rem .5rem var(--topic-inset);");
     expect(css.slice(phoneOnly, phoneOnly + 2600)).toContain("padding: .22rem .45rem .22rem 0;");
-    expect(css).toContain("padding: 0 .08rem 0 0;");
-    expect(css).toContain("padding: .16rem .12rem .16rem 0;");
+    expect(css).toContain("padding: 0 .08rem 0 .4rem;");
+    expect(css).toContain("padding: .16rem .12rem;");
     expect(css.slice(desktop, desktop + 900)).toContain("padding: .2rem .5rem .2rem var(--topic-inset);");
     expect(css.slice(desktop, desktop + 1800)).toContain("padding: .15rem .4rem .1rem var(--topic-inset);");
     expect(css.slice(desktop, desktop + 2200)).toContain("padding: .08rem .35rem .08rem 0;");
-    expect(css.slice(desktop, desktop + 4000)).toContain("padding: 0 .04rem 0 0;");
-    expect(css.slice(desktop, desktop + 4200)).toContain("padding: .02rem .22rem .02rem 0;");
+    expect(css.slice(desktop, desktop + 4000)).toContain("padding: 0 .04rem 0 .32rem;");
+    expect(css.slice(desktop, desktop + 4200)).toContain("padding: .02rem .22rem;");
     expect(css.slice(desktop, desktop + 1600)).toContain("width: 1.4rem;");
     expect(css.slice(desktop, desktop + 2200)).toContain("height: 1.45rem;");
     expect(css.slice(desktop, desktop + 2800)).toContain("flex-direction: row;");

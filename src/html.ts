@@ -2215,7 +2215,7 @@ export function page(title: string, body: string): string {
         border: 1px solid var(--line);
         border-radius: 999px;
         background: var(--paper-raised);
-        padding: 0 .08rem 0 0;
+        padding: 0 .08rem 0 .4rem;
       }
       .verse-group .att-chip {
         flex: 0 1 auto;
@@ -2224,7 +2224,7 @@ export function page(title: string, body: string): string {
         border: 0;
         border-radius: 0;
         background: transparent;
-        padding: .16rem .12rem .16rem 0;
+        padding: .16rem .12rem;
         font-size: .74rem;
         font-weight: 600;
         line-height: 1.2;
@@ -2314,11 +2314,11 @@ export function page(title: string, body: string): string {
         max-width: 100%;
         min-height: 0;
         margin-left: 0;
-        padding: 0 .04rem 0 0;
+        padding: 0 .04rem 0 .32rem;
       }
       #verse-groups-view .verse-group .att-chip {
         max-width: 11rem;
-        padding: .02rem .22rem .02rem 0;
+        padding: .02rem .22rem;
         font-size: .7rem;
         line-height: 1.2;
       }
