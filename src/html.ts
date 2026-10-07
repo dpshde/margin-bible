@@ -2224,7 +2224,8 @@ export function page(title: string, body: string): string {
       .verse-group .verse-star svg,
       .verse-group .att-remove svg { width: .68rem; height: .68rem; }
     }
-    /* Desktop topics stay a compact list. Phone card padding stays under 767. */
+    /* Desktop topics stay a compact list. Collapsed rows get a mid rhythm
+       (~38px); open rows stay on the tight padding. Phone cards stay under 767. */
     @media (min-width: 768px) {
       #verse-groups-view .note-list { display: block; }
       #verse-groups-view .verse-group {
@@ -2237,6 +2238,9 @@ export function page(title: string, body: string): string {
         min-height: 0;
         padding: .2rem .5rem .2rem var(--topic-inset);
         border-radius: .3rem;
+      }
+      #verse-groups-view .verse-group:not([open]) > summary.verse-group-row {
+        padding-block: .55rem;
       }
       #verse-groups-view .verse-count-pill {
         min-width: 1.2rem;
