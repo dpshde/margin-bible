@@ -757,6 +757,12 @@ describe("topic rows", () => {
     expect(css).toContain("min-height: 2.55rem;");
     expect(css).toContain("#verse-groups-view .verse-group {\n        border: 1px solid color-mix(in srgb, var(--ink) 14%, transparent);");
     expect(css).toContain("border-radius: .75rem;");
+    const desktop = css.indexOf("@media (min-width: 768px)");
+    expect(desktop).toBeGreaterThan(css.indexOf("@media (max-width: 767px)"));
+    expect(css.slice(desktop, desktop + 900)).toContain("padding: .2rem .5rem;");
+    expect(css.slice(desktop, desktop + 1600)).toContain("width: 1.4rem;");
+    expect(css.slice(desktop, desktop + 2200)).toContain("height: 1.45rem;");
+    expect(css.slice(desktop, desktop + 2800)).toContain("flex-direction: row;");
     const rowRule = css.indexOf(".verse-group > summary.verse-group-row {");
     const phoneOnly = css.indexOf("@media (max-width: 767px)", rowRule);
     expect(rowRule).toBeGreaterThan(-1);

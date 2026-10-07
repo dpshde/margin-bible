@@ -2231,6 +2231,91 @@ export function page(title: string, body: string): string {
       .verse-group .verse-star svg,
       .verse-group .att-remove svg { width: .68rem; height: .68rem; }
     }
+    /* Desktop topics stay a compact list. Phone card padding stays under 767. */
+    @media (min-width: 768px) {
+      #verse-groups-view .note-list { display: block; }
+      #verse-groups-view .verse-group {
+        border: 0;
+        border-radius: 0;
+        background: transparent;
+        overflow: visible;
+      }
+      #verse-groups-view .verse-group > summary.verse-group-row {
+        min-height: 0;
+        padding: .2rem .5rem;
+        border-radius: .3rem;
+      }
+      #verse-groups-view .verse-count-pill {
+        min-width: 1.2rem;
+        height: 1.1rem;
+        padding: 0 .32rem;
+        font-size: .66rem;
+      }
+      #verse-groups-view .verse-group[open] > summary .verse-group-title-edit,
+      #verse-groups-view .verse-group[open] > summary .tray-attach {
+        width: 1.4rem;
+        height: 1.4rem;
+        min-width: 1.4rem;
+        min-height: 1.4rem;
+      }
+      #verse-groups-view .verse-group[open] > summary .verse-group-title-edit svg,
+      #verse-groups-view .verse-group[open] > summary .tray-attach svg {
+        width: .8rem;
+        height: .8rem;
+      }
+      #verse-groups-view .verse-group-form {
+        gap: .12rem;
+        padding: .15rem .4rem .1rem;
+      }
+      #verse-groups-view .verse-group-fields {
+        margin: 0;
+        padding: 0;
+        border-left: 0;
+      }
+      #verse-groups-view .verse-group-form textarea.verse-group-description {
+        height: 1.45rem;
+        min-height: 0;
+        max-height: 1.45rem;
+        padding: .08rem .35rem;
+        resize: none;
+        overflow: hidden;
+        font-size: .78rem;
+        line-height: 1.25;
+      }
+      #verse-groups-view .verse-group-verses {
+        padding-left: 0;
+        gap: .1rem .2rem;
+      }
+      #verse-groups-view .verse-group-members {
+        flex-direction: row;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: .1rem .2rem;
+      }
+      #verse-groups-view .verse-group .att-item {
+        width: auto;
+        max-width: 100%;
+        min-height: 0;
+        padding: 0 .04rem 0 .32rem;
+      }
+      #verse-groups-view .verse-group .att-chip {
+        max-width: 11rem;
+        padding: .02rem .22rem;
+        font-size: .7rem;
+        line-height: 1.2;
+      }
+    }
+    @media (min-width: 768px) {
+      .verse-group .verse-star,
+      .verse-group .att-remove {
+        width: 0;
+        min-width: 0;
+        height: 1.15rem;
+        min-height: 0;
+        visibility: hidden;
+        opacity: 0;
+      }
+    }
     a.wiki {
       color: var(--ink-soft); text-decoration: underline;
       text-decoration-thickness: 1px; text-underline-offset: .15em;
