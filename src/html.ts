@@ -2479,6 +2479,7 @@ export function page(title: string, body: string): string {
         order: 1;
         margin-left: auto;
       }
+      .tray-attach.vg-attach-phone { display: inline-flex; }
       .verse-group-title-edit,
       .verse-group > summary .vg-attach-phone {
         width: var(--tap);

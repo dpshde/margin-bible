@@ -129,6 +129,7 @@ describe("desktop notes chrome stays off the phone shell", () => {
     expect(base).toContain(".verse-group-verses .tray-attach {\n      color: var(--ink-soft);\n      width: 2rem;");
     expect(phoneCss).toContain(".icon-btn.notes-reader-phone { display: inline-flex; }");
     expect(phoneCss).toContain(".tray-attach.vg-attach-desktop { display: none; }");
+    expect(phoneCss).toContain(".tray-attach.vg-attach-phone { display: inline-flex; }");
     expect(phoneCss).toContain(".verse-group > summary .vg-attach-phone {\n        width: var(--tap);");
     const notes = renderNotesIndex([], "jhn.3");
     expect(notes).toContain('class="icon-btn notes-reader-desktop"');
