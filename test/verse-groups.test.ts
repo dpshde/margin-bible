@@ -367,11 +367,12 @@ describe("verse groups inbox", () => {
     expect(controls).toContain(".verse-group .att-item:hover .verse-star,\n      .verse-group .att-item:hover .att-remove");
     expect(controls).toContain("padding-right: .12rem;");
     expect(controls).toContain("@media (hover: none), (pointer: coarse)");
-    expect(css).toContain(".verse-group-members {\n        flex-direction: column;");
-    const phoneMembers = css.slice(css.indexOf("@media (max-width: 767px) {\n      .verse-group-verses {"));
-    expect(phoneMembers.slice(0, 2200)).toContain("flex-direction: column;");
-    expect(phoneMembers).toContain("min-height: var(--tap);");
-    expect(phoneMembers).toContain(".verse-group .att-item > .verse-star,\n      .verse-group .att-item > a + .att-remove {\n        margin-left: auto;");
+    expect(css).toContain(".verse-group-members {\n        flex-direction: row;");
+    const phoneMembers = css.slice(css.indexOf("@media (max-width: 767px) {\n      .verse-group-verses {"), css.indexOf("@media (max-width: 767px) {\n      .verse-group-verses {") + 1600);
+    expect(phoneMembers).toContain("flex-direction: row;");
+    expect(phoneMembers).toContain("flex-wrap: wrap;");
+    expect(phoneMembers).toContain("width: 1.35rem;");
+    expect(phoneMembers).not.toContain("min-height: var(--tap);");
     expect(css).not.toContain("ph-sparkle");
     expect(css).not.toContain(".verse-group-topic");
     expect(css).not.toContain("verse-group-member-actions");
@@ -753,7 +754,9 @@ describe("topic rows", () => {
     expect(css).toContain(".verse-group:not([open]) > summary .verse-group-title-actions { display: none; }");
     expect(css).toContain(".verse-count-pill {");
     expect(css).toContain(".verse-group > summary.verse-group-row {");
-    expect(css).toContain("min-height: 4.25rem;");
+    expect(css).toContain("min-height: 2.55rem;");
+    expect(css).toContain("#verse-groups-view .verse-group {\n        border: 1px solid color-mix(in srgb, var(--ink) 14%, transparent);");
+    expect(css).toContain("border-radius: .75rem;");
     const rowRule = css.indexOf(".verse-group > summary.verse-group-row {");
     const phoneOnly = css.indexOf("@media (max-width: 767px)", rowRule);
     expect(rowRule).toBeGreaterThan(-1);

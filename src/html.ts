@@ -1594,16 +1594,52 @@ export function page(title: string, body: string): string {
     }
     .verse-group:not([open]) > summary .verse-group-title-actions { display: none; }
     @media (max-width: 767px) {
-      #verse-groups-view .verse-group > summary.verse-group-row {
-        min-height: 4.25rem;
-        padding: 1.35rem 1.1rem;
-        padding-left: calc(1.15rem + env(safe-area-inset-left, 0px));
-        padding-right: calc(1.15rem + env(safe-area-inset-right, 0px));
-      }
+      html[data-phone-tab="groups"] #verse-groups-view { background: var(--fill); }
       #verse-groups-view .note-list {
         display: flex;
         flex-direction: column;
-        gap: .7rem;
+        gap: .4rem;
+      }
+      #verse-groups-view .verse-group {
+        border: 1px solid color-mix(in srgb, var(--ink) 14%, transparent);
+        border-radius: .75rem;
+        background: var(--paper);
+        overflow: hidden;
+      }
+      #verse-groups-view .verse-group > summary.verse-group-row {
+        min-height: 2.55rem;
+        padding: .45rem .8rem;
+        border-radius: 0;
+      }
+      #verse-groups-view .verse-group[open] > summary.verse-group-row {
+        padding: .28rem .55rem .28rem .8rem;
+      }
+      #verse-groups-view .verse-group[open] > summary .verse-group-title-edit,
+      #verse-groups-view .verse-group[open] > summary .tray-attach {
+        width: 1.9rem;
+        height: 1.9rem;
+        min-width: 1.9rem;
+        min-height: 1.9rem;
+      }
+      #verse-groups-view .verse-group-form {
+        gap: .28rem;
+        padding: .4rem .65rem .5rem;
+      }
+      #verse-groups-view .verse-group-fields {
+        margin: 0;
+        padding: 0;
+        border-left: 0;
+      }
+      #verse-groups-view .verse-group-form textarea.verse-group-description {
+        height: 1.85rem;
+        min-height: 0;
+        max-height: 1.85rem;
+        padding: .22rem .45rem;
+        resize: none;
+        overflow: hidden;
+        white-space: nowrap;
+        font-size: .82rem;
+        line-height: 1.3;
       }
     }
     .verse-group-title-actions {
@@ -2141,66 +2177,59 @@ export function page(title: string, body: string): string {
       .verse-group .verse-star svg,
       .verse-group .att-remove svg { width: .85rem; height: .85rem; }
     }
-    /* Phone width stacks members. Desktop keeps the horizontal chip row. */
+    /* Phone topics keep a short wrapping chip row. Desktop already does. */
     @media (max-width: 767px) {
       .verse-group-verses {
-        flex-direction: column;
-        align-items: stretch;
-        gap: 0;
+        flex-direction: row;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: .28rem;
         padding-left: 0;
       }
       .verse-group-members {
-        flex-direction: column;
-        flex-wrap: nowrap;
-        align-items: stretch;
+        flex-direction: row;
+        flex-wrap: wrap;
+        align-items: center;
         width: 100%;
-        gap: 0;
+        gap: .28rem;
       }
       .verse-group .att-item {
-        width: 100%;
-        max-width: none;
+        width: auto;
+        max-width: 100%;
         box-sizing: border-box;
         justify-content: flex-start;
         align-items: center;
-        min-height: var(--tap);
-        border: 0;
-        border-bottom: 1px solid color-mix(in srgb, var(--ink) 12%, transparent);
-        border-radius: 0;
-        background: transparent;
-        padding: 0 .1rem 0 .35rem;
-      }
-      .verse-group .att-item:hover {
-        border-color: transparent;
-        border-bottom-color: color-mix(in srgb, var(--ink) 12%, transparent);
-        background: transparent;
+        min-height: 0;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        background: var(--paper-raised);
+        padding: 0 .08rem 0 .4rem;
       }
       .verse-group .att-chip {
-        flex: 1 1 auto;
+        flex: 0 1 auto;
         width: auto;
-        max-width: none;
+        max-width: 9.2rem;
         border: 0;
         border-radius: 0;
         background: transparent;
-        padding: 0 .25rem;
-        font-size: .95rem;
+        padding: .16rem .12rem;
+        font-size: .74rem;
         font-weight: 600;
         line-height: 1.2;
         white-space: nowrap;
-      }
-      .verse-group .att-item > .verse-star,
-      .verse-group .att-item > a + .att-remove {
-        margin-left: auto;
       }
       .verse-group .verse-star,
       .verse-group .att-remove {
         visibility: visible;
         opacity: 1;
-        width: var(--tap);
-        min-width: var(--tap);
-        height: var(--tap);
-        min-height: var(--tap);
+        width: 1.35rem;
+        min-width: 1.35rem;
+        height: 1.35rem;
+        min-height: 1.35rem;
         overflow: visible;
       }
+      .verse-group .verse-star svg,
+      .verse-group .att-remove svg { width: .68rem; height: .68rem; }
     }
     a.wiki {
       color: var(--ink-soft); text-decoration: underline;
@@ -2545,6 +2574,11 @@ export function page(title: string, body: string): string {
         color: var(--muted);
       }
       .verse-group-title-actions { order: 1; }
+      #verse-groups-view .verse-group > summary .note-row-title {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
       .verse-group[open] > summary .note-row-excerpt {
         color: color-mix(in srgb, var(--paper) 86%, transparent);
       }
