@@ -3,6 +3,7 @@
  * Each web is a bookmark row that opens onto its member chips.
  */
 import { escapeHtml } from "./html";
+import { notesCollectionHtml } from "./inbox-ui";
 import type { ExternalRef, VerseGroupMember, VerseGroupView } from "./verse-groups";
 import { hrefForXref } from "./xref";
 
@@ -10,7 +11,13 @@ export function verseGroupsViewHtml(groups: readonly VerseGroupView[]): string {
   const body = groups.length
     ? `<ul class="note-list">${groups.map((group) => `<li>${verseGroupCardHtml(group)}</li>`).join("")}</ul>`
     : `<p class="empty">No verse groups yet — link 2+ notes to a hub</p>`;
-  return `<details class="bookmarks-view" id="verse-groups-view"><summary><span class="bookmarks-summary-label">${verseGroupsIcon()}<span>Verse groups</span></span></summary><div class="bookmarks-panel" id="verse-groups-panel">${body}</div></details>${attachDialogHtml()}`;
+  return `${notesCollectionHtml({
+    id: "verse-groups-view",
+    label: "Verse groups",
+    icon: verseGroupsIcon(),
+    panelId: "verse-groups-panel",
+    body,
+  })}${attachDialogHtml()}`;
 }
 
 export function verseGroupCardHtml(group: VerseGroupView, status = ""): string {
@@ -27,14 +34,13 @@ export function verseGroupCardHtml(group: VerseGroupView, status = ""): string {
   const rowTitle = saved || group.hubLabel;
   const excerpt = saved && saved !== group.hubLabel ? group.hubLabel : "";
   return `<details class="verse-group" data-hub="${escapeHtml(group.hub)}" data-hub-label="${escapeHtml(group.hubLabel)}" data-star="${escapeHtml(star)}" data-sample="${group.sample ? "1" : "0"}" data-seed="${group.seed ? "1" : "0"}" data-auto-titled="${group.autoTitled ? "1" : "0"}">
-  <summary class="note-row"><span class="note-row-title" data-title="${escapeHtml(saved)}" contenteditable="false">${escapeHtml(rowTitle)}</span><button type="button" class="verse-group-title-edit" aria-label="Edit title" title="Edit title">${iconNotePencil()}</button>${excerpt ? `<span class="note-row-excerpt">${escapeHtml(excerpt)}</span>` : ""}<span class="verse-group-hub">${escapeHtml(group.hubLabel)}</span></summary>
+  <summary class="note-row"><span class="note-row-title" data-title="${escapeHtml(saved)}" contenteditable="false">${escapeHtml(rowTitle)}</span><span class="verse-group-title-actions"><button type="button" class="verse-group-title-edit" aria-label="Edit title" title="Edit title">${iconNotePencil()}</button><button type="button" class="tray-attach" data-vg-attach aria-label="Attach a link or passage" title="Attach">${iconPaperclip()}</button></span>${excerpt ? `<span class="note-row-excerpt">${escapeHtml(excerpt)}</span>` : ""}<span class="verse-group-hub">${escapeHtml(group.hubLabel)}</span></summary>
   <form class="verse-group-form">
     <div class="verse-group-fields">
-      <textarea id="vg-description-${field}" class="verse-group-description" name="description" rows="1" maxlength="2000" placeholder="Description" aria-label="Description">${escapeHtml(group.description)}</textarea>
+      <textarea id="vg-description-${field}" class="verse-group-description" name="description" rows="1" maxlength="2000" placeholder="Description" aria-label="Description" autocomplete="off">${escapeHtml(group.description)}</textarea>
     </div>
     <div class="verse-group-verses">
       <ul class="att-board verse-group-members">${chips}</ul>
-      <button type="button" class="tray-attach" data-vg-attach aria-label="Attach a link or passage" title="Attach">${iconPaperclip()}</button>
     </div>
     <p class="verse-group-status" role="status">${escapeHtml(status)}</p>
   </form>
@@ -686,12 +692,13 @@ export function verseGroupsScript(): string {
     var target = event.target;
     if (!target || !target.closest) return;
     var pencil = target.closest(".verse-group-title-edit");
+    var attach = target.closest("[data-vg-attach]");
     var title = target.closest(".note-row-title");
-    var hit = pencil || title;
+    var hit = pencil || attach || title;
     if (!hit || !panel.contains(hit)) return;
     var card = hit.closest(".verse-group");
     if (!card) return;
-    if (pencil || title.getAttribute("contenteditable") === "true") card._titlePointer = true;
+    if (pencil || attach || (title && title.getAttribute("contenteditable") === "true")) card._titlePointer = true;
   }, true);
 
   panel.addEventListener("click", function (event) {
@@ -769,6 +776,8 @@ export function verseGroupsScript(): string {
       return;
     }
     if (target.name !== "description") return;
+    card._descriptionDraft = String(target.value || "");
+    target.defaultValue = card._descriptionDraft;
     scheduleSave(card);
   });
 
@@ -785,6 +794,13 @@ export function verseGroupsScript(): string {
       target.removeAttribute("role");
       target.removeAttribute("aria-multiline");
       target.removeAttribute("aria-label");
+    }
+    if (target.name === "description") {
+      card._descriptionDraft = String(target.value || card._descriptionDraft || "");
+      target.defaultValue = card._descriptionDraft;
+      if (card._saveTimer) { clearTimeout(card._saveTimer); card._saveTimer = 0; }
+      post(card, "save", null, { quiet: true });
+      return;
     }
     if (!card._saveTimer) return;
     clearTimeout(card._saveTimer);
@@ -1060,8 +1076,10 @@ export function verseGroupsScript(): string {
     var body = { action: action, hub: hub };
     if (action === "save") {
       body.title = storedTitle(card);
-      var form = card.querySelector(".verse-group-form");
-      if (form) body.description = String(new FormData(form).get("description") || "");
+      var field = card.querySelector("textarea.verse-group-description");
+      var typed = field ? String(field.value || "") : "";
+      if (!typed && card._descriptionDraft) typed = String(card._descriptionDraft);
+      body.description = typed;
     }
     if (action === "suggest-title") body.title = storedTitle(card);
     if (extra) {
@@ -1096,6 +1114,12 @@ export function verseGroupsScript(): string {
       }
       if (quiet) {
         paintTitle(card);
+        var savedField = card.querySelector("textarea.verse-group-description");
+        if (savedField) {
+          if (!String(savedField.value || "") && body.description) savedField.value = body.description;
+          savedField.defaultValue = String(savedField.value || "");
+          card._descriptionDraft = savedField.defaultValue;
+        }
         if (status) status.textContent = "";
         card.removeAttribute("data-save-inflight");
         if (card.getAttribute("data-save-pending") === "1") {
@@ -1185,7 +1209,7 @@ function verseChipHtml(member: VerseGroupMember, starred: boolean, order: number
   const id = `vg_${member.slug.replaceAll(".", "_")}`;
   const title = escapeHtml(member.label);
   const starLabel = starred ? "Clear star" : "Star this verse";
-  return `<li class="att-item" data-order="${order}"><a class="att-chip wiki" draggable="false" href="${escapeHtml(hrefForXref(member.slug))}" data-att-id="${escapeHtml(id)}" data-att-kind="xref" data-att-slug="${escapeHtml(member.slug)}" data-att-title="${title}" data-att-source="manual">${title}</a><span class="verse-group-member-actions"><button type="button" class="verse-star" data-vg-star data-att-slug="${escapeHtml(member.slug)}" aria-pressed="${starred ? "true" : "false"}" aria-label="${starLabel}" title="${starLabel}">${iconStar()}</button><button type="button" class="att-remove" data-att-id="${escapeHtml(id)}" aria-label="Remove attachment" title="Remove attachment">${iconX(12)}</button></span></li>`;
+  return `<li class="att-item" data-order="${order}"><a class="att-chip wiki" draggable="false" href="${escapeHtml(hrefForXref(member.slug))}" data-att-id="${escapeHtml(id)}" data-att-kind="xref" data-att-slug="${escapeHtml(member.slug)}" data-att-title="${title}" data-att-source="manual">${title}</a><button type="button" class="verse-star" data-vg-star data-att-slug="${escapeHtml(member.slug)}" aria-pressed="${starred ? "true" : "false"}" aria-label="${starLabel}" title="${starLabel}">${iconStar()}</button><button type="button" class="att-remove" data-att-id="${escapeHtml(id)}" aria-label="Remove attachment" title="Remove attachment">${iconX(12)}</button></li>`;
 }
 
 function iconStar(): string {

@@ -140,7 +140,7 @@ app.use("*", async (c, next) => {
   }
 });
 
-app.get("/health", (c) => c.json({ ok: true, app: "margin-bible", version: "2026.10.06.39" }));
+app.get("/health", (c) => c.json({ ok: true, app: "margin-bible", version: "2026.10.06.47" }));
 
 app.get("/manifest.webmanifest", () => manifestResponse());
 app.get("/manifest.json", () => manifestResponse());
@@ -297,6 +297,17 @@ app.post("/api/passkey/login/verify", async (c) => {
   }
 });
 
+/** True when the browser is warming a document, not opening it. Those GETs must not move last-read. */
+export function isDocumentPrefetch(get: (name: string) => string | undefined): boolean {
+  const margin = get("x-margin-prefetch");
+  if (typeof margin === "string" && margin.trim() !== "") return true;
+  const blob = [get("sec-purpose"), get("purpose")]
+    .filter((value) => typeof value === "string" && value.length > 0)
+    .join(" ")
+    .toLowerCase();
+  return blob.includes("prefetch");
+}
+
 /** Home opens the last-read chapter and keeps a shareable `q` search. */
 export function homeLocation(slug: string | null | undefined, q: string | null | undefined): string {
   const raw = (slug || "jhn.1").trim().replace(/^\/+/, "") || "jhn.1";
@@ -381,7 +392,12 @@ app.post("/api/ha-suggest", async (c) => {
 
 app.get("/jump", (c) => {
   const passage = parsePassage(c.req.query("q"));
-  if (!passage) return c.html(renderMissing("Couldn’t resolve that passage. Try John 3:16 or jhn.3.16."), 422);
+  if (!passage) {
+    return c.html(
+      renderMissing("Couldn’t resolve that passage. Try John 3:16 or jhn.3.16.", { signedIn: c.get("signedIn") }),
+      422,
+    );
+  }
   return c.redirect(`/${passageSlug(passage)}`, 302);
 });
 
@@ -422,6 +438,8 @@ app.get("/export", async (c) => {
     },
   });
 });
+
+app.get("/inbox", (c) => c.redirect("/notes", 302));
 
 app.get("/notes", async (c) => {
   const libraryId = c.get("libraryId");
@@ -503,7 +521,7 @@ app.post("/api/notes/:slug", (c) => upsert(c, true));
 
 app.get("/:slug", async (c) => {
   const passage = parsePassage(c.req.param("slug"));
-  if (!passage) return c.html(renderMissing("Couldn’t resolve that passage."), 404);
+  if (!passage) return c.html(renderMissing("Couldn’t resolve that passage.", { signedIn: c.get("signedIn") }), 404);
   const libraryId = c.get("libraryId");
   const slug = passageSlug(passage);
   // Chapters paint scripture first and hydrate notes. A verse or range waits for that note.
@@ -515,9 +533,13 @@ app.get("/:slug", async (c) => {
   const notesPromise = eagerNotes
     ? notesForQuery(c.env.DB, libraryId, chapterSlug(passage), undefined)
     : Promise.resolve(null);
-  c.executionCtx.waitUntil(rememberRead(c.env.DB, libraryId, slug).catch(() => {}));
+  if (!isDocumentPrefetch((name) => c.req.header(name))) {
+    c.executionCtx.waitUntil(rememberRead(c.env.DB, libraryId, slug).catch(() => {}));
+  }
   const [pack, queried] = await Promise.all([packPromise, notesPromise]);
-  if (!pack) return c.html(renderMissing(`No BSB chapter for ${passageLabel(passage)}.`), 404);
+  if (!pack) {
+    return c.html(renderMissing(`No BSB chapter for ${passageLabel(passage)}.`, { signedIn: c.get("signedIn") }), 404);
+  }
   const notes = queried && queried.ok ? queried.notes : [];
   return c.html(
     renderChapterPage({
@@ -697,7 +719,7 @@ async function loadChapter(assets: Fetcher, passage: Passage): Promise<ChapterPa
 }
 
 function fail(c: AppContext, formPost: boolean, status: 404 | 422, error: string): Response {
-  if (formPost) return c.html(renderMissing(error), status);
+  if (formPost) return c.html(renderMissing(error, { signedIn: c.get("signedIn") }), status);
   return c.json({ ok: false, error }, status);
 }
 

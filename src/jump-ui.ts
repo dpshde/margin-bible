@@ -329,6 +329,11 @@ export function jumpScript(): string {
     document.querySelectorAll(".search-testament-btn").forEach((el) => {
       el.setAttribute("aria-label", "Select testament, " + label);
     });
+    document.querySelectorAll(".search-testament-segment").forEach((el) => {
+      const on = el.getAttribute("data-value") === searchTestament;
+      el.classList.toggle("is-selected", on);
+      el.setAttribute("aria-checked", on ? "true" : "false");
+    });
     const menu = testamentMenu();
     if (!menu) return;
     menu.querySelectorAll(".search-testament-option").forEach((el) => {
@@ -499,8 +504,8 @@ export function jumpScript(): string {
     setTestamentSheet(false);
     hideTopicChips();
     hideHistory();
-    const cache = readSearchCache();
-    if (cache && cache.query) mirrorHeader(cache.query);
+    mirrorHeader("");
+    syncSearchQuery("");
     if (wasOpen && searchState && !closeViaPop) {
       searchState = false;
       restoreQueryOnPop = true;
@@ -519,7 +524,7 @@ export function jumpScript(): string {
     let pointerId = 0;
 
     function phoneSheet() {
-      return window.matchMedia("(max-width: 640px)").matches;
+      return window.matchMedia("(max-width: 767px)").matches;
     }
     function shift(y) {
       const next = Math.max(0, y);
@@ -606,7 +611,6 @@ export function jumpScript(): string {
     const input = searchInput();
     if (!input) return false;
     input.value = cache.query;
-    mirrorHeader(cache.query);
     submittedQuery = cache.query;
     scriptureSearchActive = Boolean(cache.scripture);
     if (refetchCachedTestament(cache)) return true;
@@ -757,13 +761,32 @@ export function jumpScript(): string {
     topicChips.className = "search-suggest-chips";
     topicChips.setAttribute("role", "group");
     topics.appendChild(topicChips);
+    const cancel = document.createElement("button");
+    cancel.type = "button";
+    cancel.className = "search-cancel";
+    cancel.textContent = "Cancel";
+    const segments = document.createElement("div");
+    segments.className = "search-testament-segments";
+    segments.setAttribute("role", "radiogroup");
+    segments.setAttribute("aria-label", "Testament");
+    for (const pair of [["all", "All"], ["ot", "OT"], ["nt", "NT"]]) {
+      const segment = document.createElement("button");
+      segment.type = "button";
+      segment.className = "search-testament-segment";
+      segment.setAttribute("role", "radio");
+      segment.setAttribute("data-value", pair[0]);
+      segment.textContent = pair[1];
+      segments.appendChild(segment);
+    }
     bar.appendChild(icon);
     bar.appendChild(input);
     bar.appendChild(testamentWrap);
     bar.appendChild(more);
+    bar.appendChild(cancel);
     results.appendChild(list);
     results.appendChild(footer);
     searchForm.appendChild(bar);
+    searchForm.appendChild(segments);
     searchForm.appendChild(sheet);
     searchForm.appendChild(history);
     searchForm.appendChild(topics);
@@ -794,6 +817,13 @@ export function jumpScript(): string {
       setTestamentSheet(open);
       if (!open) closeTestamentMenu();
     });
+    cancel.addEventListener("click", () => closeSearchModal());
+    segments.addEventListener("click", (event) => {
+      const item = event.target.closest(".search-testament-segment");
+      if (!item) return;
+      event.preventDefault();
+      chooseTestament(item.getAttribute("data-value"), false);
+    });
     menu.addEventListener("click", (event) => {
       const item = event.target.closest(".search-testament-option");
       if (!item) return;
@@ -823,6 +853,7 @@ export function jumpScript(): string {
     }, true);
     window.addEventListener("resize", () => placeTestamentMenu());
     document.body.appendChild(modal);
+    paintTestament();
     backdrop.addEventListener("click", () => closeSearchModal());
     bindSheetSwipe(bar, results, panel);
     searchForm.addEventListener("submit", (event) => {
@@ -1390,6 +1421,9 @@ export function jumpScript(): string {
     const my = ++seq;
     const local = passageHelpers(q);
     if (local && local.canGo) {
+      rememberRecentSearch(q);
+      syncSearchQuery("");
+      mirrorHeader("");
       const href = passageHref(local);
       const nav = window.__marginSoftNav;
       if (href && typeof nav === "function") {
@@ -1471,6 +1505,8 @@ export function jumpScript(): string {
     if (hit.kind === "scripture" && hit.path) {
       const input = searchInput();
       if (input) input.blur();
+      syncSearchQuery("");
+      mirrorHeader("");
       if (searchState) {
         searchState = false;
         location.replace(hit.path);
@@ -1568,11 +1604,6 @@ export function jumpScript(): string {
     let q = "";
     try { q = new URL(location.href).searchParams.get("q") || ""; } catch (_) { return; }
     q = q.trim();
-    const cache = readSearchCache();
-    if (!q && cache && cache.query) {
-      mirrorHeader(cache.query);
-      return;
-    }
     if (!q) return;
     const forms = [...document.querySelectorAll("form.jump")];
     const visible = forms.find((f) => f.offsetParent !== null) || forms[0];
@@ -1657,16 +1688,12 @@ export function jumpScript(): string {
   function onSearchPop() {
     const modal = document.querySelector(".search-modal");
     const sheetOpen = Boolean(modal && !modal.hidden);
-    const shouldRestore = restoreQueryOnPop || sheetOpen;
     restoreQueryOnPop = false;
     if (sheetOpen) {
       closeViaPop = true;
       closeSearchModal();
       closeViaPop = false;
     }
-    if (!shouldRestore) return;
-    const cache = readSearchCache();
-    if (cache && cache.query) syncSearchQuery(cache.query);
   }
   // document.write drops document listeners. The window flag used to skip the new page.
   const previous = window.__marginJumpShortcut;

@@ -17,7 +17,7 @@ import {
   routeBibleUrl,
   type Passage,
 } from "./passage";
-import { bookmarksViewHtml, notesInboxScript, starterChipsHtml, notesListHtml } from "./inbox-ui";
+import { bookmarksViewHtml, notesInboxScript, phoneTabsHtml, starterChipsHtml, notesListHtml } from "./inbox-ui";
 import { verseGroupsFromNotes, type VerseGroupView } from "./verse-groups";
 import { verseGroupsScript, verseGroupsViewHtml } from "./verse-groups-ui";
 import { jumpFormHtml, jumpScript } from "./jump-ui";
@@ -26,13 +26,14 @@ import { clientScript } from "./reader-client";
 import type { ChapterPack } from "./usj";
 export type NoteView = NoteDraft & { updatedAt?: string; createdAt?: string };
 
-export function renderMissing(message: string): string {
+export function renderMissing(message: string, opts: { signedIn?: boolean } = {}): string {
+  const signedIn = opts.signedIn ?? false;
   return page(
     "Margin",
     `<header class="topbar">
   <div class="topbar-side"><a class="icon-btn" href="/notes" aria-label="Notes" title="Notes">${iconNotes()}</a></div>
   <h1 class="topbar-title">Margin</h1>
-  <div class="topbar-actions">${themeToggleHtml()}${authChip(false, "/")}</div>
+  <div class="topbar-actions">${themeToggleHtml()}${authChip(signedIn, "/")}</div>
 </header>
 <main class="reader">
   ${jumpFormHtml()}
@@ -77,8 +78,9 @@ export function renderChapterPage(input: {
     };
   });
   const chapterNote = notesForRender.find((note) => note.slug === chapSlug);
-  const title = passage.kind === "chapter" ? passageLabel(passage) : passageLabel(passage);
   const chapterTitle = passageLabel({ ...passage, kind: "chapter", verseStart: null, verseEnd: null });
+  // The page is the chapter. A verse address focuses a row; the header stays the chapter name.
+  const title = chapterTitle;
   const focusStart = passage.verseStart;
   const bootOpen =
     passage.kind === "verse" && focusStart != null
@@ -99,7 +101,7 @@ export function renderChapterPage(input: {
   const notesPreload = notesPending
     ? `<link rel="preload" href="/api/notes?chapter=${escapeHtml(chapSlug)}" as="fetch" crossorigin="use-credentials">\n`
     : "";
-  const body = `${bootArrivalScrollScript(bootOpen)}<link rel="prefetch" href="/notes" as="document">
+  const body = `${bootArrivalScrollScript(bootOpen)}${rememberLocationScript()}<link rel="prefetch" href="/notes" as="document">
 <link rel="prefetch" href="/api/notes" as="fetch" crossorigin="use-credentials">
 ${notesPreload}${prefetchLinks}
 <script type="speculationrules">{"prefetch":[{"urls":${speculateUrls},"eagerness":"eager"}]}</script>
@@ -144,6 +146,7 @@ ${chapterGridHtml(passage.book, passage.chapter)}
   ${pager(passage)}
   ${renderVerseRail(passage, pack)}
 </main>
+${phoneTabsHtml({ surface: "scripture", readerHref: `/${passageSlug(passage)}` })}
 <dialog class="att-drop" id="att-drop">
   <form method="dialog" class="att-drop-sheet" id="att-drop-form">
     <button type="button" class="att-drop-close" id="att-drop-close" aria-label="Close">${iconClose()}</button>
@@ -212,11 +215,11 @@ export function renderNotesIndex(
   return page(
     "Notes · Margin",
     `<header class="topbar topbar-notes">
-  <div class="topbar-side"></div>
+  <div class="topbar-side"><a class="icon-btn" href="/${escapeHtml(backSlug)}" data-reader-link aria-label="Reader" title="Reader">${iconReader()}</a></div>
   <h1 class="topbar-title">
     <button type="button" class="topbar-title-btn" id="chapter-grid-title" aria-haspopup="dialog" aria-expanded="false" aria-controls="chapter-grid" title="Choose book or chapter">Notes</button>
   </h1>
-  <div class="topbar-actions">${themeToggleHtml()}${authChip(signedIn, "/notes")}<a class="icon-btn" href="/${escapeHtml(backSlug)}" aria-label="Reader" title="Reader">${iconReader()}</a></div>
+  <div class="topbar-actions">${themeToggleHtml()}${authChip(signedIn, "/notes")}</div>
 </header>
 ${chapterGridHtml(gridBook, gridChapter)}
 <main class="notes-main reader">
@@ -226,7 +229,9 @@ ${chapterGridHtml(gridBook, gridChapter)}
   ${verseGroupsViewHtml(verseGroups)}
   <div id="notes-mount">${items}</div>
 </main>
+${phoneTabsHtml({ surface: "notes", readerHref: `/${escapeHtml(backSlug)}` })}
 <script type="application/json" id="inbox-pack-mirror">${JSON.stringify(mirror).replace(/</g, "\\u003c")}</script>
+${restoreReaderLinkScript()}
 <script>
 ${jumpScript()}
 </script>
@@ -248,6 +253,50 @@ const VERSE_RAIL_DOTS = 28;
  * Emitted twice: once before the chapter (so a chapter hop does not paint
  * mid-page) and once after the verses exist (so a verse address can measure).
  */
+/** Record the open passage, including verse replaces that never reload the document. */
+function rememberLocationScript(): string {
+  return `<script>
+(function () {
+  function remember() {
+    try {
+      var path = location.pathname.replace(/^\\/+/, "");
+      if (!/^[a-z0-9]+\\.\\d+/i.test(path)) return;
+      sessionStorage.setItem("margin_last_read", path.toLowerCase());
+    } catch (err) {}
+  }
+  remember();
+  if (history.__marginRemember) return;
+  history.__marginRemember = 1;
+  var push = history.pushState;
+  var replace = history.replaceState;
+  history.pushState = function () {
+    var result = push.apply(this, arguments);
+    remember();
+    return result;
+  };
+  history.replaceState = function () {
+    var result = replace.apply(this, arguments);
+    remember();
+    return result;
+  };
+})();
+</script>`;
+}
+
+/** Notes → reader uses the passage this tab last opened, ahead of a prefetched inbox document. */
+function restoreReaderLinkScript(): string {
+  return `<script>
+(function () {
+  try {
+    var slug = sessionStorage.getItem("margin_last_read") || "";
+    if (!/^[a-z0-9]+\\.\\d+/i.test(slug)) return;
+    var links = document.querySelectorAll("[data-reader-link]");
+    for (var i = 0; i < links.length; i++) links[i].setAttribute("href", "/" + slug.toLowerCase());
+  } catch (err) {}
+})();
+</script>`;
+}
+
 function bootArrivalScrollScript(bootVerse: number | null): string {
   const pinned = bootVerse != null ? `document.getElementById("v${bootVerse}")` : "null";
   return `<script>

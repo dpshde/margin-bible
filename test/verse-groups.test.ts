@@ -327,6 +327,8 @@ describe("verse groups inbox", () => {
     expect(css).toContain('.verse-group > summary .note-row-title[contenteditable="true"]:empty::before {\n      content: "Title";');
     expect(css).toContain(".verse-group-fields {\n      display: flex;\n      flex-direction: column;");
     expect(css).toContain(".verse-group[open] > summary.note-row {\n      background: var(--ink);\n      color: var(--paper);\n    }");
+    expect(css).toContain(".verse-group-title-actions {\n      display: inline-flex;");
+    expect(css).toContain(".verse-group > summary .tray-attach {");
     expect(css).not.toContain("padding: .42rem .7rem;");
     expect(css).toContain(".verse-group.is-drop");
     expect(css).toContain(".verse-group-drag-ghost");
@@ -348,14 +350,14 @@ describe("verse groups inbox", () => {
     expect(controls).toContain(".verse-group .att-item:hover .verse-star,\n      .verse-group .att-item:hover .att-remove");
     expect(controls).toContain("padding-right: .12rem;");
     expect(controls).toContain("@media (hover: none), (pointer: coarse)");
-    expect(css).not.toContain("ph-sparkle");
-    expect(css).not.toContain(".verse-group-topic");
-    expect(css).toContain(".verse-group-member-actions { display: contents; }");
     expect(css).toContain(".verse-group-members {\n        flex-direction: column;");
     const phoneMembers = css.slice(css.indexOf("@media (max-width: 767px) {\n      .verse-group-verses {"));
-    expect(phoneMembers.slice(0, 1800)).toContain("flex-direction: column;");
-    expect(phoneMembers).toContain(".verse-group-member-actions {\n        display: inline-flex;");
-    expect(phoneMembers).toContain("margin-left: auto;");
+    expect(phoneMembers.slice(0, 2200)).toContain("flex-direction: column;");
+    expect(phoneMembers).toContain("min-height: var(--tap);");
+    expect(phoneMembers).toContain(".verse-group .att-item > .verse-star,\n      .verse-group .att-item > a + .att-remove {\n        margin-left: auto;");
+    expect(css).not.toContain("ph-sparkle");
+    expect(css).not.toContain(".verse-group-topic");
+    expect(css).not.toContain("verse-group-member-actions");
     expect(css).not.toContain(".att-chip.is-star");
     expect(css).toContain("outline: none;");
     expect(css).toContain("background: transparent;");
@@ -418,7 +420,7 @@ describe("verse groups inbox", () => {
     const verseChip = coarse.slice(coarse.indexOf(".verse-group .att-chip"));
     expect(verseChip).toContain("font-size: .84rem");
     expect(verseChip).toContain("position: static");
-    expect(verseChip).toContain("min-width: 1.7rem");
+    expect(verseChip).toContain("min-width: var(--tap)");
     nodeCheck(verseGroupsScript());
   });
 
@@ -458,6 +460,15 @@ describe("verse groups inbox", () => {
     expect(html).toContain('aria-label="Edit title"');
     expect(html).toContain("m229.66 58.34l-32-32a8 8 0 0 0-11.32 0l-96 96");
     expect(html.indexOf('class="note-row-title"')).toBeLessThan(html.indexOf('class="verse-group-title-edit"'));
+    const cardStart = html.indexOf('<details class="verse-group"');
+    const card = html.slice(cardStart, html.indexOf("</details>", cardStart));
+    const summary = card.slice(card.indexOf("<summary"), card.indexOf("</summary>"));
+    expect(summary).toContain('class="verse-group-title-actions"');
+    expect(summary.indexOf('class="verse-group-title-edit"')).toBeLessThan(summary.indexOf("data-vg-attach"));
+    expect(summary).toContain('aria-label="Attach a link or passage"');
+    const verses = html.slice(html.indexOf('class="verse-group-verses"'), html.indexOf('class="verse-group-status"'));
+    expect(verses).not.toContain("data-vg-attach");
+    expect(verses).not.toContain("tray-attach");
     expect(html).not.toContain('name="title"');
     expect(html).not.toContain('placeholder="Title"');
     expect(html).toContain('placeholder="Description"');
@@ -484,7 +495,7 @@ describe("verse groups inbox", () => {
     expect(html).not.toContain("ph-sparkle");
     expect(html).toContain('data-auto-titled="0"');
     expect(html).toContain('class="att-board verse-group-members"');
-    expect(html).toContain('class="verse-group-member-actions"');
+    expect(html).not.toContain("verse-group-member-actions");
     const verseCard = html.slice(html.indexOf('id="verse-groups-view"'), html.indexOf('id="vg-att-drop"'));
     expect(verseCard).not.toContain('aria-pressed="true"');
     expect(verseCard).toContain('aria-pressed="false"');
