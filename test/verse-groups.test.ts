@@ -428,7 +428,10 @@ describe("verse groups inbox", () => {
     expect(css).not.toContain(".verse-group[open] > summary .note-row-title,\n    .verse-group[open] > summary .note-row-excerpt { display: none; }");
     const titleRule = css.slice(css.indexOf('.verse-group > summary .note-row-title[contenteditable="true"] {'));
     expect(titleRule.slice(0, 700)).not.toContain("paper-raised");
-    expect(css).toContain("background: color-mix(in srgb, var(--ink) 8%, transparent);");
+    const descRule = css.slice(css.indexOf(".verse-group-form textarea.verse-group-description {\n      display: block;"));
+    expect(descRule.slice(0, 500)).toContain("background: transparent;");
+    expect(descRule.slice(0, 500)).toContain("border-radius: 0;");
+    expect(descRule.slice(0, 500)).not.toContain("color-mix");
     expect(css).toContain("textarea.verse-group-description::placeholder {\n      color: var(--faint);");
     expect(css).toContain("textarea.verse-group-description {\n      display: block;\n      resize: vertical;");
     expect(css).not.toContain("textarea.verse-group-description:focus");

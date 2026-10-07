@@ -1730,8 +1730,12 @@ export function page(title: string, body: string): string {
       display: block;
       resize: vertical;
       overflow: auto;
-      border-radius: .35rem;
-      background: color-mix(in srgb, var(--ink) 8%, transparent);
+      border: 0;
+      border-radius: 0;
+      background: transparent;
+      box-shadow: none;
+      outline: none;
+      appearance: none;
       color: var(--ink);
       font: 400 .88rem/1.35 var(--sans);
       padding: .32rem .5rem;
