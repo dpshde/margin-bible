@@ -215,11 +215,11 @@ export function renderNotesIndex(
   return page(
     "Notes · Margin",
     `<header class="topbar topbar-notes">
-  <div class="topbar-side"><a class="icon-btn" href="/${escapeHtml(backSlug)}" data-reader-link aria-label="Reader" title="Reader">${iconReader()}</a></div>
+  <div class="topbar-side"><a class="icon-btn notes-reader-phone" href="/${escapeHtml(backSlug)}" data-reader-link aria-label="Reader" title="Reader">${iconReader()}</a></div>
   <h1 class="topbar-title">
     <button type="button" class="topbar-title-btn" id="chapter-grid-title" aria-haspopup="dialog" aria-expanded="false" aria-controls="chapter-grid" title="Choose book or chapter">Notes</button>
   </h1>
-  <div class="topbar-actions">${themeToggleHtml()}${authChip(signedIn, "/notes")}</div>
+  <div class="topbar-actions">${themeToggleHtml()}${authChip(signedIn, "/notes")}<a class="icon-btn notes-reader-desktop" href="/${escapeHtml(backSlug)}" data-reader-link aria-label="Reader" title="Reader">${iconReader()}</a></div>
 </header>
 ${chapterGridHtml(gridBook, gridChapter)}
 <main class="notes-main reader">
