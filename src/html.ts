@@ -154,18 +154,8 @@ export function page(title: string, body: string): string {
     }
     .topbar-side { display: flex; align-items: center; gap: .25rem; }
     .topbar-actions { display: flex; align-items: center; justify-content: flex-end; gap: 0; }
-    /* Notes keeps the title in the center track. Side tracks size to their icons, so the title never slides under the moon. */
-    .topbar.topbar-notes {
-      grid-template-columns: minmax(max-content, 1fr) auto minmax(max-content, 1fr);
-    }
-    .topbar.topbar-notes .topbar-side { justify-self: start; }
-    .topbar.topbar-notes .topbar-title {
-      justify-self: center;
-      width: max-content;
-      max-width: 100%;
-    }
-    .topbar.topbar-notes .topbar-title-btn { width: max-content; max-width: 100%; }
-    .topbar.topbar-notes .topbar-actions { justify-self: end; }
+    /* Reader sits with the other header actions on desktop. Phone shows the left copy. */
+    .icon-btn.notes-reader-phone { display: none; }
     .topbar-title {
       display: flex; align-items: center; justify-content: center;
       margin: 0; font-family: var(--head); font-size: 1.05rem; font-weight: 600;
@@ -1336,7 +1326,6 @@ export function page(title: string, body: string): string {
     .bookmarks-view > summary {
       display: flex; align-items: center; justify-content: space-between; gap: .5rem;
       margin: 0 0 .15rem; padding: 0;
-      min-height: var(--tap);
       cursor: pointer; list-style: none;
       font: 700 .7rem/1.3 var(--sans);
       letter-spacing: .08em; text-transform: uppercase;
@@ -1345,7 +1334,7 @@ export function page(title: string, body: string): string {
     .bookmarks-view > summary::-webkit-details-marker { display: none; }
     .bookmarks-summary-label { display: inline-flex; align-items: center; gap: .35rem; }
     .bookmarks-summary-icon { display: block; width: .9rem; height: .9rem; color: var(--ink-soft); }
-    .bookmarks-view > summary::after { content: "＋"; display: inline-flex; align-items: center; justify-content: center; min-width: var(--tap); min-height: var(--tap); padding: .1rem .2rem; border-radius: .35rem; color: var(--faint); font-size: .9rem; font-weight: 400; }
+    .bookmarks-view > summary::after { content: "＋"; display: inline-flex; align-items: center; justify-content: center; min-width: 1.35rem; min-height: 1.35rem; padding: .1rem .2rem; border-radius: .35rem; color: var(--faint); font-size: .9rem; font-weight: 400; }
     .bookmarks-view[open] > summary::after { content: "－"; }
     .bookmarks-view > summary:focus-visible { outline: 2px solid var(--sel-rail-open); outline-offset: -2px; }
     .bookmarks-panel { padding: 0; margin: 0; border: 0; }
@@ -1537,29 +1526,20 @@ export function page(title: string, body: string): string {
       color: var(--ink);
       font: 400 1rem/1.4 var(--sans);
     }
-    .verse-group > summary .note-row-title {
-      flex: 0 1 auto;
-      min-width: 0;
-    }
-    .verse-group > summary .note-row-excerpt { order: 1; }
     .verse-group-title-actions {
       display: inline-flex;
       align-items: center;
-      justify-content: flex-end;
       flex: none;
-      order: 3;
-      margin-left: auto;
+      align-self: center;
     }
+    /* Paperclip stays beside the member chips on desktop. Phone shows the title-row copy. */
+    .tray-attach.vg-attach-phone { display: none; }
     .verse-group-title-edit {
       display: inline-flex;
       align-items: center;
       justify-content: center;
       flex: none;
       align-self: center;
-      width: var(--tap);
-      height: var(--tap);
-      min-width: var(--tap);
-      min-height: var(--tap);
       margin: 0;
       padding: 0;
       border: 0;
@@ -1568,18 +1548,7 @@ export function page(title: string, body: string): string {
       cursor: pointer;
       line-height: 0;
     }
-    .verse-group > summary .tray-attach {
-      color: var(--ink-soft);
-      width: var(--tap);
-      height: var(--tap);
-      min-width: var(--tap);
-      min-height: var(--tap);
-    }
-    .verse-group > summary .verse-group-title-edit svg,
-    .verse-group > summary .tray-attach svg {
-      width: 1.05rem;
-      height: 1.05rem;
-    }
+    .verse-group > summary .tray-attach { color: var(--ink-soft); }
     .verse-group[open] > summary .verse-group-title-edit,
     .verse-group[open] > summary .tray-attach { color: var(--paper); }
     .verse-group[open] > summary .verse-group-title-edit:hover,
@@ -1630,7 +1599,7 @@ export function page(title: string, body: string): string {
       overflow: auto;
       border-radius: .35rem;
       background: color-mix(in srgb, var(--ink) 8%, transparent);
-      color: var(--ink);
+      color: var(--ink-soft);
       font: 400 .88rem/1.35 var(--sans);
       padding: .32rem .5rem;
       min-height: 1.85rem;
@@ -1648,6 +1617,13 @@ export function page(title: string, body: string): string {
       padding-left: .15rem;
     }
     .verse-group-verses .att-board { flex: 1 1 auto; margin: 0; gap: .28rem; }
+    .verse-group-verses .tray-attach {
+      color: var(--ink-soft);
+      width: 2rem;
+      height: 2rem;
+      min-width: 2rem;
+      min-height: 2rem;
+    }
     .verse-group-status { margin: 0; color: var(--muted); font-size: .8rem; font-weight: 400; }
     .verse-group-status:empty { display: none; }
     /* Light side rails make each week one frame, not a stack of cards.
@@ -2368,6 +2344,20 @@ export function page(title: string, body: string): string {
       .tray-label { font-size: .72rem; }
     }
     @media (max-width: 767px) {
+      .icon-btn.notes-reader-desktop { display: none; }
+      .icon-btn.notes-reader-phone { display: inline-flex; }
+      /* Notes title stays in the center track so it does not slide under the theme icon. */
+      .topbar.topbar-notes {
+        grid-template-columns: minmax(max-content, 1fr) auto minmax(max-content, 1fr);
+      }
+      .topbar.topbar-notes .topbar-side { justify-self: start; }
+      .topbar.topbar-notes .topbar-title {
+        justify-self: center;
+        width: max-content;
+        max-width: 100%;
+      }
+      .topbar.topbar-notes .topbar-title-btn { width: max-content; max-width: 100%; }
+      .topbar.topbar-notes .topbar-actions { justify-self: end; }
       .pager {
         margin-bottom: calc(3.4rem + 14px + 1rem + var(--phone-tab-h, var(--safe-bottom)));
       }
@@ -2480,7 +2470,28 @@ export function page(title: string, body: string): string {
         font-size: .84rem;
         color: var(--muted);
       }
-      .verse-group-title-actions { order: 1; }
+      .tray-attach.vg-attach-desktop { display: none; }
+      .verse-group > summary .note-row-title {
+        flex: 0 1 auto;
+        min-width: 0;
+      }
+      .verse-group-title-actions {
+        order: 1;
+        margin-left: auto;
+      }
+      .tray-attach.vg-attach-phone { display: inline-flex; }
+      .verse-group-title-edit,
+      .verse-group > summary .vg-attach-phone {
+        width: var(--tap);
+        height: var(--tap);
+        min-width: var(--tap);
+        min-height: var(--tap);
+      }
+      .verse-group > summary .verse-group-title-edit svg,
+      .verse-group > summary .vg-attach-phone svg {
+        width: 1.05rem;
+        height: 1.05rem;
+      }
       .verse-group[open] > summary .note-row-excerpt {
         color: color-mix(in srgb, var(--paper) 86%, transparent);
       }

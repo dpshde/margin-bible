@@ -465,10 +465,11 @@ describe("verse groups inbox", () => {
     const summary = card.slice(card.indexOf("<summary"), card.indexOf("</summary>"));
     expect(summary).toContain('class="verse-group-title-actions"');
     expect(summary.indexOf('class="verse-group-title-edit"')).toBeLessThan(summary.indexOf("data-vg-attach"));
+    expect(summary).toContain('class="tray-attach vg-attach-phone"');
     expect(summary).toContain('aria-label="Attach a link or passage"');
     const verses = html.slice(html.indexOf('class="verse-group-verses"'), html.indexOf('class="verse-group-status"'));
-    expect(verses).not.toContain("data-vg-attach");
-    expect(verses).not.toContain("tray-attach");
+    expect(verses).toContain('class="tray-attach vg-attach-desktop"');
+    expect(verses).toContain("data-vg-attach");
     expect(html).not.toContain('name="title"');
     expect(html).not.toContain('placeholder="Title"');
     expect(html).toContain('placeholder="Description"');
