@@ -155,7 +155,7 @@ export function page(title: string, body: string): string {
     .topbar-side { display: flex; align-items: center; gap: .25rem; }
     .topbar-actions { display: flex; align-items: center; justify-content: flex-end; gap: 0; }
     /* Reader sits with the other header actions on desktop. Phone shows the left copy. */
-    .notes-reader-phone { display: none; }
+    .icon-btn.notes-reader-phone { display: none; }
     .topbar-title {
       display: flex; align-items: center; justify-content: center;
       margin: 0; font-family: var(--head); font-size: 1.05rem; font-weight: 600;
@@ -1533,7 +1533,7 @@ export function page(title: string, body: string): string {
       align-self: center;
     }
     /* Paperclip stays beside the member chips on desktop. Phone shows the title-row copy. */
-    .vg-attach-phone { display: none; }
+    .tray-attach.vg-attach-phone { display: none; }
     .verse-group-title-edit {
       display: inline-flex;
       align-items: center;
@@ -2344,8 +2344,8 @@ export function page(title: string, body: string): string {
       .tray-label { font-size: .72rem; }
     }
     @media (max-width: 767px) {
-      .notes-reader-desktop { display: none; }
-      .notes-reader-phone { display: inline-flex; }
+      .icon-btn.notes-reader-desktop { display: none; }
+      .icon-btn.notes-reader-phone { display: inline-flex; }
       /* Notes title stays in the center track so it does not slide under the theme icon. */
       .topbar.topbar-notes {
         grid-template-columns: minmax(max-content, 1fr) auto minmax(max-content, 1fr);
@@ -2470,7 +2470,7 @@ export function page(title: string, body: string): string {
         font-size: .84rem;
         color: var(--muted);
       }
-      .vg-attach-desktop { display: none; }
+      .tray-attach.vg-attach-desktop { display: none; }
       .verse-group > summary .note-row-title {
         flex: 0 1 auto;
         min-width: 0;

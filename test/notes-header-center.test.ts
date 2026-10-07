@@ -49,15 +49,15 @@ describe("Notes title centering", () => {
   test("notes title centering and the left reader control stay inside the phone query", () => {
     const css = readFileSync(path.join(import.meta.dir, "../src/html.ts"), "utf8");
     const desktop = css.indexOf("grid-template-columns: 1fr auto 1fr");
-    const phone = css.indexOf("@media (max-width: 767px) {\n      .notes-reader-desktop { display: none; }");
+    const phone = css.indexOf("@media (max-width: 767px) {\n      .icon-btn.notes-reader-desktop { display: none; }");
     expect(desktop).toBeGreaterThan(-1);
     expect(phone).toBeGreaterThan(desktop);
     const rule = css.slice(phone, css.indexOf(".pager {\n        margin-bottom: calc(3.4rem + 14px + 1rem + var(--phone-tab-h"));
-    expect(rule).toContain(".notes-reader-phone { display: inline-flex; }");
+    expect(rule).toContain(".icon-btn.notes-reader-phone { display: inline-flex; }");
     expect(rule).toContain("minmax(max-content, 1fr) auto minmax(max-content, 1fr)");
     expect(rule).toContain(".topbar.topbar-notes .topbar-title {");
     expect(rule).toContain("justify-self: center");
-    expect(css.indexOf(".notes-reader-phone { display: none; }")).toBeLessThan(phone);
+    expect(css.indexOf(".icon-btn.notes-reader-phone { display: none; }")).toBeLessThan(phone);
     expect(css).not.toContain("grid-column: 1 / -1");
     expect(css).not.toContain("max-width: calc(100% - 9.5rem)");
   });
