@@ -1595,15 +1595,15 @@ export function page(title: string, body: string): string {
     .verse-group:not([open]) > summary .verse-group-title-actions { display: none; }
     @media (max-width: 767px) {
       #verse-groups-view .verse-group > summary.verse-group-row {
-        min-height: 3.6rem;
-        padding: 1.15rem 1rem;
-        padding-left: calc(1.05rem + env(safe-area-inset-left, 0px));
-        padding-right: calc(1.05rem + env(safe-area-inset-right, 0px));
+        min-height: 4.25rem;
+        padding: 1.35rem 1.1rem;
+        padding-left: calc(1.15rem + env(safe-area-inset-left, 0px));
+        padding-right: calc(1.15rem + env(safe-area-inset-right, 0px));
       }
       #verse-groups-view .note-list {
         display: flex;
         flex-direction: column;
-        gap: .5rem;
+        gap: .7rem;
       }
     }
     .verse-group-title-actions {

@@ -753,7 +753,7 @@ describe("topic rows", () => {
     expect(css).toContain(".verse-group:not([open]) > summary .verse-group-title-actions { display: none; }");
     expect(css).toContain(".verse-count-pill {");
     expect(css).toContain(".verse-group > summary.verse-group-row {");
-    expect(css).toContain("min-height: 3.6rem;");
+    expect(css).toContain("min-height: 4.25rem;");
     const rowRule = css.indexOf(".verse-group > summary.verse-group-row {");
     const phoneOnly = css.indexOf("@media (max-width: 767px)", rowRule);
     expect(rowRule).toBeGreaterThan(-1);
