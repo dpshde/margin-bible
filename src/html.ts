@@ -2333,6 +2333,31 @@ export function page(title: string, body: string): string {
         visibility: hidden;
         opacity: 0;
       }
+      /* Reserve star and remove so hover only fades them. A growing pill
+         wraps off the pointer and flickers back onto the row. */
+      #verse-groups-view .verse-group .verse-star,
+      #verse-groups-view .verse-group .att-remove {
+        width: 1.15rem;
+        min-width: 1.15rem;
+        height: 1.15rem;
+        min-height: 1.15rem;
+        overflow: hidden;
+        visibility: hidden;
+        opacity: 0;
+      }
+      #verse-groups-view .verse-group .verse-star[aria-pressed="true"],
+      #verse-groups-view .verse-group .att-item:hover .verse-star,
+      #verse-groups-view .verse-group .att-item:hover .att-remove,
+      #verse-groups-view .verse-group .att-item:focus-within .verse-star,
+      #verse-groups-view .verse-group .att-item:focus-within .att-remove,
+      #verse-groups-view .verse-group .verse-star:focus-visible,
+      #verse-groups-view .verse-group .att-remove:focus-visible {
+        width: 1.15rem;
+        min-width: 1.15rem;
+        overflow: visible;
+        visibility: visible;
+        opacity: 1;
+      }
     }
     a.wiki {
       color: var(--ink-soft); text-decoration: underline;
