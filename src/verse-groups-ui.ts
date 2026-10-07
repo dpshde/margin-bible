@@ -1,22 +1,44 @@
 /**
  * Inbox surface for verse webs. Same chrome as Bookmarks.
- * Each web is a bookmark row that opens onto its member chips.
+ * Collapsed rows are sets or folders, then open onto the member editor.
  */
 import { escapeHtml } from "./html";
 import { notesCollectionHtml } from "./inbox-ui";
 import type { ExternalRef, VerseGroupMember, VerseGroupView } from "./verse-groups";
 import { hrefForXref } from "./xref";
 
-export function verseGroupsViewHtml(groups: readonly VerseGroupView[]): string {
-  const body = groups.length
+/** How many member refs a collapsed set row shows before +N. */
+export const VERSE_PEEK_LIMIT = 3;
+
+export type VerseGroupTreatment = "set" | "folder";
+
+export function verseGroupTreatment(raw: string | null | undefined): VerseGroupTreatment {
+  return raw === "folder" ? "folder" : "set";
+}
+
+export function verseGroupPeek(members: readonly { label: string }[]): { shown: string[]; more: number } {
+  const labels = members.map((member) => member.label).filter((label) => label.trim().length > 0);
+  const shown = labels.slice(0, VERSE_PEEK_LIMIT);
+  return { shown, more: Math.max(0, labels.length - shown.length) };
+}
+
+export function verseGroupsViewHtml(
+  groups: readonly VerseGroupView[],
+  opts: { treatment?: VerseGroupTreatment; open?: boolean } = {},
+): string {
+  const treatment = opts.treatment ?? "set";
+  const list = groups.length
     ? `<ul class="note-list">${groups.map((group) => `<li>${verseGroupCardHtml(group)}</li>`).join("")}</ul>`
     : `<p class="empty">No verse groups yet — link 2+ notes to a hub</p>`;
+  const body = `${treatmentSwitchHtml(treatment)}${list}`;
   return `${notesCollectionHtml({
     id: "verse-groups-view",
     label: "Verse groups",
     icon: verseGroupsIcon(),
     panelId: "verse-groups-panel",
     body,
+    open: opts.open,
+    rootAttrs: `data-vg="${treatment}"`,
   })}${attachDialogHtml()}`;
 }
 
@@ -32,9 +54,10 @@ export function verseGroupCardHtml(group: VerseGroupView, status = ""): string {
   const chips = memberChips + linkChips;
   const saved = group.title.trim();
   const rowTitle = saved || group.hubLabel;
-  const excerpt = saved && saved !== group.hubLabel ? group.hubLabel : "";
-  return `<details class="verse-group" data-hub="${escapeHtml(group.hub)}" data-hub-label="${escapeHtml(group.hubLabel)}" data-star="${escapeHtml(star)}" data-sample="${group.sample ? "1" : "0"}" data-seed="${group.seed ? "1" : "0"}" data-auto-titled="${group.autoTitled ? "1" : "0"}">
-  <summary class="note-row"><span class="note-row-title" data-title="${escapeHtml(saved)}" contenteditable="false">${escapeHtml(rowTitle)}</span><span class="verse-group-title-actions"><button type="button" class="verse-group-title-edit" aria-label="Edit title" title="Edit title">${iconNotePencil()}</button><button type="button" class="tray-attach" data-vg-attach aria-label="Attach a link or passage" title="Attach">${iconPaperclip()}</button></span>${excerpt ? `<span class="note-row-excerpt">${escapeHtml(excerpt)}</span>` : ""}<span class="verse-group-hub">${escapeHtml(group.hubLabel)}</span></summary>
+  const count = group.members.length;
+  const countLabel = count === 1 ? "1 verse" : `${count} verses`;
+  return `<details class="verse-group" data-hub="${escapeHtml(group.hub)}" data-hub-label="${escapeHtml(group.hubLabel)}" data-star="${escapeHtml(star)}" data-sample="${group.sample ? "1" : "0"}" data-seed="${group.seed ? "1" : "0"}" data-auto-titled="${group.autoTitled ? "1" : "0"}" data-member-count="${count}">
+  <summary class="note-row verse-group-row"><span class="verse-group-mark" aria-hidden="true"><span class="verse-group-mark-set">${iconStack()}</span><span class="verse-group-mark-folder">${iconFolder()}</span></span><span class="verse-group-copy"><span class="verse-group-head"><span class="note-row-title" data-title="${escapeHtml(saved)}" contenteditable="false">${escapeHtml(rowTitle)}</span><span class="verse-group-title-actions"><button type="button" class="verse-group-title-edit" aria-label="Edit title" title="Edit title">${iconNotePencil()}</button><button type="button" class="tray-attach" data-vg-attach aria-label="Attach a link or passage" title="Attach">${iconPaperclip()}</button></span></span>${verseGroupPeekHtml(group.members)}</span><span class="verse-count-pill" aria-label="${escapeHtml(countLabel)}">${count}</span><span class="verse-group-hub">${escapeHtml(group.hubLabel)}</span></summary>
   <form class="verse-group-form">
     <div class="verse-group-fields">
       <textarea id="vg-description-${field}" class="verse-group-description" name="description" rows="1" maxlength="2000" placeholder="Description" aria-label="Description" autocomplete="off">${escapeHtml(group.description)}</textarea>
@@ -65,7 +88,11 @@ export function verseGroupsScript(): string {
     view.open = Boolean(open);
   }
 
-  if (location.hash === "#verse-groups") setOpen(true);
+  if (location.hash === "#verse-groups" || location.hash === "#groups") setOpen(true);
+  try {
+    var treatment = new URLSearchParams(location.search).get("vg");
+    if (treatment === "set" || treatment === "folder") setOpen(true);
+  } catch (err) {}
   try {
     if (sessionStorage.getItem(OPEN_KEY) === "1") {
       sessionStorage.removeItem(OPEN_KEY);
@@ -477,6 +504,7 @@ export function verseGroupsScript(): string {
     item.remove();
     blurRemovedMember(card, null);
     if ((card.getAttribute("data-star") || "") === slug) paintStar(card, "");
+    syncPeek(card);
   }
 
   function applyMemberMove(fromCard, toCard, slug) {
@@ -490,15 +518,20 @@ export function verseGroupsScript(): string {
       var copy = item.cloneNode(true);
       clearPressed(copy);
       list.appendChild(copy);
+      syncPeek(toCard);
       return;
     }
     if ((fromCard.getAttribute("data-star") || "") === slug) paintStar(fromCard, "");
     if (memberItem(toCard, slug)) {
       item.remove();
+      syncPeek(fromCard);
+      syncPeek(toCard);
       return;
     }
     clearPressed(item);
     list.appendChild(item);
+    syncPeek(fromCard);
+    syncPeek(toCard);
   }
 
   function dropCard(card) {
@@ -875,6 +908,30 @@ export function verseGroupsScript(): string {
     quietMemberHover(card);
     if (!moved) return;
     for (var n = 0; n < ordered.length; n += 1) board.appendChild(ordered[n]);
+    syncPeek(card);
+  }
+
+  function syncPeek(card) {
+    var peek = card.querySelector(".verse-group-peek");
+    var pill = card.querySelector(".verse-count-pill");
+    if (!peek && !pill) return;
+    var chips = card.querySelectorAll(".verse-group-members a.att-chip.wiki");
+    var labels = [];
+    for (var i = 0; i < chips.length; i += 1) labels.push(String(chips[i].textContent || "").trim());
+    if (pill) {
+      pill.textContent = String(labels.length);
+      pill.setAttribute("aria-label", labels.length === 1 ? "1 verse" : labels.length + " verses");
+    }
+    if (!peek) return;
+    var html = "";
+    var limit = 3;
+    var shown = labels.slice(0, limit);
+    for (var j = 0; j < shown.length; j += 1) {
+      html += '<span class="verse-peek-chip">' + esc(shown[j]) + "</span>";
+    }
+    var more = labels.length - shown.length;
+    if (more > 0) html += '<span class="verse-peek-more">+' + more + "</span>";
+    peek.innerHTML = html;
   }
 
   function guardTitleToggle(card) {
@@ -929,18 +986,7 @@ export function verseGroupsScript(): string {
     if (!keepText && !editing) el.textContent = title || hubLabel;
     var summary = card.querySelector("summary.note-row");
     var excerpt = summary && summary.querySelector(".note-row-excerpt");
-    if (title && hubLabel && title !== hubLabel) {
-      if (!excerpt && summary) {
-        excerpt = document.createElement("span");
-        excerpt.className = "note-row-excerpt";
-        var hub = summary.querySelector(".verse-group-hub");
-        if (hub) summary.insertBefore(excerpt, hub);
-        else summary.appendChild(excerpt);
-      }
-      if (excerpt) excerpt.textContent = hubLabel;
-    } else if (excerpt) {
-      excerpt.remove();
-    }
+    if (excerpt) excerpt.remove();
   }
 
   function writeTitle(card, title) {
@@ -1234,6 +1280,27 @@ function attachDialogHtml(): string {
     <p class="att-drop-status" id="vg-att-drop-status" role="status" aria-live="polite"></p>
   </form>
 </dialog>`;
+}
+
+function treatmentSwitchHtml(treatment: VerseGroupTreatment): string {
+  const setCurrent = treatment === "set" ? ' aria-current="page"' : "";
+  const folderCurrent = treatment === "folder" ? ' aria-current="page"' : "";
+  return `<nav class="vg-treatment" aria-label="Preview treatment"><span class="vg-treatment-label">Preview</span><a class="vg-treatment-link" href="/notes?vg=set#groups"${setCurrent}>Set rows</a><a class="vg-treatment-link" href="/notes?vg=folder#groups"${folderCurrent}>Folder list</a></nav>`;
+}
+
+function verseGroupPeekHtml(members: readonly VerseGroupMember[]): string {
+  const peek = verseGroupPeek(members);
+  const chips = peek.shown.map((label) => `<span class="verse-peek-chip">${escapeHtml(label)}</span>`).join("");
+  const more = peek.more > 0 ? `<span class="verse-peek-more">+${peek.more}</span>` : "";
+  return `<span class="verse-group-peek">${chips}${more}</span>`;
+}
+
+function iconStack(): string {
+  return `<svg class="verse-group-glyph" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="16" height="16" fill="none" aria-hidden="true"><path d="M2.15 5.15 8 2.35l5.85 2.8L8 8.05 2.15 5.15Z" stroke="currentColor" stroke-width="1.25" stroke-linejoin="round"/><path d="M2.15 8.05 8 10.85l5.85-2.8M2.15 10.9 8 13.7l5.85-2.8" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+}
+
+function iconFolder(): string {
+  return `<svg class="verse-group-glyph" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="16" height="16" fill="none" aria-hidden="true"><path d="M1.7 4.15c0-.64.52-1.15 1.15-1.15h2.95L7.15 4.4h6c.64 0 1.15.51 1.15 1.15v6.15c0 .64-.51 1.15-1.15 1.15H2.85c-.63 0-1.15-.51-1.15-1.15V4.15Z" stroke="currentColor" stroke-width="1.25" stroke-linejoin="round"/></svg>`;
 }
 
 function verseGroupsIcon(): string {

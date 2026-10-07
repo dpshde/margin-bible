@@ -32,7 +32,14 @@ import { notesInboxScript } from "../src/inbox-ui";
 import { listNotes } from "../src/library";
 import { handleVerseGroupAction, loadVerseGroups } from "../src/verse-groups-store";
 import { suggestVerseGroupTopic } from "../src/verse-topic";
-import { verseGroupCardHtml, verseGroupsScript } from "../src/verse-groups-ui";
+import {
+  VERSE_PEEK_LIMIT,
+  verseGroupCardHtml,
+  verseGroupPeek,
+  verseGroupTreatment,
+  verseGroupsScript,
+  verseGroupsViewHtml,
+} from "../src/verse-groups-ui";
 
 function xref(slug: string, source: "manual" | "scan" | "backlink" = "manual"): Attachment {
   return { id: "att_abcd1234", kind: "xref", slug, title: slug, source };
@@ -238,6 +245,8 @@ describe("preview worker publish", () => {
     const script = readFileSync(new URL("../scripts/preview-worker.sh", import.meta.url), "utf8");
     const workflow = readFileSync(new URL("../.github/workflows/preview-worker.yml", import.meta.url), "utf8");
     const config = readFileSync(new URL("../cloudflare.config.ts", import.meta.url), "utf8");
+    expect(script).toContain("verse-count-pill");
+    expect(script).toContain('data-vg="folder"');
     expect(script).toContain('preview_name="margin-bible-verse-groups"');
     expect(script).toContain("production worker is serving this preview build");
     expect(script).toContain('id="verse-groups-view"');
@@ -259,19 +268,28 @@ describe("preview worker publish", () => {
 });
 
 describe("preview guest seed", () => {
-  test("five star notes become five webs and an existing web skips another seed", () => {
+  test("seed webs cover short peeks and groups large enough for +N", () => {
     const notes = previewSeedNotes();
-    expect(notes).toHaveLength(5);
+    expect(notes).toHaveLength(10);
     const groups = realVerseGroups(notes);
     expect(groups.map((group) => group.hub).sort()).toEqual([
       "eph.2.8",
+      "est.4.14",
+      "heb.12.6",
       "jhn.1.1",
+      "mat.11.28",
       "mat.5.3",
+      "php.4.11",
       "psa.23.1",
+      "rom.5.3",
       "rom.8.28",
     ]);
     expect(groups.every((group) => group.sample === false)).toBe(true);
-    expect(groups.find((group) => group.hub === "rom.8.28")?.members.length).toBeGreaterThanOrEqual(3);
+    expect(groups.find((group) => group.hub === "jhn.1.1")?.members).toHaveLength(3);
+    expect(groups.find((group) => group.hub === "rom.8.28")?.members.length).toBeGreaterThan(3);
+    expect(groups.find((group) => group.hub === "eph.2.8")?.members.length).toBeGreaterThan(VERSE_PEEK_LIMIT);
+    expect(groups.find((group) => group.hub === "rom.5.3")?.members.length).toBeGreaterThan(VERSE_PEEK_LIMIT);
+    expect(notes.every((note) => (note.attachments?.length ?? 0) >= 2)).toBe(true);
     expect(groups.every((group) => group.star === "")).toBe(true);
     expect(groups.every((group) => group.members[0]?.slug === group.hub)).toBe(true);
     expect(previewSeedNeeded(notes)).toBe(false);
@@ -453,7 +471,7 @@ describe("verse groups inbox", () => {
       ],
     });
     expect(html).toContain('class="verse-group"');
-    expect(html).toContain('<summary class="note-row">');
+    expect(html).toContain('<summary class="note-row verse-group-row">');
     expect(html).toContain(">Romans 8:28</span>");
     expect(html).toContain('class="note-row-title" data-title="" contenteditable="false"');
     expect(html).toContain('class="verse-group-title-edit"');
@@ -541,7 +559,7 @@ describe("verse groups inbox", () => {
     expect(html).not.toContain("verse-group-save");
     expect(html).not.toContain(">Save</button>");
     expect(html).not.toContain("Save sample");
-    expect(html).toContain('<summary class="note-row">');
+    expect(html).toContain('<summary class="note-row verse-group-row">');
     expect(html).toContain('data-title="&lt;script&gt;alert(&quot;x&quot;)&lt;/script&gt;"');
     expect(html).not.toContain('name="title"');
     expect(html).not.toContain("local topic guess");
@@ -642,6 +660,134 @@ describe("verse groups inbox", () => {
     expect(html).toContain('data-title="The Word made flesh"');
     expect(html).toContain(">The Word made flesh</span>");
     expect(html).not.toContain('name="title"');
+    expect(html).not.toContain('class="note-row-excerpt"');
+    expect(html).toContain('class="verse-count-pill" aria-label="2 verses">2</span>');
+    expect(html).toContain('class="verse-group-mark-set"');
+    expect(html).toContain('class="verse-group-mark-folder"');
+    const peek = html.slice(html.indexOf('class="verse-group-peek"'), html.indexOf('class="verse-count-pill"'));
+    expect(peek).toContain("John 1:1");
+    expect(peek).toContain("John 1:14");
+    expect(peek).not.toContain("verse-peek-more");
+  });
+});
+
+describe("verse group row treatments", () => {
+  test("a query of folder selects folder and anything else selects set rows", () => {
+    expect(verseGroupTreatment("folder")).toBe("folder");
+    expect(verseGroupTreatment("set")).toBe("set");
+    expect(verseGroupTreatment(null)).toBe("set");
+    expect(verseGroupTreatment("")).toBe("set");
+    expect(verseGroupTreatment("note")).toBe("set");
+  });
+
+  test("the peek keeps three member refs and counts the rest", () => {
+    expect(verseGroupPeek([{ label: "Romans 8:28" }, { label: "Romans 8:31" }])).toEqual({
+      shown: ["Romans 8:28", "Romans 8:31"],
+      more: 0,
+    });
+    expect(
+      verseGroupPeek([
+        { label: "Romans 5:3" },
+        { label: "Romans 5:4" },
+        { label: "Romans 5:5" },
+        { label: "James 1:2" },
+        { label: "James 1:3" },
+        { label: "James 1:4" },
+      ]),
+    ).toEqual({
+      shown: ["Romans 5:3", "Romans 5:4", "Romans 5:5"],
+      more: 3,
+    });
+    expect(verseGroupPeek([{ label: "  " }, { label: "John 1:1" }])).toEqual({
+      shown: ["John 1:1"],
+      more: 0,
+    });
+    expect(VERSE_PEEK_LIMIT).toBe(3);
+  });
+
+  test("five members render a count pill and a three-chip peek with +N", () => {
+    const html = verseGroupCardHtml({
+      hub: "eph.2.8",
+      hubLabel: "Ephesians 2:8",
+      star: "",
+      title: "By grace",
+      autoTitled: true,
+      description: "Grace, not a wage.",
+      members: [
+        { slug: "eph.2.8", label: "Ephesians 2:8", role: "hub" },
+        { slug: "eph.2.9", label: "Ephesians 2:9", role: "member" },
+        { slug: "rom.3.23", label: "Romans 3:23", role: "member" },
+        { slug: "rom.6.23", label: "Romans 6:23", role: "member" },
+        { slug: "tit.3.5", label: "Titus 3:5", role: "member" },
+      ],
+      trigger: "star",
+      inboundCount: 0,
+      outboundCount: 4,
+      why: "This note points at 4 verses.",
+      sample: false,
+      seed: false,
+      missingPairs: [],
+      missingCount: 0,
+      undoReady: false,
+    });
+    const summary = html.slice(html.indexOf("<summary"), html.indexOf("</summary>"));
+    expect(summary).toContain('class="verse-group-mark-set"');
+    expect(summary.indexOf("verse-group-mark-set")).toBeLessThan(summary.indexOf('class="note-row-title"'));
+    expect(summary).not.toContain('class="note-row-excerpt"');
+    expect(summary).toContain('aria-label="5 verses">5</span>');
+    expect(summary).toContain(">Ephesians 2:8</span>");
+    expect(summary).toContain(">Ephesians 2:9</span>");
+    expect(summary).toContain(">Romans 3:23</span>");
+    expect(summary).toContain('class="verse-peek-more">+2</span>');
+    expect(summary).not.toContain(">Romans 6:23</span>");
+    expect(html).toContain(">Romans 6:23</a>");
+    expect(html).toContain('placeholder="Description"');
+    expect(html).toContain("data-vg-attach");
+  });
+
+  test("the switch marks set rows or the folder list and opens the section", () => {
+    const group = {
+      hub: "psa.23.1",
+      hubLabel: "Psalm 23:1",
+      star: "",
+      title: "The shepherd",
+      autoTitled: true,
+      description: "",
+      members: [
+        { slug: "psa.23.1", label: "Psalm 23:1", role: "hub" as const },
+        { slug: "psa.23.4", label: "Psalm 23:4", role: "member" as const },
+      ],
+      trigger: "star" as const,
+      inboundCount: 0,
+      outboundCount: 1,
+      why: "This note points at 1 verse.",
+      sample: false,
+      seed: false,
+      missingPairs: [],
+      missingCount: 0,
+      undoReady: false,
+    };
+    const setHtml = verseGroupsViewHtml([group], { treatment: "set", open: true });
+    expect(setHtml).toContain('id="verse-groups-view" data-vg="set" open');
+    expect(setHtml).toContain('href="/notes?vg=set#groups" aria-current="page">Set rows</a>');
+    expect(setHtml).toContain('href="/notes?vg=folder#groups">Folder list</a>');
+    expect(setHtml).toContain('class="verse-group-peek"');
+    const folderHtml = verseGroupsViewHtml([group], { treatment: "folder", open: true });
+    expect(folderHtml).toContain('id="verse-groups-view" data-vg="folder" open');
+    expect(folderHtml).toContain('href="/notes?vg=folder#groups" aria-current="page">Folder list</a>');
+    expect(folderHtml).toContain('aria-label="2 verses">2</span>');
+    const css = page("t", "<p>x</p>");
+    expect(css).toContain('#verse-groups-view[data-vg="folder"] .verse-group-peek');
+    expect(css).toContain('#verse-groups-view[data-vg="folder"] .verse-group-mark-set');
+    expect(css).toContain('#verse-groups-view[data-vg="set"] .verse-group-mark-folder');
+    expect(css).toContain(".verse-count-pill {");
+    expect(css).toContain(".verse-group > summary.verse-group-row {");
+    const rowRule = css.indexOf(".verse-group > summary.verse-group-row {");
+    const phoneOnly = css.indexOf("@media (max-width: 767px)", rowRule);
+    expect(rowRule).toBeGreaterThan(-1);
+    expect(phoneOnly).toBeGreaterThan(rowRule);
+    expect(verseGroupsScript()).toContain("function syncPeek");
+    expect(verseGroupsScript()).toContain('location.hash === "#groups"');
   });
 });
 

@@ -19,7 +19,7 @@ import {
 } from "./passage";
 import { bookmarksViewHtml, notesInboxScript, phoneTabsHtml, starterChipsHtml, notesListHtml } from "./inbox-ui";
 import { verseGroupsFromNotes, type VerseGroupView } from "./verse-groups";
-import { verseGroupsScript, verseGroupsViewHtml } from "./verse-groups-ui";
+import { verseGroupsScript, verseGroupsViewHtml, type VerseGroupTreatment } from "./verse-groups-ui";
 import { jumpFormHtml, jumpScript } from "./jump-ui";
 import { chapterGridHtml } from "./chapter-grid";
 import { clientScript } from "./reader-client";
@@ -191,10 +191,11 @@ ${jumpScript()}
 export function renderNotesIndex(
   notes: NoteView[],
   backSlug: string,
-  opts: { signedIn?: boolean; verseGroups?: VerseGroupView[] } = {},
+  opts: { signedIn?: boolean; verseGroups?: VerseGroupView[]; verseGroupTreatment?: VerseGroupTreatment; verseGroupsOpen?: boolean } = {},
 ): string {
   const signedIn = opts.signedIn ?? false;
   const verseGroups = opts.verseGroups ?? verseGroupsFromNotes(notes);
+  const treatment = opts.verseGroupTreatment ?? "set";
   const mirror = notes.map((note) => ({
     slug: note.slug,
     label: noteLabel(note.slug),
@@ -226,10 +227,10 @@ ${chapterGridHtml(gridBook, gridChapter)}
   ${jumpFormHtml()}
   ${starterChipsHtml()}
   ${bookmarksViewHtml(mirror)}
-  ${verseGroupsViewHtml(verseGroups)}
+  ${verseGroupsViewHtml(verseGroups, { treatment, open: opts.verseGroupsOpen })}
   <div id="notes-mount">${items}</div>
 </main>
-${phoneTabsHtml({ surface: "notes", readerHref: `/${escapeHtml(backSlug)}` })}
+${phoneTabsHtml({ surface: "notes", readerHref: `/${escapeHtml(backSlug)}`, groupsHref: `/notes?vg=${treatment}#groups` })}
 <script type="application/json" id="inbox-pack-mirror">${JSON.stringify(mirror).replace(/</g, "\\u003c")}</script>
 ${restoreReaderLinkScript()}
 <script>

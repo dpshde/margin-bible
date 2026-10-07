@@ -56,7 +56,7 @@ mise exec -- cf deploy
 
 prod=$(curl -fsS -H "cache-control: no-cache" "https://margin-bible.dpshade.workers.dev/health" || true)
 printf '%s\n' "$prod"
-if printf '%s' "$prod" | grep -q '2026.10.06.47'; then
+if printf '%s' "$prod" | grep -q '2026.10.07.48'; then
   echo "production worker is serving this preview build" >&2
   exit 1
 fi
@@ -66,13 +66,13 @@ body=""
 while [ "$i" -lt 12 ]; do
   body=$(curl -fsS -H "cache-control: no-cache" "$preview_url/health" || true)
   printf '%s\n' "$body"
-  if printf '%s' "$body" | grep -q '2026.10.06.47'; then
+  if printf '%s' "$body" | grep -q '2026.10.07.48'; then
     break
   fi
   i=$((i + 1))
   sleep 3
 done
-printf '%s' "$body" | grep -q '2026.10.06.47'
+printf '%s' "$body" | grep -q '2026.10.07.48'
 
 notes=$(curl -fsS -A "Mozilla/5.0" -H "cache-control: no-cache" "$preview_url/notes")
 printf '%s' "$notes" | grep -q 'id="verse-groups-view"'
@@ -114,5 +114,14 @@ if printf '%s' "$notes" | grep -q 'data-vg-topic'; then
 fi
 printf '%s' "$notes" | grep -q 'verse-group-members'
 printf '%s' "$notes" | grep -q 'autoTitlePass'
+printf '%s' "$notes" | grep -q 'data-vg="set"'
+printf '%s' "$notes" | grep -q 'verse-count-pill'
+printf '%s' "$notes" | grep -q 'verse-group-peek'
+printf '%s' "$notes" | grep -q 'Set rows'
+printf '%s' "$notes" | grep -q 'Folder list'
+printf '%s' "$notes" | grep -q 'data-hub="eph.2.8"'
+folder=$(curl -fsS -A "Mozilla/5.0" -H "cache-control: no-cache" "$preview_url/notes?vg=folder")
+printf '%s' "$folder" | grep -q 'data-vg="folder"'
+printf '%s' "$folder" | grep -q 'aria-current="page">Folder list</a>'
 
 echo "PREVIEW_URL=$preview_url/notes"

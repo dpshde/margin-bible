@@ -1541,7 +1541,163 @@ export function page(title: string, body: string): string {
       flex: 0 1 auto;
       min-width: 0;
     }
-    .verse-group > summary .note-row-excerpt { order: 1; }
+    .verse-group > summary .note-row-excerpt { display: none; }
+    /* Collapsed rows are a set or a folder, not a note line. */
+    .verse-group > summary.verse-group-row {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr) auto;
+      align-items: center;
+      column-gap: .55rem;
+      width: 100%;
+      padding: .62rem .7rem;
+      border-radius: .45rem;
+    }
+    .verse-group-mark {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 1.25rem;
+      height: 1.25rem;
+      color: var(--ink);
+    }
+    .verse-group-glyph { display: block; width: 1.15rem; height: 1.15rem; }
+    #verse-groups-view[data-vg="set"] .verse-group-mark-folder,
+    #verse-groups-view[data-vg="folder"] .verse-group-mark-set,
+    #verse-groups-view:not([data-vg]) .verse-group-mark-folder { display: none; }
+    .verse-group-copy {
+      display: flex;
+      flex-direction: column;
+      gap: .28rem;
+      min-width: 0;
+    }
+    .verse-group-head {
+      display: flex;
+      align-items: center;
+      gap: .15rem;
+      min-width: 0;
+    }
+    .verse-group > summary.verse-group-row .note-row-title {
+      flex: 0 1 auto;
+      min-width: 0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .verse-group-head .verse-group-title-actions {
+      order: 0;
+      margin-left: 0;
+    }
+    .verse-group-peek {
+      display: flex;
+      flex-wrap: nowrap;
+      align-items: center;
+      gap: .28rem;
+      min-width: 0;
+      overflow: hidden;
+    }
+    .verse-peek-chip {
+      flex: 0 1 auto;
+      min-width: 0;
+      max-width: 8.6rem;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      padding: .08rem .45rem;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: var(--paper-raised);
+      color: var(--ink-soft);
+      font: 600 .72rem/1.25 var(--sans);
+    }
+    .verse-peek-more {
+      flex: none;
+      color: var(--faint);
+      font: 700 .72rem/1.25 var(--sans);
+      font-variant-numeric: tabular-nums;
+    }
+    #verse-groups-view[data-vg="folder"] .verse-group-peek,
+    .verse-group[open] > summary .verse-group-peek { display: none; }
+    .verse-count-pill {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      align-self: center;
+      min-width: 1.55rem;
+      height: 1.35rem;
+      padding: 0 .42rem;
+      border-radius: 999px;
+      background: color-mix(in srgb, var(--ink) 12%, transparent);
+      color: var(--ink);
+      font: 700 .72rem/1 var(--sans);
+      font-variant-numeric: tabular-nums;
+    }
+    .verse-group[open] > summary .verse-group-mark { color: var(--paper); }
+    .verse-group[open] > summary .verse-count-pill {
+      background: color-mix(in srgb, var(--paper) 18%, transparent);
+      color: var(--paper);
+    }
+    .verse-group:not([open]) > summary .verse-group-title-edit {
+      width: 1.5rem;
+      height: 1.5rem;
+      min-width: 1.5rem;
+      min-height: 1.5rem;
+      color: var(--faint);
+    }
+    .verse-group:not([open]) > summary .verse-group-title-edit svg {
+      width: .9rem;
+      height: .9rem;
+    }
+    .verse-group:not([open]) > summary .tray-attach {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      min-width: 0;
+      min-height: 0;
+      padding: 0;
+      overflow: hidden;
+      clip: rect(0 0 0 0);
+      clip-path: inset(50%);
+      white-space: nowrap;
+    }
+    .vg-treatment {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: .35rem;
+      margin: .1rem .15rem .4rem;
+      min-height: var(--tap);
+    }
+    .vg-treatment-label {
+      margin-right: .1rem;
+      color: var(--faint);
+      font: 700 .68rem/1 var(--sans);
+      letter-spacing: .06em;
+      text-transform: uppercase;
+    }
+    .vg-treatment-link {
+      display: inline-flex;
+      align-items: center;
+      min-height: 2rem;
+      padding: .2rem .7rem;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: transparent;
+      color: var(--ink-soft);
+      text-decoration: none;
+      font: 650 .78rem/1 var(--sans);
+    }
+    .vg-treatment-link[aria-current="page"] {
+      background: var(--ink);
+      border-color: var(--ink);
+      color: var(--paper);
+    }
+    @media (max-width: 767px) {
+      #verse-groups-view .vg-treatment,
+      #verse-groups-view .verse-group > summary.verse-group-row {
+        padding-left: calc(.9rem + env(safe-area-inset-left, 0px));
+        padding-right: calc(.9rem + env(safe-area-inset-right, 0px));
+      }
+    }
     .verse-group-title-actions {
       display: inline-flex;
       align-items: center;
