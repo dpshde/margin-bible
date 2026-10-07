@@ -102,7 +102,7 @@ describe("bookmark card polish", () => {
     const css = page("t", "<p>x</p>");
     expect(css).toContain(".bookmarks-view {\n      margin: 0 0 0.5rem;\n      padding: .35rem .45rem .4rem;\n      border-radius: .55rem;\n      background: var(--fill);");
     expect(css).toContain(".bookmarks-summary-icon");
-    expect(css).toContain(".bookmarks-view > summary::after { content: \"＋\"; display: inline-flex; align-items: center; justify-content: center; min-width: var(--tap); min-height: var(--tap); padding: .1rem .2rem;");
+    expect(css).toContain(".bookmarks-view > summary::after { content: \"＋\"; display: inline-flex; align-items: center; justify-content: center; min-width: 1.35rem; min-height: 1.35rem; padding: .1rem .2rem;");
     expect(css).toContain("color: var(--ink-soft);");
     // Week sections use inverted filled bars as clear dividers.
     expect(css).not.toContain(".bookmarks-view {\n      margin: 0 0 0.5rem;\n    }");

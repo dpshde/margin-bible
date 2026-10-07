@@ -26,10 +26,11 @@ describe("Notes title centering", () => {
     const header = html.slice(html.indexOf("<header"), html.indexOf("</header>"));
     const side = header.slice(header.indexOf("topbar-side"), header.indexOf("topbar-title"));
     const actions = header.slice(header.indexOf("topbar-actions"));
+    expect(side).toContain('class="icon-btn notes-reader-phone"');
     expect(side).toContain('aria-label="Reader"');
     expect(side).toContain('href="/jhn.3"');
-    expect(actions).not.toContain('aria-label="Reader"');
-    expect(html).not.toContain('class="topbar-side"></div>');
+    expect(actions).toContain('class="icon-btn notes-reader-desktop"');
+    expect(actions).toContain('aria-label="Reader"');
     expect(html).toContain("theme-toggle");
   });
 
@@ -45,16 +46,18 @@ describe("Notes title centering", () => {
     }
   });
 
-  test("notes title stays in the center track and does not cover the theme icon", () => {
+  test("notes title centering and the left reader control stay inside the phone query", () => {
     const css = readFileSync(path.join(import.meta.dir, "../src/html.ts"), "utf8");
     const desktop = css.indexOf("grid-template-columns: 1fr auto 1fr");
-    const notes = css.indexOf(".topbar.topbar-notes {");
+    const phone = css.indexOf("@media (max-width: 767px) {\n      .notes-reader-desktop { display: none; }");
     expect(desktop).toBeGreaterThan(-1);
-    expect(notes).toBeGreaterThan(desktop);
-    const rule = css.slice(notes, css.indexOf(".topbar.topbar-notes .topbar-side"));
+    expect(phone).toBeGreaterThan(desktop);
+    const rule = css.slice(phone, css.indexOf(".pager {\n        margin-bottom: calc(3.4rem + 14px + 1rem + var(--phone-tab-h"));
+    expect(rule).toContain(".notes-reader-phone { display: inline-flex; }");
     expect(rule).toContain("minmax(max-content, 1fr) auto minmax(max-content, 1fr)");
-    expect(css).toContain(".topbar.topbar-notes .topbar-title {");
-    expect(css).toContain("justify-self: center");
+    expect(rule).toContain(".topbar.topbar-notes .topbar-title {");
+    expect(rule).toContain("justify-self: center");
+    expect(css.indexOf(".notes-reader-phone { display: none; }")).toBeLessThan(phone);
     expect(css).not.toContain("grid-column: 1 / -1");
     expect(css).not.toContain("max-width: calc(100% - 9.5rem)");
   });
