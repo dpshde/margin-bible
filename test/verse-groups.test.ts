@@ -33,10 +33,8 @@ import { listNotes } from "../src/library";
 import { handleVerseGroupAction, loadVerseGroups } from "../src/verse-groups-store";
 import { suggestVerseGroupTopic } from "../src/verse-topic";
 import {
-  VERSE_PEEK_LIMIT,
+  topicsQueryOpens,
   verseGroupCardHtml,
-  verseGroupPeek,
-  verseGroupTreatment,
   verseGroupsScript,
   verseGroupsViewHtml,
 } from "../src/verse-groups-ui";
@@ -246,11 +244,12 @@ describe("preview worker publish", () => {
     const workflow = readFileSync(new URL("../.github/workflows/preview-worker.yml", import.meta.url), "utf8");
     const config = readFileSync(new URL("../cloudflare.config.ts", import.meta.url), "utf8");
     expect(script).toContain("verse-count-pill");
-    expect(script).toContain('data-vg="folder"');
+    expect(script).toContain('id="verse-groups-view" open');
+    expect(script).toContain(">Topics</span>");
     expect(script).toContain('preview_name="margin-bible-verse-groups"');
     expect(script).toContain("production worker is serving this preview build");
     expect(script).toContain('id="verse-groups-view"');
-    expect(script).toContain("No verse groups yet");
+    expect(script).toContain("No topics yet. Link 2+ notes to a hub");
     expect(script).toContain("sample save is still in the preview");
     expect(script).not.toContain("migrations apply");
     expect(workflow).toContain("sh scripts/preview-worker.sh");
@@ -268,7 +267,7 @@ describe("preview worker publish", () => {
 });
 
 describe("preview guest seed", () => {
-  test("seed webs cover short peeks and groups large enough for +N", () => {
+  test("seed webs cover short topics and groups large enough to show a count", () => {
     const notes = previewSeedNotes();
     expect(notes).toHaveLength(10);
     const groups = realVerseGroups(notes);
@@ -287,8 +286,8 @@ describe("preview guest seed", () => {
     expect(groups.every((group) => group.sample === false)).toBe(true);
     expect(groups.find((group) => group.hub === "jhn.1.1")?.members).toHaveLength(3);
     expect(groups.find((group) => group.hub === "rom.8.28")?.members.length).toBeGreaterThan(3);
-    expect(groups.find((group) => group.hub === "eph.2.8")?.members.length).toBeGreaterThan(VERSE_PEEK_LIMIT);
-    expect(groups.find((group) => group.hub === "rom.5.3")?.members.length).toBeGreaterThan(VERSE_PEEK_LIMIT);
+    expect(groups.find((group) => group.hub === "eph.2.8")?.members.length).toBeGreaterThan(3);
+    expect(groups.find((group) => group.hub === "rom.5.3")?.members.length).toBeGreaterThan(3);
     expect(notes.every((note) => (note.attachments?.length ?? 0) >= 2)).toBe(true);
     expect(groups.every((group) => group.star === "")).toBe(true);
     expect(groups.every((group) => group.members[0]?.slug === group.hub)).toBe(true);
@@ -325,14 +324,14 @@ describe("verse groups inbox", () => {
     expect(html.match(/class="bookmarks-view"/g)).toHaveLength(2);
     expect(html.indexOf('id="bookmarks-view"')).toBeLessThan(html.indexOf('id="verse-groups-view"'));
     expect(html).toContain(">Bookmarks</span>");
-    expect(html).toContain(">Verse groups</span>");
-    expect(html).toContain("No verse groups yet — link 2+ notes to a hub");
+    expect(html).toContain(">Topics</span>");
+    expect(html).toContain("No topics yet. Link 2+ notes to a hub");
     expect(html).not.toContain("verse-groups-btn");
     expect(html).not.toContain("inbox-tool-row");
     expect(html).not.toContain("Save sample");
     expect(html).not.toContain('data-hub="rom.9.17"');
     expect(html).toContain("John 3:16");
-    expect(html).toContain("A link stays on this group as a chip. A passage joins the verses.");
+    expect(html).toContain("A link stays on this topic as a chip. A passage joins the verses.");
     const css = page("t", "<p>x</p>");
     expect(css).toContain(".bookmarks-view");
     expect(css).not.toContain(".verse-groups-btn");
@@ -662,50 +661,26 @@ describe("verse groups inbox", () => {
     expect(html).not.toContain('name="title"');
     expect(html).not.toContain('class="note-row-excerpt"');
     expect(html).toContain('class="verse-count-pill" aria-label="2 verses">2</span>');
-    expect(html).toContain('class="verse-group-mark-set"');
-    expect(html).toContain('class="verse-group-mark-folder"');
-    const peek = html.slice(html.indexOf('class="verse-group-peek"'), html.indexOf('class="verse-count-pill"'));
-    expect(peek).toContain("John 1:1");
-    expect(peek).toContain("John 1:14");
-    expect(peek).not.toContain("verse-peek-more");
+    const summary = html.slice(html.indexOf("<summary"), html.indexOf("</summary>"));
+    expect(summary).not.toContain("verse-group-mark");
+    expect(summary).not.toContain("verse-group-peek");
+    expect(summary).not.toContain("verse-peek-chip");
+    expect(summary).toContain(">The Word made flesh</span>");
+    expect(html).toContain(">John 1:14</a>");
   });
 });
 
-describe("verse group row treatments", () => {
-  test("a query of folder selects folder and anything else selects set rows", () => {
-    expect(verseGroupTreatment("folder")).toBe("folder");
-    expect(verseGroupTreatment("set")).toBe("set");
-    expect(verseGroupTreatment(null)).toBe("set");
-    expect(verseGroupTreatment("")).toBe("set");
-    expect(verseGroupTreatment("note")).toBe("set");
+describe("topic rows", () => {
+  test("topics, set, and folder queries open the panel", () => {
+    expect(topicsQueryOpens("topics")).toBe(true);
+    expect(topicsQueryOpens("set")).toBe(true);
+    expect(topicsQueryOpens("folder")).toBe(true);
+    expect(topicsQueryOpens(null)).toBe(false);
+    expect(topicsQueryOpens("")).toBe(false);
+    expect(topicsQueryOpens("note")).toBe(false);
   });
 
-  test("the peek keeps three member refs and counts the rest", () => {
-    expect(verseGroupPeek([{ label: "Romans 8:28" }, { label: "Romans 8:31" }])).toEqual({
-      shown: ["Romans 8:28", "Romans 8:31"],
-      more: 0,
-    });
-    expect(
-      verseGroupPeek([
-        { label: "Romans 5:3" },
-        { label: "Romans 5:4" },
-        { label: "Romans 5:5" },
-        { label: "James 1:2" },
-        { label: "James 1:3" },
-        { label: "James 1:4" },
-      ]),
-    ).toEqual({
-      shown: ["Romans 5:3", "Romans 5:4", "Romans 5:5"],
-      more: 3,
-    });
-    expect(verseGroupPeek([{ label: "  " }, { label: "John 1:1" }])).toEqual({
-      shown: ["John 1:1"],
-      more: 0,
-    });
-    expect(VERSE_PEEK_LIMIT).toBe(3);
-  });
-
-  test("five members render a count pill and a three-chip peek with +N", () => {
+  test("a collapsed row is the title and the count, and the editor keeps every chip", () => {
     const html = verseGroupCardHtml({
       hub: "eph.2.8",
       hubLabel: "Ephesians 2:8",
@@ -731,21 +706,21 @@ describe("verse group row treatments", () => {
       undoReady: false,
     });
     const summary = html.slice(html.indexOf("<summary"), html.indexOf("</summary>"));
-    expect(summary).toContain('class="verse-group-mark-set"');
-    expect(summary.indexOf("verse-group-mark-set")).toBeLessThan(summary.indexOf('class="note-row-title"'));
+    expect(summary).not.toContain("verse-group-mark");
+    expect(summary).not.toContain("verse-group-peek");
     expect(summary).not.toContain('class="note-row-excerpt"');
     expect(summary).toContain('aria-label="5 verses">5</span>');
-    expect(summary).toContain(">Ephesians 2:8</span>");
-    expect(summary).toContain(">Ephesians 2:9</span>");
-    expect(summary).toContain(">Romans 3:23</span>");
-    expect(summary).toContain('class="verse-peek-more">+2</span>');
-    expect(summary).not.toContain(">Romans 6:23</span>");
+    expect(summary).toContain(">By grace</span>");
+    expect(summary).not.toContain("verse-peek-chip");
+    expect(summary).toContain('class="verse-group-hub">Ephesians 2:8</span>');
+    expect(summary).toContain('class="verse-group-title-edit"');
+    expect(summary).toContain("data-vg-attach");
     expect(html).toContain(">Romans 6:23</a>");
     expect(html).toContain('placeholder="Description"');
-    expect(html).toContain("data-vg-attach");
+    expect(html).toContain(">Grace, not a wage.</textarea>");
   });
 
-  test("the switch marks set rows or the folder list and opens the section", () => {
+  test("the topics section opens from the query and hides the pencil until the row is open", () => {
     const group = {
       hub: "psa.23.1",
       hubLabel: "Psalm 23:1",
@@ -767,27 +742,26 @@ describe("verse group row treatments", () => {
       missingCount: 0,
       undoReady: false,
     };
-    const setHtml = verseGroupsViewHtml([group], { treatment: "set", open: true });
-    expect(setHtml).toContain('id="verse-groups-view" data-vg="set" open');
-    expect(setHtml).toContain('href="/notes?vg=set#groups" aria-current="page">Set rows</a>');
-    expect(setHtml).toContain('href="/notes?vg=folder#groups">Folder list</a>');
-    expect(setHtml).toContain('class="verse-group-peek"');
-    const folderHtml = verseGroupsViewHtml([group], { treatment: "folder", open: true });
-    expect(folderHtml).toContain('id="verse-groups-view" data-vg="folder" open');
-    expect(folderHtml).toContain('href="/notes?vg=folder#groups" aria-current="page">Folder list</a>');
-    expect(folderHtml).toContain('aria-label="2 verses">2</span>');
+    const html = verseGroupsViewHtml([group], { open: true });
+    expect(html).toContain('id="verse-groups-view" open');
+    expect(html).toContain(">Topics</span>");
+    expect(html).not.toContain("Set rows");
+    expect(html).not.toContain("Folder list");
+    expect(html).not.toContain("verse-group-peek");
+    expect(html).toContain('aria-label="2 verses">2</span>');
     const css = page("t", "<p>x</p>");
-    expect(css).toContain('#verse-groups-view[data-vg="folder"] .verse-group-peek');
-    expect(css).toContain('#verse-groups-view[data-vg="folder"] .verse-group-mark-set');
-    expect(css).toContain('#verse-groups-view[data-vg="set"] .verse-group-mark-folder');
+    expect(css).toContain(".verse-group:not([open]) > summary .verse-group-title-actions { display: none; }");
     expect(css).toContain(".verse-count-pill {");
     expect(css).toContain(".verse-group > summary.verse-group-row {");
+    expect(css).toContain("min-height: 3.6rem;");
     const rowRule = css.indexOf(".verse-group > summary.verse-group-row {");
     const phoneOnly = css.indexOf("@media (max-width: 767px)", rowRule);
     expect(rowRule).toBeGreaterThan(-1);
     expect(phoneOnly).toBeGreaterThan(rowRule);
     expect(verseGroupsScript()).toContain("function syncPeek");
     expect(verseGroupsScript()).toContain('location.hash === "#groups"');
+    expect(verseGroupsScript()).toContain('topicsQuery === "topics"');
+    expect(notesInboxScript()).toContain('groups: "Topics"');
   });
 });
 
@@ -1334,7 +1308,7 @@ describe("move a verse between groups", () => {
     });
     expect(missed.ok).toBe(false);
     if (missed.ok) return;
-    expect(missed.error).toBe("That verse group changed. Refresh and try again.");
+    expect(missed.error).toBe("That topic changed. Refresh and try again.");
   });
 
   test("a warm move or remove reads the library once and writes in one wave", async () => {

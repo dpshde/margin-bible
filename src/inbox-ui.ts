@@ -342,13 +342,13 @@ function phoneTabIcon(kind: "book" | "notebook" | "bookmark" | "groups"): string
   return `<svg class="phone-tab-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="${paths[kind]}"/></svg>`;
 }
 
-/** Scripture, the notes feed, Bookmarks, and Verse groups. Icons only; names stay on aria-label. */
+/** Scripture, the notes feed, Bookmarks, and Topics. Icons only; names stay on aria-label. */
 export function phoneTabsHtml(opts: { surface: "notes" | "scripture"; readerHref: string; groupsHref?: string }): string {
   const scripture = opts.surface === "scripture" ? ' aria-current="page"' : "";
   const notes = opts.surface === "notes" ? ' aria-current="page"' : "";
   const reader = escapeHtml(opts.readerHref);
   const groupsHref = escapeHtml(opts.groupsHref ?? "/notes#groups");
-  return `<nav class="phone-tabs" aria-label="Sections"><a class="phone-tab" data-phone-tab="scripture" href="${reader}" data-reader-link aria-label="Scripture"${scripture}>${phoneTabIcon("book")}</a><a class="phone-tab" data-phone-tab="notes" href="/notes" aria-label="Notes"${notes}>${phoneTabIcon("notebook")}</a><a class="phone-tab" data-phone-tab="bookmarks" href="/notes#bookmarks" aria-label="Bookmarks">${phoneTabIcon("bookmark")}</a><a class="phone-tab" data-phone-tab="groups" href="${groupsHref}" aria-label="Verse groups">${phoneTabIcon("groups")}</a></nav>`;
+  return `<nav class="phone-tabs" aria-label="Sections"><a class="phone-tab" data-phone-tab="scripture" href="${reader}" data-reader-link aria-label="Scripture"${scripture}>${phoneTabIcon("book")}</a><a class="phone-tab" data-phone-tab="notes" href="/notes" aria-label="Notes"${notes}>${phoneTabIcon("notebook")}</a><a class="phone-tab" data-phone-tab="bookmarks" href="/notes#bookmarks" aria-label="Bookmarks">${phoneTabIcon("bookmark")}</a><a class="phone-tab" data-phone-tab="groups" href="${groupsHref}" aria-label="Topics">${phoneTabIcon("groups")}</a></nav>`;
 }
 
 /** Bookmarks and verse groups share this shell. Desktop expands inline; phone tabs show the list full screen. */
@@ -925,7 +925,7 @@ export function notesInboxScript(): string {
   function bindPhoneTabs() {
     var phoneQuery = window.matchMedia("(max-width: 767px)");
     function phone() { return phoneQuery.matches; }
-    var titles = { notes: "Notes", bookmarks: "Bookmarks", groups: "Verse groups" };
+    var titles = { notes: "Notes", bookmarks: "Bookmarks", groups: "Topics" };
     function tabFromHash() {
       var hash = String(location.hash || "").replace(/^#/, "");
       if (hash === "bookmarks" || hash === "groups") return hash;
