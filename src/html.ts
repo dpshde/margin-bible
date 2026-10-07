@@ -2185,12 +2185,17 @@ export function page(title: string, body: string): string {
     }
     /* Phone topics keep a short wrapping chip row. Desktop already does. */
     @media (max-width: 767px) {
+      .verse-group-verses,
+      .verse-group-members,
+      .verse-group-verses .att-board {
+        margin-left: 0;
+        padding-left: 0;
+      }
       .verse-group-verses {
         flex-direction: row;
         flex-wrap: wrap;
         align-items: center;
         gap: .28rem;
-        padding-left: 0;
       }
       .verse-group-members {
         flex-direction: row;
@@ -2206,10 +2211,11 @@ export function page(title: string, body: string): string {
         justify-content: flex-start;
         align-items: center;
         min-height: 0;
+        margin-left: 0;
         border: 1px solid var(--line);
         border-radius: 999px;
         background: var(--paper-raised);
-        padding: 0 .08rem 0 .4rem;
+        padding: 0 .08rem 0 0;
       }
       .verse-group .att-chip {
         flex: 0 1 auto;
@@ -2218,7 +2224,7 @@ export function page(title: string, body: string): string {
         border: 0;
         border-radius: 0;
         background: transparent;
-        padding: .16rem .12rem;
+        padding: .16rem .12rem .16rem 0;
         font-size: .74rem;
         font-weight: 600;
         line-height: 1.2;
@@ -2288,8 +2294,13 @@ export function page(title: string, body: string): string {
         font-size: .78rem;
         line-height: 1.25;
       }
-      #verse-groups-view .verse-group-verses {
+      #verse-groups-view .verse-group-verses,
+      #verse-groups-view .verse-group-members,
+      #verse-groups-view .verse-group-verses .att-board {
+        margin-left: 0;
         padding-left: 0;
+      }
+      #verse-groups-view .verse-group-verses {
         gap: .1rem .2rem;
       }
       #verse-groups-view .verse-group-members {
@@ -2302,11 +2313,12 @@ export function page(title: string, body: string): string {
         width: auto;
         max-width: 100%;
         min-height: 0;
-        padding: 0 .04rem 0 .32rem;
+        margin-left: 0;
+        padding: 0 .04rem 0 0;
       }
       #verse-groups-view .verse-group .att-chip {
         max-width: 11rem;
-        padding: .02rem .22rem;
+        padding: .02rem .22rem .02rem 0;
         font-size: .7rem;
         line-height: 1.2;
       }
