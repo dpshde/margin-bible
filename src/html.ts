@@ -1477,6 +1477,8 @@ export function page(title: string, body: string): string {
     /* Topics use the same soft-wash control as Bookmarks.
        A topic collapses to a title and a count, then opens onto its chips. */
     .verse-group { margin: 0; }
+    /* Open title, description, and the first chip share this left gutter. */
+    #verse-groups-view { --topic-inset: .8rem; }
     .verse-group > summary.note-row {
       width: 100%;
       cursor: pointer;
@@ -1612,7 +1614,7 @@ export function page(title: string, body: string): string {
         border-radius: 0;
       }
       #verse-groups-view .verse-group[open] > summary.verse-group-row {
-        padding: .28rem .55rem .28rem .8rem;
+        padding: .28rem .55rem .28rem var(--topic-inset);
       }
       #verse-groups-view .verse-group[open] > summary .verse-group-title-edit,
       #verse-groups-view .verse-group[open] > summary .tray-attach {
@@ -1623,7 +1625,7 @@ export function page(title: string, body: string): string {
       }
       #verse-groups-view .verse-group-form {
         gap: .28rem;
-        padding: .4rem .65rem .5rem;
+        padding: .4rem .65rem .5rem var(--topic-inset);
       }
       #verse-groups-view .verse-group-fields {
         margin: 0;
@@ -1634,7 +1636,7 @@ export function page(title: string, body: string): string {
         height: 1.85rem;
         min-height: 0;
         max-height: 1.85rem;
-        padding: .22rem .45rem;
+        padding: .22rem .45rem .22rem 0;
         resize: none;
         overflow: hidden;
         white-space: nowrap;
@@ -2242,7 +2244,7 @@ export function page(title: string, body: string): string {
       }
       #verse-groups-view .verse-group > summary.verse-group-row {
         min-height: 0;
-        padding: .2rem .5rem;
+        padding: .2rem .5rem .2rem var(--topic-inset);
         border-radius: .3rem;
       }
       #verse-groups-view .verse-count-pill {
@@ -2265,7 +2267,7 @@ export function page(title: string, body: string): string {
       }
       #verse-groups-view .verse-group-form {
         gap: .12rem;
-        padding: .15rem .4rem .1rem;
+        padding: .15rem .4rem .1rem var(--topic-inset);
       }
       #verse-groups-view .verse-group-fields {
         margin: 0;
@@ -2276,7 +2278,7 @@ export function page(title: string, body: string): string {
         height: 1.45rem;
         min-height: 0;
         max-height: 1.45rem;
-        padding: .08rem .35rem;
+        padding: .08rem .35rem .08rem 0;
         resize: none;
         overflow: hidden;
         font-size: .78rem;
