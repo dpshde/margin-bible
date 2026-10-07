@@ -342,12 +342,13 @@ function phoneTabIcon(kind: "book" | "notebook" | "bookmark" | "groups"): string
   return `<svg class="phone-tab-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="${paths[kind]}"/></svg>`;
 }
 
-/** Scripture, the notes feed, Bookmarks, and Verse groups. Icons only; names stay on aria-label. */
-export function phoneTabsHtml(opts: { surface: "notes" | "scripture"; readerHref: string }): string {
+/** Scripture, the notes feed, Bookmarks, and Topics. Icons only; names stay on aria-label. */
+export function phoneTabsHtml(opts: { surface: "notes" | "scripture"; readerHref: string; groupsHref?: string }): string {
   const scripture = opts.surface === "scripture" ? ' aria-current="page"' : "";
   const notes = opts.surface === "notes" ? ' aria-current="page"' : "";
   const reader = escapeHtml(opts.readerHref);
-  return `<nav class="phone-tabs" aria-label="Sections"><a class="phone-tab" data-phone-tab="scripture" href="${reader}" data-reader-link aria-label="Scripture"${scripture}>${phoneTabIcon("book")}</a><a class="phone-tab" data-phone-tab="notes" href="/notes" aria-label="Notes"${notes}>${phoneTabIcon("notebook")}</a><a class="phone-tab" data-phone-tab="bookmarks" href="/notes#bookmarks" aria-label="Bookmarks">${phoneTabIcon("bookmark")}</a><a class="phone-tab" data-phone-tab="groups" href="/notes#groups" aria-label="Verse groups">${phoneTabIcon("groups")}</a></nav>`;
+  const groupsHref = escapeHtml(opts.groupsHref ?? "/notes#groups");
+  return `<nav class="phone-tabs" aria-label="Sections"><a class="phone-tab" data-phone-tab="scripture" href="${reader}" data-reader-link aria-label="Scripture"${scripture}>${phoneTabIcon("book")}</a><a class="phone-tab" data-phone-tab="notes" href="/notes" aria-label="Notes"${notes}>${phoneTabIcon("notebook")}</a><a class="phone-tab" data-phone-tab="bookmarks" href="/notes#bookmarks" aria-label="Bookmarks">${phoneTabIcon("bookmark")}</a><a class="phone-tab" data-phone-tab="groups" href="${groupsHref}" aria-label="Topics">${phoneTabIcon("groups")}</a></nav>`;
 }
 
 /** Bookmarks and verse groups share this shell. Desktop expands inline; phone tabs show the list full screen. */
@@ -357,10 +358,14 @@ export function notesCollectionHtml(opts: {
   icon: string;
   body: string;
   panelId?: string;
+  open?: boolean;
+  rootAttrs?: string;
 }): string {
   const panelId = opts.panelId ? ` id="${opts.panelId}"` : "";
   const titleId = `${opts.id}-sheet-title`;
-  return `<details class="bookmarks-view" id="${opts.id}"><summary><span class="bookmarks-summary-label">${opts.icon}<span>${opts.label}</span></span></summary><div class="notes-sheet"><button type="button" class="notes-sheet-backdrop" data-notes-sheet-close aria-label="Close"></button><div class="notes-sheet-panel"><div class="notes-sheet-handle" aria-hidden="true"></div><p class="notes-sheet-title" id="${titleId}">${opts.label}</p><div class="bookmarks-panel"${panelId}>${opts.body}</div></div></div></details>`;
+  const open = opts.open ? " open" : "";
+  const rootAttrs = opts.rootAttrs ? ` ${opts.rootAttrs}` : "";
+  return `<details class="bookmarks-view" id="${opts.id}"${rootAttrs}${open}><summary><span class="bookmarks-summary-label">${opts.icon}<span>${opts.label}</span></span></summary><div class="notes-sheet"><button type="button" class="notes-sheet-backdrop" data-notes-sheet-close aria-label="Close"></button><div class="notes-sheet-panel"><div class="notes-sheet-handle" aria-hidden="true"></div><p class="notes-sheet-title" id="${titleId}">${opts.label}</p><div class="bookmarks-panel"${panelId}>${opts.body}</div></div></div></details>`;
 }
 
 export function bookmarksViewHtml(notes: InboxNote[]): string {
@@ -920,7 +925,7 @@ export function notesInboxScript(): string {
   function bindPhoneTabs() {
     var phoneQuery = window.matchMedia("(max-width: 767px)");
     function phone() { return phoneQuery.matches; }
-    var titles = { notes: "Notes", bookmarks: "Bookmarks", groups: "Verse groups" };
+    var titles = { notes: "Notes", bookmarks: "Bookmarks", groups: "Topics" };
     function tabFromHash() {
       var hash = String(location.hash || "").replace(/^#/, "");
       if (hash === "bookmarks" || hash === "groups") return hash;

@@ -44,7 +44,7 @@ import { seedPreviewVerseGroups } from "./preview-seed";
 import { resolveLinkTitle } from "./link-title";
 import { handleVerseGroupAction, loadVerseGroups } from "./verse-groups-store";
 import { suggestVerseGroupTopic } from "./verse-topic";
-import { verseGroupCardHtml } from "./verse-groups-ui";
+import { topicsQueryOpens, verseGroupCardHtml } from "./verse-groups-ui";
 import type { ChapterPack } from "./usj";
 import { ensureBidirectionalXrefs, syncBidirectionalXrefs } from "./xref-sync";
 import { handleMcpDelete, handleMcpGet, handleMcpOptions, handleMcpPost } from "./mcp";
@@ -140,7 +140,7 @@ app.use("*", async (c, next) => {
   }
 });
 
-app.get("/health", (c) => c.json({ ok: true, app: "margin-bible", version: "2026.10.07.1" }));
+app.get("/health", (c) => c.json({ ok: true, app: "margin-bible", version: "2026.10.07.56" }));
 
 app.get("/manifest.webmanifest", () => manifestResponse());
 app.get("/manifest.json", () => manifestResponse());
@@ -451,10 +451,12 @@ app.get("/notes", async (c) => {
     notesForInbox(c),
   ]);
   const verseGroups = await loadVerseGroups(c.env.DB, libraryId, notes);
+  const rawTopics = c.req.query("vg");
   return c.html(
     renderNotesIndex(notes, safeBack(library?.last_read_slug || "jhn.1"), {
       signedIn: c.get("signedIn"),
       verseGroups,
+      verseGroupsOpen: topicsQueryOpens(rawTopics),
     }),
     200,
     { "cache-control": "private, no-store" },

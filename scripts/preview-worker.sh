@@ -56,7 +56,7 @@ mise exec -- cf deploy
 
 prod=$(curl -fsS -H "cache-control: no-cache" "https://margin-bible.dpshade.workers.dev/health" || true)
 printf '%s\n' "$prod"
-if printf '%s' "$prod" | grep -q '2026.10.07.1'; then
+if printf '%s' "$prod" | grep -q '2026.10.07.56'; then
   echo "production worker is serving this preview build" >&2
   exit 1
 fi
@@ -66,13 +66,13 @@ body=""
 while [ "$i" -lt 12 ]; do
   body=$(curl -fsS -H "cache-control: no-cache" "$preview_url/health" || true)
   printf '%s\n' "$body"
-  if printf '%s' "$body" | grep -q '2026.10.07.1'; then
+  if printf '%s' "$body" | grep -q '2026.10.07.56'; then
     break
   fi
   i=$((i + 1))
   sleep 3
 done
-printf '%s' "$body" | grep -q '2026.10.07.1'
+printf '%s' "$body" | grep -q '2026.10.07.56'
 
 notes=$(curl -fsS -A "Mozilla/5.0" -H "cache-control: no-cache" "$preview_url/notes")
 printf '%s' "$notes" | grep -q 'id="verse-groups-view"'
@@ -82,7 +82,7 @@ if printf '%s' "$notes" | grep -q 'data-hub="rom.8.28"'; then
   printf '%s' "$notes" | grep -q 'data-hub="jhn.1.1"'
   printf '%s' "$notes" | grep -q 'data-hub="psa.23.1"'
 else
-  printf '%s' "$notes" | grep -q 'No verse groups yet — link 2+ notes to a hub'
+  printf '%s' "$notes" | grep -q 'No topics yet. Link 2+ notes to a hub'
 fi
 if printf '%s' "$notes" | grep -q 'verse-groups-btn'; then
   echo "verse groups still uses the side button" >&2
@@ -114,5 +114,24 @@ if printf '%s' "$notes" | grep -q 'data-vg-topic'; then
 fi
 printf '%s' "$notes" | grep -q 'verse-group-members'
 printf '%s' "$notes" | grep -q 'autoTitlePass'
+printf '%s' "$notes" | grep -q '>Topics</span>'
+printf '%s' "$notes" | grep -q 'aria-label="Topics"'
+printf '%s' "$notes" | grep -q 'verse-count-pill'
+if printf '%s' "$notes" | grep -q 'verse-group-peek'; then
+  echo "chip peek is still on the topic row" >&2
+  exit 1
+fi
+if printf '%s' "$notes" | grep -q 'Set rows'; then
+  echo "set/folder preview toggle is still in the preview" >&2
+  exit 1
+fi
+if printf '%s' "$notes" | grep -q 'Verse groups'; then
+  echo "verse groups label is still in the preview" >&2
+  exit 1
+fi
+printf '%s' "$notes" | grep -q 'data-hub="eph.2.8"'
+topics=$(curl -fsS -A "Mozilla/5.0" -H "cache-control: no-cache" "$preview_url/notes?vg=topics")
+printf '%s' "$topics" | grep -q 'id="verse-groups-view" open'
+printf '%s' "$topics" | grep -q 'href="/notes?vg=topics#groups"'
 
 echo "PREVIEW_URL=$preview_url/notes"

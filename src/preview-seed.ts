@@ -28,7 +28,7 @@ type SeedWeb = {
 const PREVIEW_WEBS: readonly SeedWeb[] = [
   {
     hub: "rom.8.28",
-    members: ["rom.8.31", "rom.8.38", "rom.8.39"],
+    members: ["rom.8.31", "rom.8.32", "rom.8.38", "rom.8.39"],
     text: "All things work together for good.",
     title: "Nothing can separate",
     description: "The love of God holds this chain.",
@@ -37,23 +37,57 @@ const PREVIEW_WEBS: readonly SeedWeb[] = [
     hub: "jhn.1.1",
     members: ["jhn.1.3", "jhn.1.14"],
     text: "The Word was with God, and the Word was God.",
+    title: "The Word",
   },
   {
     hub: "psa.23.1",
-    members: ["psa.23.4", "psa.23.6"],
+    members: ["psa.23.2", "psa.23.4", "psa.23.6"],
     text: "The Lord is my shepherd.",
     title: "The shepherd",
   },
   {
     hub: "eph.2.8",
-    members: ["eph.2.9", "rom.3.23", "rom.6.23"],
+    members: ["eph.2.9", "eph.2.10", "rom.3.23", "rom.6.23", "tit.3.5"],
     text: "By grace you have been saved, through faith.",
+    title: "By grace",
     description: "Grace, not a wage.",
   },
   {
+    hub: "heb.12.6",
+    members: ["heb.12.7", "pro.3.12", "rev.3.19"],
+    text: "The Lord disciplines the one he loves.",
+    title: "The Lord disciplines those he loves",
+  },
+  {
+    hub: "php.4.11",
+    members: ["php.4.12", "php.4.13", "1ti.6.6"],
+    text: "I have learned to be content.",
+    title: "Content in every circumstance",
+  },
+  {
+    hub: "rom.5.3",
+    members: ["rom.5.4", "rom.5.5", "jas.1.2", "jas.1.3", "jas.1.4"],
+    text: "Suffering produces perseverance.",
+    title: "Suffering produces perseverance",
+    description: "Suffering, perseverance, character, hope.",
+  },
+  {
+    hub: "est.4.14",
+    members: ["gen.50.20", "psa.37.5"],
+    text: "For such a time as this.",
+    title: "Providence",
+  },
+  {
+    hub: "mat.11.28",
+    members: ["mat.11.29", "jhn.7.37"],
+    text: "Come to me, all who labor.",
+    title: "Come to me",
+  },
+  {
     hub: "mat.5.3",
-    members: ["mat.5.4", "mat.5.6"],
+    members: ["mat.5.4", "mat.5.6", "mat.5.8"],
     text: "Blessed are the poor in spirit.",
+    title: "Poor in spirit",
   },
 ];
 

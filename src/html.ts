@@ -1463,9 +1463,11 @@ export function page(title: string, body: string): string {
         background: var(--paper-raised);
       }
     }
-    /* Verse groups use the same soft-wash control as Bookmarks.
-       A web collapses to a bookmark row and opens onto its chips. */
+    /* Topics use the same soft-wash control as Bookmarks.
+       A topic collapses to a title and a count, then opens onto its chips. */
     .verse-group { margin: 0; }
+    /* Open title, description, and the first chip share this left gutter. */
+    #verse-groups-view { --topic-inset: .8rem; }
     .verse-group > summary.note-row {
       width: 100%;
       cursor: pointer;
@@ -1525,6 +1527,111 @@ export function page(title: string, body: string): string {
       background: transparent;
       color: var(--ink);
       font: 400 1rem/1.4 var(--sans);
+    }
+    .verse-group > summary .note-row-title {
+      flex: 0 1 auto;
+      min-width: 0;
+    }
+    .verse-group > summary .note-row-excerpt { display: none; }
+    /* A collapsed topic is a title and a count, not a note line. */
+    .verse-group > summary.verse-group-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: center;
+      column-gap: .85rem;
+      width: 100%;
+      padding: .85rem .8rem;
+      border-radius: .45rem;
+    }
+    .verse-group-copy {
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+    }
+    .verse-group-head {
+      display: flex;
+      align-items: center;
+      gap: .15rem;
+      min-width: 0;
+    }
+    .verse-group > summary.verse-group-row .note-row-title {
+      flex: 0 1 auto;
+      min-width: 0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .verse-group-head .verse-group-title-actions {
+      order: 0;
+      margin-left: 0;
+    }
+    .verse-count-pill {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      align-self: center;
+      min-width: 1.55rem;
+      height: 1.35rem;
+      padding: 0 .42rem;
+      border-radius: 999px;
+      background: color-mix(in srgb, var(--ink) 12%, transparent);
+      color: var(--ink);
+      font: 700 .72rem/1 var(--sans);
+      font-variant-numeric: tabular-nums;
+    }
+    .verse-group[open] > summary .verse-count-pill {
+      background: color-mix(in srgb, var(--paper) 18%, transparent);
+      color: var(--paper);
+    }
+    .verse-group:not([open]) > summary .verse-group-title-actions { display: none; }
+    @media (max-width: 767px) {
+      html[data-phone-tab="groups"] #verse-groups-view { background: var(--fill); }
+      #verse-groups-view .note-list {
+        display: flex;
+        flex-direction: column;
+        gap: .4rem;
+      }
+      #verse-groups-view .verse-group {
+        border: 1px solid color-mix(in srgb, var(--ink) 14%, transparent);
+        border-radius: .75rem;
+        background: var(--paper);
+        overflow: hidden;
+      }
+      #verse-groups-view .verse-group > summary.verse-group-row {
+        min-height: 2.55rem;
+        padding: .45rem .8rem;
+        border-radius: 0;
+      }
+      #verse-groups-view .verse-group[open] > summary.verse-group-row {
+        padding: .28rem .55rem .28rem var(--topic-inset);
+      }
+      #verse-groups-view .verse-group[open] > summary .verse-group-title-edit,
+      #verse-groups-view .verse-group[open] > summary .tray-attach {
+        width: 1.9rem;
+        height: 1.9rem;
+        min-width: 1.9rem;
+        min-height: 1.9rem;
+      }
+      #verse-groups-view .verse-group-form {
+        gap: .28rem;
+        padding: .4rem .65rem .5rem var(--topic-inset);
+      }
+      #verse-groups-view .verse-group-fields {
+        margin: 0;
+        padding: 0;
+        border-left: 0;
+      }
+      #verse-groups-view .verse-group-form textarea.verse-group-description {
+        height: 1.85rem;
+        min-height: 0;
+        max-height: 1.85rem;
+        padding: .22rem .45rem .22rem 0;
+        resize: none;
+        overflow: hidden;
+        white-space: nowrap;
+        font-size: .82rem;
+        line-height: 1.3;
+      }
     }
     .verse-group-title-actions {
       display: inline-flex;
@@ -1597,9 +1704,13 @@ export function page(title: string, body: string): string {
       display: block;
       resize: vertical;
       overflow: auto;
-      border-radius: .35rem;
-      background: color-mix(in srgb, var(--ink) 8%, transparent);
-      color: var(--ink-soft);
+      border: 0;
+      border-radius: 0;
+      background: transparent;
+      box-shadow: none;
+      outline: none;
+      appearance: none;
+      color: var(--ink);
       font: 400 .88rem/1.35 var(--sans);
       padding: .32rem .5rem;
       min-height: 1.85rem;
@@ -2053,65 +2164,180 @@ export function page(title: string, body: string): string {
       .verse-group .verse-star svg,
       .verse-group .att-remove svg { width: .85rem; height: .85rem; }
     }
-    /* Phone width stacks members. Desktop keeps the horizontal chip row. */
+    /* Phone topics keep a short wrapping chip row. Desktop already does. */
     @media (max-width: 767px) {
-      .verse-group-verses {
-        flex-direction: column;
-        align-items: stretch;
-        gap: 0;
+      .verse-group-verses,
+      .verse-group-members,
+      .verse-group-verses .att-board {
+        margin-left: 0;
         padding-left: 0;
       }
+      .verse-group-verses {
+        flex-direction: row;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: .28rem;
+      }
       .verse-group-members {
-        flex-direction: column;
-        flex-wrap: nowrap;
-        align-items: stretch;
+        flex-direction: row;
+        flex-wrap: wrap;
+        align-items: center;
         width: 100%;
-        gap: 0;
+        gap: .28rem;
       }
       .verse-group .att-item {
-        width: 100%;
-        max-width: none;
+        width: auto;
+        max-width: 100%;
         box-sizing: border-box;
         justify-content: flex-start;
         align-items: center;
-        min-height: var(--tap);
-        border: 0;
-        border-bottom: 1px solid color-mix(in srgb, var(--ink) 12%, transparent);
-        border-radius: 0;
-        background: transparent;
-        padding: 0 .1rem 0 .35rem;
-      }
-      .verse-group .att-item:hover {
-        border-color: transparent;
-        border-bottom-color: color-mix(in srgb, var(--ink) 12%, transparent);
-        background: transparent;
+        min-height: 0;
+        margin-left: 0;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        background: var(--paper-raised);
+        padding: 0 .08rem 0 .4rem;
       }
       .verse-group .att-chip {
-        flex: 1 1 auto;
+        flex: 0 1 auto;
         width: auto;
-        max-width: none;
+        max-width: 9.2rem;
         border: 0;
         border-radius: 0;
         background: transparent;
-        padding: 0 .25rem;
-        font-size: .95rem;
+        padding: .16rem .12rem;
+        font-size: .74rem;
         font-weight: 600;
         line-height: 1.2;
         white-space: nowrap;
-      }
-      .verse-group .att-item > .verse-star,
-      .verse-group .att-item > a + .att-remove {
-        margin-left: auto;
       }
       .verse-group .verse-star,
       .verse-group .att-remove {
         visibility: visible;
         opacity: 1;
-        width: var(--tap);
-        min-width: var(--tap);
-        height: var(--tap);
-        min-height: var(--tap);
+        width: 1.35rem;
+        min-width: 1.35rem;
+        height: 1.35rem;
+        min-height: 1.35rem;
         overflow: visible;
+      }
+      .verse-group .verse-star svg,
+      .verse-group .att-remove svg { width: .68rem; height: .68rem; }
+    }
+    /* Desktop topics stay a compact list. Phone card padding stays under 767. */
+    @media (min-width: 768px) {
+      #verse-groups-view .note-list { display: block; }
+      #verse-groups-view .verse-group {
+        border: 0;
+        border-radius: 0;
+        background: transparent;
+        overflow: visible;
+      }
+      #verse-groups-view .verse-group > summary.verse-group-row {
+        min-height: 0;
+        padding: .2rem .5rem .2rem var(--topic-inset);
+        border-radius: .3rem;
+      }
+      #verse-groups-view .verse-count-pill {
+        min-width: 1.2rem;
+        height: 1.1rem;
+        padding: 0 .32rem;
+        font-size: .66rem;
+      }
+      #verse-groups-view .verse-group[open] > summary .verse-group-title-edit,
+      #verse-groups-view .verse-group[open] > summary .tray-attach {
+        width: 1.4rem;
+        height: 1.4rem;
+        min-width: 1.4rem;
+        min-height: 1.4rem;
+      }
+      #verse-groups-view .verse-group[open] > summary .verse-group-title-edit svg,
+      #verse-groups-view .verse-group[open] > summary .tray-attach svg {
+        width: .8rem;
+        height: .8rem;
+      }
+      #verse-groups-view .verse-group-form {
+        gap: .12rem;
+        padding: .15rem .4rem .1rem var(--topic-inset);
+      }
+      #verse-groups-view .verse-group-fields {
+        margin: 0;
+        padding: 0;
+        border-left: 0;
+      }
+      #verse-groups-view .verse-group-form textarea.verse-group-description {
+        height: 1.45rem;
+        min-height: 0;
+        max-height: 1.45rem;
+        padding: .08rem .35rem .08rem 0;
+        resize: none;
+        overflow: hidden;
+        font-size: .78rem;
+        line-height: 1.25;
+      }
+      #verse-groups-view .verse-group-verses,
+      #verse-groups-view .verse-group-members,
+      #verse-groups-view .verse-group-verses .att-board {
+        margin-left: 0;
+        padding-left: 0;
+      }
+      #verse-groups-view .verse-group-verses {
+        gap: .1rem .2rem;
+      }
+      #verse-groups-view .verse-group-members {
+        flex-direction: row;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: .1rem .2rem;
+      }
+      #verse-groups-view .verse-group .att-item {
+        width: auto;
+        max-width: 100%;
+        min-height: 0;
+        margin-left: 0;
+        padding: 0 .04rem 0 .32rem;
+      }
+      #verse-groups-view .verse-group .att-chip {
+        max-width: 11rem;
+        padding: .02rem .22rem;
+        font-size: .7rem;
+        line-height: 1.2;
+      }
+    }
+    @media (min-width: 768px) {
+      .verse-group .verse-star,
+      .verse-group .att-remove {
+        width: 0;
+        min-width: 0;
+        height: 1.15rem;
+        min-height: 0;
+        visibility: hidden;
+        opacity: 0;
+      }
+      /* Reserve star and remove so hover only fades them. A growing pill
+         wraps off the pointer and flickers back onto the row. */
+      #verse-groups-view .verse-group .verse-star,
+      #verse-groups-view .verse-group .att-remove {
+        width: 1.15rem;
+        min-width: 1.15rem;
+        height: 1.15rem;
+        min-height: 1.15rem;
+        overflow: hidden;
+        visibility: hidden;
+        opacity: 0;
+      }
+      #verse-groups-view .verse-group .verse-star[aria-pressed="true"],
+      #verse-groups-view .verse-group .att-item:hover .verse-star,
+      #verse-groups-view .verse-group .att-item:hover .att-remove,
+      #verse-groups-view .verse-group .att-item:focus-within .verse-star,
+      #verse-groups-view .verse-group .att-item:focus-within .att-remove,
+      #verse-groups-view .verse-group .verse-star:focus-visible,
+      #verse-groups-view .verse-group .att-remove:focus-visible {
+        width: 1.15rem;
+        min-width: 1.15rem;
+        overflow: visible;
+        visibility: visible;
+        opacity: 1;
       }
     }
     a.wiki {
@@ -2469,6 +2695,12 @@ export function page(title: string, body: string): string {
         order: 3;
         font-size: .84rem;
         color: var(--muted);
+      }
+      .verse-group-title-actions { order: 1; }
+      #verse-groups-view .verse-group > summary .note-row-title {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
       }
       .tray-attach.vg-attach-desktop { display: none; }
       .verse-group > summary .note-row-title {

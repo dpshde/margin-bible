@@ -32,7 +32,12 @@ import { notesInboxScript } from "../src/inbox-ui";
 import { listNotes } from "../src/library";
 import { handleVerseGroupAction, loadVerseGroups } from "../src/verse-groups-store";
 import { suggestVerseGroupTopic } from "../src/verse-topic";
-import { verseGroupCardHtml, verseGroupsScript } from "../src/verse-groups-ui";
+import {
+  topicsQueryOpens,
+  verseGroupCardHtml,
+  verseGroupsScript,
+  verseGroupsViewHtml,
+} from "../src/verse-groups-ui";
 
 function xref(slug: string, source: "manual" | "scan" | "backlink" = "manual"): Attachment {
   return { id: "att_abcd1234", kind: "xref", slug, title: slug, source };
@@ -238,10 +243,13 @@ describe("preview worker publish", () => {
     const script = readFileSync(new URL("../scripts/preview-worker.sh", import.meta.url), "utf8");
     const workflow = readFileSync(new URL("../.github/workflows/preview-worker.yml", import.meta.url), "utf8");
     const config = readFileSync(new URL("../cloudflare.config.ts", import.meta.url), "utf8");
+    expect(script).toContain("verse-count-pill");
+    expect(script).toContain('id="verse-groups-view" open');
+    expect(script).toContain(">Topics</span>");
     expect(script).toContain('preview_name="margin-bible-verse-groups"');
     expect(script).toContain("production worker is serving this preview build");
     expect(script).toContain('id="verse-groups-view"');
-    expect(script).toContain("No verse groups yet");
+    expect(script).toContain("No topics yet. Link 2+ notes to a hub");
     expect(script).toContain("sample save is still in the preview");
     expect(script).not.toContain("migrations apply");
     expect(workflow).toContain("sh scripts/preview-worker.sh");
@@ -259,19 +267,28 @@ describe("preview worker publish", () => {
 });
 
 describe("preview guest seed", () => {
-  test("five star notes become five webs and an existing web skips another seed", () => {
+  test("seed webs cover short topics and groups large enough to show a count", () => {
     const notes = previewSeedNotes();
-    expect(notes).toHaveLength(5);
+    expect(notes).toHaveLength(10);
     const groups = realVerseGroups(notes);
     expect(groups.map((group) => group.hub).sort()).toEqual([
       "eph.2.8",
+      "est.4.14",
+      "heb.12.6",
       "jhn.1.1",
+      "mat.11.28",
       "mat.5.3",
+      "php.4.11",
       "psa.23.1",
+      "rom.5.3",
       "rom.8.28",
     ]);
     expect(groups.every((group) => group.sample === false)).toBe(true);
-    expect(groups.find((group) => group.hub === "rom.8.28")?.members.length).toBeGreaterThanOrEqual(3);
+    expect(groups.find((group) => group.hub === "jhn.1.1")?.members).toHaveLength(3);
+    expect(groups.find((group) => group.hub === "rom.8.28")?.members.length).toBeGreaterThan(3);
+    expect(groups.find((group) => group.hub === "eph.2.8")?.members.length).toBeGreaterThan(3);
+    expect(groups.find((group) => group.hub === "rom.5.3")?.members.length).toBeGreaterThan(3);
+    expect(notes.every((note) => (note.attachments?.length ?? 0) >= 2)).toBe(true);
     expect(groups.every((group) => group.star === "")).toBe(true);
     expect(groups.every((group) => group.members[0]?.slug === group.hub)).toBe(true);
     expect(previewSeedNeeded(notes)).toBe(false);
@@ -307,14 +324,14 @@ describe("verse groups inbox", () => {
     expect(html.match(/class="bookmarks-view"/g)).toHaveLength(2);
     expect(html.indexOf('id="bookmarks-view"')).toBeLessThan(html.indexOf('id="verse-groups-view"'));
     expect(html).toContain(">Bookmarks</span>");
-    expect(html).toContain(">Verse groups</span>");
-    expect(html).toContain("No verse groups yet — link 2+ notes to a hub");
+    expect(html).toContain(">Topics</span>");
+    expect(html).toContain("No topics yet. Link 2+ notes to a hub");
     expect(html).not.toContain("verse-groups-btn");
     expect(html).not.toContain("inbox-tool-row");
     expect(html).not.toContain("Save sample");
     expect(html).not.toContain('data-hub="rom.9.17"');
     expect(html).toContain("John 3:16");
-    expect(html).toContain("A link stays on this group as a chip. A passage joins the verses.");
+    expect(html).toContain("A link stays on this topic as a chip. A passage joins the verses.");
     const css = page("t", "<p>x</p>");
     expect(css).toContain(".bookmarks-view");
     expect(css).not.toContain(".verse-groups-btn");
@@ -350,11 +367,13 @@ describe("verse groups inbox", () => {
     expect(controls).toContain(".verse-group .att-item:hover .verse-star,\n      .verse-group .att-item:hover .att-remove");
     expect(controls).toContain("padding-right: .12rem;");
     expect(controls).toContain("@media (hover: none), (pointer: coarse)");
-    expect(css).toContain(".verse-group-members {\n        flex-direction: column;");
-    const phoneMembers = css.slice(css.indexOf("@media (max-width: 767px) {\n      .verse-group-verses {"));
-    expect(phoneMembers.slice(0, 2200)).toContain("flex-direction: column;");
-    expect(phoneMembers).toContain("min-height: var(--tap);");
-    expect(phoneMembers).toContain(".verse-group .att-item > .verse-star,\n      .verse-group .att-item > a + .att-remove {\n        margin-left: auto;");
+    expect(css).toContain(".verse-group-members {\n        flex-direction: row;");
+    const phoneChipRow = css.indexOf("@media (max-width: 767px) {\n      .verse-group-verses,\n      .verse-group-members,");
+    const phoneMembers = css.slice(phoneChipRow, phoneChipRow + 1600);
+    expect(phoneMembers).toContain("flex-direction: row;");
+    expect(phoneMembers).toContain("flex-wrap: wrap;");
+    expect(phoneMembers).toContain("width: 1.35rem;");
+    expect(phoneMembers).not.toContain("min-height: var(--tap);");
     expect(css).not.toContain("ph-sparkle");
     expect(css).not.toContain(".verse-group-topic");
     expect(css).not.toContain("verse-group-member-actions");
@@ -410,7 +429,10 @@ describe("verse groups inbox", () => {
     expect(css).not.toContain(".verse-group[open] > summary .note-row-title,\n    .verse-group[open] > summary .note-row-excerpt { display: none; }");
     const titleRule = css.slice(css.indexOf('.verse-group > summary .note-row-title[contenteditable="true"] {'));
     expect(titleRule.slice(0, 700)).not.toContain("paper-raised");
-    expect(css).toContain("background: color-mix(in srgb, var(--ink) 8%, transparent);");
+    const descRule = css.slice(css.indexOf(".verse-group-form textarea.verse-group-description {\n      display: block;"));
+    expect(descRule.slice(0, 500)).toContain("background: transparent;");
+    expect(descRule.slice(0, 500)).toContain("border-radius: 0;");
+    expect(descRule.slice(0, 500)).not.toContain("color-mix");
     expect(css).toContain("textarea.verse-group-description::placeholder {\n      color: var(--faint);");
     expect(css).toContain("textarea.verse-group-description {\n      display: block;\n      resize: vertical;");
     expect(css).not.toContain("textarea.verse-group-description:focus");
@@ -453,7 +475,7 @@ describe("verse groups inbox", () => {
       ],
     });
     expect(html).toContain('class="verse-group"');
-    expect(html).toContain('<summary class="note-row">');
+    expect(html).toContain('<summary class="note-row verse-group-row">');
     expect(html).toContain(">Romans 8:28</span>");
     expect(html).toContain('class="note-row-title" data-title="" contenteditable="false"');
     expect(html).toContain('class="verse-group-title-edit"');
@@ -542,7 +564,7 @@ describe("verse groups inbox", () => {
     expect(html).not.toContain("verse-group-save");
     expect(html).not.toContain(">Save</button>");
     expect(html).not.toContain("Save sample");
-    expect(html).toContain('<summary class="note-row">');
+    expect(html).toContain('<summary class="note-row verse-group-row">');
     expect(html).toContain('data-title="&lt;script&gt;alert(&quot;x&quot;)&lt;/script&gt;"');
     expect(html).not.toContain('name="title"');
     expect(html).not.toContain("local topic guess");
@@ -643,6 +665,135 @@ describe("verse groups inbox", () => {
     expect(html).toContain('data-title="The Word made flesh"');
     expect(html).toContain(">The Word made flesh</span>");
     expect(html).not.toContain('name="title"');
+    expect(html).not.toContain('class="note-row-excerpt"');
+    expect(html).toContain('class="verse-count-pill" aria-label="2 verses">2</span>');
+    const summary = html.slice(html.indexOf("<summary"), html.indexOf("</summary>"));
+    expect(summary).not.toContain("verse-group-mark");
+    expect(summary).not.toContain("verse-group-peek");
+    expect(summary).not.toContain("verse-peek-chip");
+    expect(summary).toContain(">The Word made flesh</span>");
+    expect(html).toContain(">John 1:14</a>");
+  });
+});
+
+describe("topic rows", () => {
+  test("topics, set, and folder queries open the panel", () => {
+    expect(topicsQueryOpens("topics")).toBe(true);
+    expect(topicsQueryOpens("set")).toBe(true);
+    expect(topicsQueryOpens("folder")).toBe(true);
+    expect(topicsQueryOpens(null)).toBe(false);
+    expect(topicsQueryOpens("")).toBe(false);
+    expect(topicsQueryOpens("note")).toBe(false);
+  });
+
+  test("a collapsed row is the title and the count, and the editor keeps every chip", () => {
+    const html = verseGroupCardHtml({
+      hub: "eph.2.8",
+      hubLabel: "Ephesians 2:8",
+      star: "",
+      title: "By grace",
+      autoTitled: true,
+      description: "Grace, not a wage.",
+      members: [
+        { slug: "eph.2.8", label: "Ephesians 2:8", role: "hub" },
+        { slug: "eph.2.9", label: "Ephesians 2:9", role: "member" },
+        { slug: "rom.3.23", label: "Romans 3:23", role: "member" },
+        { slug: "rom.6.23", label: "Romans 6:23", role: "member" },
+        { slug: "tit.3.5", label: "Titus 3:5", role: "member" },
+      ],
+      trigger: "star",
+      inboundCount: 0,
+      outboundCount: 4,
+      why: "This note points at 4 verses.",
+      sample: false,
+      seed: false,
+      missingPairs: [],
+      missingCount: 0,
+      undoReady: false,
+    });
+    const summary = html.slice(html.indexOf("<summary"), html.indexOf("</summary>"));
+    expect(summary).not.toContain("verse-group-mark");
+    expect(summary).not.toContain("verse-group-peek");
+    expect(summary).not.toContain('class="note-row-excerpt"');
+    expect(summary).toContain('aria-label="5 verses">5</span>');
+    expect(summary).toContain(">By grace</span>");
+    expect(summary).not.toContain("verse-peek-chip");
+    expect(summary).toContain('class="verse-group-hub">Ephesians 2:8</span>');
+    expect(summary).toContain('class="verse-group-title-edit"');
+    expect(summary).toContain("data-vg-attach");
+    expect(html).toContain(">Romans 6:23</a>");
+    expect(html).toContain('placeholder="Description"');
+    expect(html).toContain(">Grace, not a wage.</textarea>");
+  });
+
+  test("the topics section opens from the query and hides the pencil until the row is open", () => {
+    const group = {
+      hub: "psa.23.1",
+      hubLabel: "Psalm 23:1",
+      star: "",
+      title: "The shepherd",
+      autoTitled: true,
+      description: "",
+      members: [
+        { slug: "psa.23.1", label: "Psalm 23:1", role: "hub" as const },
+        { slug: "psa.23.4", label: "Psalm 23:4", role: "member" as const },
+      ],
+      trigger: "star" as const,
+      inboundCount: 0,
+      outboundCount: 1,
+      why: "This note points at 1 verse.",
+      sample: false,
+      seed: false,
+      missingPairs: [],
+      missingCount: 0,
+      undoReady: false,
+    };
+    const html = verseGroupsViewHtml([group], { open: true });
+    expect(html).toContain('id="verse-groups-view" open');
+    expect(html).toContain(">Topics</span>");
+    expect(html).not.toContain("Set rows");
+    expect(html).not.toContain("Folder list");
+    expect(html).not.toContain("verse-group-peek");
+    expect(html).toContain('aria-label="2 verses">2</span>');
+    const css = page("t", "<p>x</p>");
+    expect(css).toContain(".verse-group:not([open]) > summary .verse-group-title-actions { display: none; }");
+    expect(css).toContain(".verse-count-pill {");
+    expect(css).toContain(".verse-group > summary.verse-group-row {");
+    expect(css).toContain("min-height: 2.55rem;");
+    expect(css).toContain("#verse-groups-view .verse-group {\n        border: 1px solid color-mix(in srgb, var(--ink) 14%, transparent);");
+    expect(css).toContain("border-radius: .75rem;");
+    const desktop = css.indexOf("@media (min-width: 768px)");
+    const rowRule = css.indexOf(".verse-group > summary.verse-group-row {");
+    const phoneOnly = css.indexOf("@media (max-width: 767px)", rowRule);
+    expect(rowRule).toBeGreaterThan(-1);
+    expect(phoneOnly).toBeGreaterThan(rowRule);
+    expect(desktop).toBeGreaterThan(css.indexOf("@media (max-width: 767px)"));
+    expect(css).toContain("#verse-groups-view { --topic-inset: .8rem; }");
+    expect(css.slice(phoneOnly, phoneOnly + 2200)).toContain("padding: .28rem .55rem .28rem var(--topic-inset);");
+    expect(css.slice(phoneOnly, phoneOnly + 2200)).toContain("padding: .4rem .65rem .5rem var(--topic-inset);");
+    expect(css.slice(phoneOnly, phoneOnly + 2600)).toContain("padding: .22rem .45rem .22rem 0;");
+    expect(css).toContain("padding: 0 .08rem 0 .4rem;");
+    expect(css).toContain("padding: .16rem .12rem;");
+    expect(css.slice(desktop, desktop + 900)).toContain("padding: .2rem .5rem .2rem var(--topic-inset);");
+    expect(css.slice(desktop, desktop + 1800)).toContain("padding: .15rem .4rem .1rem var(--topic-inset);");
+    expect(css.slice(desktop, desktop + 2200)).toContain("padding: .08rem .35rem .08rem 0;");
+    expect(css.slice(desktop, desktop + 4000)).toContain("padding: 0 .04rem 0 .32rem;");
+    expect(css.slice(desktop, desktop + 4200)).toContain("padding: .02rem .22rem;");
+    expect(css.slice(desktop, desktop + 1600)).toContain("width: 1.4rem;");
+    expect(css.slice(desktop, desktop + 2200)).toContain("height: 1.45rem;");
+    expect(css.slice(desktop, desktop + 2800)).toContain("flex-direction: row;");
+    const reserved = css.indexOf("#verse-groups-view .verse-group .verse-star,\n      #verse-groups-view .verse-group .att-remove {");
+    expect(reserved).toBeGreaterThan(desktop);
+    expect(css.slice(reserved, reserved + 280)).toContain("width: 1.15rem;");
+    expect(css.slice(reserved, reserved + 280)).toContain("min-width: 1.15rem;");
+    const reservedHover = css.indexOf("#verse-groups-view .verse-group .att-item:hover .verse-star,\n      #verse-groups-view .verse-group .att-item:hover .att-remove,");
+    expect(reservedHover).toBeGreaterThan(reserved);
+    expect(css.slice(reservedHover, reservedHover + 560)).toContain("width: 1.15rem;");
+    expect(css.slice(reservedHover, reservedHover + 560)).not.toContain("width: 1.35rem;");
+    expect(verseGroupsScript()).toContain("function syncPeek");
+    expect(verseGroupsScript()).toContain('location.hash === "#groups"');
+    expect(verseGroupsScript()).toContain('topicsQuery === "topics"');
+    expect(notesInboxScript()).toContain('groups: "Topics"');
   });
 });
 
@@ -1189,7 +1340,7 @@ describe("move a verse between groups", () => {
     });
     expect(missed.ok).toBe(false);
     if (missed.ok) return;
-    expect(missed.error).toBe("That verse group changed. Refresh and try again.");
+    expect(missed.error).toBe("That topic changed. Refresh and try again.");
   });
 
   test("a warm move or remove reads the library once and writes in one wave", async () => {

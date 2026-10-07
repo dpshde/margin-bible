@@ -191,7 +191,7 @@ ${jumpScript()}
 export function renderNotesIndex(
   notes: NoteView[],
   backSlug: string,
-  opts: { signedIn?: boolean; verseGroups?: VerseGroupView[] } = {},
+  opts: { signedIn?: boolean; verseGroups?: VerseGroupView[]; verseGroupsOpen?: boolean } = {},
 ): string {
   const signedIn = opts.signedIn ?? false;
   const verseGroups = opts.verseGroups ?? verseGroupsFromNotes(notes);
@@ -226,10 +226,10 @@ ${chapterGridHtml(gridBook, gridChapter)}
   ${jumpFormHtml()}
   ${starterChipsHtml()}
   ${bookmarksViewHtml(mirror)}
-  ${verseGroupsViewHtml(verseGroups)}
+  ${verseGroupsViewHtml(verseGroups, { open: opts.verseGroupsOpen })}
   <div id="notes-mount">${items}</div>
 </main>
-${phoneTabsHtml({ surface: "notes", readerHref: `/${escapeHtml(backSlug)}` })}
+${phoneTabsHtml({ surface: "notes", readerHref: `/${escapeHtml(backSlug)}`, groupsHref: "/notes?vg=topics#groups" })}
 <script type="application/json" id="inbox-pack-mirror">${JSON.stringify(mirror).replace(/</g, "\\u003c")}</script>
 ${restoreReaderLinkScript()}
 <script>

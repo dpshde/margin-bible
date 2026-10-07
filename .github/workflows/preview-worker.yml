@@ -7,6 +7,7 @@ on:
       - cursor/url-external-refs-d392
       - cursor/verse-group-auto-title-f072
       - cursor/mobile-native-feel-7065
+      - cursor/verse-group-treatments-10bf
   workflow_dispatch:
 
 permissions:

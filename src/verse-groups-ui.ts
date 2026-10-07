@@ -1,22 +1,31 @@
 /**
  * Inbox surface for verse webs. Same chrome as Bookmarks.
- * Each web is a bookmark row that opens onto its member chips.
+ * A collapsed topic is a title and a count. Opening it shows the editor.
  */
 import { escapeHtml } from "./html";
 import { notesCollectionHtml } from "./inbox-ui";
 import type { ExternalRef, VerseGroupMember, VerseGroupView } from "./verse-groups";
 import { hrefForXref } from "./xref";
 
-export function verseGroupsViewHtml(groups: readonly VerseGroupView[]): string {
-  const body = groups.length
+/** `?vg=topics` opens the Topics panel. Older set/folder links still do too. */
+export function topicsQueryOpens(raw: string | null | undefined): boolean {
+  return raw === "topics" || raw === "set" || raw === "folder";
+}
+
+export function verseGroupsViewHtml(
+  groups: readonly VerseGroupView[],
+  opts: { open?: boolean } = {},
+): string {
+  const list = groups.length
     ? `<ul class="note-list">${groups.map((group) => `<li>${verseGroupCardHtml(group)}</li>`).join("")}</ul>`
-    : `<p class="empty">No verse groups yet — link 2+ notes to a hub</p>`;
+    : `<p class="empty">No topics yet. Link 2+ notes to a hub</p>`;
   return `${notesCollectionHtml({
     id: "verse-groups-view",
-    label: "Verse groups",
+    label: "Topics",
     icon: verseGroupsIcon(),
     panelId: "verse-groups-panel",
-    body,
+    body: list,
+    open: opts.open,
   })}${attachDialogHtml()}`;
 }
 
@@ -32,9 +41,10 @@ export function verseGroupCardHtml(group: VerseGroupView, status = ""): string {
   const chips = memberChips + linkChips;
   const saved = group.title.trim();
   const rowTitle = saved || group.hubLabel;
-  const excerpt = saved && saved !== group.hubLabel ? group.hubLabel : "";
-  return `<details class="verse-group" data-hub="${escapeHtml(group.hub)}" data-hub-label="${escapeHtml(group.hubLabel)}" data-star="${escapeHtml(star)}" data-sample="${group.sample ? "1" : "0"}" data-seed="${group.seed ? "1" : "0"}" data-auto-titled="${group.autoTitled ? "1" : "0"}">
-  <summary class="note-row"><span class="note-row-title" data-title="${escapeHtml(saved)}" contenteditable="false">${escapeHtml(rowTitle)}</span><span class="verse-group-title-actions"><button type="button" class="verse-group-title-edit" aria-label="Edit title" title="Edit title">${iconNotePencil()}</button><button type="button" class="tray-attach vg-attach-phone" data-vg-attach aria-label="Attach a link or passage" title="Attach">${iconPaperclip()}</button></span>${excerpt ? `<span class="note-row-excerpt">${escapeHtml(excerpt)}</span>` : ""}<span class="verse-group-hub">${escapeHtml(group.hubLabel)}</span></summary>
+  const count = group.members.length;
+  const countLabel = count === 1 ? "1 verse" : `${count} verses`;
+  return `<details class="verse-group" data-hub="${escapeHtml(group.hub)}" data-hub-label="${escapeHtml(group.hubLabel)}" data-star="${escapeHtml(star)}" data-sample="${group.sample ? "1" : "0"}" data-seed="${group.seed ? "1" : "0"}" data-auto-titled="${group.autoTitled ? "1" : "0"}" data-member-count="${count}">
+  <summary class="note-row verse-group-row"><span class="verse-group-copy"><span class="verse-group-head"><span class="note-row-title" data-title="${escapeHtml(saved)}" contenteditable="false">${escapeHtml(rowTitle)}</span><span class="verse-group-title-actions"><button type="button" class="verse-group-title-edit" aria-label="Edit title" title="Edit title">${iconNotePencil()}</button><button type="button" class="tray-attach vg-attach-phone" data-vg-attach aria-label="Attach a link or passage" title="Attach">${iconPaperclip()}</button></span></span></span><span class="verse-count-pill" aria-label="${escapeHtml(countLabel)}">${count}</span><span class="verse-group-hub">${escapeHtml(group.hubLabel)}</span></summary>
   <form class="verse-group-form">
     <div class="verse-group-fields">
       <textarea id="vg-description-${field}" class="verse-group-description" name="description" rows="1" maxlength="2000" placeholder="Description" aria-label="Description" autocomplete="off">${escapeHtml(group.description)}</textarea>
@@ -66,7 +76,11 @@ export function verseGroupsScript(): string {
     view.open = Boolean(open);
   }
 
-  if (location.hash === "#verse-groups") setOpen(true);
+  if (location.hash === "#verse-groups" || location.hash === "#groups") setOpen(true);
+  try {
+    var topicsQuery = new URLSearchParams(location.search).get("vg");
+    if (topicsQuery === "topics" || topicsQuery === "set" || topicsQuery === "folder") setOpen(true);
+  } catch (err) {}
   try {
     if (sessionStorage.getItem(OPEN_KEY) === "1") {
       sessionStorage.removeItem(OPEN_KEY);
@@ -478,6 +492,7 @@ export function verseGroupsScript(): string {
     item.remove();
     blurRemovedMember(card, null);
     if ((card.getAttribute("data-star") || "") === slug) paintStar(card, "");
+    syncPeek(card);
   }
 
   function applyMemberMove(fromCard, toCard, slug) {
@@ -491,15 +506,20 @@ export function verseGroupsScript(): string {
       var copy = item.cloneNode(true);
       clearPressed(copy);
       list.appendChild(copy);
+      syncPeek(toCard);
       return;
     }
     if ((fromCard.getAttribute("data-star") || "") === slug) paintStar(fromCard, "");
     if (memberItem(toCard, slug)) {
       item.remove();
+      syncPeek(fromCard);
+      syncPeek(toCard);
       return;
     }
     clearPressed(item);
     list.appendChild(item);
+    syncPeek(fromCard);
+    syncPeek(toCard);
   }
 
   function dropCard(card) {
@@ -876,6 +896,16 @@ export function verseGroupsScript(): string {
     quietMemberHover(card);
     if (!moved) return;
     for (var n = 0; n < ordered.length; n += 1) board.appendChild(ordered[n]);
+    syncPeek(card);
+  }
+
+  function syncPeek(card) {
+    var pill = card.querySelector(".verse-count-pill");
+    if (!pill) return;
+    var chips = card.querySelectorAll(".verse-group-members a.att-chip.wiki");
+    var count = chips.length;
+    pill.textContent = String(count);
+    pill.setAttribute("aria-label", count === 1 ? "1 verse" : count + " verses");
   }
 
   function guardTitleToggle(card) {
@@ -930,18 +960,7 @@ export function verseGroupsScript(): string {
     if (!keepText && !editing) el.textContent = title || hubLabel;
     var summary = card.querySelector("summary.note-row");
     var excerpt = summary && summary.querySelector(".note-row-excerpt");
-    if (title && hubLabel && title !== hubLabel) {
-      if (!excerpt && summary) {
-        excerpt = document.createElement("span");
-        excerpt.className = "note-row-excerpt";
-        var hub = summary.querySelector(".verse-group-hub");
-        if (hub) summary.insertBefore(excerpt, hub);
-        else summary.appendChild(excerpt);
-      }
-      if (excerpt) excerpt.textContent = hubLabel;
-    } else if (excerpt) {
-      excerpt.remove();
-    }
+    if (excerpt) excerpt.remove();
   }
 
   function writeTitle(card, title) {
@@ -1224,7 +1243,7 @@ function attachDialogHtml(): string {
     <div class="att-drop-zone" id="vg-att-drop-zone">
       <p class="att-drop-check" id="vg-att-drop-check" hidden>✓</p>
       <p class="att-drop-title" id="vg-att-drop-title">Drop a link. Or a passage.</p>
-      <p class="att-drop-sub" id="vg-att-drop-sub">Paste a URL, or type John 3:16. A link stays on this group as a chip. A passage joins the verses.</p>
+      <p class="att-drop-sub" id="vg-att-drop-sub">Paste a URL, or type John 3:16. A link stays on this topic as a chip. A passage joins the verses.</p>
       <label class="sr-only" for="vg-att-drop-input">Link or passage</label>
       <div class="att-drop-field">
         <input id="vg-att-drop-input" class="att-drop-input" type="text" autocomplete="off" spellcheck="false" placeholder="https://…  or  Romans 8:28" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="vg-att-drop-suggest">
