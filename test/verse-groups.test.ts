@@ -257,7 +257,14 @@ describe("preview worker publish", () => {
     expect(config).toContain('name: "margin-bible"');
     expect(config).not.toContain("margin-bible-verse-groups");
     expect(config).not.toContain("PREVIEW_SEED");
+    expect(config).toContain('id: "0f48d232-f2d8-46c2-a8a3-3b36c4279feb"');
+    expect(config).not.toContain("e2d569dc-99f1-432c-899e-a1f9bf174cbf");
     expect(script).toContain('PREVIEW_SEED: bindings.text("1")');
+    expect(script).toContain("e2d569dc-99f1-432c-899e-a1f9bf174cbf");
+    expect(script).toContain("margin-bible-preview");
+    expect(script).toContain("preview config still references prod D1");
+    expect(script).toContain("cookieless preview GET minted a session");
+    expect(script).not.toContain("expected the D1 binding name to stay margin-bible");
     expect(script).not.toContain("railway");
     expect(workflow).not.toContain("railway");
     expect(existsSync(new URL("../Dockerfile", import.meta.url))).toBe(false);
@@ -951,6 +958,7 @@ describe("automatic verse group titles", () => {
     const notes = [note("jhn.1.1", [xref("jhn.1.14"), xref("jhn.1.3")])];
     const named = await loadVerseGroups(db, "lib", notes);
     expect(named[0]?.title).toBe("The Word made flesh");
+    // A saved title stays locked in the view. GET does not write auto_titled back.
     expect(named[0]?.autoTitled).toBe(true);
 
     let calls = 0;
@@ -1377,7 +1385,7 @@ describe("move a verse between groups", () => {
     });
     expect(moved.ok).toBe(true);
     const moveQueries = queries;
-    // Two D1 batches: notes+meta, then the title backfill with the xref writes.
+    // One D1 batch for the xref writes. GET does not backfill auto_titled.
     // The old path listed the library again for every hub check and every xref.
     expect(removeQueries).toBeLessThanOrEqual(8);
     expect(moveQueries).toBeLessThanOrEqual(9);

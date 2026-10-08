@@ -1,10 +1,11 @@
 /**
  * Preview-only guest library seed.
  *
- * The preview worker sets PREVIEW_SEED=1. A guest with no verse group yet
- * gets a handful of real notes, each pointing at two or more verses, so the
- * inbox can show webs on first open. Signed-in libraries are left alone.
- * There is no "Save sample" control.
+ * The preview worker sets PREVIEW_SEED=1 and D1_DATABASE_ID to the preview
+ * database. A guest with no verse group yet gets a handful of real notes on
+ * the first note or verse-group write, not on a cookieless view. Signed-in
+ * libraries are left alone. There is no "Save sample" control. Seed refuses
+ * to run unless that id is margin-bible-preview.
  *
  * A saved title is left as typed. An empty title is named once, automatically,
  * from the verse texts via TypeSafe Jev (TYPESAFE_API_KEY). That pass does
@@ -16,6 +17,31 @@ import type { NoteDraft } from "./notes";
 import { parsePassage, passageOsis, passageSlug } from "./passage";
 import { handleVerseGroupAction } from "./verse-groups-store";
 import { realVerseGroups, type GroupNote } from "./verse-groups";
+
+/** Production margin-bible D1. Preview seed must never write this database. */
+export const PROD_D1_ID = "0f48d232-f2d8-46c2-a8a3-3b36c4279feb";
+/** Dedicated preview D1 `margin-bible-preview`. The only database seed may write. */
+export const PREVIEW_D1_ID = "e2d569dc-99f1-432c-899e-a1f9bf174cbf";
+
+export type PreviewSeedEnv = {
+  PREVIEW_SEED?: string;
+  /** Text binding set by scripts/preview-worker.sh to the D1 id it actually bound. */
+  D1_DATABASE_ID?: string;
+};
+
+let previewSeedRefusalLogged = false;
+
+/**
+ * Seed runs only when PREVIEW_SEED=1 and D1_DATABASE_ID is the preview database.
+ * PREVIEW_SEED against the prod id, or against any other id, is refused.
+ * An unset seed flag is a skip (production).
+ */
+export function previewSeedDecision(env: PreviewSeedEnv | undefined): "allow" | "skip" | "refuse" {
+  if (env?.PREVIEW_SEED !== "1") return "skip";
+  const id = (env.D1_DATABASE_ID ?? "").trim();
+  if (id === PREVIEW_D1_ID) return "allow";
+  return "refuse";
+}
 
 type SeedWeb = {
   hub: string;
@@ -137,7 +163,21 @@ export async function seedPreviewVerseGroups(
   db: D1Database,
   libraryId: string,
   notes: readonly GroupNote[],
+  env?: PreviewSeedEnv,
 ): Promise<boolean> {
+  const decision = previewSeedDecision(env);
+  if (decision !== "allow") {
+    if (decision === "refuse" && !previewSeedRefusalLogged) {
+      previewSeedRefusalLogged = true;
+      console.error(
+        JSON.stringify({
+          msg: "preview_seed_refused",
+          reason: "PREVIEW_SEED is set but D1_DATABASE_ID is not margin-bible-preview",
+        }),
+      );
+    }
+    return false;
+  }
   if (!previewSeedNeeded(notes)) return false;
   for (const note of previewSeedNotes()) {
     await saveNote(db, libraryId, note);

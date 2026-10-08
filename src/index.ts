@@ -3,6 +3,7 @@ import type { AuthenticationResponseJSON, RegistrationResponseJSON } from "@simp
 import {
   clearAuthCookie,
   clearLibraryCookie,
+  clearSessionCookie,
   clientIp,
   normalizeLabel,
   readSessionCookie,
@@ -40,9 +41,20 @@ import {
 } from "./passkeys";
 import { chapterSlug, createPassage, lazyChapterNotes, parsePassage, passageLabel, passageSlug, type Passage } from "./passage";
 import { renderChapterPage, renderMissing, renderNotesIndex } from "./reader-page";
-import { seedPreviewVerseGroups } from "./preview-seed";
+import { previewSeedDecision, seedPreviewVerseGroups } from "./preview-seed";
+import {
+  HA_PERIOD_SEC,
+  PUBLIC_API_PERIOD_SEC,
+  SUGGEST_TITLE_PERIOD_SEC,
+  haRateKey,
+  publicApiRateKey,
+  rateLimitedResponse,
+  suggestRateKey,
+  takeRateLimit,
+  type RateLimitBinding,
+} from "./rate-limit";
 import { resolveLinkTitle } from "./link-title";
-import { handleVerseGroupAction, loadVerseGroups } from "./verse-groups-store";
+import { handleVerseGroupAction, isVerseGroupMutation, loadVerseGroups } from "./verse-groups-store";
 import { suggestVerseGroupTopic } from "./verse-topic";
 import { topicsQueryOpens, verseGroupCardHtml } from "./verse-groups-ui";
 import type { ChapterPack } from "./usj";
@@ -72,11 +84,16 @@ export type Env = {
   TYPESAFE_API_KEY?: string;
   /** Preview worker only. Guest libraries with no web get a few real hubs. */
   PREVIEW_SEED?: string;
+  /** Preview worker only. Must be the preview D1 id or seed is refused. */
+  D1_DATABASE_ID?: string;
+  HA_RATE_LIMIT?: RateLimitBinding;
+  SUGGEST_RATE_LIMIT?: RateLimitBinding;
+  PUBLIC_API_RATE_LIMIT?: RateLimitBinding;
 };
 
 type Variables = {
-  libraryId: string;
-  sessionId: string;
+  libraryId: string | null;
+  sessionId: string | null;
   signedIn: boolean;
   sessionCookieSet?: boolean;
 };
@@ -94,7 +111,9 @@ async function loginHtml(
   } = {},
 ): Promise<string> {
   const enabled = passkeySettings(c.env, c.req.url) !== null;
-  const savedPasskeys = enabled && c.get("signedIn") ? await listPasskeys(c.env.DB, c.get("libraryId")) : [];
+  const libraryId = c.get("libraryId");
+  const savedPasskeys =
+    enabled && c.get("signedIn") && libraryId ? await listPasskeys(c.env.DB, libraryId) : [];
   return renderLoginPage({
     ...input,
     signedIn: c.get("signedIn"),
@@ -103,42 +122,86 @@ async function loginHtml(
   });
 }
 
+function sessionExempt(path: string): boolean {
+  return (
+    path === "/health" ||
+    path === "/mcp" ||
+    path === "/api/ha-search" ||
+    path === "/api/ha-suggest" ||
+    path === "/api/keyword-corpus" ||
+    path.startsWith("/bsb/") ||
+    path.startsWith("/vendor/") ||
+    isPwaAssetPath(path)
+  );
+}
+
 app.use("*", async (c, next) => {
-  if (
-    c.req.path === "/health" ||
-    c.req.path === "/mcp" ||
-    c.req.path === "/api/ha-search" ||
-    c.req.path === "/api/ha-suggest" ||
-    c.req.path === "/api/keyword-corpus" ||
-    c.req.path.startsWith("/bsb/") ||
-    c.req.path.startsWith("/vendor/") ||
-    isPwaAssetPath(c.req.path)
-  ) {
+  const secure = new URL(c.req.url).protocol === "https:";
+  const header = c.req.header("Cookie") ?? null;
+  if (sessionExempt(c.req.path)) {
+    c.set("libraryId", null);
+    c.set("sessionId", null);
+    c.set("signedIn", false);
     await next();
     return;
   }
-  const secure = new URL(c.req.url).protocol === "https:";
-  const header = c.req.header("Cookie") ?? null;
   const existing = readSessionCookie(header);
-  let session = existing ? await readSession(c.env.DB, existing) : null;
-  let createdSession: string | null = null;
-  if (!session) {
-    const libraryId = await createGuestLibrary(c.env.DB);
-    createdSession = await createSession(c.env.DB, libraryId);
-    session = { id: createdSession, libraryId, bound: false };
+  const session = existing ? await readSession(c.env.DB, existing) : null;
+  if (session) {
+    c.set("libraryId", session.libraryId);
+    c.set("sessionId", session.id);
+    c.set("signedIn", session.bound);
+  } else {
+    c.set("libraryId", null);
+    c.set("sessionId", null);
+    c.set("signedIn", false);
   }
-  c.set("libraryId", session.libraryId);
-  c.set("sessionId", session.id);
-  c.set("signedIn", session.bound);
   await next();
-  if (createdSession && !c.get("sessionCookieSet")) {
-    c.header("Set-Cookie", sessionCookie(createdSession, secure), { append: true });
-  }
   if (requestHasLegacyAuthCookie(header)) {
     c.header("Set-Cookie", clearLibraryCookie(secure), { append: true });
     c.header("Set-Cookie", clearAuthCookie(secure), { append: true });
   }
 });
+
+app.use("/api/*", async (c, next) => {
+  const ip = clientIp(c.req.header("CF-Connecting-IP") ?? null);
+  const path = c.req.path;
+  if (path === "/api/ha-search" || path === "/api/ha-suggest") {
+    const allowed = await takeRateLimit(c.env.HA_RATE_LIMIT, haRateKey(ip));
+    if (!allowed) {
+      return rateLimitedResponse(HA_PERIOD_SEC, "Too many scripture searches. Try again in a minute.");
+    }
+  }
+  const allowed = await takeRateLimit(c.env.PUBLIC_API_RATE_LIMIT, publicApiRateKey(ip));
+  if (!allowed) {
+    return rateLimitedResponse(PUBLIC_API_PERIOD_SEC, "Too many requests. Try again in a minute.");
+  }
+  await next();
+});
+
+/** First write for a cookieless browser. Views do not call this. */
+async function ensureGuest(c: AppContext): Promise<{ libraryId: string; sessionId: string }> {
+  const libraryId = c.get("libraryId");
+  const sessionId = c.get("sessionId");
+  if (libraryId && sessionId) return { libraryId, sessionId };
+  const createdLibrary = await createGuestLibrary(c.env.DB);
+  const createdSession = await createSession(c.env.DB, createdLibrary);
+  c.set("libraryId", createdLibrary);
+  c.set("sessionId", createdSession);
+  c.set("signedIn", false);
+  c.set("sessionCookieSet", true);
+  const secure = new URL(c.req.url).protocol === "https:";
+  c.header("Set-Cookie", sessionCookie(createdSession, secure), { append: true });
+  return { libraryId: createdLibrary, sessionId: createdSession };
+}
+
+async function maybeSeedPreview(c: AppContext, libraryId: string): Promise<void> {
+  if (c.get("signedIn")) return;
+  const decision = previewSeedDecision(c.env);
+  if (decision === "skip") return;
+  const notes = decision === "allow" ? await listNotes(c.env.DB, libraryId) : [];
+  await seedPreviewVerseGroups(c.env.DB, libraryId, notes, c.env);
+}
 
 app.get("/health", (c) => c.json({ ok: true, app: "margin-bible", version: "2026.10.07.57" }));
 
@@ -176,14 +239,15 @@ app.post("/login", async (c) => {
   const page = async (error: string, status: 422 | 429 | 500, confirmCreate = false) =>
     c.html(await loginHtml(c, { error, next, confirmCreate }), status);
   if (!check.ok) return page(check.error, 422);
+  const guest = await ensureGuest(c);
   const result = await performLogin(c.env.DB, {
     pepper: c.env.AUTH_PEPPER ?? "",
     passphrase: check.passphrase,
     label: normalizeLabel(form.label),
     claimToken: typeof form.claim === "string" ? form.claim : "",
     confirmCreate: form.confirm_create === "1",
-    currentLibraryId: c.get("libraryId"),
-    currentSessionId: c.get("sessionId"),
+    currentLibraryId: guest.libraryId,
+    currentSessionId: guest.sessionId,
     ip: clientIp(c.req.header("CF-Connecting-IP") ?? null),
   });
   if (!result.ok) return page(result.error, result.status, result.confirmCreate);
@@ -195,14 +259,18 @@ app.post("/login/passphrase", async (c) => {
   const next = safeNext(typeof form.next === "string" ? form.next : "/");
   const page = async (error: string, status: 422 | 429 | 500) =>
     c.html(await loginHtml(c, { error, next, openPassphrase: true }), status);
-  if (!c.get("signedIn")) return page("Sign in before changing the passphrase.", 422);
+  const signedLibrary = c.get("libraryId");
+  const signedSession = c.get("sessionId");
+  if (!c.get("signedIn") || !signedLibrary || !signedSession) {
+    return page("Sign in before changing the passphrase.", 422);
+  }
   const result = await performPassphraseChange(c.env.DB, {
     pepper: c.env.AUTH_PEPPER ?? "",
     currentPassphrase: typeof form.current_passphrase === "string" ? form.current_passphrase : "",
     passphrase: typeof form.passphrase === "string" ? form.passphrase : "",
     confirmPassphrase: typeof form.confirm_passphrase === "string" ? form.confirm_passphrase : "",
-    libraryId: c.get("libraryId"),
-    currentSessionId: c.get("sessionId"),
+    libraryId: signedLibrary,
+    currentSessionId: signedSession,
     ip: clientIp(c.req.header("CF-Connecting-IP") ?? null),
   });
   if (!result.ok) return page(result.error, result.status);
@@ -210,29 +278,33 @@ app.post("/login/passphrase", async (c) => {
 });
 
 app.post("/login/passkey/delete", async (c) => {
-  if (!c.get("signedIn")) {
+  const passkeyLibrary = c.get("libraryId");
+  if (!c.get("signedIn") || !passkeyLibrary) {
     return c.html(await loginHtml(c, { error: "Sign in before removing a passkey.", next: "/" }), 422);
   }
   const form = await c.req.parseBody();
   const credentialId = typeof form.credential_id === "string" ? form.credential_id : "";
-  const removed = await deletePasskey(c.env.DB, c.get("libraryId"), credentialId);
+  const removed = await deletePasskey(c.env.DB, passkeyLibrary, credentialId);
   return c.redirect(`/login?passkey=${removed ? "removed" : "missing"}`, 303);
 });
 
 app.post("/logout", async (c) => {
   const form = await c.req.parseBody().catch(() => ({} as Record<string, unknown>));
   const next = safeNext(typeof form.next === "string" ? form.next : "/");
-  await deleteSession(c.env.DB, c.get("sessionId"));
-  const libraryId = await createGuestLibrary(c.env.DB);
-  const sessionId = await createSession(c.env.DB, libraryId);
-  return redirectWithSession(c, next, sessionId);
+  const sessionId = c.get("sessionId");
+  if (sessionId) await deleteSession(c.env.DB, sessionId);
+  const secure = new URL(c.req.url).protocol === "https:";
+  c.set("sessionCookieSet", true);
+  c.header("Set-Cookie", clearSessionCookie(secure), { append: true });
+  return c.redirect(next, 303);
 });
 
 app.post("/api/passkey/register/options", async (c) => {
   const settings = passkeySettings(c.env, c.req.url);
   if (!settings) return c.json({ ok: false, error: "Passkeys are not available on this host." }, 404);
   try {
-    const { options, challengeId } = await registrationOptions(c.env.DB, settings, c.get("libraryId"));
+    const guest = await ensureGuest(c);
+    const { options, challengeId } = await registrationOptions(c.env.DB, settings, guest.libraryId);
     const secure = new URL(c.req.url).protocol === "https:";
     c.header("Set-Cookie", challengeCookie(challengeId, secure), { append: true });
     return c.json({ ok: true, options });
@@ -247,11 +319,12 @@ app.post("/api/passkey/register/verify", async (c) => {
   if (!settings) return c.json({ ok: false, error: "Passkeys are not available on this host." }, 404);
   const secure = new URL(c.req.url).protocol === "https:";
   try {
+    const guest = await ensureGuest(c);
     const body = await c.req.json<RegistrationResponseJSON>();
     await verifyRegistration(
       c.env.DB,
       settings,
-      c.get("libraryId"),
+      guest.libraryId,
       readChallengeCookie(c.req.header("Cookie") ?? null),
       body,
     );
@@ -319,9 +392,11 @@ export function homeLocation(slug: string | null | undefined, q: string | null |
 }
 
 app.get("/", async (c) => {
+  const libraryId = c.get("libraryId");
+  if (!libraryId) return c.redirect(homeLocation(null, c.req.query("q")), 302);
   const library = await c.env.DB
     .prepare("SELECT last_read_slug FROM libraries WHERE id = ?")
-    .bind(c.get("libraryId"))
+    .bind(libraryId)
     .first<{ last_read_slug: string | null }>();
   return c.redirect(homeLocation(library?.last_read_slug, c.req.query("q")), 302);
 });
@@ -413,6 +488,7 @@ app.get("/export", async (c) => {
     return c.redirect(`/login?next=${encodeURIComponent("/export")}`, 302);
   }
   const libraryId = c.get("libraryId");
+  if (!libraryId) return c.redirect(`/login?next=${encodeURIComponent("/export")}`, 302);
   const [library, notes] = await Promise.all([
     c.env.DB
       .prepare("SELECT last_read_slug FROM libraries WHERE id = ?")
@@ -443,14 +519,16 @@ app.get("/inbox", (c) => c.redirect("/notes", 302));
 
 app.get("/notes", async (c) => {
   const libraryId = c.get("libraryId");
-  const [library, notes] = await Promise.all([
-    c.env.DB
-      .prepare("SELECT last_read_slug FROM libraries WHERE id = ?")
-      .bind(libraryId)
-      .first<{ last_read_slug: string | null }>(),
-    notesForInbox(c),
-  ]);
-  const verseGroups = await loadVerseGroups(c.env.DB, libraryId, notes);
+  const [library, notes] = libraryId
+    ? await Promise.all([
+        c.env.DB
+          .prepare("SELECT last_read_slug FROM libraries WHERE id = ?")
+          .bind(libraryId)
+          .first<{ last_read_slug: string | null }>(),
+        listNotes(c.env.DB, libraryId),
+      ])
+    : [null, [] as Awaited<ReturnType<typeof listNotes>>];
+  const verseGroups = libraryId ? await loadVerseGroups(c.env.DB, libraryId, notes) : [];
   const rawTopics = c.req.query("vg");
   return c.html(
     renderNotesIndex(notes, safeBack(library?.last_read_slug || "jhn.1"), {
@@ -471,9 +549,10 @@ app.get("/api/link-title", async (c) => {
 
 app.get("/api/verse-groups", async (c) => {
   const libraryId = c.get("libraryId");
-  const notes = await notesForInbox(c);
-  const groups = await loadVerseGroups(c.env.DB, libraryId, notes);
   c.header("cache-control", "private, no-store");
+  if (!libraryId) return c.json({ ok: true, groups: [] });
+  const notes = await listNotes(c.env.DB, libraryId);
+  const groups = await loadVerseGroups(c.env.DB, libraryId, notes);
   return c.json({ ok: true, groups });
 });
 
@@ -482,15 +561,27 @@ app.post("/api/verse-groups", async (c) => {
   const record = body && typeof body === "object" ? (body as Record<string, unknown>) : null;
   c.header("cache-control", "private, no-store");
   if (record?.action === "suggest-title") {
+    const ip = clientIp(c.req.header("CF-Connecting-IP") ?? null);
+    const burst = await takeRateLimit(c.env.SUGGEST_RATE_LIMIT, suggestRateKey(ip, c.get("sessionId")));
+    if (!burst) {
+      return rateLimitedResponse(SUGGEST_TITLE_PERIOD_SEC, "Too many title suggestions. Try again in a minute.");
+    }
+    const guest = await ensureGuest(c);
     const suggested = await suggestVerseGroupTopic({
       db: c.env.DB,
       assets: c.env.ASSETS,
-      libraryId: c.get("libraryId"),
+      libraryId: guest.libraryId,
       hub: typeof record.hub === "string" ? record.hub : "",
       apiKey: c.env.TYPESAFE_API_KEY,
       postedTitle: record.title,
+      clientIp: ip,
     });
-    if (!suggested.ok) return c.json({ ok: false, error: suggested.error }, suggested.status);
+    if (!suggested.ok) {
+      if (suggested.status === 429) {
+        return rateLimitedResponse(suggested.retryAfterSec ?? SUGGEST_TITLE_PERIOD_SEC, suggested.error);
+      }
+      return c.json({ ok: false, error: suggested.error }, suggested.status);
+    }
     return c.json({
       ok: true,
       status: "",
@@ -500,7 +591,12 @@ app.post("/api/verse-groups", async (c) => {
       skipped: suggested.skipped ?? null,
     });
   }
-  const result = await handleVerseGroupAction(c.env.DB, c.get("libraryId"), body);
+  if (!isVerseGroupMutation(record)) {
+    return c.json({ ok: false, error: record ? "unknown action" : "invalid json" }, 422);
+  }
+  const guest = await ensureGuest(c);
+  await maybeSeedPreview(c, guest.libraryId);
+  const result = await handleVerseGroupAction(c.env.DB, guest.libraryId, body);
   if (!result.ok) return c.json({ ok: false, error: result.error }, result.status);
   return c.json({
     ok: true,
@@ -513,7 +609,9 @@ app.post("/api/verse-groups", async (c) => {
 });
 
 app.get("/api/notes", async (c) => {
-  const queried = await notesForQuery(c.env.DB, c.get("libraryId"), c.req.query("chapter"), c.req.query("verse"));
+  const libraryId = c.get("libraryId");
+  if (!libraryId) return c.json({ ok: true, notes: [], signedIn: false });
+  const queried = await notesForQuery(c.env.DB, libraryId, c.req.query("chapter"), c.req.query("verse"));
   if (!queried.ok) return c.json({ ok: false, error: queried.error }, 422);
   return c.json({ ok: true, notes: queried.notes.map(noteJson), signedIn: c.get("signedIn") });
 });
@@ -532,10 +630,11 @@ app.get("/:slug", async (c) => {
   const xrefArrival = c.req.query("xref") === "1";
   const eagerNotes = !lazyChapterNotes(passage) || chapterNoteOpen;
   const packPromise = loadChapter(c.env.ASSETS, passage);
-  const notesPromise = eagerNotes
-    ? notesForQuery(c.env.DB, libraryId, chapterSlug(passage), undefined)
-    : Promise.resolve(null);
-  if (!isDocumentPrefetch((name) => c.req.header(name))) {
+  const notesPromise =
+    libraryId && eagerNotes
+      ? notesForQuery(c.env.DB, libraryId, chapterSlug(passage), undefined)
+      : Promise.resolve(null);
+  if (libraryId && !isDocumentPrefetch((name) => c.req.header(name))) {
     c.executionCtx.waitUntil(rememberRead(c.env.DB, libraryId, slug).catch(() => {}));
   }
   const [pack, queried] = await Promise.all([packPromise, notesPromise]);
@@ -563,7 +662,9 @@ async function upsert(c: AppContext, formPost: boolean): Promise<Response> {
   if (!passage) return fail(c, formPost, 422, "unresolvable");
   const input = await readNoteInput(c);
   if ("error" in input && input.error) return fail(c, formPost, 422, input.error);
-  const libraryId = c.get("libraryId");
+  const guest = await ensureGuest(c);
+  await maybeSeedPreview(c, guest.libraryId);
+  const libraryId = guest.libraryId;
   const existing = await findNote(c.env.DB, libraryId, passageSlug(passage));
   const ids = () => `b_${crypto.randomUUID().replaceAll("-", "").slice(0, 8)}`;
   const draft = draftNote(
@@ -699,16 +800,6 @@ async function servePwaIcon(c: AppContext): Promise<Response> {
       "cache-control": "public, max-age=86400",
     },
   });
-}
-
-async function notesForInbox(c: AppContext): Promise<Awaited<ReturnType<typeof listNotes>>> {
-  const libraryId = c.get("libraryId");
-  let notes = await listNotes(c.env.DB, libraryId);
-  if (c.env.PREVIEW_SEED === "1" && !c.get("signedIn")) {
-    const seeded = await seedPreviewVerseGroups(c.env.DB, libraryId, notes);
-    if (seeded) notes = await listNotes(c.env.DB, libraryId);
-  }
-  return notes;
 }
 
 async function loadChapter(assets: Fetcher, passage: Passage): Promise<ChapterPack | null> {

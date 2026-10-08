@@ -10,14 +10,21 @@
 import { nearestVerseTopic } from "./jev";
 import { listNotes } from "./library";
 import { canonSlug, cleanGroupTitle, NOT_A_VERSE_GROUP, type VerseGroupView } from "./verse-groups";
-import { claimOpenTitle, loadVerseGroups, markVerseGroupAutoTitled, saveAutoTitle } from "./verse-groups-store";
+import { consumeSuggestTitleQuota } from "./suggest-title-cap";
+import {
+  claimOpenTitle,
+  ensureVerseGroupsTable,
+  loadVerseGroups,
+  markVerseGroupAutoTitled,
+  saveAutoTitle,
+} from "./verse-groups-store";
 import { bsbLinesForSlugs, type AssetFetch } from "./verse-text";
 
 export type TopicSkip = "already" | "no-key" | "no-topic" | "unavailable";
 
 export type TopicSuggestion =
   | { ok: true; topic: string; group: VerseGroupView; skipped?: TopicSkip }
-  | { ok: false; status: 422; error: string };
+  | { ok: false; status: 422 | 429; error: string; retryAfterSec?: number };
 
 export async function suggestVerseGroupTopic(input: {
   db: D1Database;
@@ -27,8 +34,11 @@ export async function suggestVerseGroupTopic(input: {
   /** Title currently in the field. A non-empty value is the reader's title, so Jev is not called. */
   postedTitle?: unknown;
   apiKey?: string | null;
+  /** Connecting IP, for the per-IP daily TypeSafe cap. */
+  clientIp?: string;
   fetchImpl?: typeof fetch;
 }): Promise<TopicSuggestion> {
+  await ensureVerseGroupsTable(input.db);
   const hub = canonSlug(input.hub);
   if (!hub) return { ok: false, status: 422, error: "unresolvable hub" };
   const notes = await listNotesSafe(input.db, input.libraryId);
@@ -67,6 +77,16 @@ export async function suggestVerseGroupTopic(input: {
     group.members.map((member) => member.slug),
   );
   if (!lines.length) return { ok: true, topic: "", group, skipped: "unavailable" };
+
+  const quota = await consumeSuggestTitleQuota(input.db, input.libraryId, input.clientIp ?? "unknown");
+  if (!quota.allowed) {
+    return {
+      ok: false,
+      status: 429,
+      error: "Title suggestions for this library are capped until tomorrow.",
+      retryAfterSec: quota.retryAfterSec,
+    };
+  }
 
   const takenTitles = notes.groups.filter((row) => row.hub !== hub).map((row) => row.title);
   const topic = await nearestVerseTopic(lines, {
