@@ -44,7 +44,9 @@ export async function performLogin(
     return { ok: false, status: 429, error: "Too many attempts. Wait a few minutes and try again." };
   }
 
-  const current = await readCurrentLibrary(db, input.currentLibraryId);
+  const current = input.currentLibraryId
+    ? await readCurrentLibrary(db, input.currentLibraryId)
+    : { id: "", bound: false, noteCount: 0, label: null, webauthnUserId: null };
   if (!current) return { ok: false, status: 500, error: "This browser session has no library." };
 
   const claimToken = input.claimToken.trim();
@@ -111,12 +113,14 @@ export async function performLogin(
   if (mergeFrom) {
     await copyNotes(db, mergeFrom, libraryId);
     await deleteUnboundLibrary(db, mergeFrom);
-  } else if (current.id !== libraryId && !current.bound && current.noteCount === 0) {
+  } else if (current.id && current.id !== libraryId && !current.bound && current.noteCount === 0) {
     await deleteUnboundLibrary(db, current.id);
   }
 
   const sessionId = await createSession(db, libraryId);
-  if (sessionId !== input.currentSessionId) await deleteSession(db, input.currentSessionId);
+  if (input.currentSessionId && sessionId !== input.currentSessionId) {
+    await deleteSession(db, input.currentSessionId);
+  }
   return { ok: true, sessionId, libraryId };
 }
 

@@ -1122,7 +1122,7 @@ export function verseGroupsScript(): string {
         var message = payload.error || "Could not save.";
         if (opts && opts.member && typeof opts.undo === "function") opts.undo();
         if (auto) {
-          if (status) status.textContent = "";
+          if (status) status.textContent = payload.error || "Could not name this topic.";
           finishAuto();
           settle(false);
           return;
@@ -1185,7 +1185,7 @@ export function verseGroupsScript(): string {
       card.removeAttribute("data-save-inflight");
       if (opts && opts.member && typeof opts.undo === "function") opts.undo();
       if (auto) {
-        if (status) status.textContent = "";
+        if (status) status.textContent = "Could not name this topic.";
         finishAuto();
         settle(false);
         return;
@@ -1200,8 +1200,10 @@ export function verseGroupsScript(): string {
     var cards = panel.querySelectorAll(".verse-group");
     var queue = [];
     for (var i = 0; i < cards.length; i += 1) {
+      if (queue.length >= 10) break;
       if (cards[i].getAttribute("data-auto-titled") === "1") continue;
       if (cards[i].getAttribute("data-auto-title-started") === "1") continue;
+      if (storedTitle(cards[i])) continue;
       queue.push(cards[i]);
     }
     function run() {

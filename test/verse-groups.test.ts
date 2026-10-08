@@ -251,7 +251,10 @@ describe("preview worker publish", () => {
     expect(script).toContain('id="verse-groups-view"');
     expect(script).toContain("No topics yet. Link 2+ notes to a hub");
     expect(script).toContain("sample save is still in the preview");
-    expect(script).not.toContain("migrations apply");
+    expect(script).toContain("migrations apply");
+    expect(script).toContain('if [ "$D1_ID" != "$preview_d1_id" ]');
+    expect(script).toContain("refusing to migrate: D1_ID is not the preview database");
+    expect(script).toContain('preview_version="2026.10.08.58"');
     expect(workflow).toContain("sh scripts/preview-worker.sh");
     expect(workflow).not.toContain("refs/heads/main");
     expect(config).toContain('name: "margin-bible"');

@@ -1,4 +1,6 @@
 -- http(s) chips on a verse group. They are not verse members and not xrefs.
--- CI does not apply migrations. ensureVerseGroupsTable also adds this column.
+-- Safe to re-run. This file does not change the table shape. A new database gets
+-- external_refs from 0005, and production already has the column. The UPDATE
+-- matches no rows while the column is NOT NULL.
 
-ALTER TABLE verse_groups ADD COLUMN external_refs TEXT NOT NULL DEFAULT '[]';
+UPDATE verse_groups SET external_refs = '[]' WHERE external_refs IS NULL;

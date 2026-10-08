@@ -44,10 +44,15 @@ import { renderChapterPage, renderMissing, renderNotesIndex } from "./reader-pag
 import { previewSeedDecision, seedPreviewVerseGroups } from "./preview-seed";
 import {
   HA_PERIOD_SEC,
+  LOGIN_PERIOD_SEC,
+  MCP_PERIOD_SEC,
   PUBLIC_API_PERIOD_SEC,
   SUGGEST_TITLE_PERIOD_SEC,
   haRateKey,
+  loginRateKey,
+  mcpRateKey,
   publicApiRateKey,
+  rateLimitIp,
   rateLimitedResponse,
   suggestRateKey,
   takeRateLimit,
@@ -89,6 +94,8 @@ export type Env = {
   HA_RATE_LIMIT?: RateLimitBinding;
   SUGGEST_RATE_LIMIT?: RateLimitBinding;
   PUBLIC_API_RATE_LIMIT?: RateLimitBinding;
+  LOGIN_RATE_LIMIT?: RateLimitBinding;
+  MCP_RATE_LIMIT?: RateLimitBinding;
 };
 
 type Variables = {
@@ -163,8 +170,12 @@ app.use("*", async (c, next) => {
   }
 });
 
+function connectingIp(header: string | null): string {
+  return rateLimitIp(clientIp(header));
+}
+
 app.use("/api/*", async (c, next) => {
-  const ip = clientIp(c.req.header("CF-Connecting-IP") ?? null);
+  const ip = connectingIp(c.req.header("CF-Connecting-IP") ?? null);
   const path = c.req.path;
   if (path === "/api/ha-search" || path === "/api/ha-suggest") {
     const allowed = await takeRateLimit(c.env.HA_RATE_LIMIT, haRateKey(ip));
@@ -172,9 +183,15 @@ app.use("/api/*", async (c, next) => {
       return rateLimitedResponse(HA_PERIOD_SEC, "Too many scripture searches. Try again in a minute.");
     }
   }
-  const allowed = await takeRateLimit(c.env.PUBLIC_API_RATE_LIMIT, publicApiRateKey(ip));
-  if (!allowed) {
-    return rateLimitedResponse(PUBLIC_API_PERIOD_SEC, "Too many requests. Try again in a minute.");
+  // Jump suggest is local CPU. It does not share the write budget.
+  if (path !== "/api/jump-suggest") {
+    const allowed = await takeRateLimit(
+      c.env.PUBLIC_API_RATE_LIMIT,
+      publicApiRateKey(ip, c.get("sessionId"), c.get("libraryId")),
+    );
+    if (!allowed) {
+      return rateLimitedResponse(PUBLIC_API_PERIOD_SEC, "Too many requests. Try again in a minute.");
+    }
   }
   await next();
 });
@@ -203,7 +220,7 @@ async function maybeSeedPreview(c: AppContext, libraryId: string): Promise<void>
   await seedPreviewVerseGroups(c.env.DB, libraryId, notes, c.env);
 }
 
-app.get("/health", (c) => c.json({ ok: true, app: "margin-bible", version: "2026.10.07.57" }));
+app.get("/health", (c) => c.json({ ok: true, app: "margin-bible", version: "2026.10.08.58" }));
 
 app.get("/manifest.webmanifest", () => manifestResponse());
 app.get("/manifest.json", () => manifestResponse());
@@ -235,19 +252,20 @@ app.get("/login", async (c) => {
 app.post("/login", async (c) => {
   const form = await c.req.parseBody();
   const next = safeNext(typeof form.next === "string" ? form.next : "/");
-  const check = validatePassphrase(form.passphrase);
   const page = async (error: string, status: 422 | 429 | 500, confirmCreate = false) =>
-    c.html(await loginHtml(c, { error, next, confirmCreate }), status);
+    c.html(await loginHtml(c, { error, next, confirmCreate }), status, status === 429 ? { "retry-after": String(LOGIN_PERIOD_SEC) } : {});
+  const allowed = await takeRateLimit(c.env.LOGIN_RATE_LIMIT, loginRateKey(connectingIp(c.req.header("CF-Connecting-IP") ?? null)));
+  if (!allowed) return page("Too many sign-in attempts. Try again in a minute.", 429);
+  const check = validatePassphrase(form.passphrase);
   if (!check.ok) return page(check.error, 422);
-  const guest = await ensureGuest(c);
   const result = await performLogin(c.env.DB, {
     pepper: c.env.AUTH_PEPPER ?? "",
     passphrase: check.passphrase,
     label: normalizeLabel(form.label),
     claimToken: typeof form.claim === "string" ? form.claim : "",
     confirmCreate: form.confirm_create === "1",
-    currentLibraryId: guest.libraryId,
-    currentSessionId: guest.sessionId,
+    currentLibraryId: c.get("libraryId") ?? "",
+    currentSessionId: c.get("sessionId") ?? "",
     ip: clientIp(c.req.header("CF-Connecting-IP") ?? null),
   });
   if (!result.ok) return page(result.error, result.status, result.confirmCreate);
@@ -258,7 +276,13 @@ app.post("/login/passphrase", async (c) => {
   const form = await c.req.parseBody();
   const next = safeNext(typeof form.next === "string" ? form.next : "/");
   const page = async (error: string, status: 422 | 429 | 500) =>
-    c.html(await loginHtml(c, { error, next, openPassphrase: true }), status);
+    c.html(
+      await loginHtml(c, { error, next, openPassphrase: true }),
+      status,
+      status === 429 ? { "retry-after": String(LOGIN_PERIOD_SEC) } : {},
+    );
+  const allowed = await takeRateLimit(c.env.LOGIN_RATE_LIMIT, loginRateKey(connectingIp(c.req.header("CF-Connecting-IP") ?? null)));
+  if (!allowed) return page("Too many sign-in attempts. Try again in a minute.", 429);
   const signedLibrary = c.get("libraryId");
   const signedSession = c.get("sessionId");
   if (!c.get("signedIn") || !signedLibrary || !signedSession) {
@@ -338,6 +362,8 @@ app.post("/api/passkey/register/verify", async (c) => {
 });
 
 app.post("/api/passkey/login/options", async (c) => {
+  const allowed = await takeRateLimit(c.env.LOGIN_RATE_LIMIT, loginRateKey(connectingIp(c.req.header("CF-Connecting-IP") ?? null)));
+  if (!allowed) return rateLimitedResponse(LOGIN_PERIOD_SEC, "Too many sign-in attempts. Try again in a minute.");
   const settings = passkeySettings(c.env, c.req.url);
   if (!settings) return c.json({ ok: false, error: "Passkeys are not available on this host." }, 404);
   const { options, challengeId } = await authenticationOptions(c.env.DB, settings);
@@ -347,6 +373,8 @@ app.post("/api/passkey/login/options", async (c) => {
 });
 
 app.post("/api/passkey/login/verify", async (c) => {
+  const allowed = await takeRateLimit(c.env.LOGIN_RATE_LIMIT, loginRateKey(connectingIp(c.req.header("CF-Connecting-IP") ?? null)));
+  if (!allowed) return rateLimitedResponse(LOGIN_PERIOD_SEC, "Too many sign-in attempts. Try again in a minute.");
   const settings = passkeySettings(c.env, c.req.url);
   if (!settings) return c.json({ ok: false, error: "Passkeys are not available on this host." }, 404);
   const secure = new URL(c.req.url).protocol === "https:";
@@ -477,6 +505,15 @@ app.get("/jump", (c) => {
 });
 
 // MCP Streamable HTTP (Bearer). Registered before /:slug; skips session minting.
+app.use("/mcp", async (c, next) => {
+  if (c.req.method === "OPTIONS") {
+    await next();
+    return;
+  }
+  const allowed = await takeRateLimit(c.env.MCP_RATE_LIMIT, mcpRateKey(connectingIp(c.req.header("CF-Connecting-IP") ?? null)));
+  if (!allowed) return rateLimitedResponse(MCP_PERIOD_SEC, "Too many MCP requests. Try again in a minute.");
+  await next();
+});
 app.options("/mcp", (c) => handleMcpOptions());
 app.get("/mcp", (c) => handleMcpGet(c));
 app.delete("/mcp", (c) => handleMcpDelete(c));
@@ -561,7 +598,7 @@ app.post("/api/verse-groups", async (c) => {
   const record = body && typeof body === "object" ? (body as Record<string, unknown>) : null;
   c.header("cache-control", "private, no-store");
   if (record?.action === "suggest-title") {
-    const ip = clientIp(c.req.header("CF-Connecting-IP") ?? null);
+    const ip = connectingIp(c.req.header("CF-Connecting-IP") ?? null);
     const burst = await takeRateLimit(c.env.SUGGEST_RATE_LIMIT, suggestRateKey(ip, c.get("sessionId")));
     if (!burst) {
       return rateLimitedResponse(SUGGEST_TITLE_PERIOD_SEC, "Too many title suggestions. Try again in a minute.");

@@ -60,6 +60,31 @@ describe("login decision", () => {
     ).toBe("bind-current");
   });
 
+  test("a cookieless miss confirms, then creates, and never binds a missing library", () => {
+    expect(
+      decideLogin({
+        claimLibraryId: null,
+        claimBound: false,
+        matchedLibraryId: null,
+        currentLibraryId: "",
+        currentBound: false,
+        currentNoteCount: 0,
+        confirmCreate: false,
+      }).kind,
+    ).toBe("confirm-create");
+    expect(
+      decideLogin({
+        claimLibraryId: null,
+        claimBound: false,
+        matchedLibraryId: null,
+        currentLibraryId: "",
+        currentBound: false,
+        currentNoteCount: 0,
+        confirmCreate: true,
+      }).kind,
+    ).toBe("create");
+  });
+
   test("an empty miss asks before creating a library", () => {
     expect(
       decideLogin({

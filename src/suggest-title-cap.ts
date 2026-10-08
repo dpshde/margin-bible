@@ -50,21 +50,27 @@ export async function ensureSuggestTitleUsage(db: D1Database): Promise<void> {
   await pending;
 }
 
-async function readUsage(db: D1Database, actor: string, day: string): Promise<number> {
-  const row = await db
-    .prepare("SELECT n FROM suggest_title_usage WHERE actor = ? AND day = ?")
-    .bind(actor, day)
-    .first<{ n: number }>();
-  return Number(row?.n) || 0;
+/** Rows older than this UTC day are removed. Keeps today and the two days before it. */
+export function suggestTitleUsageCutoff(now = new Date()): string {
+  const prior = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - 2));
+  return prior.toISOString().slice(0, 10);
 }
 
-function incrementUsage(db: D1Database, actor: string, day: string): D1PreparedStatement {
-  return db
+/**
+ * One conditional upsert. RETURNING is empty when the row is already at the cap,
+ * so a racing pair cannot both pass a read-then-increment.
+ */
+async function claimUsage(db: D1Database, actor: string, day: string, cap: number): Promise<boolean> {
+  const result = await db
     .prepare(
       `INSERT INTO suggest_title_usage (actor, day, n) VALUES (?, ?, 1)
-       ON CONFLICT(actor, day) DO UPDATE SET n = n + 1`,
+       ON CONFLICT(actor, day) DO UPDATE SET n = n + 1
+       WHERE suggest_title_usage.n < ?
+       RETURNING n`,
     )
-    .bind(actor, day);
+    .bind(actor, day, cap)
+    .all<{ n: number }>();
+  return result.results.length > 0;
 }
 
 export type SuggestTitleQuota =
@@ -83,13 +89,10 @@ export async function consumeSuggestTitleQuota(
 ): Promise<SuggestTitleQuota> {
   await ensureSuggestTitleUsage(db);
   const day = utcDay(now);
-  const libraryActor = suggestTitleLibraryActor(libraryId);
-  const ipActor = suggestTitleIpActor(ip);
-  const libraryCount = await readUsage(db, libraryActor, day);
-  const ipCount = await readUsage(db, ipActor, day);
-  if (libraryCount >= SUGGEST_TITLE_LIBRARY_DAILY_CAP || ipCount >= SUGGEST_TITLE_IP_DAILY_CAP) {
-    return { allowed: false, retryAfterSec: secondsUntilUtcDay(now) };
-  }
-  await db.batch([incrementUsage(db, libraryActor, day), incrementUsage(db, ipActor, day)]);
+  await db.prepare("DELETE FROM suggest_title_usage WHERE day < ?").bind(suggestTitleUsageCutoff(now)).run();
+  const libraryClaimed = await claimUsage(db, suggestTitleLibraryActor(libraryId), day, SUGGEST_TITLE_LIBRARY_DAILY_CAP);
+  if (!libraryClaimed) return { allowed: false, retryAfterSec: secondsUntilUtcDay(now) };
+  const ipClaimed = await claimUsage(db, suggestTitleIpActor(ip), day, SUGGEST_TITLE_IP_DAILY_CAP);
+  if (!ipClaimed) return { allowed: false, retryAfterSec: secondsUntilUtcDay(now) };
   return { allowed: true };
 }

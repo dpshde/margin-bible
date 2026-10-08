@@ -42,10 +42,20 @@ export default defineConfig({
 				namespace: "91012",
 				simple: { limit: 10, period: 60 },
 			}),
-			// 120/60s per IP for the other public /api routes.
+			// 120/60s per session, else library, else IP. /api/jump-suggest is exempt.
 			PUBLIC_API_RATE_LIMIT: bindings.rateLimit({
 				namespace: "91013",
 				simple: { limit: 120, period: 60 },
+			}),
+			// 20/60s per IP prefix for passphrase and passkey sign-in.
+			LOGIN_RATE_LIMIT: bindings.rateLimit({
+				namespace: "91014",
+				simple: { limit: 20, period: 60 },
+			}),
+			// 60/60s per IP prefix for /mcp. Preview deploys rewrite these namespaces.
+			MCP_RATE_LIMIT: bindings.rateLimit({
+				namespace: "91015",
+				simple: { limit: 60, period: 60 },
 			}),
 		},
 	},

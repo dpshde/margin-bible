@@ -7,6 +7,9 @@ set -eu
 
 preview_name="margin-bible-verse-groups"
 preview_url="https://${preview_name}.dpshade.workers.dev"
+preview_version="2026.10.08.58"
+preview_d1_id="e2d569dc-99f1-432c-899e-a1f9bf174cbf"
+prod_d1_id="0f48d232-f2d8-46c2-a8a3-3b36c4279feb"
 cfg="cloudflare.config.ts"
 bak="${cfg}.preview-bak"
 
@@ -50,6 +53,26 @@ seed_line = (
 if seed_anchor not in text:
     raise SystemExit("assets binding anchor missing")
 text = text.replace(seed_anchor, seed_line, 1)
+# Preview must not share production rate-limit namespaces. The same namespace
+# id is one counter across every Worker on the account.
+namespace_map = {
+    "91011": "91021",
+    "91012": "91022",
+    "91013": "91023",
+    "91014": "91024",
+    "91015": "91025",
+}
+for src, dst in namespace_map.items():
+    needle = f'namespace: "{src}"'
+    if needle not in text:
+        raise SystemExit(f"rate limit namespace {src} missing")
+    text = text.replace(needle, f'namespace: "{dst}"', 1)
+for src in namespace_map:
+    if f'namespace: "{src}"' in text:
+        raise SystemExit(f"prod rate limit namespace {src} still in preview config")
+for dst in namespace_map.values():
+    if f'namespace: "{dst}"' not in text:
+        raise SystemExit(f"preview rate limit namespace {dst} missing")
 if PROD_D1_ID in text:
     raise SystemExit("preview config still references prod D1")
 if text.count(PREVIEW_D1_ID) < 2:
@@ -65,11 +88,26 @@ if worker_anchor in text:
 file.write_text(text)
 PY
 
+if grep -q "$prod_d1_id" "$cfg"; then
+  echo "refusing to migrate: preview config still has the prod D1 id" >&2
+  exit 1
+fi
+if ! grep -q "$preview_d1_id" "$cfg"; then
+  echo "refusing to migrate: preview D1 id missing" >&2
+  exit 1
+fi
+eval "$(sh scripts/cloudflare-env.sh)"
+if [ "$D1_ID" != "$preview_d1_id" ]; then
+  echo "refusing to migrate: D1_ID is not the preview database" >&2
+  exit 1
+fi
+mise exec -- cf d1 migrations apply "$D1_ID" --dir migrations
+
 mise exec -- cf deploy
 
 prod=$(curl -fsS -H "cache-control: no-cache" "https://margin-bible.dpshade.workers.dev/health" || true)
 printf '%s\n' "$prod"
-if printf '%s' "$prod" | grep -q '2026.10.07.57'; then
+if printf '%s' "$prod" | grep -q "$preview_version"; then
   echo "production worker is serving this preview build" >&2
   exit 1
 fi
@@ -79,13 +117,13 @@ body=""
 while [ "$i" -lt 12 ]; do
   body=$(curl -fsS -H "cache-control: no-cache" "$preview_url/health" || true)
   printf '%s\n' "$body"
-  if printf '%s' "$body" | grep -q '2026.10.07.57'; then
+  if printf '%s' "$body" | grep -q "$preview_version"; then
     break
   fi
   i=$((i + 1))
   sleep 3
 done
-printf '%s' "$body" | grep -q '2026.10.07.57'
+printf '%s' "$body" | grep -q "$preview_version"
 
 notes_headers=$(mktemp)
 notes=$(curl -fsS -D "$notes_headers" -A "Mozilla/5.0" -H "cache-control: no-cache" "$preview_url/notes")

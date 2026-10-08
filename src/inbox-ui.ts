@@ -706,8 +706,12 @@ export function notesInboxScript(): string {
       headers: { accept: "application/json" },
       priority: "low",
     })
-      .then((r) => (r.ok ? r.json() : Promise.reject()))
+      .then((r) => {
+      if (r.status === 429) return { rateLimited: true };
+      return r.ok ? r.json() : Promise.reject();
+    })
       .then((data) => {
+        if (data && data.rateLimited) return null;
         if (data?.ok && Array.isArray(data.notes)) {
           writeChapterNotesCache(slug, data.notes);
           return data.notes;
