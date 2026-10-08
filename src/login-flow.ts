@@ -38,6 +38,11 @@ export function decideLogin(input: {
       mergeFrom: guestMerge(input, input.matchedLibraryId),
     };
   }
+  // No browser library yet. Confirm, then insert a bound library. Do not bind a missing id.
+  if (!input.currentLibraryId) {
+    if (!input.confirmCreate) return { kind: "confirm-create" };
+    return { kind: "create" };
+  }
   if (!input.currentBound && input.currentNoteCount > 0) return { kind: "bind-current" };
   if (!input.confirmCreate) return { kind: "confirm-create" };
   if (!input.currentBound) return { kind: "bind-current" };

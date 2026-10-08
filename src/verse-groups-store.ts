@@ -42,7 +42,7 @@ import {
 } from "./verse-groups";
 import type { NoteDraft } from "./notes";
 
-/** Schema DDL is once per database binding. The title backfill still runs every call. */
+/** Schema DDL is once per database binding, and only on write paths. GET does not run it. */
 const verseGroupSchemaReady = new WeakMap<D1Database, Promise<void>>();
 
 const CREATE_VERSE_GROUPS = `CREATE TABLE IF NOT EXISTS verse_groups (
@@ -89,7 +89,6 @@ export async function loadVerseGroups(
 ): Promise<VerseGroupView[]> {
   let metas: VerseGroupMeta[] = [];
   try {
-    await ensureVerseGroupsTable(db);
     metas = await listVerseGroupMeta(db, libraryId);
   } catch (err) {
     console.error(
@@ -102,6 +101,25 @@ export async function loadVerseGroups(
   return verseGroupsFromNotes(notes, metas);
 }
 
+const VERSE_GROUP_ACTIONS = new Set([
+  "save",
+  "add-links",
+  "undo-links",
+  "add-member",
+  "remove-member",
+  "remove-external",
+  "retitle-external",
+  "move-member",
+  "set-star",
+]);
+
+/** True when the body is a verse-group write. Suggest-title is a separate paid path. */
+export function isVerseGroupMutation(body: unknown): boolean {
+  if (!body || typeof body !== "object") return false;
+  const action = (body as Record<string, unknown>).action;
+  return typeof action === "string" && VERSE_GROUP_ACTIONS.has(action);
+}
+
 export async function handleVerseGroupAction(
   db: D1Database,
   libraryId: string,
@@ -112,17 +130,7 @@ export async function handleVerseGroupAction(
   const action = record.action;
   const hub = canonSlug(typeof record.hub === "string" ? record.hub : "");
   if (!hub) return { ok: false, status: 422, error: "unresolvable hub" };
-  if (
-    action !== "save" &&
-    action !== "add-links" &&
-    action !== "undo-links" &&
-    action !== "add-member" &&
-    action !== "remove-member" &&
-    action !== "remove-external" &&
-    action !== "retitle-external" &&
-    action !== "move-member" &&
-    action !== "set-star"
-  ) {
+  if (!isVerseGroupMutation(body)) {
     return { ok: false, status: 422, error: "unknown action" };
   }
   try {
@@ -473,8 +481,9 @@ function applyBacklinkPlan(
 }
 
 /**
- * Title backfill plus every changed note (and an optional star write) in one
- * D1 batch. No read-after-write: the shelf already has the rows we just planned.
+ * Every changed note (and an optional star write) in one D1 batch.
+ * The auto_titled backfill is a migration, not a request-path write.
+ * No read-after-write: the shelf already has the rows we just planned.
  */
 async function commitMemberShelf(
   db: D1Database,
@@ -483,7 +492,7 @@ async function commitMemberShelf(
   extra: readonly D1PreparedStatement[],
 ): Promise<void> {
   const now = new Date().toISOString();
-  const statements: D1PreparedStatement[] = [backfillAutoTitledStatement(db)];
+  const statements: D1PreparedStatement[] = [];
   const slugs = new Set<string>([...shelf.original.keys(), ...shelf.notes.keys()]);
   for (const slug of slugs) {
     const prev = shelf.original.get(slug) ?? null;
@@ -497,7 +506,7 @@ async function commitMemberShelf(
     }
   }
   statements.push(...extra);
-  await db.batch(statements);
+  if (statements.length) await db.batch(statements);
 }
 
 function attachmentJson(list: readonly Attachment[] | null | undefined): string {
@@ -630,7 +639,6 @@ async function ensureVerseGroupSchema(db: D1Database): Promise<void> {
 
 export async function ensureVerseGroupsTable(db: D1Database): Promise<void> {
   await ensureVerseGroupSchema(db);
-  await backfillAutoTitled(db);
 }
 
 async function migrateVerseGroupSchema(db: D1Database): Promise<void> {
@@ -639,18 +647,6 @@ async function migrateVerseGroupSchema(db: D1Database): Promise<void> {
   await addVerseGroupColumn(db, "jev_title TEXT NOT NULL DEFAULT ''");
   await addVerseGroupColumn(db, "external_refs TEXT NOT NULL DEFAULT '[]'");
   await addVerseGroupColumn(db, "auto_titled INTEGER NOT NULL DEFAULT 0");
-}
-
-/**
- * Groups that already have a title were named by hand or by the old sparkle.
- * Flag them so the one-shot pass does not overwrite them. Idempotent.
- */
-function backfillAutoTitledStatement(db: D1Database): D1PreparedStatement {
-  return db.prepare("UPDATE verse_groups SET auto_titled = 1 WHERE auto_titled = 0 AND trim(title) != ''");
-}
-
-async function backfillAutoTitled(db: D1Database): Promise<void> {
-  await backfillAutoTitledStatement(db).run();
 }
 
 /** Set the lock without changing the title. A later edit does not clear it. */

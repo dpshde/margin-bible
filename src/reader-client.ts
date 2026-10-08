@@ -1411,15 +1411,23 @@ export function clientScript(): string {
     setStatus(slug, "Saving");
     const job = (async () => {
       try {
-        const response = await fetch("/api/notes/" + encodeURIComponent(slug), {
+        const send = () => fetch("/api/notes/" + encodeURIComponent(slug), {
           method: "PUT",
           headers: { "content-type": "application/json", accept: "application/json" },
           body: JSON.stringify(payload),
           keepalive,
         });
+        let response = await send();
+        if (response.status === 429 && !keepalive) {
+          const retryAfter = Number(response.headers.get("retry-after"));
+          const waitSec = Math.min(90, Math.max(1, Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter : 60));
+          setStatus(slug, "Slow down");
+          await new Promise((resolve) => window.setTimeout(resolve, waitSec * 1000));
+          response = await send();
+        }
         const data = await response.json().catch(() => ({}));
         if (!response.ok) {
-          setStatus(slug, data.error || "Not saved");
+          setStatus(slug, response.status === 429 ? "Slow down" : (data.error || "Not saved"));
           return;
         }
         lastSaved.set(slug, key);
@@ -2855,6 +2863,20 @@ export function clientScript(): string {
     notesHydrated = true;
     root.dataset.notesPending = "0";
   }
+  function showNotesSlowDown() {
+    setStatus(chapterSlug, "Slow down");
+    let banner = document.getElementById("notes-rate-limit");
+    if (!banner) {
+      banner = document.createElement("p");
+      banner.id = "notes-rate-limit";
+      banner.className = "hint";
+      banner.setAttribute("role", "status");
+      const main = document.querySelector("main.reader");
+      if (main) main.prepend(banner);
+      else root.prepend(banner);
+    }
+    banner.textContent = "Slow down. Notes will show again in a minute.";
+  }
   function prefetchChapterNotes(slug) {
     if (!slug) return Promise.resolve(null);
     if (notesPrefetch.has(slug)) return notesPrefetch.get(slug);
@@ -2864,8 +2886,12 @@ export function clientScript(): string {
       headers: { accept: "application/json" },
       priority: "low",
     })
-      .then((r) => (r.ok ? r.json() : Promise.reject()))
+      .then((r) => {
+        if (r.status === 429) return { rateLimited: true };
+        return r.ok ? r.json() : Promise.reject();
+      })
       .then((data) => {
+        if (data && data.rateLimited) return data;
         if ((chapterNotesGen.get(slug) || 0) !== gen) return null;
         if (data?.ok && Array.isArray(data.notes)) {
           const normalized = data.notes.map(normalizeHydrateNote);
@@ -2882,7 +2908,14 @@ export function clientScript(): string {
     const cached = cachedChapterNotes(chapterSlug);
     if (cached?.length) applyHydratedNotes(cached);
     const fresh = await prefetchChapterNotes(chapterSlug);
-    if (fresh) applyHydratedNotes(fresh);
+    if (fresh && fresh.rateLimited) {
+      showNotesSlowDown();
+      notesHydrated = true;
+      root.dataset.notesPending = "0";
+      syncExpandBtn();
+      return;
+    }
+    if (Array.isArray(fresh)) applyHydratedNotes(fresh);
     else {
       notesHydrated = true;
       root.dataset.notesPending = "0";

@@ -155,7 +155,7 @@ export async function verifyAuthentication(
   settings: { rpID: string; origin: string },
   challengeId: string | null,
   response: AuthenticationResponseJSON,
-  currentSessionId: string,
+  currentSessionId: string | null,
 ): Promise<string> {
   if (!challengeId) throw new PasskeyError("Passkey challenge expired. Try again.", 422);
   const challenge = await takeChallenge(db, challengeId, "authenticate");
@@ -183,7 +183,7 @@ export async function verifyAuthentication(
   if (!verified.verified) throw new PasskeyError("That passkey could not be verified.", 422);
   await updatePasskeyCounter(db, response.id, verified.authenticationInfo.newCounter);
   const sessionId = await createSession(db, credential.libraryId);
-  if (sessionId !== currentSessionId) await deleteSession(db, currentSessionId);
+  if (currentSessionId && sessionId !== currentSessionId) await deleteSession(db, currentSessionId);
   return sessionId;
 }
 
