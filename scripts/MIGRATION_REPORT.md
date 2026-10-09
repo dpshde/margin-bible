@@ -45,10 +45,13 @@ Slug set matches exactly (0 missing / 0 extra). Sample block/attachment equality
 - claim_token / email auth.
 
 ## Commands used
+
+Deploys run via Workers Builds on main or from the box via `mise run deploy` (OAuth); no CF API tokens.
+
 ```sh
 # export (MCP): user-margin-bible export_library → scripts/rails-library-96.snapshot.json
 # build SQL: scripts/import-rails-library-96.sql (64 statements, no BEGIN/COMMIT)
-CLOUDFLARE_API_TOKEN=<(oauth from ~/.config/cloudflare/config/default.json) \
+# Historical one-time import from the box OAuth session. Not a current deploy path.
 CLOUDFLARE_ACCOUNT_ID=91ff2c2b757414041aeaa00896a8a43f \
   bunx wrangler d1 execute margin-bible --remote --file scripts/import-rails-library-96.sql
 # from cwd /workspace/margin-spike-deploy/prod/workers

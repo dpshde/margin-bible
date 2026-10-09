@@ -21,7 +21,7 @@ description = "Run bun tests"
 run = "mise exec -- bun test"
 
 [tasks.ci]
-description = "What GitHub runs before a Worker can publish"
+description = "Typecheck, test, and bundle. GitHub Actions runs this and does not deploy."
 depends = ["install"]
 run = ["mise exec -- bun run check", "mise exec -- bun test", "mise exec -- bun run dry-run"]
 

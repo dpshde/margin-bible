@@ -22,23 +22,33 @@ Worker settings live in `cloudflare.config.ts`. `cf` ignores `wrangler.jsonc` on
 
 `cf` loads `cloudflare.config.ts` with Node. That needs Node ≥ 22.18. `mise.toml` pins 22.23.3, and `mise exec -- cf` uses that Node. Bun cannot load `cloudflare.config.ts`, so do not run `bunx cf`. `bun run dev`, `bun run deploy`, and `bun run dry-run` are fine when `node` on `PATH` is new enough (`mise exec -- bun run dev`). App tests and `bun run check` stay on Bun.
 
-`cf auth login` once on a laptop if you want `mise run d1:remote` or `mise run cf:whoami` without an API token. `mise run deploy` uses that login or `CLOUDFLARE_API_TOKEN`. `cf` does not reuse a Wrangler login.
+`cf auth login` once on a laptop. `mise run deploy`, `mise run d1:remote`, `mise run cf:whoami`, and `scripts/preview-worker.sh` use that OAuth login. `cf` does not reuse a Wrangler login. Deploys run via Workers Builds on main or from the box via `mise run deploy` (OAuth); no CF API tokens.
 
-`accountId` in `cloudflare.config.ts` is the account a publish targets. The workflow does not set `CLOUDFLARE_ACCOUNT_ID`, because an empty value would override the file.
+`accountId` in `cloudflare.config.ts` is the account a publish targets. Commands do not set `CLOUDFLARE_ACCOUNT_ID`, because an empty value would override the file.
 
 ## GitHub Actions
 
 `.github/workflows/ci.yml` is the only workflow.
 
-- Every pull request and every push to `main` runs `mise run ci`.
-- A push to `main` (and a manual run on `main`) deploys only after that job succeeds. The deploy job uses the `production` environment and does not cancel an upload already in progress.
-- The deploy job needs the repository secret `CLOUDFLARE_API_TOKEN`. Create a custom token with **Edit Cloudflare Workers**, scoped to this account only. Add it under Settings → Secrets and variables → Actions. Do not commit the token, and do not put it in `.dev.vars`.
-
-Until that secret exists, the deploy job stops before it uploads. Publish from a machine that is already logged in:
+- Every pull request and every push to `main` runs `mise run ci` (typecheck, tests, and `cf deploy --dry-run`).
+- The dry-run bundles the Worker and exits before upload. It does not need a Cloudflare API token, so the check job stays tokenless.
+- GitHub Actions does not deploy. Deploys run via Workers Builds on main or from the box via `mise run deploy` (OAuth); no CF API tokens.
 
 ```sh
 mise run deploy
 ```
+
+## Preview worker
+
+`scripts/preview-worker.sh` publishes a separate Worker from a machine that has already run `cf auth login`. It clears any API token from the environment so `cf` uses the OAuth login. It still refuses the production D1 id and rewrites rate-limit namespaces 91011–91015 to 91021–91025. There is no GitHub workflow for that script.
+
+## Workers Builds branch previews
+
+Workers Builds runs `npx wrangler preview` on branches other than `main`. That command exits when the Wrangler config has no `previews` block.
+
+`wrangler.config.ts` is tooling only (`defineWranglerConfig`: source maps, assets directory, typegen). That schema rejects a `previews` field, and the file does not hold D1 or rate-limit bindings. Those bindings live in `cloudflare.config.ts`, which also has no `previews` field. A classic `previews` block would have to live in `wrangler.jsonc`. `npx wrangler deploy` would read that file too. Putting only preview bindings there would drop the production D1 from a Wrangler production deploy. Copying the production D1 and namespaces 91011–91015 into the same file, beside a preview override, is a second source of truth that can drift from `cloudflare.config.ts`, and this repo cannot prove `wrangler preview` will ignore those top-level production bindings. This change does not add a `previews` block.
+
+Turn branch previews off in the dashboard (manual step): Worker **margin-bible** → **Settings** → **Build** → **Branch control** → clear **Enable Preview Builds**. Production builds on `main` stay on. Preview deploys from the box stay `scripts/preview-worker.sh`.
 
 ## Migrations
 

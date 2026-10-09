@@ -241,7 +241,6 @@ describe("verse group detection", () => {
 describe("preview worker publish", () => {
   test("deploys a separate worker and leaves the production name in config", () => {
     const script = readFileSync(new URL("../scripts/preview-worker.sh", import.meta.url), "utf8");
-    const workflow = readFileSync(new URL("../.github/workflows/preview-worker.yml", import.meta.url), "utf8");
     const config = readFileSync(new URL("../cloudflare.config.ts", import.meta.url), "utf8");
     expect(script).toContain("verse-count-pill");
     expect(script).toContain('id="verse-groups-view" open');
@@ -255,8 +254,9 @@ describe("preview worker publish", () => {
     expect(script).toContain('if [ "$D1_ID" != "$preview_d1_id" ]');
     expect(script).toContain("refusing to migrate: D1_ID is not the preview database");
     expect(script).toContain('preview_version="2026.10.08.58"');
-    expect(workflow).toContain("sh scripts/preview-worker.sh");
-    expect(workflow).not.toContain("refs/heads/main");
+    expect(script).toContain("unset CLOUDFLARE_API_TOKEN");
+    expect(script).not.toContain("Missing CLOUDFLARE_API_TOKEN");
+    expect(existsSync(new URL("../.github/workflows/preview-worker.yml", import.meta.url))).toBe(false);
     expect(config).toContain('name: "margin-bible"');
     expect(config).not.toContain("margin-bible-verse-groups");
     expect(config).not.toContain("PREVIEW_SEED");
@@ -269,7 +269,6 @@ describe("preview worker publish", () => {
     expect(script).toContain("cookieless preview GET minted a session");
     expect(script).not.toContain("expected the D1 binding name to stay margin-bible");
     expect(script).not.toContain("railway");
-    expect(workflow).not.toContain("railway");
     expect(existsSync(new URL("../Dockerfile", import.meta.url))).toBe(false);
     expect(existsSync(new URL("../railway.toml", import.meta.url))).toBe(false);
     expect(existsSync(new URL("../src/preview-server.ts", import.meta.url))).toBe(false);
