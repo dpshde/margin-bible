@@ -14,7 +14,7 @@ describe("durable CI/CD", () => {
   test("mise pins bun, node, and the Cloudflare CLI", () => {
     expect(mise).toContain('bun = "1.4.2"');
     expect(mise).toContain('node = "22.23.3"');
-    expect(mise).toContain('"npm:cf" = "1.0.0-beta.12"');
+    expect(mise).toContain('"npm:cf" = "1.0.0-beta.13"');
   });
 
   test("GitHub and a laptop share the mise tasks", () => {
