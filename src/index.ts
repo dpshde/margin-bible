@@ -25,7 +25,6 @@ import { renderLoginPage } from "./login-page";
 import { buildLibrarySnapshot, snapshotFilename } from "./library-snapshot";
 import { draftNote } from "./notes";
 import { proxyHiddenArrowSearch, proxyHiddenArrowSuggest } from "./ha-search";
-import { collectKeywordVerses, keywordBookSpecs } from "./keyword-search";
 import { canGo, jumpState } from "./jump-suggest";
 import { performLogin, performPassphraseChange } from "./perform-login";
 import {
@@ -135,7 +134,6 @@ function sessionExempt(path: string): boolean {
     path === "/mcp" ||
     path === "/api/ha-search" ||
     path === "/api/ha-suggest" ||
-    path === "/api/keyword-corpus" ||
     path.startsWith("/bsb/") ||
     path.startsWith("/vendor/") ||
     isPwaAssetPath(path)
@@ -437,29 +435,6 @@ app.get("/api/jump-suggest", (c) => {
     hits: state.hits,
     hint: state.hint,
     canGo: canGo(q),
-  });
-});
-
-let keywordCorpusJson: Promise<string> | null = null;
-
-app.get("/api/keyword-corpus", async (c) => {
-  if (!keywordCorpusJson) {
-    keywordCorpusJson = collectKeywordVerses(keywordBookSpecs(), async (code, chapter) => {
-      const pack = await loadChapter(c.env.ASSETS, createPassage(code, chapter));
-      return pack ? { verses: pack.verses } : null;
-    })
-      .then((rows) => JSON.stringify(rows))
-      .catch((error) => {
-        keywordCorpusJson = null;
-        throw error;
-      });
-  }
-  const body = await keywordCorpusJson;
-  return new Response(body, {
-    headers: {
-      "content-type": "application/json; charset=utf-8",
-      "cache-control": "public, max-age=86400",
-    },
   });
 });
 
