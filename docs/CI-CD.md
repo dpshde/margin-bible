@@ -1,6 +1,6 @@
 # CI/CD
 
-A laptop and GitHub Actions run the same [mise](https://mise.jdx.dev) tasks. Tool versions live in `mise.toml`: bun 1.4.2, node 22.23.3, and the Cloudflare CLI `cf` 1.0.0-beta.12. The `cf` pin is exact because an unpinned install resolves to an unrelated 0.x package. `package.json` depends on the same `cf` release; a `cf` binary on `PATH` hands off to that copy inside this repo.
+A laptop and GitHub Actions run the same [mise](https://mise.jdx.dev) tasks. Tool versions live in `mise.toml`: bun 1.4.2, node 22.23.3, and the Cloudflare CLI `cf` 1.0.0-beta.13 (the first release with `cf workers versions profile`). The `cf` pin is exact because an unpinned install resolves to an unrelated 0.x package. `package.json` depends on the same `cf` release; a `cf` binary on `PATH` hands off to that copy inside this repo.
 
 There is no `prod` git branch. Production is the Worker `margin-bible`, published from `main`.
 

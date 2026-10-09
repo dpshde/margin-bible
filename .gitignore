@@ -18,3 +18,5 @@ scripts/rails-library-96.snapshot.json
 .env
 .env.*
 !.env.example
+# On-demand Worker profiles (mise run profile)
+profiles/
