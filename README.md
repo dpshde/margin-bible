@@ -47,6 +47,8 @@ mise exec -- cf auth login
 mise run deploy
 ```
 
+Deploys run via Workers Builds on main or from the box via `mise run deploy` (OAuth); no CF API tokens.
+
 The Worker name, account, and D1 binding are in `cloudflare.config.ts`. Deploy prints the `*.workers.dev` URL. Leave `margin.bible` DNS alone. Publish steps are in [docs/CI-CD.md](docs/CI-CD.md).
 
 ## What is in

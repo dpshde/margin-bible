@@ -17,15 +17,33 @@ describe("durable CI/CD", () => {
     expect(mise).toContain('"npm:cf" = "1.0.0-beta.13"');
   });
 
-  test("GitHub and a laptop share the mise tasks", () => {
+  test("GitHub checks the bundle and does not deploy", () => {
     expect(workflow).toContain("run: mise run ci");
-    expect(workflow).toContain("run: mise run cf:whoami");
-    expect(workflow).toContain("run: mise run deploy");
+    expect(workflow).not.toContain("run: mise run cf:whoami");
+    expect(workflow).not.toContain("run: mise run deploy");
+    expect(workflow).not.toContain("CLOUDFLARE_API_TOKEN");
+    expect(workflow).not.toContain("Require Cloudflare API token");
     expect(mise).toContain('run = "sh scripts/deploy.sh"');
     expect(mise).toContain('run = "sh scripts/d1-remote.sh"');
+    expect(mise).toContain("mise exec -- bun run dry-run");
     expect(workflow).not.toContain("migrations apply");
     expect(workflow).not.toContain("prod/workers");
     expect(existsSync(new URL(".github/workflows/deploy.yml", root))).toBe(false);
+    expect(existsSync(new URL(".github/workflows/preview-worker.yml", root))).toBe(false);
+  });
+
+  test("docs publish with OAuth and no API token", () => {
+    const note = "Deploys run via Workers Builds on main or from the box via `mise run deploy` (OAuth); no CF API tokens.";
+    const docs = read("docs/CI-CD.md");
+    expect(docs).toContain(note);
+    expect(read("README.md")).toContain(note);
+    expect(read("scripts/MIGRATION_REPORT.md")).toContain(note);
+    expect(docs).not.toContain("CLOUDFLARE_API_TOKEN");
+    expect(read("README.md")).not.toContain("CLOUDFLARE_API_TOKEN");
+    expect(read("scripts/MIGRATION_REPORT.md")).not.toContain("CLOUDFLARE_API_TOKEN");
+    expect(docs).toContain("Enable Preview Builds");
+    expect(read("wrangler.config.ts")).not.toContain("previews");
+    expect(read("cloudflare.config.ts")).not.toContain("e2d569dc-99f1-432c-899e-a1f9bf174cbf");
   });
 
   test("publish and migrations use cf", () => {

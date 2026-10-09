@@ -1,9 +1,12 @@
 #!/bin/sh
-# Publish this checkout as a separate Worker. Does not deploy `margin-bible`.
+# Publish this checkout as a separate Worker from a box that has run
+# `cf auth login`. Does not deploy `margin-bible`. Does not use a Cloudflare
+# API token; `cf` uses its OAuth login. GitHub Actions does not run this script.
 # The preview Worker binds D1 `margin-bible-preview`, never the production
 # database. PREVIEW_SEED is set only together with that preview id. A cookieless
 # GET must not mint a guest library or seed notes.
 set -eu
+unset CLOUDFLARE_API_TOKEN
 
 preview_name="margin-bible-verse-groups"
 preview_url="https://${preview_name}.dpshade.workers.dev"
@@ -12,11 +15,6 @@ preview_d1_id="e2d569dc-99f1-432c-899e-a1f9bf174cbf"
 prod_d1_id="0f48d232-f2d8-46c2-a8a3-3b36c4279feb"
 cfg="cloudflare.config.ts"
 bak="${cfg}.preview-bak"
-
-if [ -z "${CLOUDFLARE_API_TOKEN:-}" ]; then
-  echo "Missing CLOUDFLARE_API_TOKEN." >&2
-  exit 1
-fi
 
 cp "$cfg" "$bak"
 restore() {
