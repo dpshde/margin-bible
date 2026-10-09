@@ -1613,7 +1613,14 @@ export function jumpScript(): string {
     input.value = q;
     const clearBtn = visible.querySelector("button.jump-clear");
     if (clearBtn) clearBtn.hidden = false;
-    if (cache && cache.query === q && normalizeTestament(cache.testament) === searchTestament) return;
+    // Local binding. A free cache identifier throws ReferenceError after the header
+    // is filled and before requestSubmit, so a q URL never opens the overlay.
+    const cache = readSearchCache();
+    if (cache && cache.query === q && normalizeTestament(cache.testament) === searchTestament) {
+      ensureSearchModal();
+      if (!revealCachedSearch()) openSearchModal();
+      return;
+    }
     if (typeof visible.requestSubmit === "function") visible.requestSubmit();
   }
 

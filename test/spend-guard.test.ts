@@ -437,8 +437,8 @@ describe("rate limits", () => {
     expect(config).toContain("period: 60");
     expect(config).toContain("bindings.rateLimit");
     expect(read("src/rate-limit.ts")).toContain(".limit({ key })");
-    expect(read("src/index.ts")).toContain('version: "2026.10.08.58"');
-    expect(read("scripts/preview-worker.sh")).toContain('preview_version="2026.10.08.58"');
+    expect(read("src/index.ts")).toContain('version: "2026.10.09.59"');
+    expect(read("scripts/preview-worker.sh")).toContain('preview_version="2026.10.09.59"');
     expect(read("src/reader-client.ts")).toContain("Slow down");
     expect(read("src/reader-client.ts")).toContain("retry-after");
     expect(read("src/reader-client.ts")).toContain("notes-rate-limit");
