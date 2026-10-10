@@ -218,7 +218,7 @@ async function maybeSeedPreview(c: AppContext, libraryId: string): Promise<void>
   await seedPreviewVerseGroups(c.env.DB, libraryId, notes, c.env);
 }
 
-app.get("/health", (c) => c.json({ ok: true, app: "margin-bible", version: "2026.10.08.58" }));
+app.get("/health", (c) => c.json({ ok: true, app: "margin-bible", version: "2026.10.09.59" }));
 
 app.get("/manifest.webmanifest", () => manifestResponse());
 app.get("/manifest.json", () => manifestResponse());

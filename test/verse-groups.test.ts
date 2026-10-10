@@ -253,7 +253,7 @@ describe("preview worker publish", () => {
     expect(script).toContain("migrations apply");
     expect(script).toContain('if [ "$D1_ID" != "$preview_d1_id" ]');
     expect(script).toContain("refusing to migrate: D1_ID is not the preview database");
-    expect(script).toContain('preview_version="2026.10.08.58"');
+    expect(script).toContain('preview_version="2026.10.09.59"');
     expect(script).toContain("unset CLOUDFLARE_API_TOKEN");
     expect(script).not.toContain("Missing CLOUDFLARE_API_TOKEN");
     expect(existsSync(new URL("../.github/workflows/preview-worker.yml", import.meta.url))).toBe(false);

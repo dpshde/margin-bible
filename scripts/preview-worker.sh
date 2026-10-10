@@ -10,7 +10,7 @@ unset CLOUDFLARE_API_TOKEN
 
 preview_name="margin-bible-verse-groups"
 preview_url="https://${preview_name}.dpshade.workers.dev"
-preview_version="2026.10.08.58"
+preview_version="2026.10.09.59"
 preview_d1_id="e2d569dc-99f1-432c-899e-a1f9bf174cbf"
 prod_d1_id="0f48d232-f2d8-46c2-a8a3-3b36c4279feb"
 cfg="cloudflare.config.ts"

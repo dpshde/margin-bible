@@ -414,6 +414,11 @@ describe("shareable search query", () => {
     const boot = source.slice(source.indexOf("function bootSearchQuery"), source.indexOf("function bindAll"));
     expect(boot).toContain('searchParams.get("q")');
     expect(boot).toContain("input.value = q");
+    expect(boot).toContain("const cache = readSearchCache()");
+    expect(boot.indexOf("const cache = readSearchCache()")).toBeLessThan(boot.indexOf("cache.query"));
+    expect(boot).toContain("ensureSearchModal()");
+    expect(boot).toContain("revealCachedSearch()");
+    expect(boot.indexOf("revealCachedSearch()")).toBeLessThan(boot.indexOf("visible.requestSubmit()"));
     expect(boot).toContain("visible.requestSubmit()");
     expect(boot).not.toContain("/api/ha-search");
     const sync = source.slice(source.indexOf("function syncSearchQuery"), source.indexOf("function bootSearchQuery"));
