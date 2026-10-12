@@ -241,12 +241,13 @@ function formatStamp(note: { updatedAt?: string; createdAt?: string }): string {
   return d.toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" });
 }
 
-function noteRowHtml(n: InboxNote): string {
+function noteRowHtml(n: InboxNote, itemClass = ""): string {
   const title = escapeHtml(humanNoteLabel(n));
   const excerpt = escapeHtml(n.excerpt || "");
   const stamp = formatStamp(n);
   const titleAttr = stamp ? ` title="${escapeHtml(stamp)}"` : "";
-  return `<li><a class="note-row" href="/${escapeHtml(n.slug)}"${titleAttr}><span class="note-row-title">${title}</span>${
+  const itemAttr = itemClass ? ` class="${itemClass}"` : "";
+  return `<li${itemAttr}><a class="note-row" href="/${escapeHtml(n.slug)}"${titleAttr}><span class="note-row-title">${title}</span>${
     excerpt ? `<span class="note-row-excerpt">${excerpt}</span>` : ""
   }</a></li>`;
 }
@@ -373,7 +374,7 @@ export function bookmarksViewHtml(notes: InboxNote[]): string {
     .filter((note) => Boolean(note.bookmarked))
     .map((note) => ({ ...note, excerpt: inboxNoteExcerpt(note) || note.excerpt || "" }))
     .sort((a, b) => noteWhen(b).getTime() - noteWhen(a).getTime());
-  const rows = bookmarked.map((note) => noteRowHtml(note)).join("");
+  const rows = bookmarked.map((note) => noteRowHtml(note, "collection-card")).join("");
   const body = rows
     ? `<ul class="note-list">${rows}</ul>`
     : `<p class="empty">No bookmarks yet.</p>`;
@@ -933,11 +934,15 @@ export function notesInboxScript(): string {
     function tabFromHash() {
       var hash = String(location.hash || "").replace(/^#/, "");
       if (hash === "bookmarks" || hash === "groups") return hash;
+      try {
+        var vg = new URLSearchParams(location.search).get("vg");
+        if (vg === "topics" || vg === "set" || vg === "folder") return "groups";
+      } catch (err) {}
       return "notes";
     }
-    function apply() {
+    function apply(next) {
       var onPhone = phone();
-      var tab = tabFromHash();
+      var tab = next || tabFromHash();
       if (onPhone) document.documentElement.dataset.phoneTab = tab;
       else document.documentElement.removeAttribute("data-phone-tab");
       var bookmarks = document.getElementById("bookmarks-view");
@@ -949,15 +954,48 @@ export function notesInboxScript(): string {
       var tabs = document.querySelectorAll(".phone-tab");
       for (var i = 0; i < tabs.length; i++) {
         var name = tabs[i].getAttribute("data-phone-tab");
-        if (name === "scripture") continue;
-        if (onPhone && name === tab) tabs[i].setAttribute("aria-current", "page");
-        else if (onPhone) tabs[i].removeAttribute("aria-current");
+        if (!onPhone) continue;
+        if (name === tab) tabs[i].setAttribute("aria-current", "page");
+        else tabs[i].removeAttribute("aria-current");
       }
       var title = document.getElementById("chapter-grid-title");
-      if (title && onPhone && document.querySelector(".notes-main")) title.textContent = titles[tab];
+      if (title && onPhone && titles[tab] && document.querySelector(".notes-main")) title.textContent = titles[tab];
     }
-    window.addEventListener("hashchange", apply);
-    if (phoneQuery.addEventListener) phoneQuery.addEventListener("change", apply);
+    function tabLink(event) {
+      var node = event.target;
+      if (!node || !node.closest) return null;
+      return node.closest("a.phone-tab");
+    }
+    function ignored(event) {
+      return event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button;
+    }
+    document.addEventListener("pointerdown", function (event) {
+      if (!phone() || ignored(event)) return;
+      var tab = tabLink(event);
+      if (!tab) return;
+      var name = tab.getAttribute("data-phone-tab");
+      if (name !== "notes" && name !== "bookmarks" && name !== "groups") return;
+      apply(name);
+    }, true);
+    document.addEventListener("click", function (event) {
+      if (!phone() || ignored(event)) return;
+      var tab = tabLink(event);
+      if (!tab) return;
+      var name = tab.getAttribute("data-phone-tab");
+      if (name !== "notes" && name !== "bookmarks" && name !== "groups") return;
+      event.preventDefault();
+      apply(name);
+      if (window.parent !== window) return;
+      var next = name === "notes" ? "/notes" : "/notes#" + name;
+      var current = location.pathname + location.search + location.hash;
+      if (current !== next) history.pushState({ phoneTab: name }, "", next);
+    }, true);
+    window.__marginApplyPhoneTab = function (tab) {
+      if (tab !== "notes" && tab !== "bookmarks" && tab !== "groups") return;
+      apply(tab);
+    };
+    window.addEventListener("hashchange", function () { apply(); });
+    if (phoneQuery.addEventListener) phoneQuery.addEventListener("change", function () { apply(); });
     apply();
   }
   document.addEventListener("keydown", (event) => {

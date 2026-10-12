@@ -253,7 +253,7 @@ describe("preview worker publish", () => {
     expect(script).toContain("migrations apply");
     expect(script).toContain('if [ "$D1_ID" != "$preview_d1_id" ]');
     expect(script).toContain("refusing to migrate: D1_ID is not the preview database");
-    expect(script).toContain('preview_version="2026.10.09.59"');
+    expect(script).toContain('preview_version="2026.10.12.1"');
     expect(script).toContain("unset CLOUDFLARE_API_TOKEN");
     expect(script).not.toContain("Missing CLOUDFLARE_API_TOKEN");
     expect(existsSync(new URL("../.github/workflows/preview-worker.yml", import.meta.url))).toBe(false);
@@ -769,7 +769,7 @@ describe("topic rows", () => {
     expect(css).toContain(".verse-count-pill {");
     expect(css).toContain(".verse-group > summary.verse-group-row {");
     expect(css).toContain("min-height: 2.55rem;");
-    expect(css).toContain("#verse-groups-view .verse-group {\n        border: 1px solid color-mix(in srgb, var(--ink) 14%, transparent);");
+    expect(css).toContain("#verse-groups-view .verse-group,\n      #bookmarks-view .collection-card {\n        border: 1px solid color-mix(in srgb, var(--ink) 14%, transparent);");
     expect(css).toContain("border-radius: .75rem;");
     const desktop = css.indexOf("@media (min-width: 768px)");
     const rowRule = css.indexOf(".verse-group > summary.verse-group-row {");
