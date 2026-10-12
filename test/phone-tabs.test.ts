@@ -95,10 +95,14 @@ describe("phone bookmark cards reuse the topic card", () => {
     const before = css.slice(Math.max(0, marker - 500), marker);
     expect(before).toContain("max-width: 767px");
     expect(before).not.toContain("min-width: 768px");
-    const block = css.slice(marker, marker + 900);
+    const block = css.slice(marker, marker + 3600);
     expect(block).toContain("#verse-groups-view .verse-group,\n      #bookmarks-view .collection-card {");
     expect(block).toContain("border-radius: .75rem;");
+    expect(block).toContain("html[data-phone-tab=\"groups\"] #verse-groups-view,\n      html[data-phone-tab=\"bookmarks\"] #bookmarks-view { background: var(--paper); }");
+    expect(block).not.toContain("background: var(--fill)");
     expect(block).toContain("background: var(--paper);");
+    expect(block).toContain("#verse-groups-view .verse-group[open] > summary.note-row");
+    expect(block).toContain("background: transparent;");
     expect(block).toContain("gap: .4rem;");
     expect(block).toContain("padding: .45rem .8rem;");
     expect(block).toContain("font-weight: 600;");

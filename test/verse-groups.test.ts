@@ -778,9 +778,9 @@ describe("topic rows", () => {
     expect(phoneOnly).toBeGreaterThan(rowRule);
     expect(desktop).toBeGreaterThan(css.indexOf("@media (max-width: 767px)"));
     expect(css).toContain("#verse-groups-view { --topic-inset: .8rem; }");
-    expect(css.slice(phoneOnly, phoneOnly + 2200)).toContain("padding: .28rem .55rem .28rem var(--topic-inset);");
-    expect(css.slice(phoneOnly, phoneOnly + 2200)).toContain("padding: .4rem .65rem .5rem var(--topic-inset);");
-    expect(css.slice(phoneOnly, phoneOnly + 2600)).toContain("padding: .22rem .45rem .22rem 0;");
+    expect(css.slice(phoneOnly, phoneOnly + 4500)).toContain("padding: .28rem .55rem .28rem var(--topic-inset);");
+    expect(css.slice(phoneOnly, phoneOnly + 4500)).toContain("padding: .4rem .65rem .5rem var(--topic-inset);");
+    expect(css.slice(phoneOnly, phoneOnly + 4800)).toContain("padding: .22rem .45rem .22rem 0;");
     expect(css).toContain("padding: 0 .08rem 0 .4rem;");
     expect(css).toContain("padding: .16rem .12rem;");
     expect(css.slice(desktop, desktop + 900)).toContain("padding: .2rem .5rem .2rem var(--topic-inset);");

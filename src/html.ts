@@ -1610,14 +1610,16 @@ export function page(title: string, body: string): string {
     }
     .verse-group:not([open]) > summary .verse-group-title-actions { display: none; }
     @media (max-width: 767px) {
-      html[data-phone-tab="groups"] #verse-groups-view,
-      html[data-phone-tab="bookmarks"] #bookmarks-view { background: var(--fill); }
       /* phone-collection-card */
+      /* One paper surface: no fill wash under the card, and no second fill on the row. */
+      html[data-phone-tab="groups"] #verse-groups-view,
+      html[data-phone-tab="bookmarks"] #bookmarks-view { background: var(--paper); }
       #verse-groups-view .note-list,
       #bookmarks-view .note-list {
         display: flex;
         flex-direction: column;
         gap: .4rem;
+        background: transparent;
       }
       #verse-groups-view .verse-group,
       #bookmarks-view .collection-card {
@@ -1626,9 +1628,42 @@ export function page(title: string, body: string): string {
         background: var(--paper);
         overflow: hidden;
       }
+      #bookmarks-view .collection-card > a.note-row,
+      #bookmarks-view .collection-card > a.note-row:hover,
+      #bookmarks-view .collection-card > a.note-row:focus,
+      #bookmarks-view .collection-card > a.note-row:focus-visible,
+      #verse-groups-view .verse-group > summary.note-row,
+      #verse-groups-view .verse-group > summary.note-row:hover,
+      #verse-groups-view .verse-group > summary.note-row:focus,
+      #verse-groups-view .verse-group > summary.note-row:focus-visible,
+      #verse-groups-view .verse-group[open] > summary.note-row,
+      #verse-groups-view .verse-group[open] > summary.note-row:hover,
+      #verse-groups-view .verse-group[open] > summary.note-row:focus,
+      #verse-groups-view .verse-group[open] > summary.note-row:focus-visible,
+      #verse-groups-view .verse-group-form,
+      #verse-groups-view .verse-group[open] > summary .verse-group-title-edit,
+      #verse-groups-view .verse-group[open] > summary .verse-group-title-edit:hover,
+      #verse-groups-view .verse-group[open] > summary .verse-group-title-edit:focus-visible,
+      #verse-groups-view .verse-group[open] > summary .tray-attach,
+      #verse-groups-view .verse-group[open] > summary .tray-attach:hover,
+      #verse-groups-view .verse-group[open] > summary .tray-attach:focus-visible {
+        background: transparent;
+      }
+      #verse-groups-view .verse-group[open] > summary.note-row,
+      #verse-groups-view .verse-group[open] > summary .note-row-title,
+      #verse-groups-view .verse-group[open] > summary .note-row-excerpt {
+        color: var(--ink);
+      }
+      #verse-groups-view .verse-group[open] > summary .verse-group-title-edit,
+      #verse-groups-view .verse-group[open] > summary .tray-attach {
+        color: var(--ink-soft);
+      }
+      #verse-groups-view .verse-group[open] > summary .verse-count-pill {
+        background: color-mix(in srgb, var(--ink) 12%, transparent);
+        color: var(--ink);
+      }
       #bookmarks-view .collection-card > a.note-row {
         border-radius: 0;
-        background: transparent;
         padding: .45rem .8rem;
       }
       #bookmarks-view .collection-card .note-row-title {
