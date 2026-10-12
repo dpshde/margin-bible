@@ -799,7 +799,7 @@ describe("topic rows", () => {
     expect(reserved).toBeGreaterThan(desktop);
     expect(css.slice(reserved, reserved + 280)).toContain("width: 1.15rem;");
     expect(css.slice(reserved, reserved + 280)).toContain("min-width: 1.15rem;");
-    const reservedHover = css.indexOf("#verse-groups-view .verse-group .att-item:hover .verse-star,\n      #verse-groups-view .verse-group .att-item:hover .att-remove,");
+    const reservedHover = css.indexOf("#verse-groups-view .verse-group .att-item:hover .verse-star,\n        #verse-groups-view .verse-group .att-item:hover .att-remove");
     expect(reservedHover).toBeGreaterThan(reserved);
     expect(css.slice(reservedHover, reservedHover + 560)).toContain("width: 1.15rem;");
     expect(css.slice(reservedHover, reservedHover + 560)).not.toContain("width: 1.35rem;");

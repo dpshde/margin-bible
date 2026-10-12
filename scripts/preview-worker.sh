@@ -190,6 +190,6 @@ if printf '%s' "$notes" | grep -q 'Verse groups'; then
 fi
 topics=$(curl -fsS -A "Mozilla/5.0" -H "cache-control: no-cache" "$preview_url/notes?vg=topics")
 printf '%s' "$topics" | grep -q 'id="verse-groups-view" open'
-printf '%s' "$topics" | grep -q 'href="/notes?vg=topics#groups"'
+printf '%s' "$topics" | grep -q 'href="/notes#groups"'
 
 echo "PREVIEW_URL=$preview_url/notes"
