@@ -18,6 +18,7 @@ import {
   type Passage,
 } from "./passage";
 import { bookmarksViewHtml, notesInboxScript, phoneTabsHtml, starterChipsHtml, notesListHtml } from "./inbox-ui";
+import { phoneShellScript, phoneTabBootScript, phoneTabPaintScript } from "./phone-shell";
 import { verseGroupsFromNotes, type VerseGroupView } from "./verse-groups";
 import { verseGroupsScript, verseGroupsViewHtml } from "./verse-groups-ui";
 import { jumpFormHtml, jumpScript } from "./jump-ui";
@@ -183,6 +184,9 @@ ${clientScript()}
 </script>
 <script>
 ${jumpScript()}
+</script>
+<script>
+${phoneShellScript()}
 </script>`;
 
   return page(`${title} · Margin`, body);
@@ -214,7 +218,8 @@ export function renderNotesIndex(
   // Notes title is a book/chapter picker (Rails/CF chapter-grid parity); soft-nav to the chosen chapter.
   return page(
     "Notes · Margin",
-    `<header class="topbar topbar-notes">
+    `${phoneTabBootScript()}
+<header class="topbar topbar-notes">
   <div class="topbar-side"><a class="icon-btn notes-reader-phone" href="/${escapeHtml(backSlug)}" data-reader-link aria-label="Reader" title="Reader">${iconReader()}</a></div>
   <h1 class="topbar-title">
     <button type="button" class="topbar-title-btn" id="chapter-grid-title" aria-haspopup="dialog" aria-expanded="false" aria-controls="chapter-grid" title="Choose book or chapter">Notes</button>
@@ -227,9 +232,10 @@ ${chapterGridHtml(gridBook, gridChapter)}
   ${starterChipsHtml()}
   ${bookmarksViewHtml(mirror)}
   ${verseGroupsViewHtml(verseGroups, { open: opts.verseGroupsOpen })}
+  ${phoneTabPaintScript()}
   <div id="notes-mount">${items}</div>
 </main>
-${phoneTabsHtml({ surface: "notes", readerHref: `/${escapeHtml(backSlug)}`, groupsHref: "/notes?vg=topics#groups" })}
+${phoneTabsHtml({ surface: "notes", readerHref: `/${escapeHtml(backSlug)}`, groupsHref: "/notes#groups" })}
 <script type="application/json" id="inbox-pack-mirror">${JSON.stringify(mirror).replace(/</g, "\\u003c")}</script>
 ${restoreReaderLinkScript()}
 <script>
@@ -240,6 +246,9 @@ ${notesInboxScript()}
 </script>
 <script>
 ${verseGroupsScript()}
+</script>
+<script>
+${phoneShellScript()}
 </script>`,
   );
 }

@@ -253,7 +253,7 @@ describe("preview worker publish", () => {
     expect(script).toContain("migrations apply");
     expect(script).toContain('if [ "$D1_ID" != "$preview_d1_id" ]');
     expect(script).toContain("refusing to migrate: D1_ID is not the preview database");
-    expect(script).toContain('preview_version="2026.10.09.59"');
+    expect(script).toContain('preview_version="2026.10.12.1"');
     expect(script).toContain("unset CLOUDFLARE_API_TOKEN");
     expect(script).not.toContain("Missing CLOUDFLARE_API_TOKEN");
     expect(existsSync(new URL("../.github/workflows/preview-worker.yml", import.meta.url))).toBe(false);
@@ -769,7 +769,7 @@ describe("topic rows", () => {
     expect(css).toContain(".verse-count-pill {");
     expect(css).toContain(".verse-group > summary.verse-group-row {");
     expect(css).toContain("min-height: 2.55rem;");
-    expect(css).toContain("#verse-groups-view .verse-group {\n        border: 1px solid color-mix(in srgb, var(--ink) 14%, transparent);");
+    expect(css).toContain("#verse-groups-view .verse-group,\n      #bookmarks-view .collection-card {\n        border: 1px solid color-mix(in srgb, var(--ink) 14%, transparent);");
     expect(css).toContain("border-radius: .75rem;");
     const desktop = css.indexOf("@media (min-width: 768px)");
     const rowRule = css.indexOf(".verse-group > summary.verse-group-row {");
@@ -778,9 +778,9 @@ describe("topic rows", () => {
     expect(phoneOnly).toBeGreaterThan(rowRule);
     expect(desktop).toBeGreaterThan(css.indexOf("@media (max-width: 767px)"));
     expect(css).toContain("#verse-groups-view { --topic-inset: .8rem; }");
-    expect(css.slice(phoneOnly, phoneOnly + 2200)).toContain("padding: .28rem .55rem .28rem var(--topic-inset);");
-    expect(css.slice(phoneOnly, phoneOnly + 2200)).toContain("padding: .4rem .65rem .5rem var(--topic-inset);");
-    expect(css.slice(phoneOnly, phoneOnly + 2600)).toContain("padding: .22rem .45rem .22rem 0;");
+    expect(css.slice(phoneOnly, phoneOnly + 4500)).toContain("padding: .28rem .55rem .28rem var(--topic-inset);");
+    expect(css.slice(phoneOnly, phoneOnly + 4500)).toContain("padding: .4rem .65rem .5rem var(--topic-inset);");
+    expect(css.slice(phoneOnly, phoneOnly + 4800)).toContain("padding: .22rem .45rem .22rem 0;");
     expect(css).toContain("padding: 0 .08rem 0 .4rem;");
     expect(css).toContain("padding: .16rem .12rem;");
     expect(css.slice(desktop, desktop + 900)).toContain("padding: .2rem .5rem .2rem var(--topic-inset);");

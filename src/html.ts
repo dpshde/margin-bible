@@ -1344,6 +1344,8 @@ export function page(title: string, body: string): string {
     .notes-sheet-handle,
     .notes-sheet-title { display: none; }
     .phone-tabs { display: none; }
+    iframe.phone-kept-surface { display: none; }
+    html[data-phone-embed] .phone-tabs { display: none; }
     @media (max-width: 767px) {
       .phone-tabs {
         display: grid;
@@ -1376,6 +1378,29 @@ export function page(title: string, body: string): string {
       .phone-tab[aria-current="page"] {
         color: var(--ink);
         box-shadow: inset 0 2px 0 var(--ink);
+      }
+      iframe.phone-kept-surface {
+        display: block;
+        position: fixed;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        border: 0;
+        z-index: 20;
+        background: var(--paper);
+        opacity: 0;
+        pointer-events: none;
+      }
+      iframe.phone-kept-surface.is-live {
+        opacity: 1;
+        pointer-events: auto;
+      }
+      html.phone-surface-covered body > :not(.phone-kept-surface) {
+        visibility: hidden;
+      }
+      html.phone-surface-covered body > .phone-tabs,
+      html.phone-surface-covered #reader .phone-tabs {
+        visibility: visible;
       }
       .bookmarks-view > summary { display: none; }
       .bookmarks-view > summary::after,
@@ -1585,17 +1610,69 @@ export function page(title: string, body: string): string {
     }
     .verse-group:not([open]) > summary .verse-group-title-actions { display: none; }
     @media (max-width: 767px) {
-      html[data-phone-tab="groups"] #verse-groups-view { background: var(--fill); }
-      #verse-groups-view .note-list {
+      /* phone-collection-card */
+      /* One paper surface: no fill wash under the card, and no second fill on the row. */
+      html[data-phone-tab="groups"] #verse-groups-view,
+      html[data-phone-tab="bookmarks"] #bookmarks-view { background: var(--paper); }
+      #verse-groups-view .note-list,
+      #bookmarks-view .note-list {
         display: flex;
         flex-direction: column;
         gap: .4rem;
+        background: transparent;
       }
-      #verse-groups-view .verse-group {
+      #verse-groups-view .verse-group,
+      #bookmarks-view .collection-card {
         border: 1px solid color-mix(in srgb, var(--ink) 14%, transparent);
         border-radius: .75rem;
         background: var(--paper);
         overflow: hidden;
+      }
+      #bookmarks-view .collection-card > a.note-row,
+      #bookmarks-view .collection-card > a.note-row:hover,
+      #bookmarks-view .collection-card > a.note-row:focus,
+      #bookmarks-view .collection-card > a.note-row:focus-visible,
+      #verse-groups-view .verse-group > summary.note-row,
+      #verse-groups-view .verse-group > summary.note-row:hover,
+      #verse-groups-view .verse-group > summary.note-row:focus,
+      #verse-groups-view .verse-group > summary.note-row:focus-visible,
+      #verse-groups-view .verse-group[open] > summary.note-row,
+      #verse-groups-view .verse-group[open] > summary.note-row:hover,
+      #verse-groups-view .verse-group[open] > summary.note-row:focus,
+      #verse-groups-view .verse-group[open] > summary.note-row:focus-visible,
+      #verse-groups-view .verse-group-form,
+      #verse-groups-view .verse-group[open] > summary .verse-group-title-edit,
+      #verse-groups-view .verse-group[open] > summary .verse-group-title-edit:hover,
+      #verse-groups-view .verse-group[open] > summary .verse-group-title-edit:focus-visible,
+      #verse-groups-view .verse-group[open] > summary .tray-attach,
+      #verse-groups-view .verse-group[open] > summary .tray-attach:hover,
+      #verse-groups-view .verse-group[open] > summary .tray-attach:focus-visible {
+        background: transparent;
+      }
+      #verse-groups-view .verse-group[open] > summary.note-row,
+      #verse-groups-view .verse-group[open] > summary .note-row-title,
+      #verse-groups-view .verse-group[open] > summary .note-row-excerpt {
+        color: var(--ink);
+      }
+      #verse-groups-view .verse-group[open] > summary .verse-group-title-edit,
+      #verse-groups-view .verse-group[open] > summary .tray-attach {
+        color: var(--ink-soft);
+      }
+      #verse-groups-view .verse-group[open] > summary .verse-count-pill {
+        background: color-mix(in srgb, var(--ink) 12%, transparent);
+        color: var(--ink);
+      }
+      #bookmarks-view .collection-card > a.note-row {
+        border-radius: 0;
+        padding: .45rem .8rem;
+      }
+      #bookmarks-view .collection-card .note-row-title {
+        font-weight: 600;
+        color: var(--ink);
+      }
+      #bookmarks-view .collection-card .note-row-excerpt {
+        font-size: .82rem;
+        color: var(--muted);
       }
       #verse-groups-view .verse-group > summary.verse-group-row {
         min-height: 2.55rem;
