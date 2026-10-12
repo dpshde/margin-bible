@@ -172,9 +172,11 @@ export function page(title: string, body: string): string {
       cursor: pointer;
       overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     }
-    .topbar-title-btn:hover,
     .topbar-title-btn:focus-visible,
     .topbar-title-btn[aria-expanded="true"] { background: var(--fill); }
+    @media (hover: hover) and (pointer: fine) {
+      .topbar-title-btn:hover { background: var(--fill); }
+    }
     .topbar-title-btn:focus-visible {
       outline: 2px solid color-mix(in srgb, var(--ink) 28%, transparent);
       outline-offset: 1px;
@@ -211,16 +213,11 @@ export function page(title: string, body: string): string {
       outline: 2px solid color-mix(in srgb, var(--ink) 28%, transparent);
       outline-offset: 2px;
     }
-    .icon-btn[data-state-icon][data-state-on="true"]:hover,
-    .tray-bookmark[data-state-icon][data-state-on="true"]:hover { background: transparent; }
-    /* Header bookmark stays flat. Hover must not paint a fill, border, or shadow. */
-    .icon-btn.topbar-chapter-mark:hover {
-      background: transparent;
-      border-color: transparent;
-      box-shadow: none;
-    }
     @media (hover: hover) and (pointer: fine) {
       .icon-btn:hover { color: var(--ink); background: var(--fill); }
+      .icon-btn[data-state-icon][data-state-on="true"]:hover,
+      .tray-bookmark[data-state-icon][data-state-on="true"]:hover { background: transparent; }
+      /* Header bookmark stays flat. Hover must not paint a fill, border, or shadow. */
       .icon-btn.topbar-chapter-mark:hover {
         background: transparent;
         border-color: transparent;
@@ -240,7 +237,9 @@ export function page(title: string, body: string): string {
       color: var(--ink); background: var(--fill);
     }
     .expand-btn:disabled { opacity: .45; cursor: default; color: var(--ink-soft); }
-    .expand-btn:disabled:hover { color: var(--ink-soft); background: transparent; }
+    @media (hover: hover) and (pointer: fine) {
+      .expand-btn:disabled:hover { color: var(--ink-soft); background: transparent; }
+    }
     .expand-btn .expand-icon {
       position: relative; display: block; width: 1.1rem; height: 1.1rem; flex-shrink: 0;
     }
@@ -392,13 +391,19 @@ export function page(title: string, body: string): string {
       outline: none; box-shadow: none;
     }
     .suggest li + li:not(.suggest-hint) button { box-shadow: inset 0 1px var(--line); }
-    .suggest button:hover,
     .suggest button:focus,
     .suggest button:focus-visible,
     .suggest li[aria-selected="true"] button {
       background: color-mix(in srgb, var(--ink) 8%, var(--paper-raised));
       color: var(--ink);
       outline: none; box-shadow: none;
+    }
+    @media (hover: hover) and (pointer: fine) {
+      .suggest button:hover {
+        background: color-mix(in srgb, var(--ink) 8%, var(--paper-raised));
+        color: var(--ink);
+        outline: none; box-shadow: none;
+      }
     }
     .suggest li:last-child button {
       border-radius: 0 0 var(--list-radius) var(--list-radius);
@@ -580,11 +585,17 @@ export function page(title: string, body: string): string {
       cursor: pointer;
     }
     html[data-theme="dark"] .search-suggest-chip { color: #78716c; }
-    .search-suggest-chip:hover,
     .search-suggest-chip:focus-visible {
       color: var(--ink-soft);
       background: color-mix(in srgb, var(--ink) 6%, transparent);
       box-shadow: none; outline: none;
+    }
+    @media (hover: hover) and (pointer: fine) {
+      .search-suggest-chip:hover {
+        color: var(--ink-soft);
+        background: color-mix(in srgb, var(--ink) 6%, transparent);
+        box-shadow: none; outline: none;
+      }
     }
     .search-result {
       display: block; width: 100%; margin: 0; text-align: left;
@@ -596,7 +607,6 @@ export function page(title: string, body: string): string {
     .search-testament-segments { display: none; }
     .search-modal-list li + li .search-result { box-shadow: inset 0 1px var(--line); }
     .search-result.is-selected,
-    .search-result:hover,
     .search-result:focus-visible {
       outline: none;
     }
@@ -997,12 +1007,19 @@ export function page(title: string, body: string): string {
       transition: width 0.16s ease, padding-left 0.16s ease, opacity 0.16s ease, background-color 0.16s ease;
     }
     .reader-verse-rail.visible,
-    .reader-verse-rail:hover,
     .reader-verse-rail:focus-visible {
       width: 36px;
       padding-left: 12px;
       opacity: 1;
       outline: none;
+    }
+    @media (hover: hover) and (pointer: fine) {
+      .reader-verse-rail:hover {
+        width: 36px;
+        padding-left: 12px;
+        opacity: 1;
+        outline: none;
+      }
     }
     .reader-verse-rail.dragging {
       width: 38px;
@@ -1037,10 +1054,12 @@ export function page(title: string, body: string): string {
       opacity: 0.42;
       transition: width 0.12s ease, background-color 0.12s ease, opacity 0.12s ease, box-shadow 0.12s ease;
     }
-    .reader-verse-rail:hover .reader-verse-rail-dot,
     .reader-verse-rail:focus-visible .reader-verse-rail-dot,
     .reader-verse-rail.visible .reader-verse-rail-dot,
     .reader-verse-rail.dragging .reader-verse-rail-dot { opacity: 0.48; }
+    @media (hover: hover) and (pointer: fine) {
+      .reader-verse-rail:hover .reader-verse-rail-dot { opacity: 0.48; }
+    }
     .reader-verse-rail.dragging .reader-verse-rail-dot {
       background: color-mix(in srgb, var(--ink) 36%, transparent);
       opacity: 0.82;
@@ -1108,8 +1127,10 @@ export function page(title: string, body: string): string {
     @media (max-width: 767px) {
       .reader-verse-rail { width: 28px; padding-left: 16px; }
       .reader-verse-rail.visible,
-      .reader-verse-rail:hover,
       .reader-verse-rail:focus-visible { width: 30px; padding-left: 12px; }
+      @media (hover: hover) and (pointer: fine) {
+        .reader-verse-rail:hover { width: 30px; padding-left: 12px; }
+      }
       .reader-verse-rail.dragging { width: 32px; padding-left: 8px; }
       .reader-verse-rail-dot { width: 8px; }
       .reader-verse-rail-dot.current,
@@ -1315,7 +1336,9 @@ export function page(title: string, body: string): string {
       margin: 1.5rem 0 2rem; font-size: .95rem;
     }
     .pager a { text-decoration: none; color: var(--ink-soft); }
-    .pager a:hover { color: var(--ink); }
+    @media (hover: hover) and (pointer: fine) {
+      .pager a:hover { color: var(--ink); }
+    }
     /* Bookmarks: icon + soft wash — distinct from THIS WEEK, not a heavy card. */
     .bookmarks-view {
       margin: 0 0 0.5rem;
@@ -1382,18 +1405,24 @@ export function page(title: string, body: string): string {
       iframe.phone-kept-surface {
         display: block;
         position: fixed;
-        inset: 0;
+        top: 0;
+        left: 0;
         width: 100%;
         height: 100%;
         border: 0;
         z-index: 20;
         background: var(--paper);
-        opacity: 0;
+        /* A parked full-viewport iframe still takes the touch scroll on iOS
+           when pointer-events is none. Keep it loaded, off the screen. */
+        visibility: hidden;
         pointer-events: none;
+        transform: translate3d(-100%, 0, 0);
       }
       iframe.phone-kept-surface.is-live {
+        visibility: visible;
         opacity: 1;
         pointer-events: auto;
+        transform: none;
       }
       html.phone-surface-covered body > :not(.phone-kept-surface) {
         visibility: hidden;
@@ -1513,12 +1542,18 @@ export function page(title: string, body: string): string {
     }
     /* Open fill wins over bookmark hover, focus, and the collapse wash. */
     .bookmarks-panel .note-list .verse-group[open] > summary.note-row,
-    .bookmarks-panel .note-list .verse-group[open] > summary.note-row:hover,
     .bookmarks-panel .note-list .verse-group[open] > summary.note-row:focus,
     .bookmarks-panel .note-list .verse-group[open] > summary.note-row:focus-visible {
       background: var(--ink);
       color: var(--paper);
       outline: none;
+    }
+    @media (hover: hover) and (pointer: fine) {
+      .bookmarks-panel .note-list .verse-group[open] > summary.note-row:hover {
+        background: var(--ink);
+        color: var(--paper);
+        outline: none;
+      }
     }
     .bookmarks-panel .note-list .verse-group[open] > summary .note-row-title,
     .bookmarks-panel .note-list .verse-group[open] > summary .note-row-excerpt {
@@ -1527,11 +1562,16 @@ export function page(title: string, body: string): string {
     /* Collapse leaves the pointer on the summary. Hold the closed look
        until the pointer actually leaves and comes back. Never while open. */
     .bookmarks-panel .note-list .verse-group.is-collapsed-hover:not([open]) > summary.note-row,
-    .bookmarks-panel .note-list .verse-group.is-collapsed-hover:not([open]) > summary.note-row:hover,
     .bookmarks-panel .note-list .verse-group.is-collapsed-hover:not([open]) > summary.note-row:focus,
     .bookmarks-panel .note-list .verse-group.is-collapsed-hover:not([open]) > summary.note-row:focus-visible {
       background: transparent;
       outline: none;
+    }
+    @media (hover: hover) and (pointer: fine) {
+      .bookmarks-panel .note-list .verse-group.is-collapsed-hover:not([open]) > summary.note-row:hover {
+        background: transparent;
+        outline: none;
+      }
     }
     .verse-group-form { display: flex; flex-direction: column; gap: .4rem; margin: 0; padding: .4rem .55rem .25rem; }
     .verse-group-fields {
@@ -1629,25 +1669,29 @@ export function page(title: string, body: string): string {
         overflow: hidden;
       }
       #bookmarks-view .collection-card > a.note-row,
-      #bookmarks-view .collection-card > a.note-row:hover,
       #bookmarks-view .collection-card > a.note-row:focus,
       #bookmarks-view .collection-card > a.note-row:focus-visible,
       #verse-groups-view .verse-group > summary.note-row,
-      #verse-groups-view .verse-group > summary.note-row:hover,
       #verse-groups-view .verse-group > summary.note-row:focus,
       #verse-groups-view .verse-group > summary.note-row:focus-visible,
       #verse-groups-view .verse-group[open] > summary.note-row,
-      #verse-groups-view .verse-group[open] > summary.note-row:hover,
       #verse-groups-view .verse-group[open] > summary.note-row:focus,
       #verse-groups-view .verse-group[open] > summary.note-row:focus-visible,
       #verse-groups-view .verse-group-form,
       #verse-groups-view .verse-group[open] > summary .verse-group-title-edit,
-      #verse-groups-view .verse-group[open] > summary .verse-group-title-edit:hover,
       #verse-groups-view .verse-group[open] > summary .verse-group-title-edit:focus-visible,
       #verse-groups-view .verse-group[open] > summary .tray-attach,
-      #verse-groups-view .verse-group[open] > summary .tray-attach:hover,
       #verse-groups-view .verse-group[open] > summary .tray-attach:focus-visible {
         background: transparent;
+      }
+      @media (hover: hover) and (pointer: fine) {
+        #bookmarks-view .collection-card > a.note-row:hover,
+        #verse-groups-view .verse-group > summary.note-row:hover,
+        #verse-groups-view .verse-group[open] > summary.note-row:hover,
+        #verse-groups-view .verse-group[open] > summary .verse-group-title-edit:hover,
+        #verse-groups-view .verse-group[open] > summary .tray-attach:hover {
+          background: transparent;
+        }
       }
       #verse-groups-view .verse-group[open] > summary.note-row,
       #verse-groups-view .verse-group[open] > summary .note-row-title,
@@ -1735,12 +1779,17 @@ export function page(title: string, body: string): string {
     .verse-group > summary .tray-attach { color: var(--ink-soft); }
     .verse-group[open] > summary .verse-group-title-edit,
     .verse-group[open] > summary .tray-attach { color: var(--paper); }
-    .verse-group[open] > summary .verse-group-title-edit:hover,
-    .verse-group[open] > summary .tray-attach:hover,
     .verse-group[open] > summary .verse-group-title-edit:focus-visible,
     .verse-group[open] > summary .tray-attach:focus-visible {
       color: var(--paper);
       background: color-mix(in srgb, var(--paper) 16%, transparent);
+    }
+    @media (hover: hover) and (pointer: fine) {
+      .verse-group[open] > summary .verse-group-title-edit:hover,
+      .verse-group[open] > summary .tray-attach:hover {
+        color: var(--paper);
+        background: color-mix(in srgb, var(--paper) 16%, transparent);
+      }
     }
     .verse-group > summary .note-row-title[contenteditable="true"] {
       cursor: text;
@@ -1856,7 +1905,9 @@ export function page(title: string, body: string): string {
     .note-bundle-name,
     .note-bundle-verse { position: relative; z-index: 1; }
     .note-bundle .note-row-excerpt { position: relative; z-index: 0; pointer-events: none; }
-    .note-bundle:has(.note-bundle-open:hover) { background: var(--fill); }
+    @media (hover: hover) and (pointer: fine) {
+      .note-bundle:has(.note-bundle-open:hover) { background: var(--fill); }
+    }
     .note-bundle-name {
       flex: none; text-decoration: none;
       font-weight: 700; font-size: .95rem; letter-spacing: -.015em; color: var(--ink);
@@ -1874,11 +1925,19 @@ export function page(title: string, body: string): string {
       font-weight: 600; font-size: .84rem; font-variant-numeric: tabular-nums;
       line-height: 1.2; color: var(--ink);
     }
-    .note-list .note-row:hover, .note-list .note-row:focus-visible { background: var(--fill); }
-    .note-bundle-name:hover, .note-bundle-name:focus-visible { color: var(--ink); }
-    .note-bundle-verse:hover, .note-bundle-verse:focus-visible {
+    .note-list .note-row:focus-visible { background: var(--fill); }
+    .note-bundle-name:focus-visible { color: var(--ink); }
+    .note-bundle-verse:focus-visible {
       border-color: color-mix(in srgb, var(--ink) 28%, transparent);
       background: var(--fill); color: var(--ink);
+    }
+    @media (hover: hover) and (pointer: fine) {
+      .note-list .note-row:hover { background: var(--fill); }
+      .note-bundle-name:hover { color: var(--ink); }
+      .note-bundle-verse:hover {
+        border-color: color-mix(in srgb, var(--ink) 28%, transparent);
+        background: var(--fill); color: var(--ink);
+      }
     }
     .note-bundle-name:focus-visible, .note-bundle-verse:focus-visible {
       outline: 2px solid var(--sel-rail-open); outline-offset: 2px;
@@ -1907,7 +1966,10 @@ export function page(title: string, body: string): string {
       color: var(--ink-soft); background: var(--fill);
       border: 1px solid var(--line);
     }
-    .starter-chip:hover, .starter-chip:focus-visible { color: var(--ink); background: var(--paper-raised); }
+    .starter-chip:focus-visible { color: var(--ink); background: var(--paper-raised); }
+    @media (hover: hover) and (pointer: fine) {
+      .starter-chip:hover { color: var(--ink); background: var(--paper-raised); }
+    }
     footer.site { padding-bottom: 2rem; color: var(--muted); font: .8rem/1.4 var(--sans); }
     .hint {
       margin: 0 0 1rem; padding: .65rem .8rem;
@@ -1939,9 +2001,15 @@ export function page(title: string, body: string): string {
       display: inline-flex; align-items: center; gap: .55rem;
       box-sizing: border-box;
     }
-    .menu-item:hover, .menu-item:focus, .menu-item:focus-visible {
+    .menu-item:focus, .menu-item:focus-visible {
       background: color-mix(in srgb, var(--ink) 8%, var(--paper-raised));
       color: var(--ink); outline: none;
+    }
+    @media (hover: hover) and (pointer: fine) {
+      .menu-item:hover {
+        background: color-mix(in srgb, var(--ink) 8%, var(--paper-raised));
+        color: var(--ink); outline: none;
+      }
     }
     .menu-item.export-link svg { display: block; flex-shrink: 0; }
     .auth-export {
@@ -1951,7 +2019,10 @@ export function page(title: string, body: string): string {
       border-radius: .45rem; text-decoration: none;
       color: var(--ink-soft); font-size: .92rem; font-weight: 600;
     }
-    .auth-export:hover, .auth-export:focus-visible { color: var(--ink); background: var(--fill); }
+    .auth-export:focus-visible { color: var(--ink); background: var(--fill); }
+    @media (hover: hover) and (pointer: fine) {
+      .auth-export:hover { color: var(--ink); background: var(--fill); }
+    }
     .auth-export svg { display: block; flex-shrink: 0; }
     .auth-main {
       width: min(24rem, calc(100% - 2rem));
@@ -2011,12 +2082,19 @@ export function page(title: string, body: string): string {
       color: #e11d48; min-width: 2.25rem; min-height: 2.25rem; padding: 0;
     }
     .passkey-remove svg { display: block; width: 1.05rem; height: 1.05rem; }
-    .passkey-remove:hover, .passkey-remove:focus-visible {
+    .passkey-remove:focus-visible {
       color: #be123c; background: color-mix(in srgb, currentColor 12%, transparent);
     }
+    @media (hover: hover) and (pointer: fine) {
+      .passkey-remove:hover {
+        color: #be123c; background: color-mix(in srgb, currentColor 12%, transparent);
+      }
+    }
     html[data-theme="dark"] .passkey-remove { color: #fb7185; }
-    html[data-theme="dark"] .passkey-remove:hover,
     html[data-theme="dark"] .passkey-remove:focus-visible { color: #fda4af; }
+    @media (hover: hover) and (pointer: fine) {
+      html[data-theme="dark"] .passkey-remove:hover { color: #fda4af; }
+    }
     .auth-signed {
       display: grid; gap: .7rem;
       margin: .35rem 0 1.25rem;
@@ -2094,7 +2172,9 @@ export function page(title: string, body: string): string {
       line-height: 1.25;
       overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     }
-    .att-chip:hover { color: var(--ink); border-color: color-mix(in srgb, var(--ink) 28%, transparent); }
+    @media (hover: hover) and (pointer: fine) {
+      .att-chip:hover { color: var(--ink); border-color: color-mix(in srgb, var(--ink) 28%, transparent); }
+    }
     .att-chip.is-fresh {
       color: var(--ink); border-color: var(--ink);
       animation: att-fresh .9s ease;
@@ -2140,7 +2220,9 @@ export function page(title: string, body: string): string {
       border-radius: 999px;
       background: var(--paper-raised);
     }
-    .verse-group .att-item:hover { border-color: color-mix(in srgb, var(--ink) 28%, transparent); }
+    @media (hover: hover) and (pointer: fine) {
+      .verse-group .att-item:hover { border-color: color-mix(in srgb, var(--ink) 28%, transparent); }
+    }
     .verse-group .att-chip {
       border: 0;
       background: transparent;
@@ -2149,7 +2231,9 @@ export function page(title: string, body: string): string {
       font-size: .78rem;
       font-weight: 600;
     }
-    .verse-group .att-chip:hover { border-color: transparent; background: transparent; }
+    @media (hover: hover) and (pointer: fine) {
+      .verse-group .att-chip:hover { border-color: transparent; background: transparent; }
+    }
     .verse-group .verse-star,
     .verse-group .att-remove {
       position: static;
@@ -2221,12 +2305,14 @@ export function page(title: string, body: string): string {
     .verse-group .verse-star svg,
     .verse-group .att-remove svg { display: block; width: .72rem; height: .72rem; }
     .verse-group .verse-star[aria-pressed="true"] { color: #b0893e; }
-    .verse-group .verse-star:hover,
-    .verse-group .att-remove:hover,
     .verse-group .verse-star:focus-visible,
     .verse-group .att-remove:focus-visible { color: var(--ink); background: transparent; }
-    .verse-group .verse-star[aria-pressed="true"]:hover,
     .verse-group .verse-star[aria-pressed="true"]:focus-visible { color: #b0893e; }
+    @media (hover: hover) and (pointer: fine) {
+      .verse-group .verse-star:hover,
+      .verse-group .att-remove:hover { color: var(--ink); background: transparent; }
+      .verse-group .verse-star[aria-pressed="true"]:hover { color: #b0893e; }
+    }
     @media (hover: none), (pointer: coarse) {
       .verse-group .att-chip { font-size: .84rem; }
       .verse-group .verse-star,
@@ -2408,8 +2494,6 @@ export function page(title: string, body: string): string {
         opacity: 0;
       }
       #verse-groups-view .verse-group .verse-star[aria-pressed="true"],
-      #verse-groups-view .verse-group .att-item:hover .verse-star,
-      #verse-groups-view .verse-group .att-item:hover .att-remove,
       #verse-groups-view .verse-group .att-item:focus-within .verse-star,
       #verse-groups-view .verse-group .att-item:focus-within .att-remove,
       #verse-groups-view .verse-group .verse-star:focus-visible,
@@ -2420,13 +2504,25 @@ export function page(title: string, body: string): string {
         visibility: visible;
         opacity: 1;
       }
+      @media (hover: hover) and (pointer: fine) {
+        #verse-groups-view .verse-group .att-item:hover .verse-star,
+        #verse-groups-view .verse-group .att-item:hover .att-remove {
+          width: 1.15rem;
+          min-width: 1.15rem;
+          overflow: visible;
+          visibility: visible;
+          opacity: 1;
+        }
+      }
     }
     a.wiki {
       color: var(--ink-soft); text-decoration: underline;
       text-decoration-thickness: 1px; text-underline-offset: .15em;
       text-decoration-color: color-mix(in srgb, var(--ink) 28%, transparent);
     }
-    a.wiki:hover { color: var(--ink); }
+    @media (hover: hover) and (pointer: fine) {
+      a.wiki:hover { color: var(--ink); }
+    }
     .att-drop {
       width: min(36rem, calc(100vw - 1.5rem));
       max-width: 100%; padding: 0; border: 0; background: transparent;
@@ -2453,7 +2549,9 @@ export function page(title: string, body: string): string {
       border: 0; border-radius: 999px; background: transparent;
       color: var(--muted); cursor: pointer;
     }
-    .att-drop-close:hover { color: var(--ink); background: var(--fill); }
+    @media (hover: hover) and (pointer: fine) {
+      .att-drop-close:hover { color: var(--ink); background: var(--fill); }
+    }
     .att-drop-zone {
       display: flex; flex-direction: column; align-items: center; justify-content: center;
       gap: .65rem; min-height: 14rem; margin: 0; padding: 2.4rem 1.4rem 1.6rem;

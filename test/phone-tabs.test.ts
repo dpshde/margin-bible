@@ -112,8 +112,34 @@ describe("phone bookmark cards reuse the topic card", () => {
     expect(css.slice(desktop)).not.toContain("#bookmarks-view .collection-card");
     expect(css).toContain(".bookmarks-panel .note-list .note-row { border-radius: .35rem; }");
     expect(css).toContain("iframe.phone-kept-surface { display: none; }");
+    expect(css).toContain("transform: translate3d(-100%, 0, 0);");
+    expect(css).toContain("iframe.phone-kept-surface.is-live");
+    expect(phoneShellScript()).toContain("frame.inert = true");
+    expect(phoneShellScript()).toContain("frame.inert = false");
     const phoneFrame = css.indexOf("iframe.phone-kept-surface.is-live");
     const frameMedia = css.lastIndexOf("@media", phoneFrame);
     expect(css.slice(frameMedia, phoneFrame)).toContain("max-width: 767px");
+  });
+});
+
+describe("touch hover", () => {
+  test("every hover rule is inside a fine-pointer hover query", () => {
+    const css = page("t", "<p>x</p>");
+    let depth = 0;
+    let hoverDepth: number | null = null;
+    const outside: string[] = [];
+    for (const line of css.split("\n")) {
+      if (line.includes(":hover") && hoverDepth === null) outside.push(line.trim());
+      for (const ch of line) {
+        if (ch === "{") {
+          depth += 1;
+          if (line.includes("@media (hover: hover) and (pointer: fine)")) hoverDepth = depth;
+        } else if (ch === "}") {
+          if (hoverDepth !== null && depth === hoverDepth) hoverDepth = null;
+          depth -= 1;
+        }
+      }
+    }
+    expect(outside).toEqual([]);
   });
 });

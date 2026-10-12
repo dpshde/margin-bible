@@ -104,12 +104,14 @@ export function phoneShellScript(): string {
     frame.classList.add("is-parked");
     frame.classList.remove("is-live");
     frame.setAttribute("aria-hidden", "true");
+    frame.inert = true;
   }
 
   function reveal(frame) {
     frame.classList.remove("is-parked");
     frame.classList.add("is-live");
     frame.removeAttribute("aria-hidden");
+    frame.inert = false;
   }
 
   function cover(on) {
@@ -139,6 +141,7 @@ export function phoneShellScript(): string {
     frame.id = "phone-kept-surface";
     frame.className = "phone-kept-surface is-parked";
     frame.setAttribute("aria-hidden", "true");
+    frame.inert = true;
     frame.setAttribute("title", notesDocument() ? "Scripture" : "Notes");
     frame.loading = "eager";
     var src = notesDocument() ? readerHref() : "/notes";
