@@ -161,9 +161,12 @@ describe("bookmark-only inbox filtering", () => {
       bookmarked: true,
       updatedAt: "2026-09-30T12:00:00Z",
     };
+    // Pin the clock. With the real clock the note fell into Older (chapter
+    // bundles) once it was 14+ days old, and the verse href disappeared.
+    const now = new Date("2026-10-01T12:00:00Z");
     // Notes list (THIS WEEK / Older): still hide empty bookmark-only.
-    expect(notesListHtml([empty])).toContain("No notes yet");
-    expect(notesListHtml([empty])).not.toContain('href="/rom.5.3-5"');
+    expect(notesListHtml([empty], now)).toContain("No notes yet");
+    expect(notesListHtml([empty], now)).not.toContain('href="/rom.5.3-5"');
     // Bookmarks section: show any bookmarked note, even empty/bullet-only ranges.
     const bmEmpty = bookmarksViewHtml([empty]);
     expect(bmEmpty).toContain('href="/rom.5.3-5"');
@@ -171,7 +174,7 @@ describe("bookmark-only inbox filtering", () => {
     expect(bmEmpty).not.toContain("No bookmarks yet.");
 
     const withBody = { ...empty, excerpt: "We rejoice in suffering" };
-    const html = notesListHtml([empty, withBody]);
+    const html = notesListHtml([empty, withBody], now);
     expect(html).toContain('href="/rom.5.3-5"');
     expect(bookmarksViewHtml([empty, withBody])).toContain('href="/rom.5.3-5"');
   });
