@@ -974,6 +974,7 @@ describe("automatic verse group titles", () => {
       libraryId: "lib",
       hub: "jhn.1.1",
       apiKey: "test-key",
+      enabled: "1",
       fetchImpl,
     });
     expect(held.ok).toBe(true);
@@ -998,6 +999,7 @@ describe("automatic verse group titles", () => {
       libraryId: "lib",
       hub: "jhn.1.1",
       apiKey: "test-key",
+      enabled: "1",
       fetchImpl,
     });
     expect(named.ok).toBe(true);
@@ -1017,6 +1019,7 @@ describe("automatic verse group titles", () => {
       hub: "jhn.1.1",
       postedTitle: "",
       apiKey: "test-key",
+      enabled: "1",
       fetchImpl,
     });
     expect(again.ok).toBe(true);
@@ -1072,6 +1075,7 @@ describe("automatic verse group titles", () => {
       hub: "jhn.1.1",
       postedTitle: "Something else",
       apiKey: "test-key",
+      enabled: "1",
       fetchImpl,
     });
     expect(afterEdit.ok).toBe(true);
@@ -1095,6 +1099,7 @@ describe("automatic verse group titles", () => {
       hub: "jhn.1.1",
       postedTitle: "My title",
       apiKey: "test-key",
+      enabled: "1",
       fetchImpl,
     });
     expect(claimed.ok).toBe(true);
@@ -1118,6 +1123,7 @@ describe("automatic verse group titles", () => {
       libraryId: "lib",
       hub: "jhn.1.1",
       apiKey: "",
+      enabled: "1",
       fetchImpl,
     });
     expect(skipped).toEqual({
@@ -1130,6 +1136,66 @@ describe("automatic verse group titles", () => {
     const loaded = await loadVerseGroups(db, "lib", [note("jhn.1.1", [xref("jhn.1.14"), xref("jhn.1.3")])]);
     expect(loaded[0]?.title).toBe("");
     expect(loaded[0]?.autoTitled).toBe(false);
+  });
+
+  test("an upstream error or timeout still spends the one pass; reloads do not call Jev again", async () => {
+    const db = starLibrary();
+    let calls = 0;
+    const fetchImpl = (async () => {
+      calls += 1;
+      throw new Error("timeout");
+    }) as typeof fetch;
+    const run = () =>
+      suggestVerseGroupTopic({ db, assets: johnAssets, libraryId: "lib", hub: "jhn.1.1", apiKey: "test-key", enabled: "1", fetchImpl });
+    const first = await run();
+    expect(first.ok && first.skipped).toBe("unavailable");
+    for (let i = 0; i < 5; i += 1) {
+      const again = await run();
+      expect(again.ok && again.skipped).toBe("already");
+    }
+    expect(calls).toBe(1);
+  });
+
+  test("two tabs racing on the same group pay for one call", async () => {
+    const db = starLibrary();
+    let calls = 0;
+    const fetchImpl = (async () => {
+      calls += 1;
+      return new Response(JSON.stringify({ answers: { topic: { choice: "The Word made flesh" } } }), { status: 200 });
+    }) as typeof fetch;
+    const run = () =>
+      suggestVerseGroupTopic({ db, assets: johnAssets, libraryId: "lib", hub: "jhn.1.1", apiKey: "test-key", enabled: "1", fetchImpl });
+    await Promise.all([run(), run(), run()]);
+    expect(calls).toBe(1);
+  });
+
+  test("JEV_TITLES_ENABLED off or unset never calls Jev and leaves the group unlocked", async () => {
+    for (const enabled of [undefined, "", "0", "false"]) {
+      const db = starLibrary();
+      let calls = 0;
+      const fetchImpl = (async () => {
+        calls += 1;
+        return new Response("{}", { status: 200 });
+      }) as typeof fetch;
+      const off = await suggestVerseGroupTopic({ db, assets: johnAssets, libraryId: "lib", hub: "jhn.1.1", apiKey: "test-key", enabled, fetchImpl });
+      expect(off.ok && off.skipped).toBe("disabled");
+      expect(off.ok && off.group.autoTitled).toBe(false);
+      expect(calls).toBe(0);
+    }
+  });
+
+  test("a worker-wide daily cap of 0 refuses before Jev", async () => {
+    const db = starLibrary();
+    let calls = 0;
+    const fetchImpl = (async () => {
+      calls += 1;
+      return new Response("{}", { status: 200 });
+    }) as typeof fetch;
+    const capped = await suggestVerseGroupTopic({ db, assets: johnAssets, libraryId: "lib", hub: "jhn.1.1", apiKey: "test-key", enabled: "1", dailyCap: "0", fetchImpl });
+    expect(capped.ok).toBe(false);
+    if (capped.ok) return;
+    expect(capped.status).toBe(429);
+    expect(calls).toBe(0);
   });
 
   test("Jev answering None locks the group and leaves the placeholder", async () => {
@@ -1145,6 +1211,7 @@ describe("automatic verse group titles", () => {
       libraryId: "lib",
       hub: "jhn.1.1",
       apiKey: "test-key",
+      enabled: "1",
       fetchImpl,
     });
     expect(none.ok).toBe(true);
@@ -1159,6 +1226,7 @@ describe("automatic verse group titles", () => {
       libraryId: "lib",
       hub: "jhn.1.1",
       apiKey: "test-key",
+      enabled: "1",
       fetchImpl,
     });
     expect(repeat.ok).toBe(true);

@@ -692,7 +692,32 @@ export async function claimOpenTitle(db: D1Database, libraryId: string, hub: str
 }
 
 /**
- * Write Jev's title only while the group is still unlocked and untitled.
+ * Take the one Jev pass for this group before Jev is called. Sets the lock
+ * atomically while the group is unlocked and untitled. Returns true only for
+ * the single request that flipped it, so a retry, a reload, or a racing tab
+ * never pays for a second call, whatever Jev answers.
+ */
+export async function claimAutoTitlePass(db: D1Database, libraryId: string, hub: string): Promise<boolean> {
+  await ensureVerseGroupsTable(db);
+  const now = new Date().toISOString();
+  const result = await db
+    .prepare(
+      `INSERT INTO verse_groups (library_id, hub_slug, title, description, undo_json, auto_titled, updated_at)
+       VALUES (?, ?, '', '', '[]', 1, ?)
+       ON CONFLICT(library_id, hub_slug) DO UPDATE SET
+         auto_titled = 1,
+         updated_at = excluded.updated_at
+       WHERE verse_groups.auto_titled = 0 AND trim(verse_groups.title) = ''
+       RETURNING auto_titled`,
+    )
+    .bind(libraryId, hub, now)
+    .all<{ auto_titled: number }>();
+  return result.results.length > 0;
+}
+
+/**
+ * Write Jev's title after claimAutoTitlePass took the lock. Only fills a title
+ * that is still empty, so a title typed meanwhile wins.
  * Returns false when a title or the lock landed first.
  */
 export async function saveAutoTitle(db: D1Database, libraryId: string, hub: string, title: string): Promise<boolean> {
@@ -707,7 +732,7 @@ export async function saveAutoTitle(db: D1Database, libraryId: string, hub: stri
          jev_title = excluded.jev_title,
          auto_titled = 1,
          updated_at = excluded.updated_at
-       WHERE verse_groups.auto_titled = 0 AND trim(verse_groups.title) = ''`,
+       WHERE trim(verse_groups.title) = ''`,
     )
     .bind(libraryId, hub, title, title, now)
     .run();

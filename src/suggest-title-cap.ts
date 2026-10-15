@@ -6,6 +6,27 @@
 
 export const SUGGEST_TITLE_LIBRARY_DAILY_CAP = 24;
 export const SUGGEST_TITLE_IP_DAILY_CAP = 40;
+/** Default ceiling on Jev title calls across every library, per UTC day. */
+export const JEV_TITLES_DEFAULT_DAILY_CAP = 100;
+export const SUGGEST_TITLE_GLOBAL_ACTOR = "global";
+
+/**
+ * Kill switch. Jev titles run only when JEV_TITLES_ENABLED is "1" or "true".
+ * Unset means off, so a deploy without the var never spends.
+ */
+export function jevTitlesEnabled(value: unknown): boolean {
+  const flag = String(value ?? "").trim().toLowerCase();
+  return flag === "1" || flag === "true";
+}
+
+/** JEV_TITLES_DAILY_CAP as a positive integer, else the default. 0 means none today. */
+export function jevTitlesDailyCap(value: unknown): number {
+  const raw = String(value ?? "").trim();
+  if (!raw) return JEV_TITLES_DEFAULT_DAILY_CAP;
+  const n = Number(raw);
+  if (!Number.isFinite(n) || n < 0) return JEV_TITLES_DEFAULT_DAILY_CAP;
+  return Math.floor(n);
+}
 
 const CREATE_USAGE = `CREATE TABLE IF NOT EXISTS suggest_title_usage (
   actor TEXT NOT NULL,
@@ -86,6 +107,7 @@ export async function consumeSuggestTitleQuota(
   libraryId: string,
   ip: string,
   now = new Date(),
+  globalCap: number = JEV_TITLES_DEFAULT_DAILY_CAP,
 ): Promise<SuggestTitleQuota> {
   await ensureSuggestTitleUsage(db);
   const day = utcDay(now);
@@ -94,5 +116,8 @@ export async function consumeSuggestTitleQuota(
   if (!libraryClaimed) return { allowed: false, retryAfterSec: secondsUntilUtcDay(now) };
   const ipClaimed = await claimUsage(db, suggestTitleIpActor(ip), day, SUGGEST_TITLE_IP_DAILY_CAP);
   if (!ipClaimed) return { allowed: false, retryAfterSec: secondsUntilUtcDay(now) };
+  // One counter for the whole worker, so new guest libraries cannot add up past it.
+  const globalClaimed = globalCap > 0 && (await claimUsage(db, SUGGEST_TITLE_GLOBAL_ACTOR, day, globalCap));
+  if (!globalClaimed) return { allowed: false, retryAfterSec: secondsUntilUtcDay(now) };
   return { allowed: true };
 }

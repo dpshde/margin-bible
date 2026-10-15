@@ -189,19 +189,30 @@ export function criteriaAvoiding(takenTitles: readonly string[] = []): Record<st
   return criteria;
 }
 
-export function verseTopicInstructions(takenTitles: readonly string[] = []): string {
-  const taken = takenTitleKeys(takenTitles);
-  if (taken.size === 0) return VERSE_TOPIC_INSTRUCTIONS;
-  const labels: string[] = [];
-  const seen = new Set<string>();
-  for (const raw of takenTitles) {
-    const title = normalizedTitle(raw);
-    const key = title.toLowerCase();
-    if (!title || !taken.has(key) || seen.has(key)) continue;
-    seen.add(key);
-    labels.push(title);
-  }
-  return `${VERSE_TOPIC_INSTRUCTIONS} These titles are already used and must not be chosen: ${labels.join("; ")}.`;
+/**
+ * Instructions stay fixed. Titles already used are removed from the criteria
+ * by criteriaAvoiding, so the library's titles are never listed in the prompt.
+ * Listing them made the prompt grow with the library.
+ */
+export function verseTopicInstructions(_takenTitles: readonly string[] = []): string {
+  return VERSE_TOPIC_INSTRUCTIONS;
+}
+
+/** At most this many verse lines go to Jev. */
+export const JEV_MAX_VERSE_LINES = 8;
+/** Total characters of verse text sent to Jev (about 300 tokens). */
+export const JEV_VERSE_CHAR_BUDGET = 1200;
+/** Hard ceiling on the serialized request (about 2k tokens at ~4 chars per token). */
+export const JEV_REQUEST_CHAR_BUDGET = 8500;
+
+/**
+ * Choice criteria sent on the wire. Each title is its own description, which
+ * keeps the menu near 1.6k tokens instead of 2.4k. None keeps its sentence.
+ */
+export function compactCriteria(criteria: Record<string, string>): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const key of Object.keys(criteria)) out[key] = key === NONE_TOPIC ? criteria[key] : key;
+  return out;
 }
 
 export type VerseLine = { label: string; text: string };
@@ -211,11 +222,18 @@ export type JevTopicResult =
   | { ok: false; status: 502 | 503; error: string };
 
 export function verseTopicState(lines: readonly VerseLine[]): { verses: { ref: string; text: string }[] } {
-  return {
-    verses: lines
-      .map((line) => ({ ref: line.label.trim(), text: line.text.replace(/\s+/g, " ").trim() }))
-      .filter((line) => line.ref && line.text),
-  };
+  const verses: { ref: string; text: string }[] = [];
+  let budget = JEV_VERSE_CHAR_BUDGET;
+  for (const line of lines) {
+    if (verses.length >= JEV_MAX_VERSE_LINES || budget <= 0) break;
+    const ref = line.label.trim();
+    let text = line.text.replace(/\s+/g, " ").trim();
+    if (!ref || !text) continue;
+    if (text.length > budget) text = `${text.slice(0, Math.max(0, budget - 1)).trimEnd()}…`;
+    budget -= text.length;
+    verses.push({ ref, text });
+  }
+  return { verses };
 }
 
 export function jevTopicRequest(
@@ -235,7 +253,7 @@ export function jevTopicRequest(
       topic: {
         type: "choice",
         instructions: verseTopicInstructions(takenTitles),
-        criteria: criteriaAvoiding(takenTitles),
+        criteria: compactCriteria(criteriaAvoiding(takenTitles)),
       },
     },
   };
@@ -266,6 +284,9 @@ export async function nearestVerseTopic(
   }
   const fetchImpl = options.fetchImpl ?? fetch;
   const request = jevTopicRequest(lines, options.takenTitles ?? []);
+  if (JSON.stringify(request).length > JEV_REQUEST_CHAR_BUDGET) {
+    return { ok: false, status: 502, error: "Topic prompt over budget." };
+  }
   try {
     const upstream = await fetchImpl(TYPESAFE_SYSTEMONE_URL, {
       method: "POST",

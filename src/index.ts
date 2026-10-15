@@ -86,6 +86,10 @@ export type Env = {
   HIDDEN_ARROW_SEARCH_KEY?: string;
   /** Server-only TypeSafe Jev key. Bearer token for POST /v1/systemone. Never sent to the browser. */
   TYPESAFE_API_KEY?: string;
+  /** Kill switch for Jev verse-group titles. Off unless "1" or "true". */
+  JEV_TITLES_ENABLED?: string;
+  /** Worker-wide Jev title calls per UTC day. Default 100. */
+  JEV_TITLES_DAILY_CAP?: string;
   /** Preview worker only. Guest libraries with no web get a few real hubs. */
   PREVIEW_SEED?: string;
   /** Preview worker only. Must be the preview D1 id or seed is refused. */
@@ -585,6 +589,8 @@ app.post("/api/verse-groups", async (c) => {
       libraryId: guest.libraryId,
       hub: typeof record.hub === "string" ? record.hub : "",
       apiKey: c.env.TYPESAFE_API_KEY,
+      enabled: c.env.JEV_TITLES_ENABLED,
+      dailyCap: c.env.JEV_TITLES_DAILY_CAP,
       postedTitle: record.title,
       clientIp: ip,
     });
