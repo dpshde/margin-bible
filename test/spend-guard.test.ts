@@ -551,3 +551,31 @@ describe("migrations 0005-0008 re-run", () => {
     expect(read("migrations/0007_verse_group_external_refs.sql")).not.toMatch(/^ALTER TABLE/m);
   });
 });
+
+describe("Jev titles worker-wide cap", () => {
+  test("fresh libraries and IPs cannot add up past the global cap", async () => {
+    const sqlite = new Database(":memory:");
+    const db = memoryD1(sqlite);
+    const now = new Date("2026-10-15T12:00:00.000Z");
+    for (let n = 0; n < 5; n += 1) {
+      const ok = await consumeSuggestTitleQuota(db, `lib-${n}`, `198.51.100.${n}`, now, 5);
+      expect(ok.allowed).toBe(true);
+    }
+    const blocked = await consumeSuggestTitleQuota(db, "lib-new", "203.0.113.200", now, 5);
+    expect(blocked.allowed).toBe(false);
+    const nextDay = await consumeSuggestTitleQuota(db, "lib-new", "203.0.113.200", new Date("2026-10-16T00:00:01.000Z"), 5);
+    expect(nextDay.allowed).toBe(true);
+  });
+
+  test("kill switch and cap parse env strings", async () => {
+    const { jevTitlesEnabled, jevTitlesDailyCap, JEV_TITLES_DEFAULT_DAILY_CAP } = await import("../src/suggest-title-cap");
+    expect(jevTitlesEnabled(undefined)).toBe(false);
+    expect(jevTitlesEnabled("0")).toBe(false);
+    expect(jevTitlesEnabled("1")).toBe(true);
+    expect(jevTitlesEnabled("true")).toBe(true);
+    expect(jevTitlesDailyCap(undefined)).toBe(JEV_TITLES_DEFAULT_DAILY_CAP);
+    expect(jevTitlesDailyCap("25")).toBe(25);
+    expect(jevTitlesDailyCap("0")).toBe(0);
+    expect(jevTitlesDailyCap("nope")).toBe(JEV_TITLES_DEFAULT_DAILY_CAP);
+  });
+});

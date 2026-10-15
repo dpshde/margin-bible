@@ -1,6 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import {
   JEV_MODEL,
+  JEV_REQUEST_CHAR_BUDGET,
+  compactCriteria,
   TYPESAFE_SYSTEMONE_URL,
   VERSE_TOPIC_CRITERIA,
   VERSE_TOPIC_INSTRUCTIONS,
@@ -19,7 +21,7 @@ describe("Jev verse topic", () => {
     expect(body.model).toBe(JEV_MODEL);
     expect(body.state.verses.map((verse) => verse.ref)).toEqual(["Romans 8:28", "Romans 8:39"]);
     expect(body.questions.topic.type).toBe("choice");
-    expect(body.questions.topic.criteria).toBe(VERSE_TOPIC_CRITERIA);
+    expect(body.questions.topic.criteria).toEqual(compactCriteria(VERSE_TOPIC_CRITERIA));
     expect(body.questions.topic.instructions).toBe(VERSE_TOPIC_INSTRUCTIONS);
     expect(VERSE_TOPIC_INSTRUCTIONS).toContain("narrower");
     expect(VERSE_TOPIC_INSTRUCTIONS).toContain("specific pastoral");
@@ -56,8 +58,8 @@ describe("Jev verse topic", () => {
     );
     expect(avoided.questions.topic.criteria).not.toHaveProperty("The Lord is my shepherd");
     expect(avoided.questions.topic.criteria).toHaveProperty("None");
-    expect(avoided.questions.topic.instructions).toContain("The Lord is my shepherd");
-    expect(avoided.questions.topic.instructions).toContain("faith");
+    // Taken titles are dropped from the menu, never listed in the prompt.
+    expect(avoided.questions.topic.instructions).toBe(VERSE_TOPIC_INSTRUCTIONS);
     expect(topicFromJevBody(
       { answers: { topic: { type: "choice", choice: "The Lord is my shepherd" } } },
       avoided.questions.topic.criteria,
@@ -128,5 +130,19 @@ describe("BSB lines for a group", () => {
       { label: "John 1:1", text: "In the beginning was the Word." },
       { label: "John 1:3", text: "Through Him all things were made." },
     ]);
+  });
+});
+
+describe("Jev prompt budget", () => {
+  test("a huge group and a big library stay under about 2k tokens", () => {
+    const long = "For God so loved the world that He gave His one and only Son. ".repeat(20);
+    const lines = Array.from({ length: 300 }, (_, i) => ({ label: `Psalm 119:${i + 1}`, text: long }));
+    const taken = Array.from({ length: 500 }, (_, i) => `My own title number ${i}`);
+    const request = jevTopicRequest(lines, taken);
+    const size = JSON.stringify(request).length;
+    expect(size).toBeLessThanOrEqual(JEV_REQUEST_CHAR_BUDGET);
+    expect(Math.ceil(size / 4)).toBeLessThanOrEqual(2200);
+    expect(request.state.verses.length).toBeLessThanOrEqual(8);
+    expect(request.questions.topic.instructions).not.toContain("My own title");
   });
 });

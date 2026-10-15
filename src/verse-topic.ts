@@ -2,16 +2,20 @@
  * One automatic title for a verse group: BSB text of the hub and members,
  * then one Jev Choice. The starred chip is unchanged.
  *
- * The pass runs only while `autoTitled` is false and the saved title is empty.
- * A missing TYPESAFE_API_KEY leaves the placeholder and does not set the flag,
- * so a later request can still name the group. The caller must not retry in a loop.
- * Jev answering None sets the flag and leaves the placeholder.
+ * At most one Jev call per group, ever. The lock (auto_titled) is taken in
+ * D1 before Jev is called, so a timeout, an upstream error, a reload, or a
+ * second tab cannot pay again. A failed call leaves the placeholder title.
+ *
+ * Jev is not called when JEV_TITLES_ENABLED is off, when TYPESAFE_API_KEY is
+ * unset, or when a library, IP, or worker-wide daily cap is spent. Those
+ * skips do not take the lock.
  */
 import { nearestVerseTopic } from "./jev";
 import { listNotes } from "./library";
 import { canonSlug, cleanGroupTitle, NOT_A_VERSE_GROUP, type VerseGroupView } from "./verse-groups";
-import { consumeSuggestTitleQuota } from "./suggest-title-cap";
+import { consumeSuggestTitleQuota, jevTitlesDailyCap, jevTitlesEnabled } from "./suggest-title-cap";
 import {
+  claimAutoTitlePass,
   claimOpenTitle,
   ensureVerseGroupsTable,
   loadVerseGroups,
@@ -20,7 +24,7 @@ import {
 } from "./verse-groups-store";
 import { bsbLinesForSlugs, type AssetFetch } from "./verse-text";
 
-export type TopicSkip = "already" | "no-key" | "no-topic" | "unavailable";
+export type TopicSkip = "already" | "disabled" | "no-key" | "no-topic" | "unavailable";
 
 export type TopicSuggestion =
   | { ok: true; topic: string; group: VerseGroupView; skipped?: TopicSkip }
@@ -37,6 +41,10 @@ export async function suggestVerseGroupTopic(input: {
   /** Connecting IP, for the per-IP daily TypeSafe cap. */
   clientIp?: string;
   fetchImpl?: typeof fetch;
+  /** JEV_TITLES_ENABLED. Off unless "1" or "true". */
+  enabled?: unknown;
+  /** JEV_TITLES_DAILY_CAP. Worker-wide calls per UTC day. */
+  dailyCap?: unknown;
 }): Promise<TopicSuggestion> {
   await ensureVerseGroupsTable(input.db);
   const hub = canonSlug(input.hub);
@@ -69,6 +77,7 @@ export async function suggestVerseGroupTopic(input: {
     }
   }
 
+  if (!jevTitlesEnabled(input.enabled)) return { ok: true, topic: "", group, skipped: "disabled" };
   const apiKey = String(input.apiKey ?? "").trim();
   if (!apiKey) return { ok: true, topic: "", group, skipped: "no-key" };
 
@@ -78,7 +87,13 @@ export async function suggestVerseGroupTopic(input: {
   );
   if (!lines.length) return { ok: true, topic: "", group, skipped: "unavailable" };
 
-  const quota = await consumeSuggestTitleQuota(input.db, input.libraryId, input.clientIp ?? "unknown");
+  const quota = await consumeSuggestTitleQuota(
+    input.db,
+    input.libraryId,
+    input.clientIp ?? "unknown",
+    new Date(),
+    jevTitlesDailyCap(input.dailyCap),
+  );
   if (!quota.allowed) {
     return {
       ok: false,
@@ -88,6 +103,12 @@ export async function suggestVerseGroupTopic(input: {
     };
   }
 
+  // The one pass. Whoever flips the lock calls Jev; everyone else stops here.
+  if (!(await claimAutoTitlePass(input.db, input.libraryId, hub))) {
+    const fresh = await groupFor(input.db, input.libraryId, hub);
+    return { ok: true, topic: fresh?.title ?? group.title, group: fresh ?? group, skipped: "already" };
+  }
+
   const takenTitles = notes.groups.filter((row) => row.hub !== hub).map((row) => row.title);
   const topic = await nearestVerseTopic(lines, {
     apiKey,
@@ -95,17 +116,14 @@ export async function suggestVerseGroupTopic(input: {
     takenTitles,
   });
   if (!topic.ok) {
-    if (topic.error === "No close topic for these verses.") {
-      await markVerseGroupAutoTitled(input.db, input.libraryId, hub);
-      const fresh = await groupFor(input.db, input.libraryId, hub);
-      return {
-        ok: true,
-        topic: "",
-        group: fresh ?? { ...group, autoTitled: true },
-        skipped: "no-topic",
-      };
-    }
-    return { ok: true, topic: "", group, skipped: topic.status === 503 ? "no-key" : "unavailable" };
+    // The lock stays set. A failed or empty answer is final for this group.
+    const fresh = await groupFor(input.db, input.libraryId, hub);
+    return {
+      ok: true,
+      topic: "",
+      group: fresh ?? { ...group, autoTitled: true },
+      skipped: topic.error === "No close topic for these verses." ? "no-topic" : "unavailable",
+    };
   }
 
   const wrote = await saveAutoTitle(input.db, input.libraryId, hub, topic.topic);
