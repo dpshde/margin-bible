@@ -30,12 +30,13 @@ export function authorizeMcp(
   return { ok: true, libraryId: mcpLibraryId(env) };
 }
 
-export function wwwAuthenticateBearer(resourceUrl?: string): string {
-  const parts = ['Bearer realm="margin.bible"', 'error="invalid_token"'];
-  if (resourceUrl) {
-    parts.push(`resource_metadata="${resourceUrl}"`);
-  }
-  return parts.join(", ");
+/**
+ * Plain Bearer challenge. No resource_metadata: margin.bible has no OAuth
+ * metadata, so pointing at one makes OAuth-aware clients fail instead of
+ * falling back to a static Authorization header.
+ */
+export function wwwAuthenticateBearer(): string {
+  return 'Bearer realm="margin"';
 }
 
 function timingSafeEqual(a: string, b: string): boolean {

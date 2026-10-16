@@ -157,8 +157,8 @@ describe("mcp auth", () => {
   });
 
   test("www-authenticate advertises bearer", () => {
-    expect(wwwAuthenticateBearer()).toContain('Bearer realm="margin.bible"');
-    expect(wwwAuthenticateBearer("https://example/meta")).toContain("resource_metadata=");
+    expect(wwwAuthenticateBearer()).toBe('Bearer realm="margin"');
+    expect(wwwAuthenticateBearer()).not.toContain("resource_metadata");
   });
 });
 

@@ -54,14 +54,13 @@ function jsonResponse(body: unknown, status = 200, extra: HeadersInit = {}): Res
 }
 
 function unauthorized(c: Context<{ Bindings: McpEnv; Variables: any }>): Response {
-  const meta = new URL("/.well-known/oauth-protected-resource", c.req.url).toString();
   return jsonResponse(
     {
       error: "invalid_token",
       error_description: "Provide Authorization: Bearer with a valid MCP token.",
     },
     401,
-    { "WWW-Authenticate": wwwAuthenticateBearer(meta) },
+    { "WWW-Authenticate": wwwAuthenticateBearer() },
   );
 }
 
