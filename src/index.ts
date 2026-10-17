@@ -21,7 +21,7 @@ import {
   saveNote,
   type NoteRecord,
 } from "./library";
-import { renderLoginPage } from "./login-page";
+import { renderLoginPage, signedInLoginRedirect } from "./login-page";
 import { buildLibrarySnapshot, snapshotFilename } from "./library-snapshot";
 import { draftNote } from "./notes";
 import { proxyHiddenArrowSearch, proxyHiddenArrowSuggest } from "./ha-search";
@@ -235,6 +235,12 @@ app.get("/apple-touch-icon.png", (c) => servePwaIcon(c));
 app.get("/authorize", async (c) => {
   const oauth = c.env.OAUTH_PROVIDER;
   if (!oauth) return c.text("OAuth is not configured.", 503);
+  if (c.get("signedIn") && !canApprove(c.env, true, c.get("libraryId"))) {
+    return c.html(
+      `<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Margin</title><p style="font:16px system-ui;max-width:28rem;margin:4rem auto">This browser is signed in to a different Margin library. Only the owner's library can connect apps. <a href="/login">Switch library</a>, then start the connection again.</p>`,
+      403,
+    );
+  }
   if (!canApprove(c.env, c.get("signedIn"), c.get("libraryId"))) {
     const u = new URL(c.req.url);
     return c.redirect(`/login?next=${encodeURIComponent(u.pathname + u.search)}`, 302);
@@ -304,6 +310,9 @@ app.get("/login", async (c) => {
             : c.req.query("claimed") === "1"
               ? "Library opened. This browser now has a session for it."
               : undefined;
+  // Already signed in: honor a same-origin next (e.g. MCP OAuth /authorize) instead of the profile.
+  const forward = signedInLoginRedirect(c.get("signedIn"), c.req.query("next"), notice);
+  if (forward) return c.redirect(forward, 302);
   return c.html(await loginHtml(c, { next: c.req.query("next") || "/", notice }));
 });
 
@@ -903,7 +912,7 @@ function safeBack(slug: string): string {
 }
 
 function safeNext(raw: string): string {
-  if (!raw.startsWith("/") || raw.startsWith("//")) return "/";
+  if (!raw.startsWith("/") || raw.startsWith("//") || raw.includes("\\")) return "/";
   if (raw.startsWith("/login") || raw.startsWith("/logout")) return "/";
   return raw;
 }

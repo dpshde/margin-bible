@@ -163,7 +163,8 @@ function passkeyScript(): string {
       if (!cred || !cred.toJSON) throw new Error("No passkey was selected");
       return post("/api/passkey/login/verify", cred.toJSON());
     }).then(function (data) {
-      location.assign(data.next || "/");
+      var nextInput = document.querySelector('input[name="next"]');
+      location.assign((nextInput && nextInput.value) || data.next || "/");
     }).catch(function (error) {
       show(passkeyMessage(error, "Could not sign in with a passkey"));
     });
@@ -224,9 +225,9 @@ function formatPasskeyDate(iso: string): string {
   }).format(date);
 }
 
-function safeNext(raw: string | undefined): string {
+export function safeNext(raw: string | undefined): string {
   if (!raw) return "/";
-  if (!raw.startsWith("/") || raw.startsWith("//")) return "/";
+  if (!raw.startsWith("/") || raw.startsWith("//") || raw.includes("\\")) return "/";
   if (raw.startsWith("/login") || raw.startsWith("/logout")) return "/";
   return raw;
 }
@@ -243,4 +244,11 @@ function iconDownload(): string {
   const d =
     "M224 152v56a16 16 0 0 1-16 16H48a16 16 0 0 1-16-16v-56a8 8 0 0 1 16 0v56h160v-56a8 8 0 0 1 16 0m-101.66 5.66a8 8 0 0 0 11.32 0l40-40a8 8 0 0 0-11.32-11.32L136 132.69V40a8 8 0 0 0-16 0v92.69L93.66 106.34a8 8 0 0 0-11.32 11.32Z";
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="18" height="18" fill="currentColor" aria-hidden="true"><path d="${d}"/></svg>`;
+}
+
+/** Where GET /login should send an already signed-in browser, or null to show the profile. */
+export function signedInLoginRedirect(signedIn: boolean, rawNext: string | undefined, notice?: string): string | null {
+  if (!signedIn || notice) return null;
+  const next = safeNext(rawNext);
+  return next === "/" ? null : next;
 }

@@ -47,3 +47,29 @@ describe("mcp oauth", () => {
     }
   });
 });
+
+import { safeNext, signedInLoginRedirect, renderLoginPage } from "../src/login-page";
+
+describe("login next", () => {
+  test("safeNext keeps same-origin paths and rejects open redirects", () => {
+    expect(safeNext("/authorize?client_id=a&state=b")).toBe("/authorize?client_id=a&state=b");
+    for (const bad of ["//evil.test/x", "https://evil.test", "/\\evil.test", "evil", "/login?next=/x", ""]) {
+      expect(safeNext(bad)).toBe("/");
+    }
+  });
+
+  test("signed-in /login forwards to a safe next instead of the profile", () => {
+    expect(signedInLoginRedirect(true, "/authorize?x=1")).toBe("/authorize?x=1");
+    expect(signedInLoginRedirect(true, "//evil.test")).toBeNull();
+    expect(signedInLoginRedirect(true, "/")).toBeNull();
+    expect(signedInLoginRedirect(true, undefined)).toBeNull();
+    expect(signedInLoginRedirect(false, "/authorize?x=1")).toBeNull();
+    expect(signedInLoginRedirect(true, "/authorize", "Passkey added.")).toBeNull();
+  });
+
+  test("passkey sign-in follows the page's next", () => {
+    const html = renderLoginPage({ next: "/authorize?x=1", signedIn: false, passkeys: true, savedPasskeys: [] } as any);
+    expect(html).toContain('value="/authorize?x=1"');
+    expect(html).toContain('input[name="next"]');
+  });
+});
