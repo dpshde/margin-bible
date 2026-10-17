@@ -64,6 +64,7 @@ import { topicsQueryOpens, verseGroupCardHtml } from "./verse-groups-ui";
 import type { ChapterPack } from "./usj";
 import { ensureBidirectionalXrefs, syncBidirectionalXrefs } from "./xref-sync";
 import { handleMcpDelete, handleMcpGet, handleMcpOptions, handleMcpPost } from "./mcp";
+import { canApprove, consentPage, oauthWorker, type OAuthEnv } from "./oauth";
 import { isPwaAssetPath, manifestResponse, pwaIconAssetPath } from "./pwa";
 
 export type Env = {
@@ -99,6 +100,9 @@ export type Env = {
   PUBLIC_API_RATE_LIMIT?: RateLimitBinding;
   LOGIN_RATE_LIMIT?: RateLimitBinding;
   MCP_RATE_LIMIT?: RateLimitBinding;
+  /** OAuth grants, clients and tokens for /mcp. */
+  OAUTH_KV?: KVNamespace;
+  OAUTH_PROVIDER?: OAuthEnv["OAUTH_PROVIDER"];
 };
 
 type Variables = {
@@ -227,6 +231,58 @@ app.get("/health", (c) => c.json({ ok: true, app: "margin-bible", version: "2026
 app.get("/manifest.webmanifest", () => manifestResponse());
 app.get("/manifest.json", () => manifestResponse());
 app.get("/apple-touch-icon.png", (c) => servePwaIcon(c));
+// MCP OAuth consent. Reuses Margin sign-in; only the MCP library may approve.
+app.get("/authorize", async (c) => {
+  const oauth = c.env.OAUTH_PROVIDER;
+  if (!oauth) return c.text("OAuth is not configured.", 503);
+  if (!canApprove(c.env, c.get("signedIn"), c.get("libraryId"))) {
+    const u = new URL(c.req.url);
+    return c.redirect(`/login?next=${encodeURIComponent(u.pathname + u.search)}`, 302);
+  }
+  let authRequest;
+  try {
+    authRequest = await oauth.parseAuthRequest(c.req.raw);
+  } catch {
+    return c.text("Invalid authorization request.", 400);
+  }
+  const consent = await oauth.describeConsent(authRequest);
+  const tx = await oauth.beginConsent(authRequest);
+  const headers = new Headers(tx.headers);
+  headers.set("content-type", "text/html; charset=utf-8");
+  headers.set("cache-control", "no-store");
+  const client = (consent as any).clientName || authRequest.clientId;
+  const redirectHost = (consent as any).redirectHost || new URL(authRequest.redirectUri).host;
+  return new Response(consentPage({ client, redirectHost, handle: tx.handle }), { headers });
+});
+
+app.post("/authorize", async (c) => {
+  const oauth = c.env.OAUTH_PROVIDER;
+  if (!oauth) return c.text("OAuth is not configured.", 503);
+  const libraryId = c.get("libraryId");
+  if (!canApprove(c.env, c.get("signedIn"), libraryId) || !libraryId) return c.text("Sign in to Margin first.", 403);
+  const form = await c.req.parseBody();
+  const handle = typeof form.handle === "string" ? form.handle : "";
+  try {
+    if (form.decision !== "approve") {
+      const denied = await oauth.denyConsent(c.req.raw, handle);
+      return new Response(null, { status: 302, headers: denied.headers });
+    }
+    const approved = await oauth.approveConsent(c.req.raw, handle);
+    const { redirectTo } = await oauth.completeAuthorization({
+      request: approved.request,
+      userId: libraryId,
+      metadata: { label: "Margin MCP" },
+      scope: approved.request.scope,
+      props: { libraryId },
+    });
+    const headers = new Headers(approved.headers);
+    headers.set("location", redirectTo);
+    return new Response(null, { status: 302, headers });
+  } catch {
+    return c.text("This consent request expired. Start the connection again.", 400);
+  }
+});
+
 app.get("/apple-touch-icon-precomposed.png", (c) => servePwaIcon(c));
 app.get("/icons/*", (c) => servePwaIcon(c));
 
@@ -854,4 +910,6 @@ function safeNext(raw: string): string {
 
 type AppContext = Context<{ Bindings: Env; Variables: Variables }>;
 
-export default app;
+export { app };
+// Workers runtime uses fetch (OAuth wrapper); tests keep Hono's app.request.
+export default Object.assign(oauthWorker(app), { request: app.request.bind(app) });

@@ -45,3 +45,9 @@ function timingSafeEqual(a: string, b: string): boolean {
   for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
   return diff === 0;
 }
+
+/** Library id the OAuth layer (src/oauth.ts) attached to this request, if any. */
+export function oauthLibraryId(executionCtx: unknown): string | null {
+  const props = (executionCtx as { props?: { libraryId?: unknown } } | undefined)?.props;
+  return typeof props?.libraryId === "string" ? props.libraryId : null;
+}

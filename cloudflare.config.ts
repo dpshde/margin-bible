@@ -30,6 +30,8 @@ export default defineConfig({
 				id: "0f48d232-f2d8-46c2-a8a3-3b36c4279feb",
 			}),
 			ASSETS: bindings.assets(),
+			// MCP OAuth clients, grants and tokens (src/oauth.ts).
+			OAUTH_KV: bindings.kv({ id: "85b783830f6a476ca66e70ef6a8c7a92" }),
 			// Workers Rate Limiting. Period is 10 or 60 seconds and counters are per location.
 			// Namespace 73001 is shade-stage-charts; these ids are margin-bible only.
 			// 30/60s per IP for Hidden Arrow search + suggest.

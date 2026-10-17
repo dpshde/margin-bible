@@ -1,11 +1,11 @@
 /**
  * Streamable HTTP MCP (JSON responses, stateless) at /mcp.
  * Compatible with Cursor remote MCP handshake ~2025-11-25.
- * OAuth/DCR deferred — Bearer secret only for this pass.
+ * Auth: OAuth access tokens (src/oauth.ts) or the static MCP_BEARER_TOKEN.
  */
 
 import type { Context } from "hono";
-import { authorizeMcp, wwwAuthenticateBearer, type McpAuthEnv } from "./mcp-auth";
+import { authorizeMcp, oauthLibraryId, wwwAuthenticateBearer, type McpAuthEnv } from "./mcp-auth";
 import {
   callMcpTool,
   MCP_HANDSHAKE_VERSION,
@@ -53,6 +53,16 @@ function jsonResponse(body: unknown, status = 200, extra: HeadersInit = {}): Res
   });
 }
 
+function mcpAuth(c: Context<{ Bindings: McpEnv; Variables: any }>): { ok: true; libraryId: string } | { ok: false } {
+  let viaOAuth: string | null = null;
+  try {
+    viaOAuth = oauthLibraryId(c.executionCtx);
+  } catch {
+    // No execution context (unit tests).
+  }
+  return viaOAuth ? { ok: true, libraryId: viaOAuth } : authorizeMcp(c.env, c.req.header("Authorization"));
+}
+
 function unauthorized(c: Context<{ Bindings: McpEnv; Variables: any }>): Response {
   return jsonResponse(
     {
@@ -69,7 +79,7 @@ export async function handleMcpOptions(): Promise<Response> {
 }
 
 export async function handleMcpGet(c: Context<{ Bindings: McpEnv; Variables: any }>): Promise<Response> {
-  const auth = authorizeMcp(c.env, c.req.header("Authorization"));
+  const auth = mcpAuth(c);
   if (!auth.ok) return unauthorized(c);
   // Stateless JSON transport: no SSE stream. Clients should POST.
   return jsonResponse(
@@ -83,14 +93,14 @@ export async function handleMcpGet(c: Context<{ Bindings: McpEnv; Variables: any
 }
 
 export async function handleMcpDelete(c: Context<{ Bindings: McpEnv; Variables: any }>): Promise<Response> {
-  const auth = authorizeMcp(c.env, c.req.header("Authorization"));
+  const auth = mcpAuth(c);
   if (!auth.ok) return unauthorized(c);
   // Stateless — nothing to tear down.
   return new Response(null, { status: 204, headers: corsHeaders() });
 }
 
 export async function handleMcpPost(c: Context<{ Bindings: McpEnv; Variables: any }>): Promise<Response> {
-  const auth = authorizeMcp(c.env, c.req.header("Authorization"));
+  const auth = mcpAuth(c);
   if (!auth.ok) return unauthorized(c);
 
   let body: unknown;
