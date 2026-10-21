@@ -16,9 +16,26 @@ export type OAuthEnv = McpAuthEnv & { OAUTH_KV?: KVNamespace; OAUTH_PROVIDER?: O
 
 type Handler = { fetch(request: Request, env: any, ctx: ExecutionContext): Response | Promise<Response> };
 
-/** Resource id is per origin so prod, previews and local dev each validate their own audience. */
+/** Same loopback rule as @cloudflare/workers-oauth-provider (http allowed only here). */
+function isLoopbackHostname(hostname: string): boolean {
+  const host = hostname.toLowerCase();
+  if (host === "localhost" || host === "::1" || host === "[::1]") return true;
+  const ipv4 = /^127\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(host);
+  return ipv4 !== null && ipv4.slice(1).every((octet) => Number(octet) <= 255);
+}
+
+/**
+ * Resource id is per origin so prod, previews and local dev each validate their own audience.
+ * Public hosts are always https: workers-oauth-provider 1.x throws
+ * `resourceMetadata.resource is required and must be an absolute HTTPS URI...` when
+ * constructing OAuthProvider with an http resource on a non-loopback host (e.g. cleartext probes).
+ */
 export function mcpResource(requestUrl: string): string {
-  return `${new URL(requestUrl).origin}/mcp`;
+  const url = new URL(requestUrl);
+  if (url.protocol !== "https:" && !isLoopbackHostname(url.hostname)) {
+    url.protocol = "https:";
+  }
+  return `${url.origin}/mcp`;
 }
 
 const providers = new Map<string, OAuthProvider>();
